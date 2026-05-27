@@ -212,8 +212,8 @@ defaults write com.apple.appstore InAppReviewEnabled -int 0
 # === Maccy ===
 
 # https://github.com/p0deje/Maccy
-defaults write org.p0deje.Maccy pasteByDefault true
-defaults write org.p0deje.Maccy historySize 20
+defaults write org.p0deje.Maccy pasteByDefault -bool false
+defaults write org.p0deje.Maccy historySize -int 20
 
 
 # Restarting apps:
