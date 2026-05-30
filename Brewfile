@@ -26,6 +26,8 @@ brew "rtmpdump"
 brew "xz"
 # Get a file from an HTTP, HTTPS or FTP server
 brew "curl"
+# Diff that understands syntax
+brew "difftastic"
 # Clean Docker containers, images, networks, and volumes
 brew "docker-clean"
 # ODBC 3 connectivity for UNIX
@@ -40,8 +42,6 @@ brew "fd"
 brew "fzf"
 # GitHub command-line tool
 brew "gh"
-# Diff that understands syntax
-brew "difftastic"
 # Distributed revision control system
 brew "git"
 # Syntax-highlighting pager for git and diff output
@@ -78,12 +78,16 @@ brew "hexyl"
 brew "lua"
 # Convert source code to formatted text with syntax highlighting
 brew "highlight"
+# Command-line benchmarking tool
+brew "hyperfine"
 # Image manipulation library
 brew "jpeg"
 # Lightweight and flexible command-line JSON processor
 brew "jq"
 # YAML Parser
 brew "libyaml"
+# Next-gen compiler infrastructure
+brew "llvm@21"
 # Mac App Store command-line interface
 brew "mas"
 # Free (GNU) replacement for the Pico text editor
@@ -154,6 +158,8 @@ cask "logitech-g-hub"
 cask "maccy"
 # Open-source software for live streaming and screen recording
 cask "obs"
+# IDE for professional Python development
+cask "pycharm"
 # Move and resize windows using keyboard shortcuts or snap areas
 cask "rectangle"
 # Music streaming service
@@ -168,6 +174,8 @@ cask "the-unarchiver"
 cask "topnotch"
 # Open-source code editor
 cask "visual-studio-code"
+# Multimedia player
+cask "vlc"
 # Gecko based web browser
 cask "zen"
 # Video communication and virtual meeting platform
@@ -179,3 +187,5 @@ vscode "ms-vscode.cpptools"
 vscode "sobolevn.pustota"
 vscode "subframe7536.custom-ui-style"
 vscode "teabyii.ayu"
+vscode "usernamehw.errorlens"
+uv "rust-just"

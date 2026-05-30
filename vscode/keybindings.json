@@ -714,5 +714,14 @@
         "key": "ctrl+enter",
         "command": "-openReferenceToSide",
         "when": "listFocus && referenceSearchVisible && !inputFocus && !treeElementCanCollapse && !treeElementCanExpand && !treestickyScrollFocused"
+    },
+    {
+        "key": "shift+cmd+m",
+        "command": "-workbench.actions.view.problems",
+        "when": "workbench.panel.markers.view.active"
+    },
+    {
+        "key": "shift+cmd+m",
+        "command": "errorLens.toggle"
     }
 ]

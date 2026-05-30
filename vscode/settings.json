@@ -1,4 +1,4 @@
-{
+ {
   // Debug:
   "debug.allowBreakpointsEverywhere": true,
   "debug.javascript.codelens.npmScripts": "never",
@@ -44,6 +44,7 @@
   "window.commandCenter": false,
   "workbench.activityBar.location": "hidden",
   "workbench.editor.tabActionCloseVisibility": false,
+  "workbench.editor.useModal": "off",
   "workbench.hover.delay": 10000, // ms, TODO: find way to turn this off
   "editor.scrollbar.vertical": "auto",
   "editor.scrollbar.horizontal": "hidden",
@@ -247,4 +248,8 @@
       "display": "none !important",
     },
   },
+
+  // Plugin:
+  "errorLens.scrollbarHackEnabled": true,
+  "errorLens.enabled": false,
 }
