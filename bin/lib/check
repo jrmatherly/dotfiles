@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+# Validate shell syntax, ShellCheck supported scripts, and formatting.
+
+set -euo pipefail
+
+shell_scripts=(
+  setup.sh
+  setup/*.sh
+  .claude/hooks/*.sh
+  .claude/skills/*/*.sh
+)
+
+bash_syntax_files=(
+  tilde/.bash_profile
+)
+
+zsh_syntax_files=(
+  tilde/.zshenv
+  tilde/.zshrc
+  zsh/*.zsh
+)
+
+while IFS= read -r script; do
+  shell_scripts+=("$script")
+done < <(
+  # Match shell scripts by shebang
+  find bin -maxdepth 1 -type f \
+    -exec grep -El '^#!(/bin/(ba)?sh|/usr/bin/env (ba)?sh)$' {} + \
+    | grep -v '^bin/license$'
+)
+
+bash -n "${shell_scripts[@]}" "${bash_syntax_files[@]}"
+zsh -n "${zsh_syntax_files[@]}"
+shellcheck --severity=warning "${shell_scripts[@]}"
+# The Claude Code catalog generator's status/cleanup rules (agents/catalog)
+# (Python 3.11+ for tomllib: mise's, not macOS's 3.9 — like bin/claude-catalog)
+if command -v mise > /dev/null; then
+  mise exec python -- python3 agents/catalog/test_build_catalog.py > /dev/null
+else
+  python3 agents/catalog/test_build_catalog.py > /dev/null
+fi
+prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}" "bin/*"

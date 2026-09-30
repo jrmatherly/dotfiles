@@ -1,0 +1,47 @@
+gui:
+  sidePanelWidth: 0.25
+  expandFocusedSidePanel: true
+  nerdFontsVersion: "3"
+  authorColors:
+    "Jason Matherly": "magenta"
+  theme:
+    activeBorderColor:
+      - magenta
+      - bold
+    inactiveBorderColor:
+      - white
+    searchingActiveBorderColor:
+      - cyan
+      - bold
+    optionsTextColor:
+      - white
+    selectedLineBgColor:
+      - "#453461" # Use Squirrelsong Dark purpleLighter color to make it readable
+    cherryPickedCommitBgColor:
+      - cyan
+    cherryPickedCommitFgColor:
+      - blue
+    markedBaseCommitBgColor:
+      - yellow
+    markedBaseCommitFgColor:
+      - blue
+    unstagedChangesColor:
+      - white
+    defaultFgColor:
+      - default
+  showRandomTip: false
+  showCommandLog: false
+git:
+  parseEmoji: true
+  commit:
+    autoWrapCommitMessage: true
+    autoWrapWidth: 72
+  # Newer lazygit (0.65.1 here) renamed `pagers` (`pager:`) to `diffRenderers`
+  # (`command:`); the old key is flagged by the schema
+  diffRenderers:
+    - command: hunk pager
+os:
+  copyToClipboardCmd: "pbcopy < {{text}}"
+  editPreset: "vscode"
+  open: "open {{filename}}"
+  shellFunctionsFile: ~/dotfiles/zsh/aliases.zsh

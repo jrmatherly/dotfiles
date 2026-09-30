@@ -1,0 +1,99 @@
+#!/bin/bash
+#
+# Install this repo's Obsidian setup into your vault, or capture vault changes back.
+# > The repo is the source of truth: `obsidian/.obsidian` (settings, plugins,
+# > snippets, theme) and `obsidian/Meta` (templates, Bases views). Neither
+# > command ever deletes anything. The vault is `$OBSIDIAN_VAULT` (zsh/env.zsh).
+#
+# - Install the repo's config and templates into the vault (quit Obsidian first):
+#
+# `obsidian-vault install`
+#
+# - Copy settings/templates you changed in Obsidian back into the repo:
+#
+# `obsidian-vault capture`
+#
+# ---
+# License: MIT
+
+set -euo pipefail
+
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+REPO_OBSIDIAN="$DOTFILES/obsidian"
+VAULT="${OBSIDIAN_VAULT:-$HOME/Library/Mobile Documents/com~apple~CloudDocs/Notes}"
+
+# Folders the templates, Bases views and daily notes expect
+VAULT_FOLDERS=(Inbox Projects Resources/Food Resources/Clippings Resources/Books
+  Resources/Movies Resources/Places Resources/Videos Logbook)
+# Notes the bookmarks point to — created empty, only when missing
+STARTER_NOTES=(Dashboard.md Inbox/Quickies.md Resources/Food/Recipes.md)
+# Per-machine UI state Obsidian rewrites constantly; never copied either way
+EXCLUDES=(--exclude workspace.json --exclude workspace-mobile.json --exclude .DS_Store)
+
+usage() {
+  sed -n '/^# - /,/^# ---/p' "$0" | sed -e 's/^# \{0,1\}//' -e '/^---$/d'
+}
+
+obsidian_running() {
+  pgrep -xq Obsidian
+}
+
+install() {
+  if obsidian_running; then
+    echo "Obsidian is running — quit it first, or it may overwrite the installed settings on exit." >&2
+    exit 1
+  fi
+  if [ ! -d "$(dirname "$VAULT")" ]; then
+    echo "Can't create $VAULT: its parent folder doesn't exist." >&2
+    exit 1
+  fi
+
+  mkdir -p "$VAULT/.obsidian" "$VAULT/Meta"
+  for folder in "${VAULT_FOLDERS[@]}"; do
+    mkdir -p "$VAULT/$folder"
+  done
+
+  rsync -a "${EXCLUDES[@]}" "$REPO_OBSIDIAN/.obsidian/" "$VAULT/.obsidian/"
+  echo "✔ settings, plugins, snippets and theme → $VAULT/.obsidian"
+  rsync -a "${EXCLUDES[@]}" "$REPO_OBSIDIAN/Meta/" "$VAULT/Meta/"
+  echo "✔ templates and Bases views → $VAULT/Meta"
+
+  for note in "${STARTER_NOTES[@]}"; do
+    if [ ! -e "$VAULT/$note" ]; then
+      : > "$VAULT/$note"
+      echo "✔ created empty $note"
+    fi
+  done
+
+  echo
+  echo "Done. Open the vault in Obsidian (Open folder as vault → $VAULT)."
+}
+
+capture() {
+  if [ ! -d "$VAULT/.obsidian" ]; then
+    echo "No Obsidian vault at $VAULT (set OBSIDIAN_VAULT, or run 'obsidian-vault install' first)." >&2
+    exit 1
+  fi
+
+  rsync -a "${EXCLUDES[@]}" "$VAULT/.obsidian/" "$REPO_OBSIDIAN/.obsidian/"
+  echo "✔ $VAULT/.obsidian → obsidian/.obsidian"
+  if [ -d "$VAULT/Meta" ]; then
+    rsync -a "${EXCLUDES[@]}" "$VAULT/Meta/" "$REPO_OBSIDIAN/Meta/"
+    echo "✔ $VAULT/Meta → obsidian/Meta"
+  fi
+
+  echo
+  echo "Review before committing (plugin data can contain tokens):"
+  git -C "$DOTFILES" status --short -- obsidian
+}
+
+case "${1:-}" in
+  install) install ;;
+  capture) capture ;;
+  -h | --help | "") usage ;;
+  *)
+    echo "Unknown command: $1" >&2
+    usage >&2
+    exit 1
+    ;;
+esac

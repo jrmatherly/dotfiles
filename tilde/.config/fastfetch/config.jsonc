@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fastfetch-cli/fastfetch/dev/doc/json_schema.json",
+  "logo": {
+    "type": "file",
+    "source": "$HOME/.config/fastfetch/ascii/deadpool-katanas.ascii",
+    // Hex, not ANSI names: the terminal theme remaps "black" and "white" to
+    // purples, and the Deadpool logos need a true red, black and white.
+    // Slots 1-6 are also the ones the original nyan logos use.
+    "color": {
+      "1": "#4caf50",
+      "2": "#ffd23f",
+      "3": "#d62828",
+      "4": "#9b59d0",
+      "5": "#3b8beb",
+      "6": "#f5f5f5",
+      "7": "#141414",
+      "8": "#a7adb5",
+      "9": "#f28c28"
+    }
+  },
+  "modules": [
+    {
+      "type": "custom",
+      "format": "\u001b[1mJason Matherly\u001b[0m"
+    },
+    "separator",
+    {
+      "type": "custom",
+      "key": "URL",
+      "keyColor": "yellow",
+      "format": "https://matherly.net"
+    },
+    {
+      "type": "custom",
+      "key": "Font",
+      "keyColor": "yellow",
+      "format": "Hack Nerd Font Mono"
+    },
+    {
+      "type": "os",
+      "format": "{2} {10} {8} ({11})"
+    },
+    {
+      "type": "shell",
+      "format": "{1} v{4} ({7})"
+    },
+    "terminal",
+    {
+      "type": "uptime",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "weather",
+      "location": "Atlanta",
+      // `&u` forces Fahrenheit (wttr.in otherwise guesses units from your IP)
+      "outputFormat": "%t+-+%C+(%l)&u",
+      "keyColor": "magenta"
+    },
+    "break",
+    "colors"
+  ]
+}

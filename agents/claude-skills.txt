@@ -1,0 +1,11 @@
+# User skills installed with the `skills` CLI — see bin/claude-config.
+# skill <name> <source> <agents>
+skill archify tt-a1i/archify claude-code
+skill better-auth-best-practices better-auth/skills claude-code,codex
+skill better-auth-security-best-practices better-auth/skills claude-code,codex
+skill create-auth better-auth/skills claude-code,codex
+skill email-and-password-best-practices better-auth/skills claude-code,codex
+skill find-skills vercel-labs/skills claude-code,codex
+skill microsoft-foundry microsoft/azure-skills codex
+skill organization-best-practices better-auth/skills claude-code,codex
+skill two-factor-authentication-best-practices better-auth/skills claude-code,codex

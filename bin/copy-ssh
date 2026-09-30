@@ -1,0 +1,23 @@
+#!/bin/bash
+#
+# Copy my SSH public key to the clipboard.
+#
+# - Copy the key:
+#
+# `copy-ssh`
+#
+# ---
+# License: MIT
+
+# Keys live in 1Password; ~/.ssh/github_personal.pub is the public key that
+# tilde/.ssh/config pins GitHub to. Fall back to a classic key file if present.
+for file in "$HOME/.ssh/github_personal.pub" "$HOME/.ssh/id_ed25519.pub"; do
+  if [ -f "$file" ]; then
+    pbcopy < "$file"
+    printf '=> Public SSH key copied to clipboard (%s).\n' "${file/#$HOME/~}"
+    exit 0
+  fi
+done
+
+echo "No public key found (looked for ~/.ssh/github_personal.pub and ~/.ssh/id_ed25519.pub)." >&2
+exit 1

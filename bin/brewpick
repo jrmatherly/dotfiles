@@ -1,0 +1,118 @@
+#!/bin/bash
+#
+# Install Homebrew formulae, casks, and VS Code extensions from the dotfiles
+# Brewfile — either all at once, or interactively via fzf.
+#
+# - Install everything in setup/Brewfile:
+#
+# `brewpick --all`
+#
+# - Interactively pick what to install (TAB to multi-select, ENTER to install):
+#
+# `brewpick`
+#
+# > Reads setup/Brewfile by default; set `HOMEBREW_BUNDLE_FILE` to use another
+# > one (zsh/env.zsh already points it at this repo's Brewfile).
+#
+# ---
+# License: MIT
+
+set -euo pipefail
+
+# Resolve the repo location from this script's own path, falling back to
+# $DOTFILES (exported by ~/.zshenv)
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+
+BREWFILE="${HOMEBREW_BUNDLE_FILE:-$DOTFILES/setup/Brewfile}"
+
+if [[ ! -f "$BREWFILE" ]]; then
+  echo "Brewfile not found at $BREWFILE" >&2
+  exit 1
+fi
+
+if [[ "${1:-}" == "--all" ]]; then
+  # `manual` entries aren't real Homebrew packages (e.g. paid fonts requiring
+  # a personal download) and would make `brew bundle` fail, so strip them
+  # from the bundle-file input via stdin instead of passing the file directly.
+  grep -v '^manual ' "$BREWFILE" | brew bundle install --file -
+  exit $?
+fi
+
+command -v fzf &> /dev/null || {
+  echo "fzf is required for interactive selection. Run 'brewpick --all' to install everything instead." >&2
+  exit 1
+}
+
+# Reads the Brewfile and prints one line per brew/cask/vscode entry, tagged
+# with its kind and the most recent '# Category' comment header, e.g.:
+#   brew   [Security / pentesting] nmap # Network scanning
+extract() {
+  local category=""
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^#\ (.+)$ ]]; then
+      category="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^(brew|cask|vscode|manual)\ \"([^\"]+)\"(.*)$ ]]; then
+      printf '%-7s [%s] %s%s\n' "${BASH_REMATCH[1]}" "$category" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+    fi
+  done < "$BREWFILE"
+}
+
+selections=$(extract | fzf --multi \
+  --header 'TAB to select, ENTER to install, ESC to cancel' \
+  --prompt 'Install ▶ ')
+
+if [[ -z "$selections" ]]; then
+  echo "Nothing selected."
+  exit 0
+fi
+
+# VSCode extensions need an editor CLI. `brew bundle` installs the
+# visual-studio-code cask itself when one is missing, but here we're calling the
+# CLI directly, so find it up front — Code, Cursor, VSCodium and Insiders all
+# accept `--install-extension`.
+vscode_cli=""
+for candidate in code cursor codium code-insiders; do
+  if command -v "$candidate" &> /dev/null; then
+    vscode_cli="$candidate"
+    break
+  fi
+done
+
+while IFS= read -r line; do
+  kind=$(awk '{print $1}' <<< "$line")
+  # `extract` pads the kind with %-7s, so allow runs of whitespace here —
+  # matching a single space silently left `id` as the entire formatted line
+  # (and stop at a comma, so `name", trusted: true` yields just the name)
+  id=$(sed -E 's/^[^ ]+[[:space:]]+\[[^]]*\][[:space:]]+([^[:space:],]+).*/\1/' <<< "$line")
+
+  # Entries marked `trusted: true` come from third-party taps, which Homebrew
+  # refuses to load until trusted — `brew bundle` applies that from the
+  # Brewfile, but a direct `brew install` needs it done explicitly first
+  if [[ "$line" == *"trusted: true"* ]]; then
+    case "$kind" in
+      brew) brew trust --formula "$id" ;;
+      cask) brew trust --cask "$id" ;;
+    esac
+  fi
+
+  case "$kind" in
+    brew) brew install "$id" ;;
+    cask) brew install --cask "$id" ;;
+    vscode)
+      if [[ -n "$vscode_cli" ]]; then
+        "$vscode_cli" --install-extension "$id"
+      else
+        echo "Skipping $id: no VSCode CLI found. Install the editor first (brew install --cask visual-studio-code)." >&2
+      fi
+      ;;
+    manual)
+      url=$(grep -oE 'https?://[^ ]+' <<< "$line" | head -1)
+      if [[ -n "$url" ]]; then
+        echo "Opening $id: $url"
+        open "$url"
+      else
+        echo "No URL found for manual entry: $id" >&2
+      fi
+      ;;
+  esac
+done <<< "$selections"

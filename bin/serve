@@ -1,0 +1,20 @@
+#!/bin/bash
+#
+# Serve current directory with an HTTP server.
+#
+# - Start a server with the default port (`8080`):
+#
+# `serve`
+#
+# - Start a server with a specific port:
+#
+# `serve {{port}}`
+#
+# ---
+# See more: https://www.devdungeon.com/content/one-line-http-servers#python3
+#
+# License: MIT
+
+port="${1:-8080}"
+open "http://localhost:${port}/"
+ruby -run -e httpd . -p "$port"

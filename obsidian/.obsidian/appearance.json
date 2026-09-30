@@ -1,0 +1,14 @@
+{
+  "textFontFamily": "IosevkaCode Nerd Font",
+  "cssTheme": "Squirrelsong",
+  "baseFontSize": 19,
+  "monospaceFontFamily": "Hack Nerd Font Mono",
+  "showRibbon": false,
+  "accentColor": "#806f9b",
+  "interfaceFontFamily": "SF Pro",
+  "showViewHeader": true,
+  "enabledCssSnippets": [
+    "custom"
+  ],
+  "theme": "system"
+}

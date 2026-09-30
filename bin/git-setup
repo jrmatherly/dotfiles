@@ -1,0 +1,47 @@
+#!/bin/bash
+#
+# Set up a git repository if one doesn't exist, add all files and make an initial commit.
+#
+# - Set up a git repository in the current working directory:
+#
+# `git-setup`
+#
+# - Set up a git repository in a custom directory:
+#
+# `git-setup {{path/to/repository}}`
+#
+# - Set up a git repository in the current working directory with a custom commit message:
+#
+# `git-setup -m {{commit_message}}`
+#
+# - Set up a git repository in the custom directory with a custom commit message:
+#
+# `git-setup -m {{commit_message}} {{path/to/repository}}`
+#
+# ---
+# Based on https://github.com/tj/git-extras/blob/master/bin/git-setup
+#
+# License: MIT
+
+COMMIT_MESSAGE='Initial commit'
+
+if [ "$1" == "-m" ]; then
+  COMMIT_MESSAGE=$2
+  shift
+  shift
+fi
+
+gitdirexists() {
+  if [ -d ".git" ]; then
+    echo ".git directory already exists, aborting"
+    exit 1
+  fi
+}
+
+dir=$(test -z "$*" && echo "." || echo "$*")
+mkdir -p "$dir" \
+  && cd "$dir" \
+  && gitdirexists \
+  && git init \
+  && git add . \
+  && git commit --allow-empty -m "$COMMIT_MESSAGE"

@@ -1,0 +1,77 @@
+#!/bin/bash
+#
+# Install the Iosevka Code Nerd Font (VS Code's font, companion of the SpaceBox theme) into ~/Library/Fonts, or reinstall it when the release zip changed upstream.
+#
+# - Install the font if it's missing, update it if upstream changed:
+#
+# `install-iosevka-code`
+#
+# ---
+# License: MIT
+
+set -euo pipefail
+
+# No Homebrew cask, so fetch the release zip directly. The author has replaced
+# the zip under the same tag before (the asset is newer than the v1.0.0
+# release), so comparing tags would miss changes. Ask the server instead: send
+# the ETag saved at install time and an unchanged zip answers 304, no download.
+URL="https://github.com/amnweb/Iosevka-Code/releases/latest/download/IosevkaCodeNerdFont.zip"
+# SHA-256 of the zip as reviewed on 2026-09-30: 10 TTFs, Iosevka 28.0.5, SIL
+# OFL 1.1. It detects change, it doesn't block: a different zip is installed
+# too, with a notice on every run until this is updated.
+REVIEWED_SHA256="cbd60ba0b91fe6b51615d47befee13badcba96b888bb613d12dfc005c62cc8e2"
+
+FONTS_DIR="$HOME/Library/Fonts"
+# What's installed on this machine: the zip's SHA-256 and its ETag
+SHA_FILE="$FONTS_DIR/.IosevkaCodeNerdFont.sha256"
+ETAG_FILE="$FONTS_DIR/.IosevkaCodeNerdFont.etag"
+
+warning() {
+  tput setaf 1
+  echo "/!\\ $1 /!\\"
+  tput sgr0
+}
+
+notify_if_unreviewed() {
+  [ "$1" = "$REVIEWED_SHA256" ] && return
+  warning "The Iosevka Code zip differs from the reviewed one"
+  echo "Installed SHA-256: $1"
+  echo "Review it, then set REVIEWED_SHA256 in bin/install-iosevka-code"
+}
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+# Fonts deleted by hand, or installed without this script: forget the state so
+# the zip downloads again
+if ! compgen -G "$FONTS_DIR/IosevkaCodeNerdFont-*.ttf" > /dev/null || [ ! -s "$SHA_FILE" ]; then
+  rm -f "$SHA_FILE" "$ETAG_FILE"
+fi
+installed_sha="$(cat "$SHA_FILE" 2> /dev/null || true)"
+
+mkdir -p "$FONTS_DIR"
+touch "$ETAG_FILE"
+# curl empties the --etag-save file on a 304, hence a separate file
+curl -fsSL --etag-compare "$ETAG_FILE" --etag-save "$tmp/etag" -o "$tmp/font.zip" "$URL"
+
+if [ ! -s "$tmp/font.zip" ]; then
+  echo "Iosevka Code is up to date"
+  notify_if_unreviewed "$installed_sha"
+  exit 0
+fi
+
+sha="$(shasum -a 256 "$tmp/font.zip" | cut -d ' ' -f 1)"
+if [ "$sha" != "$installed_sha" ]; then
+  # Unpack aside first so a broken zip leaves the installed fonts alone; -j
+  # drops any directories in the zip
+  mkdir "$tmp/ttf"
+  unzip -qj "$tmp/font.zip" '*.ttf' -d "$tmp/ttf"
+  rm -f "$FONTS_DIR"/IosevkaCodeNerdFont-*.ttf
+  mv "$tmp"/ttf/*.ttf "$FONTS_DIR/"
+  echo "$sha" > "$SHA_FILE"
+  echo "Installed Iosevka Code into ~/Library/Fonts (restart apps to pick it up)"
+else
+  echo "Iosevka Code is up to date"
+fi
+mv "$tmp/etag" "$ETAG_FILE"
+notify_if_unreviewed "$sha"

@@ -1,0 +1,51 @@
+{
+  // Extensionless dotfiles: VS Code otherwise guesses the language from the
+  // content, and a file full of `#` comments becomes Markdown — markdownlint
+  // then reports dozens of problems in it (43 in tilde/.inputrc)
+  "files.associations": {
+    "Brewfile": "ruby",
+    ".gitconfig.*": "properties",
+    ".inputrc": "properties",
+    ".curlrc": "properties",
+    ".ripgreprc": "properties",
+    ".ackrc": "properties",
+    ".hushlogin": "plaintext",
+    ".gitmessage": "git-commit",
+    ".shellcheckrc": "properties",
+    "**/ghostty/config": "properties",
+    "**/ghostty/themes/*": "properties"
+  },
+  // This repo is mostly live config, symlinked into $HOME. Format-on-save
+  // rewrote several files that were only opened and saved: zsh parsed as bash,
+  // extensionless files guessed as Markdown and "fixed" by markdownlint,
+  // .gitconfig stripped of its indentation. So here it is off, VS Code doesn't
+  // guess a language for files it can't identify, and format-on-save is turned
+  // back on only for the file types Prettier is meant to handle. Shell scripts
+  // are left out on purpose (zsh and bash share a language mode): `pnpm format`
+  // and `pnpm check` cover them.
+  "editor.formatOnSave": false,
+  "workbench.editor.languageDetection": false,
+  "[markdown]": {
+    "editor.formatOnSave": true
+  },
+  "[json]": {
+    "editor.formatOnSave": true
+  },
+  "[jsonc]": {
+    "editor.formatOnSave": true
+  },
+  "[javascript]": {
+    "editor.formatOnSave": true
+  },
+  "[typescript]": {
+    "editor.formatOnSave": true
+  },
+  "git.ignoreLimitWarning": true,
+  // zsh completion functions have no extension, so the ShellCheck extension's
+  // default zsh patterns miss them; ShellCheck doesn't support zsh. Object
+  // settings merge, so the defaults still apply.
+  "shellcheck.ignorePatterns": {
+    "**/zsh-completions/**": true
+  },
+  "cSpell.words": ["brewfile", "Catppuccin", "dotfiles", "Ghostty", "gitignore"]
+}

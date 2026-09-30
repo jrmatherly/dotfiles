@@ -1,0 +1,24 @@
+#!/bin/bash
+#
+# Update the dotfiles repo by pulling the latest changes.
+# > Re-run `setup.sh --skip-brew` afterwards to apply any new symlinks.
+#
+# - Pull the latest dotfiles:
+#
+# `dotfiles`
+#
+# ---
+# License: MIT
+
+set -eu
+
+# Resolve the repo location from this script's own path, falling back to
+# $DOTFILES (exported by ~/.zshenv)
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+
+cd "$DOTFILES" || exit 1
+
+echo "Pulling changes from upstream…"
+git pull
+echo
+echo "🦏 Open a new terminal for the changes to take effect."

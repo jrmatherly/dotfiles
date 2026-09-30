@@ -1,0 +1,39 @@
+{
+  "items": [
+    {
+      "type": "file",
+      "ctime": 1766182383418,
+      "path": "Dashboard.md"
+    },
+    {
+      "type": "file",
+      "ctime": 1766183172271,
+      "path": "Meta/Bases/On this day.base",
+      "title": "📆 On this day"
+    },
+    {
+      "type": "file",
+      "ctime": 1766182429559,
+      "path": "Inbox/Quickies.md",
+      "title": "🐰 Quickies"
+    },
+    {
+      "type": "file",
+      "ctime": 1766183154445,
+      "path": "Meta/Bases/Recent logs.base",
+      "title": "🛸 Recent logs"
+    },
+    {
+      "type": "file",
+      "ctime": 1766182202870,
+      "path": "Meta/Bases/Untagged logs.base",
+      "title": "🚧 Untagged journals"
+    },
+    {
+      "type": "file",
+      "ctime": 1778973510983,
+      "path": "Resources/Food/Recipes.md",
+      "title": "🥘 Recipes"
+    }
+  ]
+}

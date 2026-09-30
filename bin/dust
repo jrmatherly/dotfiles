@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+# List the size of files & dirs in the current directory.
+#
+# - List the size:
+#
+# `dust`
+#
+# ---
+# License: MIT
+
+du -sh -- * | sort -hr

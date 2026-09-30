@@ -1,0 +1,29 @@
+vscode/User/prompts/
+obsidian/
+bin/license
+# zsh: prettier-plugin-sh parses it as bash and breaks it (`$+functions[x]`,
+# `${keys[Ctrl+K]}`). `pnpm check`'s globs never match these, but VS Code's
+# format-on-save does.
+*.zsh
+zsh/zsh-completions/
+tilde/.zshrc
+tilde/.zshenv
+tilde/.zprofile
+ql-plugins/
+# Remember plugin memory (ignored by its own .remember/.gitignore)
+.remember/
+
+# Files that tools write and rewrite themselves. Reformatting them makes each
+# tool and prettier undo each other's changes, so prettier leaves them alone:
+# - CLAUDE.md (any depth): maintained by the auto-memory plugin
+# - .serena/: Serena's project config and memories
+# - .claude/auto-memory/: auto-memory's config and state
+# - docs/superpowers/: implementation plans written and checked off by agents
+# - .superpowers/: plan-execution scratch (git-ignored by its own nested
+#   .gitignore, which prettier doesn't read)
+CLAUDE.md
+.serena/
+.claude/auto-memory/
+docs/superpowers/
+.superpowers/
+private/

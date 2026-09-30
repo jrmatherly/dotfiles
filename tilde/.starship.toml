@@ -1,0 +1,41 @@
+# https://starship.rs/config/
+# Run `starship explain` to help dissect the current prompt
+
+# Allow longer-running commands to keep executing without failing with a warning.
+# 3000 ms covers git's first run in a repo after a reboot, when
+# `core.fsmonitor = true` (tilde/.gitconfig) has to start its background daemon
+# and do a full scan; after that, git status is well under 200 ms.
+command_timeout = 3000
+
+# Nerd Fonts nf-seti-coffee \ue61b
+format = """\
+   $directory\
+  $custom\
+  $git_state\
+  $git_status\
+  $line_break\
+  $character\
+  """
+
+[directory]
+style = "bold white"
+repo_root_style = "bold"
+read_only = "" # Nerd Fonts nf-fa-lock \uf023
+
+[git_status]
+format = '[$ahead_behind]($style)'
+ahead      = "⇡${count} "
+diverged   = "⇕⇡${ahead_count}⇣${behind_count} "
+behind     = "⇣${count} "
+
+[character]
+# Nerd Fonts nf-fa-angle_right \f105
+success_symbol = "[](bold green)"
+error_symbol = "[](bold red)"
+
+[custom.git_simple]
+command = "starship-git-simple"
+require_repo = true
+when = true
+ignore_timeout = true
+style = ""

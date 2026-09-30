@@ -1,0 +1,68 @@
+# Claude Code marketplaces and user-scope plugins — see bin/claude-config.
+# "disabled" = installed but turned off.
+marketplace aspire-skills microsoft/aspire-skills
+marketplace claude-code-docs costiash/claude-code-docs
+marketplace claude-code-warp warpdotdev/claude-code-warp
+marketplace claude-plugins-official anthropics/claude-plugins-official
+marketplace cole-medin coleam00/skills
+marketplace ponytail DietrichGebert/ponytail
+marketplace severity1-marketplace severity1/severity1-marketplace
+marketplace ui-ux-pro-max-skill nextlevelbuilder/ui-ux-pro-max-skill
+marketplace voltagent-subagents VoltAgent/awesome-claude-code-subagents
+plugin agent-sdk-dev@claude-plugins-official
+plugin aspire@aspire-skills
+plugin auto-memory@severity1-marketplace
+plugin azure@claude-plugins-official
+plugin browser-use@claude-plugins-official
+plugin chrome-devtools-mcp@claude-plugins-official
+plugin claude-code-setup@claude-plugins-official
+plugin claude-docs@claude-code-docs
+plugin claude-md-management@claude-plugins-official
+plugin claude-security@claude-plugins-official
+plugin cloudflare@claude-plugins-official
+plugin code-review@claude-plugins-official
+plugin code-simplifier@claude-plugins-official
+plugin commit-commands@claude-plugins-official
+plugin feature-dev@claude-plugins-official
+plugin frontend-design@claude-plugins-official
+plugin github@claude-plugins-official disabled
+plugin gopls-lsp@claude-plugins-official
+plugin grafana-mcp@claude-plugins-official disabled
+plugin hookify@claude-plugins-official
+plugin langfuse-observability@claude-plugins-official
+plugin langfuse@claude-plugins-official
+plugin logfire@claude-plugins-official
+plugin mcp-server-dev@claude-plugins-official
+plugin microsoft-docs@claude-plugins-official
+plugin modern-web-guidance@claude-plugins-official
+plugin plugin-dev@claude-plugins-official
+plugin ponytail@ponytail
+plugin pr-review-toolkit@claude-plugins-official
+plugin preset-cli-skills@claude-plugins-official
+plugin prompt-improver@severity1-marketplace
+plugin pydantic-ai@claude-plugins-official
+plugin pyright-lsp@claude-plugins-official
+plugin qdrant-skills@claude-plugins-official
+plugin redis-development@claude-plugins-official
+plugin remember@claude-plugins-official
+plugin rust-analyzer-lsp@claude-plugins-official
+plugin security-guidance@claude-plugins-official
+plugin session-report@claude-plugins-official
+plugin skill-creator@claude-plugins-official
+plugin skills@cole-medin
+plugin superdesign@claude-plugins-official
+plugin superpowers@claude-plugins-official
+plugin typescript-lsp@claude-plugins-official
+plugin ui-ux-pro-max@ui-ux-pro-max-skill
+plugin voltagent-biz@voltagent-subagents
+plugin voltagent-core-dev@voltagent-subagents
+plugin voltagent-data-ai@voltagent-subagents
+plugin voltagent-dev-exp@voltagent-subagents
+plugin voltagent-domains@voltagent-subagents
+plugin voltagent-infra@voltagent-subagents
+plugin voltagent-lang@voltagent-subagents
+plugin voltagent-meta@voltagent-subagents
+plugin voltagent-qa-sec@voltagent-subagents
+plugin voltagent-research@voltagent-subagents
+plugin warp@claude-code-warp
+plugin workos@claude-plugins-official

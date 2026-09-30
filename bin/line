@@ -1,0 +1,20 @@
+#!/bin/bash
+#
+# Print a specific line number from a specified file.
+#
+# - Single line:
+#
+# `line {{line number}} {{file}}`
+#
+# - Multiple lines:
+#
+# `line {{from,to(incl)}} {{file}}`
+#
+# ---
+# License: MIT
+
+set -euo pipefail
+
+lineno="$1"
+shift
+sed -n "${lineno}p" "$@"

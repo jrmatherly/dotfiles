@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+#
+# Human readable password generator.
+#
+# - Generate a password:
+#
+# `passphrase`
+#
+# ---
+# Based on https://github.com/Version2beta/passphrase
+#
+# License: MIT
+
+NAMES_DICT = "/usr/share/dict/propernames"
+DICT = "/usr/share/dict/words"
+
+import random
+
+with open(NAMES_DICT) as f:
+  name = random.sample(list(f), 1)
+with open(DICT) as f:
+  words = random.sample(list(f), 2)
+phrase = name[0].rstrip().lower()
+
+for word in words:
+  phrase = phrase + word.rstrip().lower()
+print(phrase)

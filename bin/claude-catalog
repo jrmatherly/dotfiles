@@ -1,0 +1,31 @@
+#!/bin/bash
+#
+# Build the catalog of installed Claude Code skills, commands, subagents and MCP servers (with a task guide, usage and cleanup status).
+#
+# - Rebuild it in ~/.claude/catalog (CATALOG.md, CATALOG-lite.md, catalog.html):
+#
+# `claude-catalog`
+#
+# - Build it somewhere else:
+#
+# `claude-catalog --out {{path/to/dir}}`
+#
+# ---
+# Generator and hand-edited notes: agents/catalog/ (build_catalog.py, curated.toml).
+# Exits 1 when curated.toml names something that isn't installed.
+#
+# License: MIT
+
+set -euo pipefail
+
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+build=(python3 "$DOTFILES_DIR/agents/catalog/build_catalog.py")
+
+# It needs Python 3.11+ (tomllib); macOS's /usr/bin/python3 is 3.9, and setup
+# scripts may run before mise's shims are on PATH, so ask mise for its Python
+if command -v mise &> /dev/null; then
+  build=(mise exec python -- "${build[@]}")
+fi
+
+# A later --out from the caller wins (argparse keeps the last one)
+exec "${build[@]}" --out "$HOME/.claude/catalog" "$@"

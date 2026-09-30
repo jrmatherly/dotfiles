@@ -1,0 +1,8 @@
+// Intentionally empty (VS Code defaults).
+//
+// nicksp's original dotfiles shipped an extensive custom keymap here (swapping
+// cmd+p/cmd+o, remapping panel toggles to cmd+1/2/3, etc.). Jason's actual
+// machine has never had a keybindings.json — it's running stock VS Code
+// shortcuts — so applying that remap would silently break muscle memory.
+// Add your own bindings here if/when you want to customize.
+[]

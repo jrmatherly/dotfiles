@@ -1,0 +1,35 @@
+Brewfile.lock.json
+node_modules/
+.DS_Store
+Thumbs.db
+vscode/**/workspaceStorage/
+vscode/**/syncLocalSettings.json
+vscode/**/globalStorage/
+vscode/**/History/
+# VS Code Settings Sync's local cache (snapshots of synced state, not config)
+vscode/**/sync/
+# VS Code profiles (per-machine; the Default profile is vscode/User itself)
+vscode/**/profiles/
+lazygit/state.yml
+# Written by hunk itself (the last CLI version it saw), not config
+tilde/.config/hunk/state.json
+.tlrc/
+private/
+tilde/.ssh/*
+!tilde/.ssh/config
+tilde/.config/amp/settings.json.amp-write-meta
+# Written by `gh auth login`; can contain an OAuth token
+tilde/.config/gh/hosts.yml
+
+# Obsidian
+obsidian/**/workspace.json
+obsidian/**/workspace-mobile.json
+
+# CodeGraph index (per machine; `codegraph index` rebuilds it — codegraph.json is the shared config)
+.codegraph/
+
+# Claude Code auto-memory
+.claude/auto-memory/dirty-files*
+
+# Python bytecode (agents/catalog test runs)
+__pycache__/

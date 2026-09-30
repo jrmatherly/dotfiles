@@ -1,0 +1,80 @@
+#!/bin/bash
+#
+# Install this repo's Squirrelsong color themes into apps.
+# > The theme files are owned by the repo — nothing is downloaded. bat, btop and
+# > Ghostty read theirs straight from the repo through the ~/.config symlinks.
+#
+# - Install or refresh the themes:
+#
+# `install-color-themes`
+#
+# - Also copy the Obsidian theme into a vault:
+#
+# `OBSIDIAN_VAULT={{path/to/vault}} install-color-themes`
+#
+# ---
+# License: MIT
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+DOTFILES_DIR="$(pwd -P)"
+
+if [ -t 1 ] && tput setaf 1 &> /dev/null; then
+  CYAN=$(tput setaf 6)
+  BOLD=$(tput bold)
+  UNDERLINE=$(tput sgr 0 1)
+  RESET=$(tput sgr0)
+else
+  CYAN="" BOLD="" UNDERLINE="" RESET=""
+fi
+
+header() {
+  echo
+  echo -e "${UNDERLINE}${CYAN}${1}${RESET}"
+  echo
+}
+
+#
+# bat: custom themes only load after the cache is rebuilt
+#
+
+header "bat"
+if command -v bat &> /dev/null; then
+  bat cache --build > /dev/null && echo "  ✔ theme cache rebuilt from tilde/.config/bat/themes"
+else
+  echo "  bat isn't installed — skipped"
+fi
+
+#
+# btop, Ghostty and cmux read the repo's files directly
+#
+
+header "btop, Ghostty, cmux"
+echo "  Nothing to do: they use tilde/.config/btop/themes and tilde/.config/ghostty/themes"
+echo "  through the ~/.config symlinks (cmux renders terminals with the Ghostty config)."
+
+#
+# Obsidian — copied into a vault when OBSIDIAN_VAULT is set
+#
+
+header "Obsidian"
+obsidian_src="$DOTFILES_DIR/obsidian/.obsidian/themes/Squirrelsong"
+if [ -n "${OBSIDIAN_VAULT:-}" ] && [ -d "$OBSIDIAN_VAULT" ]; then
+  obsidian_dest="$OBSIDIAN_VAULT/.obsidian/themes/Squirrelsong"
+  mkdir -p "$obsidian_dest"
+  cp -f "$obsidian_src/manifest.json" "$obsidian_src/theme.css" "$obsidian_dest/"
+  echo "  ✔ copied to $obsidian_dest"
+  echo "  Select ${BOLD}Squirrelsong${RESET} in Obsidian → Settings → Appearance → Themes"
+else
+  echo "  Skipped — run with OBSIDIAN_VAULT=/path/to/vault to copy the theme into a vault."
+fi
+
+#
+# Apps that import a theme file through their own settings
+#
+
+header "Import in the app"
+echo "  Nimble Commander: ${BOLD}nimble-commander/themes/Squirrelsong Light.json${RESET} → Settings → Themes"
+echo "  Syntax Highlight: ${BOLD}syntax-highlight/themes/Squirrelsong Light.theme${RESET} → its color scheme settings"
+echo "  CotEditor:        ${BOLD}coteditor/themes/Squirrelsong Light.cottheme${RESET} → Settings → Appearance → import"

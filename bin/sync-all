@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# Apply the repo's app setup: Obsidian vault config and templates, then color themes.
+#
+# - Run the synchronization:
+#
+# `sync-all`
+#
+# ---
+# License: MIT
+
+set -euo pipefail
+
+# Resolve the repo location from this script's own path, falling back to
+# $DOTFILES (exported by ~/.zshenv)
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+
+BOLD=$(tput bold)
+RESET=$(tput sgr0)
+
+"$DOTFILES/bin/obsidian-vault" install
+echo "✅ ${BOLD}Done${RESET}"
+echo
+
+"$DOTFILES/bin/install-color-themes"
+echo "✅ ${BOLD}Done${RESET}"
+echo

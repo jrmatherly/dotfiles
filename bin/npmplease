@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+# One-liner to solve npm issues when package management is giving trouble.
+#
+# - Clean up local Node packages installation:
+#
+# `npmplease`
+#
+# ---
+# License: MIT
+
+rm -rf ./node_modules/ && rm -f package-lock.json && ni --prefer-offline

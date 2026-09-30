@@ -1,0 +1,423 @@
+# Taps
+#
+# Homebrew requires explicit trust before loading anything from a third-party
+# tap (https://docs.brew.sh/Tap-Trust). Rather than trusting whole taps — which
+# covers everything they publish in future too — each package below that comes
+# from a tap is fully qualified and marked `trusted: true` individually.
+
+# Dotfiles framework
+tap "modem-dev/tap" # hunk (git pager)
+
+# Cloud / infra
+tap "azure/azd"
+# Homebrew also *loads* (never installs) a versioned formula's unversioned
+# sibling while linking it, so `azure-functions-core-tools` (v2.7) must be
+# trusted too for `azure-functions-core-tools@4` to install.
+tap "azure/functions", trusted: { formulae: ["azure-functions-core-tools"] } # azure-functions-core-tools@4
+tap "azure/kubelogin"
+tap "kubestellar/tap" # kubestellar-deploy / kubestellar-ops
+tap "microsoft/aspire"
+tap "microsoft/foundry"
+tap "siderolabs/tap"
+tap "skyhook-io/tap" # radar (Kubernetes visibility)
+
+# Fonts
+tap "bramstein/webfonttools"
+
+# Dotfiles framework requirements
+#
+# These tools are wired directly into the zsh/git config in this repo
+# (see zsh/init.zsh, zsh/fzf.zsh, zsh/aliases.zsh, zsh/path.zsh, tilde/.gitconfig).
+# Removing them will break prompt rendering, fzf previews, git signing, etc.
+brew "ack" # Better grep for source code (tilde/.ackrc)
+brew "bat" # Output highlighting (better `cat`), used in fzf previews
+brew "btop" # Performance monitor (better `top`), config tracked in tilde/.config/btop
+brew "eza" # Listing files with info (better `ls`), used in fzf previews
+brew "fastfetch" # System info, config tracked in tilde/.config/fastfetch
+brew "fd" # Find entries in your filesystem (better `find`), used by fzf
+brew "fzf" # Fuzzy file finder, core to zsh/fzf.zsh
+brew "gh" # GitHub CLI, config tracked in tilde/.config/gh
+brew "git" # Version control
+brew "gnupg" # Optional: only needed if you sign commits with GPG instead of SSH
+brew "modem-dev/tap/hunk", trusted: true # Git pager used by tilde/.gitconfig, lazygit and gh
+brew "lazygit" # Full Git management app (zsh `lg` alias)
+brew "mise" # Polyglot runtime version manager — required: setup/misc.sh installs runtimes with it, tilde/.zprofile and zsh/init.zsh activate it
+brew "pinentry-mac" # Securely enter your GPG passphrase (only needed with GPG signing)
+brew "ripgrep" # Searching within files (better `grep`), tilde/.ripgreprc
+brew "starship" # Prompt manager, tilde/.starship.toml
+brew "tlrc" # Community-maintained docs (better `man`), tilde/.tlrc.toml
+brew "trash-cli", link: true # Record and restore removed files (better `rm`)
+brew "zoxide" # Convenient and magical navigation (better `cd`)
+brew "zsh" # A shell of choice
+brew "zsh-autosuggestions" # Fish-like autosuggestions for Zsh
+brew "zsh-fast-syntax-highlighting" # Feature-rich syntax highlighting for Zsh
+brew "jesseduffield/lazydocker/lazydocker", trusted: true # Full Docker management app (zsh `ld` alias)
+cask "cmux" # Terminal for AI agents, config tracked in tilde/.config/cmux
+cask "codex" # OpenAI Codex CLI, config tracked in tilde/.codex
+cask "coteditor" # `cot` CLI required: tilde/.gitconfig core.editor, zsh/env.zsh $EDITOR
+cask "ghostty" # Config tracked in tilde/.config/ghostty
+cask "visual-studio-code" # Main code editor; vscode/User settings symlinked to it
+
+# Cloud / Azure / AWS
+brew "aws-cdk" # AWS Cloud Development Kit
+brew "awscli" # Official Amazon AWS command-line interface
+brew "azure-cli" # Azure CLI (`az`) — also a dependency of the devpack cask
+brew "azure/azd/azd", trusted: true # Azure Developer CLI
+brew "azure/kubelogin/kubelogin", trusted: true # Azure AD login for kubectl
+brew "azure/functions/azure-functions-core-tools@4", trusted: true # Azure Functions Core Tools
+brew "azurite" # Local Azure Storage emulator
+cask "microsoft/aspire/aspire", trusted: true # .NET Aspire tooling
+# Microsoft's official SDK build at /usr/local/share/dotnet — what workloads,
+# Aspire and VS tooling expect. Do NOT also install the `dotnet` formula: both
+# claim /opt/homebrew/bin/dotnet (Homebrew/homebrew-core#275368).
+cask "dotnet-sdk" # .NET SDK
+cask "microsoft/foundry/devpack", trusted: true # Microsoft dev pack
+
+# Kubernetes / containers / infra
+brew "docker" # Docker CLI
+brew "docker-buildx" # Docker Buildx plugin
+brew "docker-compose" # Docker Compose plugin (OrbStack also ships its own)
+brew "flux" # GitOps toolkit for Kubernetes
+brew "govc" # VMware govc CLI
+brew "helm" # Kubernetes package manager
+brew "jfrog-cli" # JFrog Artifactory/Xray CLI
+brew "kubernetes-cli" # kubectl
+brew "kustomize" # Kubernetes config customization
+brew "kubestellar/tap/kubestellar-deploy", trusted: true # KubeStellar multi-cluster deployment CLI
+brew "kubestellar/tap/kubestellar-ops", trusted: true # KubeStellar multi-cluster ops CLI
+brew "siderolabs/tap/talosctl", trusted: true # Talos Linux/Kubernetes CLI
+brew "skyhook-io/tap/radar", trusted: true # Kubernetes topology/traffic/Helm visibility (kubectl-radar)
+cask "freelens" # Kubernetes IDE (Lens fork)
+cask "orbstack" # Container runtime, ships `docker-compose` as well
+
+# DevOps / CI / linting
+brew "actionlint" # GitHub Actions workflow linter
+brew "ansible" # Configuration management / automation
+brew "ast-grep" # Structural code search/lint
+brew "biome" # JS/TS formatter and linter
+brew "golangci-lint" # Go linters aggregator
+brew "golines" # Go long-line formatter, run on save by VS Code (emeraldwalk.runonsave)
+brew "gopls" # Go language server
+brew "hadolint" # Dockerfile linter
+brew "just" # Command runner
+brew "markdownlint-cli" # Markdown linter
+brew "markdownlint-cli2" # Markdown linter (v2)
+brew "mermaid-cli" # Render Mermaid diagrams
+brew "pipx" # Install Python CLI tools in isolated envs
+brew "ruff" # Fast Python linter/formatter
+brew "uv" # Fast Python package/project manager
+
+# Security / pentesting
+brew "aircrack-ng" # Wi-Fi security auditing suite
+brew "bfg" # Remove large/secret files from git history
+brew "binwalk" # Firmware/binary analysis
+brew "cifer" # Classical cipher cracking
+brew "dex2jar" # Android dex to jar conversion
+brew "dns2tcp" # Tunnel TCP over DNS
+brew "fcrackzip" # Zip password cracking
+brew "foremost" # File carving/recovery
+brew "hydra" # Network login cracker
+brew "john" # John the Ripper password cracker
+brew "knock" # Port knocking client/server
+brew "nmap" # Network scanning
+brew "sops" # Encrypted secrets manager
+brew "sqlmap" # SQL injection testing
+brew "vbindiff" # Binary file comparison
+
+# Networking / system utilities
+brew "lynx" # Text-based web browser
+brew "mtr" # Network diagnostics (traceroute + ping)
+brew "openssh" # SSH client/server
+brew "prettyping" # Colorized ping (zsh `ping` alias)
+brew "rlwrap" # Readline wrapper for other CLIs
+brew "screen" # Terminal multiplexer
+brew "socat" # Multipurpose relay for bidirectional data transfer
+brew "ssh-copy-id" # Install SSH keys on remote hosts
+brew "tcpflow" # Capture and analyze TCP flows
+brew "tcpreplay" # Replay captured network traffic
+brew "tmux" # Terminal multiplexer
+brew "ucspi-tcp" # TCP client/server utilities
+
+# Languages / runtimes / build tools
+brew "cmake" # Build system generator
+brew "cmake-docs" # CMake documentation
+brew "coreutils" # GNU core utilities (macOS ships outdated BSD versions)
+brew "cue" # CUE data validation language
+brew "findutils" # GNU find/xargs (macOS ships outdated BSD versions)
+brew "gnu-sed" # GNU sed (macOS ships outdated BSD version)
+brew "grep" # GNU grep (macOS ships outdated BSD version)
+brew "moreutils" # Extra useful Unix utilities (sponge, vidir, etc.)
+brew "perl"
+brew "php"
+brew "pnpm" # Efficient Node.js package manager
+# PowerShell is installed as a .NET global tool by setup/misc.sh — the
+# `powershell` formula depends on the `dotnet` formula, which conflicts with
+# the official dotnet-sdk cask over /opt/homebrew/bin/dotnet.
+brew "openjdk" # Java SDK
+brew "protobuf" # Protocol Buffers compiler
+brew "vim"
+brew "yarn" # Node.js package manager
+brew "yq" # YAML/JSON/XML processor (like jq)
+brew "z3" # SMT theorem prover
+
+# File / text / image processing
+brew "bash-completion@2" # Bash completion
+brew "bats-core" # Bash testing framework
+brew "binutils" # GNU binary tools
+brew "ffmpeg" # Audio/video conversion
+brew "ghostscript" # PostScript/PDF interpreter
+brew "git-lfs" # Git Large File Storage
+brew "imagemagick" # Image manipulation
+brew "jq" # JSON processor
+brew "mole" # Reveal Little Snitch-style network connections
+brew "netpbm" # Image format conversion toolkit
+brew "p7zip" # 7-Zip archiver
+brew "pigz" # Parallel gzip
+brew "pngcheck" # PNG file validator
+brew "pv" # Monitor data through a pipeline
+brew "rename" # Batch file renaming
+brew "tesseract" # OCR (used by bin/ocr)
+brew "webp" # cwebp encoder — required by bin/optimize-image
+brew "tree-sitter" # Parser generator/incremental parsing
+brew "wget" # File retrieval via HTTP/FTP
+brew "woff2" # WOFF2 font format tools
+brew "xpdf" # PDF utilities
+brew "bramstein/webfonttools/sfnt2woff", trusted: true # Web font conversion
+
+# GUI apps
+cask "1password" # Password manager
+cask "1password-cli" # 1Password CLI integration
+cask "comet" # Perplexity's AI browser (default browser; auto-updates itself)
+cask "font-anonymice-nerd-font"
+cask "font-fira-code-nerd-font" # VS Code fallback; its main font, Iosevka Code, has no cask: bin/install-iosevka-code
+cask "font-hack-nerd-font"
+cask "font-profont-nerd-font"
+cask "font-sauce-code-pro-nerd-font"
+cask "font-tinos-nerd-font"
+cask "font-ubuntu-nerd-font"
+cask "git-credential-manager" # Git credential storage/auth helper
+cask "iterm2" # Terminal emulator
+cask "nimble-commander" # File manager (zsh `ff` alias, vscode/User/tasks.json)
+cask "obsidian" # Markdown knowledge base (configs tracked in obsidian/)
+cask "raycast" # Launcher / clipboard history / window management
+cask "royal-tsx" # Remote connection manager (RDP/SSH/VNC)
+cask "syntax-highlight" # Quick Look previews with syntax highlighting (theme in syntax-highlight/)
+cask "utm" # QEMU-based virtual machines
+cask "warp" # Agentic terminal
+
+# Fonts (optional, skipped by `brewpick --all`)
+#
+# MonoLisa is a paid font (personal license, no Homebrew cask) — select it via
+# `bin/brewpick` to open the purchase/download page. Raw `brew bundle` rejects
+# a `manual` line outright; `brewpick --all` strips these before running it.
+manual "MonoLisa" # https://www.monolisa.dev/
+
+# VS Code extensions
+#
+# `bin/brewpick --all` installs all of these (it strips the `manual` entries
+# above, which raw `brew bundle` rejects). Run `bin/brewpick` with no arguments
+# to interactively select a subset via fzf instead.
+
+# AI / Copilot / agents
+vscode "anthropic.claude-code"
+vscode "coder.coder-remote"
+vscode "mintlify.document"
+vscode "ms-azuretools.vscode-azure-github-copilot"
+vscode "ms-vscode.vscode-chat-customizations-evaluations"
+vscode "ms-windows-ai-studio.windows-ai-studio"
+
+# Azure
+vscode "apidev.azure-api-center"
+vscode "azurite.azurite"
+vscode "microsoft-aspire.aspire-vscode"
+vscode "ms-azure-load-testing.microsoft-testing"
+vscode "ms-azuretools.azure-dev"
+vscode "ms-azuretools.vscode-apimanagement"
+vscode "ms-azuretools.vscode-azure-functions-remote-web"
+vscode "ms-azuretools.vscode-azure-functions-web"
+vscode "ms-azuretools.vscode-azure-mcp-server"
+vscode "ms-azuretools.vscode-azureappservice"
+vscode "ms-azuretools.vscode-azurecontainerapps"
+vscode "ms-azuretools.vscode-azurefunctions"
+vscode "ms-azuretools.vscode-azurelogicapps"
+vscode "ms-azuretools.vscode-azureresourcegroups"
+vscode "ms-azuretools.vscode-azurestaticwebapps"
+vscode "ms-azuretools.vscode-azurestorage"
+vscode "ms-azuretools.vscode-azurevirtualmachines"
+vscode "ms-azuretools.vscode-bicep"
+vscode "ms-azuretools.vscode-cosmosdb"
+vscode "ms-gbb-tools.spec2cloud-toolkit"
+vscode "ms-vscode.azure-repos"
+vscode "ms-vscode.azurecli"
+vscode "ms-vscode.vscode-node-azure-pack"
+vscode "teamsdevapp.ms-teams-vscode-extension"
+vscode "weaveworks.vscode-gitops-tools"
+
+# Docker / Kubernetes / infra
+vscode "docker.docker"
+vscode "exiasr.hadolint"
+vscode "hashicorp.terraform"
+vscode "metalbear.mirrord"
+vscode "ms-azuretools.vscode-containers" # Auto-installed by Docker extension
+vscode "ms-azuretools.vscode-docker"
+vscode "ms-kubernetes-tools.vscode-kubernetes-tools"
+vscode "nitinranganath.vscode-coolify"
+vscode "redis.redis-for-vscode"
+
+# Python
+vscode "batisteo.vscode-django"
+vscode "charliermarsh.ruff"
+vscode "kevinrose.vsc-python-indent"
+vscode "meta.pyrefly"
+vscode "ms-python.black-formatter" # Kept for cloned projects that format with Black
+vscode "ms-python.debugpy"
+vscode "ms-python.flake8" # Kept for cloned projects that lint with flake8
+vscode "ms-python.isort" # Kept for cloned projects that sort imports with isort
+vscode "ms-python.python"
+vscode "ms-python.vscode-pylance"
+vscode "ms-python.vscode-python-envs"
+vscode "ms-pyright.pyright"
+vscode "ms-toolsai.jupyter"
+vscode "ms-toolsai.jupyter-keymap"
+vscode "ms-toolsai.jupyter-renderers"
+vscode "ms-toolsai.vscode-jupyter-cell-tags"
+vscode "ms-toolsai.vscode-jupyter-slideshow"
+vscode "njpwerner.autodocstring"
+vscode "the0807.uv-toolkit"
+
+# .NET / C# / PHP / Java / Go / Rust / Dart
+vscode "dart-code.dart-code"
+vscode "dart-code.flutter"
+vscode "devsense.composer-php-vscode"
+vscode "devsense.intelli-php-vscode"
+vscode "devsense.phptools-vscode"
+vscode "devsense.profiler-php-vscode"
+vscode "golang.go"
+vscode "llvm-vs-code-extensions.vscode-clangd"
+vscode "ms-dotnettools.csdevkit"
+vscode "ms-dotnettools.csharp"
+vscode "ms-dotnettools.vscode-dotnet-runtime"
+vscode "prisma.prisma"
+vscode "redhat.java"
+vscode "rust-lang.rust-analyzer"
+vscode "shopify.ruby-lsp"
+vscode "vscjava.vscode-gradle"
+vscode "vscjava.vscode-java-debug"
+vscode "vscjava.vscode-java-dependency"
+vscode "vscjava.vscode-java-pack"
+vscode "vscjava.vscode-java-test"
+vscode "vscjava.vscode-maven"
+
+# Web / frontend
+vscode "antfu.browse-lite"
+vscode "antfu.unocss"
+vscode "antfu.vite"
+vscode "astro-build.astro-vscode"
+vscode "bradlc.vscode-tailwindcss"
+vscode "csstools.postcss"
+vscode "dsznajder.es7-react-js-snippets"
+vscode "ecmel.vscode-html-css"
+vscode "firefox-devtools.vscode-firefox-debug"
+vscode "formulahendry.auto-rename-tag"
+vscode "graphql.vscode-graphql"
+vscode "graphql.vscode-graphql-syntax"
+vscode "ms-vscode.vscode-typescript-next"
+vscode "oven.bun-vscode"
+vscode "oxc.oxc-vscode"
+vscode "svelte.svelte-vscode"
+vscode "typescriptteam.native-preview"
+vscode "voidzero.vite-plus-extension-pack"
+vscode "vue.volar"
+vscode "vunguyentuan.vscode-css-variables"
+vscode "vunguyentuan.vscode-postcss"
+
+# Git / GitHub / productivity
+vscode "alefragnani.bookmarks"
+vscode "dionmunk.vscode-notes"
+vscode "donjayamanne.githistory"
+vscode "eamodio.gitlens"
+vscode "flyfly6.terminal-in-status-bar"
+vscode "github.remotehub"
+vscode "github.vscode-codeql"
+vscode "github.vscode-github-actions"
+vscode "github.vscode-pull-request-github"
+vscode "gruntfuggly.todo-tree"
+vscode "mhutchie.git-graph"
+vscode "tombonnike.vscode-status-bar-format-toggle"
+vscode "wayou.vscode-todo-highlight"
+
+# Remote / testing / debug / data
+vscode "cweijan.dbclient-jdbc"
+vscode "cweijan.vscode-database-client2"
+vscode "firsttris.vscode-jest-runner"
+vscode "humao.rest-client"
+vscode "ms-playwright.playwright"
+vscode "ms-vscode-remote.remote-containers"
+vscode "ms-vscode-remote.remote-ssh"
+vscode "ms-vscode-remote.remote-ssh-edit"
+vscode "ms-vscode.remote-explorer"
+vscode "ms-vscode.remote-repositories"
+vscode "orta.vscode-jest"
+vscode "qwtel.sqlite-viewer"
+vscode "vitest.explorer"
+
+# Formatting / linting / quality
+vscode "biomejs.biome"
+vscode "blueglassblock.better-json5"
+vscode "cuelangorg.vscode-cue"
+vscode "davidanson.vscode-markdownlint"
+vscode "dbaeumer.vscode-eslint"
+vscode "dotjoshjohnson.xml"
+vscode "drblury.protobuf-vsc"
+vscode "editorconfig.editorconfig"
+vscode "esbenp.prettier-vscode"
+vscode "fill-labs.dependi"
+vscode "mechatroner.rainbow-csv"
+vscode "pascalreitermann93.vscode-yaml-sort"
+vscode "redhat.ansible"
+vscode "redhat.vscode-xml"
+vscode "redhat.vscode-yaml"
+vscode "rvest.vs-code-prettier-eslint"
+vscode "stoplight.spectral"
+vscode "stylelint.vscode-stylelint"
+vscode "tamasfe.even-better-toml"
+vscode "timonwong.shellcheck"
+vscode "tombi-toml.tombi"
+vscode "usernamehw.errorlens"
+vscode "yoavbls.pretty-ts-errors"
+
+# Themes / UI / misc
+vscode "aaron-bond.better-comments"
+vscode "adpyke.codesnap"
+vscode "atlassian.atlascode"
+vscode "bierner.emojisense"
+vscode "bierner.markdown-mermaid"
+vscode "christian-kohler.npm-intellisense"
+vscode "christian-kohler.path-intellisense"
+vscode "codezombiech.gitignore"
+vscode "deerawan.vscode-dash"
+vscode "emeraldwalk.runonsave"
+vscode "evilz.vscode-reveal"
+vscode "formulahendry.code-runner"
+vscode "hverlin.mise-vscode"
+vscode "irongeek.vscode-env"
+vscode "jfrog.jfrog-vscode-extension"
+vscode "lokalise.i18n-ally"
+vscode "matthewpi.caddyfile-support"
+vscode "mikestead.dotenv"
+vscode "ms-vscode.cmake-tools"
+vscode "ms-vscode.cpp-devtools"
+vscode "ms-vscode.makefile-tools"
+vscode "ms-vscode.powershell"
+vscode "oderwat.indent-rainbow"
+vscode "samuelcolvin.jinjahtml"
+vscode "shd101wyy.markdown-preview-enhanced"
+vscode "signageos.signageos-vscode-sops"
+vscode "simonsiefke.svg-preview"
+vscode "spacebox.spacebox-theme"
+vscode "spacebox.spacebox-ui"
+vscode "tomoki1207.pdf"
+vscode "unifiedjs.vscode-mdx"
+vscode "vadimcn.vscode-lldb"
+vscode "wholroyd.jinja"
+vscode "yzhang.markdown-all-in-one"

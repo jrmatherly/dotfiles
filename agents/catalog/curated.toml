@@ -1,0 +1,462 @@
+# Hand-written layer for build_catalog.py. Survives re-runs.
+#   [[builtin]]     things that ship with Claude Code (not discoverable from files)
+#   [[connector]]   claude.ai connectors (configured in the claude.ai account, not on disk)
+#   [mcp.<name>]    description + tool summary for an MCP server found on disk
+#   [notes]         extra "use when / don't confuse with" note for any item, by exact name
+#   [[group]]       task guide: overlapping options for one job, with a default pick
+# The build fails (exit 1) if a group or note names something that isn't installed.
+
+intro = """
+Every skill, slash command, subagent and MCP server available to Claude Code on this machine.
+Start with the task guide: it covers the areas where several tools overlap and says which one to use.
+"""
+
+# ---------- internal helpers ----------
+# Run by their own plugin (or by a hook); not meant to be invoked directly. Hidden with the "hide" switch.
+internal = [
+  "claude-security:explore", "claude-security:patch-generator", "claude-security:patch-verifier",
+  "claude-security:scan-inventory", "claude-security:scan-loader", "claude-security:scan-redactor",
+  "claude-security:scan-researcher", "claude-security:scan-verifier",
+  "auto-memory:codebase-analyzer", "auto-memory:memory-processor", "auto-memory:memory-updater",
+  "superpowers:using-superpowers", "prompt-improver:prompt-improver",
+]
+
+# ---------- built-ins ----------
+
+[[builtin]]
+name = "code-review"
+desc = "Review the current diff, a PR, branch or path for correctness bugs, at effort low/medium/high/max, or 'ultra' for a multi-agent cloud review. --comment posts inline PR comments; --fix applies the findings."
+[[builtin]]
+name = "simplify"
+desc = "Review changed code for reuse, simplification and efficiency, then apply the fixes. Quality only; it does not hunt for bugs."
+[[builtin]]
+name = "security-review"
+desc = "Security-focused review of pending changes on the current branch."
+[[builtin]]
+name = "init"
+desc = "Create a CLAUDE.md that documents the codebase."
+[[builtin]]
+name = "run"
+desc = "Launch and drive this project's app to see a change working (CLI, server, TUI, Electron, browser)."
+[[builtin]]
+name = "loop"
+desc = "Run a prompt or slash command on a recurring interval (e.g. /loop 5m /foo), or let the model pace itself."
+[[builtin]]
+name = "schedule"
+desc = "Create or manage scheduled cloud agents (routines) on a cron schedule, or as one-off timed runs."
+[[builtin]]
+name = "fewer-permission-prompts"
+desc = "Scan transcripts for common read-only calls and add an allowlist to .claude/settings.json."
+[[builtin]]
+name = "update-config"
+desc = "Edit settings.json: hooks ('whenever X, do Y'), permissions, env vars."
+[[builtin]]
+name = "keybindings-help"
+desc = "Customize keyboard shortcuts in ~/.claude/keybindings.json."
+[[builtin]]
+name = "claude-api"
+desc = "Reference for the Claude API / Anthropic SDK: model IDs, pricing, tool use, caching, streaming, agents."
+[[builtin]]
+name = "claude-in-chrome"
+desc = "Drive your own Chrome through the Claude extension: click, fill forms, screenshot, read the console. Needs per-site permission."
+[[builtin]]
+name = "dataviz"
+desc = "Design rules for any chart, graph or dashboard: form choice, accessible palette, marks, interaction."
+[[builtin]]
+name = "artifact-design"
+desc = "Design contract for publishing an HTML page as a claude.ai Artifact."
+[[builtin]]
+name = "artifact-diagramming"
+desc = "How to draw a legible inline-SVG diagram inside an Artifact."
+[[builtin]]
+name = "artifact-capabilities"
+desc = "Runtime capabilities for Artifacts: shared DB, viewer identity, asking Claude, file storage."
+[[builtin]]
+name = "workflow-authoring"
+desc = "Reference for writing multi-agent Workflow scripts. Only use it after the user opts into a workflow."
+
+# Core CLI commands (not skills; always available). kind defaults to "skill" for [[builtin]].
+[[builtin]]
+kind = "command"
+name = "/help"
+desc = "List commands and keyboard shortcuts."
+[[builtin]]
+kind = "command"
+name = "/clear"
+desc = "Start a fresh conversation (wipes context)."
+[[builtin]]
+kind = "command"
+name = "/compact"
+desc = "Summarize the conversation to free context, optionally with focus instructions."
+[[builtin]]
+kind = "command"
+name = "/context"
+desc = "Show what's using the context window."
+[[builtin]]
+kind = "command"
+name = "/cost"
+desc = "Show token usage and cost for the session."
+[[builtin]]
+kind = "command"
+name = "/model"
+desc = "Switch the model."
+[[builtin]]
+kind = "command"
+name = "/fast"
+desc = "Toggle fast mode (Opus with faster output)."
+[[builtin]]
+kind = "command"
+name = "/resume"
+desc = "Resume a previous session."
+[[builtin]]
+kind = "command"
+name = "/config"
+desc = "Open the settings UI (theme, model, defaults)."
+[[builtin]]
+kind = "command"
+name = "/permissions"
+desc = "View and edit allow/deny rules for tools."
+[[builtin]]
+kind = "command"
+name = "/hooks"
+desc = "Browse configured hooks."
+[[builtin]]
+kind = "command"
+name = "/memory"
+desc = "Edit CLAUDE.md memory files."
+[[builtin]]
+kind = "command"
+name = "/status"
+desc = "Show account, model and connection status."
+[[builtin]]
+kind = "command"
+name = "/doctor"
+desc = "Diagnose the Claude Code installation."
+[[builtin]]
+kind = "command"
+name = "/plugin"
+desc = "Browse, install, enable/disable plugins and marketplaces."
+[[builtin]]
+kind = "command"
+name = "/skills"
+desc = "List available skills."
+[[builtin]]
+kind = "command"
+name = "/mcp"
+desc = "Manage MCP servers: status, authentication, reconnect."
+[[builtin]]
+kind = "command"
+name = "/agents"
+desc = "Create and manage subagents."
+[[builtin]]
+kind = "command"
+name = "/artifacts"
+desc = "List your published Artifacts (o opens, c copies link)."
+
+# Built-in subagents (Agent tool, subagent_type = name)
+[[builtin]]
+kind = "agent"
+name = "general-purpose"
+desc = "Default subagent for multi-step research or code search where the first few tries might miss."
+[[builtin]]
+kind = "agent"
+name = "Explore"
+desc = "Read-only, fast, broad search across many files. Returns conclusions, not file dumps."
+[[builtin]]
+kind = "agent"
+name = "Plan"
+desc = "Read-only architect that returns a step-by-step implementation plan."
+[[builtin]]
+kind = "agent"
+name = "claude-code-guide"
+desc = "Answers 'how do I… in Claude Code / Agent SDK / Claude API' questions from the docs."
+
+# ---------- claude.ai connectors ----------
+
+[[connector]]
+name = "Gmail"
+desc = "claude.ai connector (mcp__claude_ai_Gmail__*). Must be authenticated before first use."
+[[connector]]
+name = "Google Calendar"
+desc = "claude.ai connector (mcp__claude_ai_Google_Calendar__*). Must be authenticated before first use."
+[[connector]]
+name = "Google Drive"
+desc = "claude.ai connector (mcp__claude_ai_Google_Drive__*). Must be authenticated first. Load anthropic-skills:google-workspace before writing files."
+[[connector]]
+name = "Claude Docs"
+desc = "claude.ai connector (mcp__claude_ai_Claude_Docs__*): living shared documents with comments. Use it when someone asks for a 'doc'."
+
+# ---------- MCP servers ----------
+
+[mcp.codegraph]
+desc = "SQLite code knowledge graph. One call returns a symbol's source plus its call paths and blast radius. Only in repos with a .codegraph/ dir; try it BEFORE grep."
+tools = "codegraph_explore (pass projectPath for other repos)"
+[mcp.serena]
+desc = "LSP-backed semantic code navigation and symbol-level editing, plus project memories. Launched with --project-from-cwd, so don't call activate_project."
+tools = "find_symbol, find_referencing_symbols, get_symbols_overview, replace_symbol_body, insert_before/after_symbol, rename_symbol, safe_delete_symbol, *_memory"
+[mcp.mise]
+desc = "mise tool/task manager: list and run tasks, install tool versions, read env/config."
+tools = "list_commands (check effects first), run_task, install_tool"
+[mcp.astro-docs]
+desc = "Search the official Astro framework docs."
+tools = "search_astro_docs"
+[mcp.better-auth]
+desc = "Search and fetch Better Auth docs (version-aware: resolve the project's version first)."
+tools = "search_docs, get_doc"
+[mcp.coolify]
+desc = "Self-hosted Coolify PaaS at deploy.matherly.net. Only loaded inside ~/dev/coolify."
+[mcp.azure]
+desc = "Azure MCP: 70+ tools covering nearly every Azure service (ARM, AKS, App Service, Functions, Cosmos, SQL, Key Vault, Monitor, pricing, quotas, best practices, azd/az CLI generation)."
+tools = "one tool per service, e.g. aks, appservice, cosmos, keyvault, monitor, pricing, deploy, get_azure_bestpractices, extension_cli_generate"
+[mcp.browser-use]
+desc = "Browser Use: CDP control of your Chrome (logged-in session) or a cloud browser, from Python snippets. Use it for interaction, scraping or bot-protected pages; plain fetch covers public pages."
+tools = "browser_exec, browser_screenshot"
+[mcp.chrome-devtools]
+desc = "Chrome DevTools protocol: navigate, click, fill, snapshot the DOM, and inspect console and network. Also performance traces, Lighthouse, heap snapshots. Best tool for debugging web apps."
+tools = "navigate_page, click, fill_form, take_snapshot, take_screenshot, list_console_messages, list_network_requests, performance_start/stop_trace, lighthouse_audit, take_heapsnapshot"
+[mcp.cloudflare]
+desc = "Cloudflare API and docs: search docs, execute account API operations."
+tools = "docs, search, execute"
+[mcp.logfire]
+desc = "Pydantic Logfire observability: SQL over traces/logs/metrics, exception issues, dashboards, alerts, managed prompts/variables. Tools you lack token scope for are hidden."
+tools = "query_run, query_schema_reference, issue_list/get, dashboard_*, alert_*, prompt_*, variable_*, local_dev_session"
+[mcp.microsoft-learn]
+desc = "Official Microsoft/Azure docs: search, code samples, full-page fetch."
+tools = "microsoft_docs_search, microsoft_code_sample_search, microsoft_docs_fetch"
+[mcp.github]
+desc = "GitHub's hosted MCP (needs GITHUB_PERSONAL_ACCESS_TOKEN). Disabled; the gh CLI covers most needs."
+[mcp.grafana]
+desc = "Grafana MCP via Docker (needs GRAFANA_URL + service-account token). Disabled."
+
+# ---------- notes on confusable items ----------
+
+[notes]
+"voltagent-dev-exp:visual-asset-generator" = "Needs the prompt-to-asset MCP server, which is NOT installed here, so this agent can't do its main job."
+"skills:setup-ai-tutor" = "Project-specific: sets up the 'AI Tutor' course repo. Only useful inside that project."
+"code-review:code-review" = "Plugin version, different from the built-in /code-review. Prefer the built-in: it has effort levels, ultra, --fix and --comment."
+"skill-creator:skill-creator" = "Same skill as anthropic-skills:skill-creator (plugin copy vs claude.ai-synced copy)."
+"anthropic-skills:skill-creator" = "claude.ai-synced copy of skill-creator:skill-creator."
+"skills:piv-run-full-loop" = "'PIV' = plan → implement → validate (from cole-medin's 'skills' plugin). The piv-* skills are steps in that loop; this one chains them."
+"skills:agent-browser" = "A CLI (not MCP) browser driver. Pick chrome-devtools for debugging and browser-use for logged-in scraping."
+"skills:drive-screen" = "Controls the whole desktop (any app), not just the browser."
+"superpowers:using-superpowers" = "Loaded automatically at session start by a hook. There's no need to invoke it."
+"prompt-improver:prompt-improver" = "Fired by a hook when a prompt looks vague. Rarely invoked by hand."
+"ponytail:ponytail" = "Always on through a SessionStart hook (level: full). Invoke it only to change level: lite/full/ultra."
+"remember:remember" = "Saves a session hand-off to .remember/. Different from auto-memory, which updates CLAUDE.md files."
+"auto-memory:init" = "Sets up AUTO-MANAGED CLAUDE.md sections that the plugin keeps in sync after edits."
+"modern-web-guidance:modern-web-guidance" = "Says it's MANDATORY for HTML/CSS/client JS. Run it first on any web-platform task."
+
+# ---------- task guide ----------
+
+[[group]]
+title = "Review code"
+pick = ["code-review", "simplify"]
+guide = "Correctness bugs: /code-review (use 'ultra' before a big merge). Cleanup: /simplify. Over-engineering: ponytail-review. Security: see the Security group. Full multi-agent PR pass: pr-review-toolkit:review-pr."
+items = ["code-review", "simplify", "pr-review-toolkit:review-pr", "code-review:code-review", "ponytail:ponytail-review", "ponytail:ponytail-audit", "skills:piv-review-changes", "skills:piv-review-pr", "superpowers:requesting-code-review", "superpowers:receiving-code-review", "pr-review-toolkit:silent-failure-hunter", "pr-review-toolkit:pr-test-analyzer", "pr-review-toolkit:type-design-analyzer", "pr-review-toolkit:comment-analyzer", "feature-dev:code-reviewer", "voltagent-qa-sec:code-reviewer", "pr-review-toolkit:code-reviewer", "skills:piv-fix-review-findings", "voltagent-qa-sec:architect-reviewer"]
+
+[[group]]
+title = "Plan and build a feature"
+pick = ["superpowers:brainstorming", "superpowers:writing-plans"]
+guide = "Three separate methods; pick one per task. superpowers: brainstorm → write plan → execute. feature-dev: one guided command. PIV (skills:*): PRD → architecture → plan → implement → validate → commit → PR."
+items = ["superpowers:brainstorming", "superpowers:writing-plans", "superpowers:executing-plans", "superpowers:subagent-driven-development", "feature-dev:feature-dev", "feature-dev:code-architect", "feature-dev:code-explorer", "skills:plan-create-prd", "skills:plan-architecture", "skills:plan-create-stories", "skills:piv-plan-implementation", "skills:piv-implement", "skills:piv-run-full-loop", "skills:piv-slice-epic", "Plan", "skills:build-dark-factory"]
+
+[[group]]
+title = "Understand an unfamiliar codebase"
+pick = ["codegraph", "Explore"]
+guide = "Repo has .codegraph/: use codegraph_explore first. Otherwise Explore agent for broad sweeps, serena for symbol-precise lookups, ast-grep for structural patterns."
+items = ["codegraph", "serena", "Explore", "skills:prime-codebase", "skills:prime-backend", "skills:prime-frontend", "skills:ast-grep", "feature-dev:code-explorer"]
+
+[[group]]
+title = "Debug"
+pick = ["superpowers:systematic-debugging"]
+guide = "Start with the method (systematic-debugging), then use the tool for where the bug lives: browser → chrome-devtools; production traces → logfire:debug; Azure → azure-diagnostics; GitHub issue → piv-investigate-issue."
+items = ["superpowers:systematic-debugging", "voltagent-qa-sec:debugger", "voltagent-qa-sec:error-detective", "logfire:debug", "azure:azure-diagnostics", "chrome-devtools-mcp:chrome-devtools", "chrome-devtools-mcp:memory-leak-debugging", "chrome-devtools-mcp:cookie-debugging", "skills:piv-investigate-issue", "skills:piv-implement-issue", "superpowers:diagnosing-superpowers"]
+
+[[group]]
+title = "Test and verify"
+pick = ["superpowers:verification-before-completion"]
+items = ["superpowers:test-driven-development", "superpowers:verification-before-completion", "skills:piv-validate", "run", "voltagent-qa-sec:test-automator", "voltagent-qa-sec:qa-expert", "voltagent-qa-sec:ui-ux-tester", "voltagent-qa-sec:performance-engineer", "voltagent-qa-sec:chaos-engineer"]
+
+[[group]]
+title = "Browser and desktop automation"
+pick = ["chrome-devtools"]
+guide = "chrome-devtools: debugging, perf, console/network. browser-use: your logged-in session, scraping, bot-protected sites. claude-in-chrome: your real Chrome through the extension. agent-browser: CLI scripting. drive-screen: non-browser apps. For public pages, plain WebFetch/curl needs none of these."
+items = ["chrome-devtools", "browser-use", "claude-in-chrome", "skills:agent-browser", "chrome-devtools-mcp:chrome-devtools-cli", "skills:drive-screen", "chrome-devtools-mcp:troubleshooting"]
+
+[[group]]
+title = "Web performance and accessibility"
+pick = ["chrome-devtools-mcp:debug-optimize-lcp"]
+items = ["chrome-devtools-mcp:debug-optimize-lcp", "cloudflare:web-perf", "chrome-devtools-mcp:a11y-debugging", "voltagent-qa-sec:accessibility-tester", "modern-web-guidance:modern-web-guidance"]
+
+[[group]]
+title = "Frontend UI and visual design"
+pick = ["frontend-design:frontend-design"]
+guide = "frontend-design for aesthetic direction in code. ui-ux-pro-max for design systems, tokens and brand. superdesign for exploring on a canvas. modern-web-guidance first for any HTML/CSS/JS platform question."
+items = ["frontend-design:frontend-design", "ui-ux-pro-max:ui-ux-pro-max", "ui-ux-pro-max:design-system", "ui-ux-pro-max:ui-styling", "ui-ux-pro-max:design", "ui-ux-pro-max:brand", "ui-ux-pro-max:banner-design", "superdesign:superdesign", "modern-web-guidance:modern-web-guidance", "voltagent-core-dev:design-bridge", "voltagent-core-dev:ui-designer", "modern-web-guidance:chrome-extensions", "anthropic-skills:web-artifacts-builder", "voltagent-core-dev:frontend-developer", "voltagent-dev-exp:visual-asset-generator"]
+
+[[group]]
+title = "Review and QA an existing UI"
+pick = ["chrome-devtools-mcp:a11y-debugging", "voltagent-qa-sec:ui-ux-tester"]
+guide = "Inspect it in a browser first (chrome-devtools MCP, or the chrome-devtools-cli skill from a shell): screenshots at phone and desktop size, the accessibility tree, a Lighthouse audit. Then critique the design with ui-ux-pro-max, check accessibility with a11y-debugging or accessibility-tester, and test user flows with ui-ux-tester."
+items = ["chrome-devtools-mcp:a11y-debugging", "chrome-devtools-mcp:chrome-devtools-cli", "chrome-devtools", "voltagent-qa-sec:ui-ux-tester", "voltagent-qa-sec:accessibility-tester", "ui-ux-pro-max:ui-ux-pro-max", "cloudflare:web-perf", "modern-web-guidance:modern-web-guidance", "run"]
+
+[[group]]
+title = "Diagrams, charts, slides and Artifact pages"
+pick = ["archify", "dataviz"]
+items = ["archify", "azure:azure-resource-visualizer", "dataviz", "artifact-diagramming", "artifact-design", "artifact-capabilities", "ui-ux-pro-max:slides", "anthropic-skills:pptx", "anthropic-skills:theme-factory"]
+
+[[group]]
+title = "Office files and documents"
+pick = ["anthropic-skills:docs"]
+guide = "A shared or living doc: anthropic-skills:docs (Claude Docs). A specific file format: docx/pdf/pptx/xlsx."
+items = ["anthropic-skills:docs", "anthropic-skills:doc-coauthoring", "anthropic-skills:docx", "anthropic-skills:pdf", "anthropic-skills:pptx", "anthropic-skills:xlsx", "anthropic-skills:google-workspace", "anthropic-skills:internal-comms"]
+
+[[group]]
+title = "Git, commits, PRs, worktrees"
+pick = ["commit-commands:commit", "commit-commands:commit-push-pr"]
+items = ["commit-commands:commit", "commit-commands:commit-push-pr", "commit-commands:clean_gone", "skills:piv-commit", "skills:piv-create-pr", "skills:worktree-create", "skills:worktree-merge", "superpowers:using-git-worktrees", "superpowers:finishing-a-development-branch", "voltagent-dev-exp:git-workflow-manager", "github"]
+
+[[group]]
+title = "Memory, CLAUDE.md and project rules"
+pick = ["claude-md-management:revise-claude-md"]
+guide = "CLAUDE.md content: claude-md-management (audit/improve) or auto-memory (keeps sections synced automatically). Session hand-off: remember. Rules drift: skills:rules-check-drift."
+items = ["claude-md-management:claude-md-improver", "claude-md-management:revise-claude-md", "auto-memory:init", "auto-memory:sync", "auto-memory:status", "auto-memory:calibrate", "remember:remember", "remember:doctor", "init", "skills:rules-create-global", "skills:rules-check-drift", "skills:second-brain-audit", "skills:second-brain-fix", "anthropic-skills:import-memory"]
+
+[[group]]
+title = "Extend Claude Code (skills, plugins, hooks, MCP)"
+pick = ["skill-creator:skill-creator", "plugin-dev:create-plugin"]
+guide = "Skills: skill-creator (with evals) or superpowers:writing-skills (TDD-style). Hooks: hookify (rule-based) or update-config / skills:hooks-create (raw settings.json hooks). MCP servers: mcp-server-dev."
+items = ["skill-creator:skill-creator", "superpowers:writing-skills", "skills:skills-create", "plugin-dev:skill-development", "plugin-dev:create-plugin", "plugin-dev:plugin-structure", "plugin-dev:agent-development", "plugin-dev:command-development", "plugin-dev:hook-development", "plugin-dev:mcp-integration", "hookify:hookify", "skills:hooks-create", "update-config", "mcp-server-dev:build-mcp-server", "mcp-server-dev:build-mcp-app", "mcp-server-dev:build-mcpb", "anthropic-skills:mcp-builder", "claude-code-setup:claude-automation-recommender", "find-skills", "plugin-dev:plugin-validator", "plugin-dev:skill-reviewer", "microsoft-docs:microsoft-skill-creator", "voltagent-dev-exp:mcp-developer", "voltagent-meta:agent-installer"]
+plugins = ["plugin-dev", "hookify"]
+
+[[group]]
+title = "Measure and improve how you work with Claude"
+items = ["session-report:session-report", "skills:opportunity-scan", "skills:ablate-ai-layer", "skills:system-evolution-review", "skills:system-execution-report", "ponytail:ponytail-gain", "ponytail:ponytail-debt", "fewer-permission-prompts", "hookify:conversation-analyzer"]
+
+[[group]]
+title = "Look up documentation"
+guide = "Claude/Claude Code: claude-docs or the claude-code-guide agent; Claude API code: claude-api. Microsoft/Azure: microsoft-docs. Library-specific docs MCPs: astro-docs, better-auth, cloudflare, workos."
+items = ["claude-docs:claude-docs", "claude-code-guide", "claude-api", "microsoft-docs:microsoft-docs", "microsoft-docs:microsoft-code-reference", "microsoft-learn", "astro-docs", "better-auth", "cloudflare", "workos:workos", "modern-web-guidance:modern-web-guidance"]
+plugins = ["claude-docs"]
+
+[[group]]
+title = "Observability and tracing"
+guide = "Python/Pydantic apps: logfire. LLM app tracing and evals: langfuse or logfire-evals. Azure: appinsights. Aspire: aspire-monitoring."
+items = ["logfire:logfire-setup", "logfire:instrument", "logfire:query", "logfire:logfire-evals", "logfire:logfire-infrastructure", "logfire", "langfuse:langfuse", "azure:appinsights-instrumentation", "aspire:aspire-monitoring", "grafana-mcp:grafana-mcp-tools", "grafana", "voltagent-meta:performance-monitor"]
+plugins = ["logfire"]
+
+[[group]]
+title = "Security"
+pick = ["claude-security:claude-security", "security-review"]
+guide = "Whole repo or a branch diff, verified by agent panels: claude-security. Quick check of pending changes: /security-review."
+items = ["claude-security:claude-security", "security-review", "voltagent-qa-sec:security-auditor", "voltagent-qa-sec:penetration-tester", "voltagent-infra:security-engineer", "better-auth-security-best-practices", "azure:azure-compliance", "voltagent-qa-sec:ad-security-reviewer", "voltagent-qa-sec:powershell-security-hardening"]
+
+[[group]]
+title = "Authentication"
+guide = "Better Auth (TS): create-auth to scaffold, then the *-best-practices skills. WorkOS: workos. Microsoft Entra: azure:entra-*."
+items = ["create-auth", "better-auth-best-practices", "email-and-password-best-practices", "two-factor-authentication-best-practices", "organization-best-practices", "better-auth-security-best-practices", "workos:workos", "workos:workos-widgets", "azure:entra-app-registration", "voltagent-core-dev:auth-integration-engineer"]
+
+[[group]]
+title = "Deploy and cloud"
+guide = "Azure: azure:azure-app-onboard (idea → deployed), or azure-prepare → azure-validate → azure-deploy. Cloudflare: cloudflare:cloudflare to choose a product, wrangler to run it. .NET Aspire: aspire:aspire. Self-hosted: coolify MCP."
+items = ["azure:azure-app-onboard", "azure:azure-prepare", "azure:azure-validate", "azure:azure-deploy", "azure:azure-cost", "cloudflare:cloudflare", "cloudflare:wrangler", "cloudflare:workers-best-practices", "aspire:aspire", "coolify", "voltagent-infra:deployment-engineer"]
+plugins = ["azure", "cloudflare", "aspire"]
+
+[[group]]
+title = "Build AI agents and LLM apps"
+guide = "Claude API directly: claude-api. Claude Agent SDK: agent-sdk-dev. Pydantic AI (incl. migrating from other frameworks): ai:*. Vector DB: qdrant:*; semantic cache: redis."
+items = ["claude-api", "agent-sdk-dev:new-sdk-app", "ai:building-pydantic-ai-agents", "cloudflare:agents-sdk", "azure:microsoft-foundry", "qdrant:qdrant-search-quality", "redis-development:redis-semantic-cache", "voltagent-data-ai:llm-architect", "voltagent-data-ai:prompt-engineer", "agent-sdk-dev:agent-sdk-verifier-py", "agent-sdk-dev:agent-sdk-verifier-ts", "voltagent-data-ai:ai-engineer", "voltagent-data-ai:nlp-engineer"]
+plugins = ["ai"]
+
+[[group]]
+title = "Keep it simple (anti-over-engineering)"
+items = ["ponytail:ponytail", "ponytail:ponytail-review", "ponytail:ponytail-audit", "simplify", "code-simplifier:code-simplifier", "pr-review-toolkit:code-simplifier", "ponytail:ponytail-help"]
+
+[[group]]
+title = "Recurring and background work"
+items = ["loop", "schedule", "anthropic-skills:morning"]
+
+[[group]]
+title = "Session and configuration (built-in commands)"
+guide = "Everyday Claude Code controls. Configuration changes that must happen automatically ('whenever X, do Y') are hooks: use update-config."
+items = ["/help", "/clear", "/compact", "/context", "/cost", "/model", "/fast", "/resume", "/config", "/permissions", "/hooks", "/memory", "/status", "/doctor", "/plugin", "/skills", "/mcp", "/agents", "/artifacts", "update-config", "keybindings-help", "fewer-permission-prompts", "mise"]
+
+[[group]]
+title = "Delegate and orchestrate subagents"
+pick = ["general-purpose", "superpowers:dispatching-parallel-agents"]
+guide = "Built-in subagents (general-purpose, Explore, Plan) cover most delegation; dispatching-parallel-agents and subagent-driven-development give the method. The voltagent-meta agents only write coordination plans/specs as Markdown, which the built-ins already do; they're alternatives."
+items = ["general-purpose", "Explore", "Plan", "superpowers:dispatching-parallel-agents", "superpowers:subagent-driven-development", "workflow-authoring", "voltagent-meta:agent-organizer", "voltagent-meta:multi-agent-coordinator", "voltagent-meta:task-distributor", "voltagent-meta:workflow-orchestrator", "voltagent-meta:context-manager", "voltagent-meta:codebase-orchestrator", "voltagent-meta:error-coordinator", "voltagent-meta:knowledge-synthesizer", "voltagent-meta:memory-curator", "voltagent-meta:it-ops-orchestrator"]
+
+[[group]]
+title = "Language and framework experts (subagents)"
+guide = "Delegate framework-specific work to the matching expert, e.g. 'use typescript-pro to…', 'use fastapi-developer to…'. One agent per language/framework, so they don't overlap each other."
+plugins = ["voltagent-lang"]
+
+[[group]]
+title = "Application and systems specialists (subagents)"
+guide = "Specialists for a kind of system: APIs, real-time, desktop/mobile, games, embedded/IoT, payments, email delivery, X/Twitter data."
+plugins = ["voltagent-core-dev"]
+items = ["voltagent-domains:mobile-app-developer", "voltagent-domains:game-developer", "voltagent-domains:embedded-systems", "voltagent-domains:iot-engineer", "voltagent-domains:blockchain-developer", "voltagent-domains:payment-integration", "voltagent-domains:fintech-engineer", "voltagent-domains:email-deliverability-engineer", "voltagent-domains:x-api-integration", "voltagent-domains:api-documenter"]
+
+[[group]]
+title = "Infrastructure, DevOps and operations (subagents)"
+guide = "Cloud architecture, containers, Kubernetes, Terraform, networking, incident response, Windows/AD and Microsoft 365 administration."
+plugins = ["voltagent-infra"]
+items = ["voltagent-domains:m365-admin"]
+
+[[group]]
+title = "Data, ML and databases"
+guide = "Analysis, pipelines, ML engineering and database tuning (subagents); vector search (qdrant), Redis, and Preset/Superset dashboards (skills)."
+plugins = ["voltagent-data-ai", "qdrant", "redis-development", "preset-cli-skills"]
+items = ["voltagent-lang:sql-pro"]
+
+[[group]]
+title = "Developer experience and tooling (subagents)"
+guide = "Builds, CLIs, dependencies, docs/READMEs, refactoring, legacy modernisation, PowerShell modules, Slack apps."
+plugins = ["voltagent-dev-exp"]
+
+[[group]]
+title = "Product, business, research and writing (subagents)"
+guide = "Product management, backlog, market/competitive research, experiments (A/B, cohorts), marketing copy, SEO, and editing out AI-sounding prose."
+plugins = ["voltagent-biz", "voltagent-research"]
+items = ["voltagent-domains:seo-specialist", "voltagent-qa-sec:ai-writing-auditor"]
+
+[[group]]
+title = "Compliance and regulated domains (subagents)"
+guide = "GDPR/CCPA, HIPAA, SOC 2/PCI audits, legal/licensing, healthcare administration, quantitative finance and enterprise risk. Only useful if you work in these areas."
+items = ["voltagent-qa-sec:compliance-auditor", "voltagent-qa-sec:gdpr-ccpa-compliance", "voltagent-domains:hipaa-compliance", "voltagent-domains:healthcare-admin", "voltagent-domains:quant-analyst", "voltagent-domains:risk-manager", "voltagent-biz:legal-advisor", "voltagent-biz:license-engineer"]
+
+[[group]]
+title = "Email, calendar and cloud docs (claude.ai connectors)"
+guide = "Authenticate a connector on first use. Load anthropic-skills:google-workspace before creating or changing Google files."
+items = ["Gmail", "Google Calendar", "Google Drive", "Claude Docs", "anthropic-skills:google-workspace"]
+
+# ---------- cleanup ----------
+# Thresholds for flagging a PLUGIN (the unit you can actually remove) as a cleanup candidate.
+# review = unused >= unused_days AND >= unused_sessions, no ★ pick, and
+#          (always-on tokens >= cost_tokens OR share of alternatives/duplicates >= overlap_ratio)
+# watch  = meets the cost/overlap part but was used recently or is too new to judge.
+[cleanup]
+unused_days = 14        # same rule /plugin uses for "Not used recently"
+unused_sessions = 10
+cost_tokens = 1000
+overlap_ratio = 0.8
+
+# Items that do the same job as another item: "duplicate" = "the one to keep".
+[duplicates]
+"anthropic-skills:skill-creator" = "skill-creator:skill-creator"   # identical file (claude.ai-synced copy)
+"code-review:code-review" = "code-review"                           # plugin version, superseded by the built-in
+"pr-review-toolkit:code-simplifier" = "code-simplifier:code-simplifier"
+
+# Your decisions per plugin. status = "keep" | "review" | "retire"; retire hides it and tells AI to avoid it.
+# Removing: claude plugin disable <name>@<marketplace>  (or uninstall). Example:
+#   [plugin_status.voltagent-domains]
+#   status = "retire"
+#   reason = "healthcare/fintech/blockchain agents not relevant to my work"
+[plugin_status]
+
+# Individual items to retire. Personal/built-in skills can really be turned off (a skillOverrides
+# snippet is generated); plugin items can't be removed one by one, so this only hides them. Example:
+#   "two-factor-authentication-best-practices" = "not using Better Auth 2FA"
+[retire]
+

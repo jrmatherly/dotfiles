@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+# Copy the current directory path to clipboard.
+#
+# - Copy dir path:
+#
+# `cpwd`
+#
+# ---
+# License: MIT
+
+set -e
+set -u
+set -o pipefail
+
+pwd | tr -d '\n' | pbcopy

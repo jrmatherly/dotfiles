@@ -1,0 +1,562 @@
+{
+  /**
+   * Editor Settings
+   * https://code.visualstudio.com/docs/getstarted/settings
+   */
+  // Iosevka Code is the SpaceBox theme's companion font (no Homebrew cask:
+  // bin/install-iosevka-code); FiraCode is the fallback until it's installed
+  "editor.fontFamily": "'IosevkaCode Nerd Font', 'FiraCode Nerd Font Mono', monospace",
+  "editor.fontLigatures": true,
+  "editor.fontSize": 14,
+  "editor.cursorBlinking": "expand",
+  "editor.bracketPairColorization.independentColorPoolPerBracketType": true,
+  "editor.guides.bracketPairs": "active",
+  "editor.inlineSuggest.enabled": true,
+  "editor.inlineSuggest.syntaxHighlightingEnabled": true,
+  "editor.minimap.enabled": false,
+  "editor.quickSuggestions": {
+    "strings": "on"
+  },
+  "editor.rulers": [80],
+  "editor.showDeprecated": true,
+  "editor.stickyScroll.enabled": true,
+  "editor.tabCompletion": "on",
+  "editor.tabSize": 2,
+  /**
+   * Workbench Settings
+   * https://code.visualstudio.com/api/references/theme-color#workbench-tree
+   */
+  "workbench.colorTheme": "SpaceBox",
+  "workbench.iconTheme": "spacebox.file-icon-theme",
+  // See-through backgrounds so SpaceBox UI's blur (below) shows: the theme's
+  // own are solid. Only the Command Palette and hovers: `menu.background` is
+  // left solid because extension panels such as Claude Code use it for their
+  // own menus, where the blur can't reach, and see-through made them
+  // unreadable. Mintlify Doc Writer rewrites this key on every startup,
+  // but only drops its "[*Dark*]"/"[*Light*]" progress colors, so this value
+  // is what it writes back and the repo stays clean
+  "workbench.colorCustomizations": {
+    "[SpaceBox]": {
+      "quickInput.background": "#10151d7f",
+      "editorHoverWidget.background": "#10151d7f"
+    }
+  },
+  // SpaceBox UI Enhancer patches VS Code's own files, so these only take
+  // effect after "SpaceBox Enable UI Enhancer" + restart — see vscode/README.md
+  "spacebox-ui.blurEffect": true,
+  "spacebox-ui.commandCenterBlur": true,
+  // Fix for spacebox-ui 0.1.5 on VS Code 1.139: its close animation forces the
+  // hidden Command Palette to `display: block`, and VS Code's own (newer,
+  // more specific) open animation then keeps it fully visible — the palette
+  // never goes away. This puts the native hide back; drop it once the
+  // extension is fixed.
+  "spacebox-ui.stylesheet": {
+    ".monaco-workbench .quick-input-widget[style*=\"display: none;\"]": {
+      "display": "none !important"
+    }
+  },
+  "workbench.tree.expandMode": "singleClick",
+  "workbench.tree.indent": 6,
+  "workbench.tree.renderIndentGuides": "always",
+  "security.workspace.trust.startupPrompt": "once",
+  /**
+   * Terminal Settings
+   */
+  "terminal.integrated.defaultProfile.osx": "zsh",
+  "terminal.integrated.automationProfile.osx": {
+    "path": "/bin/zsh",
+    "args": ["--login"]
+  },
+  "terminal.integrated.fontFamily": "'IosevkaCode Nerd Font', 'FiraCode Nerd Font Mono', monospace",
+  "terminal.integrated.fontLigatures.enabled": true,
+  "terminal.integrated.copyOnSelection": true,
+  "terminal-in-status-bar.statusBarAlignment": "right",
+  "terminal-in-status-bar.statusBarPriority": 10000,
+  /**
+   * File Formatting Settings
+   * https://code.visualstudio.com/docs/editor/formatting
+   *
+   * Prettier is the default for web languages. Biome only runs in projects
+   * that have a biome.json (`biome.requireConfiguration`) — set
+   * `editor.defaultFormatter` to `biomejs.biome` in those workspaces.
+   *
+   * Prettier: https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode
+   * Biome: https://marketplace.visualstudio.com/items?itemName=biomejs.biome
+   * markdownlint: https://marketplace.visualstudio.com/items?itemName=DavidAnson.vscode-markdownlint
+   * XML: https://marketplace.visualstudio.com/items?itemName=DotJoshJohnson.xml
+   */
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports.biome": "explicit"
+  },
+  "biome.requireConfiguration": true,
+  // Spectral lints every JSON/YAML file by default and warns on each
+  // tab-indented line (Obsidian plugin manifests, Web Clipper exports);
+  // limit it to API description files
+  "spectral.validateFiles": [
+    "**/*{openapi,swagger,asyncapi,arazzo}*.{json,yaml,yml}"
+  ],
+  "[graphql]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[handlebars]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json5]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  // Prettier, not vscode.json-language-features: this file is jsonc, and the
+  // built-in formatter fights the repo's `pnpm format` (expands short arrays)
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[dockercompose]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
+  },
+  "[xml]": {
+    "editor.defaultFormatter": "DotJoshJohnson.xml"
+  },
+  "xmlTools.enforcePrettySelfClosingTagOnFormat": true,
+  "[github-actions-workflow]": {
+    "editor.defaultFormatter": "redhat.vscode-yaml"
+  },
+  "[sql]": {
+    "editor.defaultFormatter": "cweijan.vscode-database-client2"
+  },
+  "[dockerfile]": {
+    "editor.defaultFormatter": "ms-azuretools.vscode-containers"
+  },
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+  /**
+   * Formatting Toggle Config
+   * https://marketplace.visualstudio.com/items?itemName=tombonnike.vscode-status-bar-format-toggle
+   */
+  "formattingToggle.affects": ["editor.formatOnPaste", "editor.formatOnType"],
+  /**
+   * Files Associations
+   * Tailwind's language mode for CSS, as its docs recommend:
+   * https://github.com/tailwindlabs/tailwindcss-intellisense#recommended-vs-code-settings
+   */
+  "files.associations": {
+    "*.css": "tailwindcss",
+    // VS Code guesses Markdown for an extensionless LICENSE, and markdownlint
+    // then wants a heading on line 1
+    "LICENSE": "plaintext"
+  },
+  /**
+   * JSON / YAML
+   */
+  // Replaces VS Code's default list, so the defaults are repeated here. Only
+  // specific schema hosts — not all of raw.githubusercontent.com or unpkg.com.
+  "json.schemaDownload.trustedDomains": {
+    "https://biomejs.dev": true,
+    "https://developer.microsoft.com/json-schemas/": true,
+    "https://json-schema.org/": true,
+    "https://json.schemastore.org/": true,
+    "https://raw.githubusercontent.com/devcontainers/spec/": true,
+    "https://raw.githubusercontent.com/fastfetch-cli/fastfetch/": true,
+    "https://raw.githubusercontent.com/manaflow-ai/cmux/": true,
+    "https://raw.githubusercontent.com/microsoft/vscode/": true,
+    "https://schema.management.azure.com": true,
+    "https://schemastore.azurewebsites.net/": true,
+    "https://ui.shadcn.com/schema.json": true,
+    "https://www.apptorium.com/schemas/": true,
+    "https://www.schemastore.org/": true
+  },
+  "yaml.disableSchemaDetection": [
+    "**/.github/workflows/*.yml",
+    "**/.github/workflows/*.yaml",
+    "**/.gitea/workflows/*.yml",
+    "**/.gitea/workflows/*.yaml",
+    "**/.forgejo/workflows/*.yml",
+    "**/.forgejo/workflows/*.yaml"
+  ],
+  "redhat.telemetry.enabled": false,
+  /**
+   * Markdown
+   * https://marketplace.visualstudio.com/items?itemName=yzhang.markdown-all-in-one
+   * https://marketplace.visualstudio.com/items?itemName=shd101wyy.markdown-preview-enhanced
+   */
+  "markdown.extension.print.theme": "dark",
+  "markdown.extension.toc.orderedList": true,
+  "markdown-preview-enhanced.previewTheme": "github-dark.css",
+  /**
+   * Git
+   * GitLens: https://marketplace.visualstudio.com/items?itemName=eamodio.gitlens
+   * Git Graph: https://marketplace.visualstudio.com/items?itemName=mhutchie.git-graph
+   */
+  // Smart commit commits *all* changes when nothing is staged, and sync
+  // pushes/pulls without asking — both deliberate
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false,
+  "gitlens.statusBar.command": "gitlens.openCommitOnRemote",
+  "gitlens.hovers.avatarSize": 64,
+  "gitlens.hovers.changesDiff": "hunk",
+  "git-graph.commitDetailsView.location": "Docked to Bottom",
+  "git-graph.contextMenuActionsVisibility": {
+    "remoteBranch": {
+      "checkout": false,
+      "cherrypick": false,
+      "createBranch": false,
+      "createPullRequest": false,
+      "delete": false,
+      "drop": false,
+      "merge": false,
+      "pull": false,
+      "rebase": false,
+      "reset": false,
+      "revert": false
+    },
+    "branch": {
+      "checkout": false,
+      "cherrypick": false,
+      "createBranch": false,
+      "createPullRequest": false,
+      "delete": false,
+      "drop": false,
+      "merge": false,
+      "push": false,
+      "rename": false,
+      "rebase": false,
+      "reset": false,
+      "revert": false
+    },
+    "commit": {
+      "checkout": false,
+      "cherrypick": false,
+      "createBranch": false,
+      "drop": false,
+      "merge": false,
+      "rebase": false,
+      "reset": false,
+      "revert": false
+    }
+  },
+  "atlascode.jira.enabled": false,
+  /**
+   * Todo Tree Settings
+   * https://marketplace.visualstudio.com/items?itemName=Gruntfuggly.todo-tree
+   */
+  "todo-tree.ripgrep.ripgrep": "/opt/homebrew/bin/rg",
+  "todo-tree.general.showIconsInsteadOfTagsInStatusBar": true,
+  "todo-tree.general.statusBar": "top three",
+  "todo-tree.general.tags": ["BUG", "FIX", "FIXIT", "FIXME", "TODO"],
+  "todo-tree.general.tagGroups": {
+    "FIXME": ["BUG", "FIX", "FIXIT", "FIXME"]
+  },
+  "todo-tree.highlights.customHighlight": {
+    "TODO": {
+      "background": "#CF7200",
+      "fontWeight": "bold",
+      "foreground": "#FFFFFF",
+      "gutterIcon": true,
+      "icon": "tasklist",
+      "iconColour": "#FF8C00",
+      "type": "tag"
+    },
+    "FIXME": {
+      "background": "#008000",
+      "fontWeight": "bold",
+      "foreground": "#FFFF00",
+      "gutterIcon": true,
+      "icon": "tools",
+      "iconColour": "#00FF00",
+      "type": "tag"
+    }
+  },
+  "todo-tree.tree.showCountsInTree": true,
+  /**
+   * Better Comments Settings
+   * https://marketplace.visualstudio.com/items?itemName=aaron-bond.better-comments
+   */
+  "better-comments.tags": [
+    {
+      "backgroundColor": "transparent",
+      "bold": true,
+      "color": "#FF2D00",
+      "italic": false,
+      "tag": "!",
+      "strikethrough": false,
+      "underline": false
+    },
+    {
+      "backgroundColor": "transparent",
+      "bold": false,
+      "color": "#3498DB",
+      "italic": false,
+      "tag": "?",
+      "strikethrough": false,
+      "underline": false
+    },
+    {
+      "backgroundColor": "transparent",
+      "bold": false,
+      "color": "#474747",
+      "italic": false,
+      "tag": "//",
+      "strikethrough": true,
+      "underline": false
+    },
+    {
+      "backgroundColor": "transparent",
+      "bold": false,
+      "color": "#FF8C00",
+      "italic": false,
+      "tag": "todo",
+      "strikethrough": false,
+      "underline": false
+    },
+    {
+      "backgroundColor": "transparent",
+      "bold": false,
+      "color": "#008000",
+      "italic": false,
+      "tag": "fixme",
+      "strikethrough": false,
+      "underline": false
+    },
+    {
+      "backgroundColor": "transparent",
+      "bold": false,
+      "color": "#008000",
+      "italic": false,
+      "tag": "fixit",
+      "strikethrough": false,
+      "underline": false
+    },
+    {
+      "backgroundColor": "transparent",
+      "bold": false,
+      "color": "#008000",
+      "italic": false,
+      "tag": "fix",
+      "strikethrough": false,
+      "underline": false
+    },
+    {
+      "backgroundColor": "transparent",
+      "bold": false,
+      "color": "#008000",
+      "italic": false,
+      "tag": "bug",
+      "strikethrough": false,
+      "underline": false
+    },
+    {
+      "backgroundColor": "transparent",
+      "bold": true,
+      "color": "#98C379",
+      "italic": false,
+      "tag": "*",
+      "strikethrough": false,
+      "underline": false
+    }
+  ],
+  /**
+   * Other Extensions
+   */
+  // https://marketplace.visualstudio.com/items?itemName=alefragnani.Bookmarks
+  // (bookmarks.* left at defaults)
+  // https://marketplace.visualstudio.com/items?itemName=adpyke.codesnap
+  "codesnap.containerPadding": "2em",
+  "codesnap.showWindowTitle": true,
+  "codesnap.realLineNumbers": true,
+  // https://marketplace.visualstudio.com/items?itemName=fill-labs.dependi
+  // The default is a bare ❌. Iosevka Code has its own plain glyph for it, so
+  // it rendered in the text color instead of as the red emoji. The \uFE0F
+  // after it (variation selector-16) asks for the emoji form.
+  "dependi.decoration.incompatible.template": "❌\uFE0F ${version}",
+  // https://marketplace.visualstudio.com/items?itemName=bierner.emojisense
+  "emojisense.languages": {
+    "json": true,
+    "markdown": true,
+    "plaintext": false,
+    "scminput": true
+  },
+  // https://marketplace.visualstudio.com/items?itemName=oderwat.indent-rainbow
+  "indentRainbow.ignoreErrorLanguages": ["haskell"],
+  // https://marketplace.visualstudio.com/items?itemName=christian-kohler.npm-intellisense
+  // (the default is a Windows `;\r\n`)
+  "npm-intellisense.importLinebreak": ";\n",
+  "path-intellisense.showHiddenFiles": true,
+  "svgPreview.autoOpen": false,
+  "makefile.configureOnOpen": true,
+  /**
+   * ESLint Config
+   * https://github.com/microsoft/vscode-eslint
+   */
+  "eslint.codeAction.disableRuleComment": {
+    "enable": true,
+    "location": "sameLine"
+  },
+  /**
+   * TypeScript Config
+   */
+  "js/ts.preferences.quoteStyle": "single",
+  // path-intellisense handles path completions
+  "js/ts.suggest.paths": false,
+  // UI: TypeScript 7 > Experimental: Use Tsgo. Off so IntelliSense uses TS 6 —
+  // VS Code's bundled version, or a project's own via "Select TypeScript
+  // Version" — matching `tsc`. Turn on per workspace to try TS 7 (needs the
+  // typescriptteam.native-preview extension).
+  "js/ts.experimental.useTsgo": false,
+  /**
+   * Vite / Jest
+   */
+  "vite.devCommand": "pnpm dev",
+  "vite.buildCommand": "pnpm build",
+  "vite.autoStart": false,
+  "jestrunner.jestCommand": "npm run test --",
+  /**
+   * Tailwind CSS Config
+   * https://marketplace.visualstudio.com/items?itemName=bradlc.vscode-tailwindcss
+   */
+  "tailwindCSS.emmetCompletions": true,
+  "tailwindCSS.lint.cssConflict": "ignore",
+  "tailwindCSS.lint.suggestCanonicalClasses": "ignore",
+  "emmet.includeLanguages": {
+    "postcss": "css"
+  },
+  "tailwindCSS.includeLanguages": {
+    "javascript": "javascript",
+    "typescript": "typescript",
+    "javascriptreact": "javascriptreact",
+    "typescriptreact": "typescriptreact",
+    "markdown": "html",
+    "plaintext": "html"
+  },
+  "tailwindCSS.files.exclude": [
+    "**/.git/**",
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/dist/**",
+    "**/.hg/**",
+    "**/.svn/**",
+    "**/docker/**",
+    "**/.turbo/**",
+    "**/.vercel/**",
+    "**/.scratchpad/**",
+    "**/.remember/**",
+    "**/.serena/**"
+  ],
+  // Class-name helpers only — a catch-all "any quoted string" pattern made
+  // every string in every file offer Tailwind completions
+  "tailwindCSS.experimental.classRegex": [
+    ["clsx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"],
+    ["cn\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"],
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["cx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
+  ],
+  /**
+   * Python Config
+   * Interpreter: `python` from PATH — mise's shim (tilde/.config/mise), or a
+   * project's own `.python-version` / venv. Ruff is the default formatter and
+   * import sorter. The Black, isort and flake8 extensions stay installed for
+   * projects that use them: Black/isort only act when a workspace selects them
+   * (`editor.defaultFormatter` / `isort.check`).
+   */
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports.ruff": "always"
+    }
+  },
+  // flake8 is off by default so Ruff-only projects don't get duplicate
+  // warnings. Projects that lint with flake8 opt in via their workspace
+  // settings (.vscode/settings.json): "flake8.enabled": true
+  "flake8.enabled": false,
+  "python.testing.pytestEnabled": true,
+  "python-envs.terminal.showActivateButton": true,
+  "python.terminal.useEnvFile": true,
+  // The Python extension writes this default back whenever it's missing
+  // (pruned in 9d9aa02, re-added since); keeping it here stops the churn
+  "python.languageServer": "Default",
+  /**
+   * Go / Shell / Docker
+   */
+  // `golines` comes from the Brewfile
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": "\\.go$",
+        "cmd": "golines ${file} -w -m 100"
+      }
+    ]
+  },
+  "shellcheck.executablePath": "/opt/homebrew/bin/shellcheck",
+  "hadolint.cliOptions": [
+    "--ignore=DL3007",
+    "--ignore=DL3008",
+    "--ignore=DL3013",
+    "--ignore=DL3016",
+    "--ignore=DL3018",
+    "--ignore=DL3059"
+  ],
+  "docker.extension.enableComposeLanguageServer": false,
+  /**
+   * mise
+   * https://marketplace.visualstudio.com/items?itemName=hverlin.mise-vscode
+   */
+  // Homebrew's mise — update if mise is installed elsewhere
+  "mise.binPath": "/opt/homebrew/bin/mise",
+  /**
+   * Azure
+   */
+  "bicep.enableSurveys": false,
+  "azureResourceGroups.groupBy": "resourceGroup",
+  "azureLogicAppsStandard.enableManagedIdentityAuth": true,
+  "azureLogicAppsStandard.projectLanguage": "JavaScript",
+  // Don't auto-install runtimes into ~/.azurelogicapps/dependencies…
+  "azureLogicAppsStandard.autoRuntimeDependenciesValidationAndInstallation": false,
+  // …use the PATH binaries instead (mise node, dotnet-sdk cask, Homebrew func)
+  "azureLogicAppsStandard.nodeJsBinaryPath": "node",
+  "azureLogicAppsStandard.dotnetBinaryPath": "dotnet",
+  "azureLogicAppsStandard.funcCoreToolsBinaryPath": "func",
+  // …but still check their versions before debugging
+  "azureLogicAppsStandard.validateNodeJs": true,
+  "azureLogicAppsStandard.validateDotNetSDK": true,
+  "azureLogicAppsStandard.validateFuncCoreTools": true,
+  /**
+   * AI / Chat
+   */
+  "chat.hookFilesLocations": {
+    ".github/hooks": true,
+    ".claude/settings.local.json": true,
+    ".claude/settings.json": true,
+    "~/.copilot/hooks": true,
+    "~/.claude/settings.json": true,
+    "~/.agents/hooks": true
+  },
+  "chat.viewSessions.orientation": "stacked",
+  "claudeCode.hideOnboarding": true,
+  "claudeCode.preferredLocation": "panel",
+  /**
+   * Notes
+   */
+  // Obsidian vault (OBSIDIAN_VAULT in zsh/env.zsh). Must be absolute: the Notes
+  // extension doesn't expand `~` or env vars. On another Mac, change the user
+  // name (a missing folder just shows an empty Notes view)
+  "notes.notesLocation": "/Users/jason/Library/Mobile Documents/com~apple~CloudDocs/Notes"
+}

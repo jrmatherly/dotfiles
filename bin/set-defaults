@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+# Set sane macOS defaults.
+#
+# - Set defaults:
+#
+# `set-defaults`
+#
+# ---
+# License: MIT
+
+# Resolve the repo location from this script's own path, falling back to
+# $DOTFILES (exported by ~/.zshenv)
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+
+exec "$DOTFILES/setup/macos.sh"

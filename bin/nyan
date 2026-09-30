@@ -1,0 +1,19 @@
+#!/bin/bash
+#
+# Print Deadpool with his katanas (upup's sign-off).
+#
+# - Print:
+#
+# `nyan`
+#
+# ---
+# License: MIT
+
+# The art is fastfetch's own logo file; printing it through fastfetch keeps one
+# copy and uses the colours set in its config. `--structure Break` prints the
+# logo with no system info next to it.
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+command -v fastfetch > /dev/null || exit 0
+
+echo
+fastfetch --logo "$DOTFILES/tilde/.config/fastfetch/ascii/deadpool-katanas.ascii" --logo-type file --structure Break

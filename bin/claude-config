@@ -1,0 +1,255 @@
+#!/bin/bash
+#
+# Save or restore Claude Code's plugins, base settings and user skills (tracked in agents/claude-*).
+#
+# - Record this machine's plugins, settings and skills into the repo (review with `git diff`):
+#
+# `claude-config save`
+#
+# - Install/merge whatever this machine is missing (setup/misc.sh runs this):
+#
+# `claude-config restore`
+#
+# - Restore one part only, or show what restore would do:
+#
+# `claude-config restore {{plugins|settings|skills}} --dry-run`
+#
+# ---
+# Files (in agents/):
+#   claude-plugins.txt   marketplaces + user-scope plugins ("disabled" = off)
+#   claude-settings.json ~/.claude/settings.json without the keys tools own
+#                        (enabledPlugins, extraKnownMarketplaces, hooks);
+#                        restore merges it in: values already on the machine
+#                        win, permission lists are unioned
+#   claude-skills.txt    user skills installed with the `skills` CLI, and for
+#                        which agents (claude-code → ~/.claude/skills,
+#                        codex → ~/.agents/skills)
+# Reads ~/.claude (or $CLAUDE_CONFIG_DIR) and ~/.agents. Needs jq; skills need
+# npx (Node from mise).
+#
+# License: MIT
+
+set -euo pipefail
+
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+save_dir="${CLAUDE_CONFIG_SAVE_DIR:-$DOTFILES_DIR/agents}"
+config="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+plugins_list="$save_dir/claude-plugins.txt"
+settings_base="$save_dir/claude-settings.json"
+skills_list="$save_dir/claude-skills.txt"
+settings="$config/settings.json"
+skill_lock="$HOME/.agents/.skill-lock.json"
+# Never saved: keys other tools write (plugins are restored separately;
+# NotchBar's and CodeGraph's installers add their hooks), credential helpers,
+# and env vars except Claude Code's own switches — env is where API keys and
+# tokens go, and the saved file is committed
+settings_filter='del(.enabledPlugins, .extraKnownMarketplaces, .hooks,
+    .apiKeyHelper, .awsCredentialExport, .awsAuthRefresh, .otelHeadersHelper)
+  | if .env then .env |= with_entries(select(.key | test("^(CLAUDE_CODE_|DISABLE_|MAX_)")))
+      | if .env == {} then del(.env) else . end
+    else . end'
+# $HOME → ~ only where it starts a path (after start, space, ( = : or a
+# quote, and followed by / or the end); Claude Code's //$HOME/ absolute rule
+# syntax becomes ~/
+# shellcheck disable=SC2016 # jq program: $h, $s, $p are jq variables, not shell
+untilde='def untilde($h): (split("//" + $h + "/") | join("~/")) as $s | ($s | split($h)) as $p
+  | reduce range(1; $p | length) as $i ($p[0];
+      . + (if (. == "" or (.[-1:] | test("[\\s(=:\"'"'"']"))) and ($p[$i] == "" or ($p[$i] | startswith("/")))
+           then "~" else $h end) + $p[$i]);'
+
+dry_run=false
+failed=0
+
+run() {
+  if [ "$dry_run" = true ]; then
+    echo "$*"
+  # stdin is the restore loop's list: keep commands from reading it
+  elif ! "$@" < /dev/null; then
+    echo "claude-config: failed: $*" >&2
+    failed=1
+  fi
+}
+
+#
+# Plugins
+#
+
+# `name source` per marketplace; source is what `claude plugin marketplace add`
+# takes: a GitHub owner/repo, a git URL or a local path
+known_marketplaces() {
+  local f="$config/plugins/known_marketplaces.json"
+  [ -f "$f" ] || return 0
+  jq -r 'to_entries[] | "\(.key) \(.value.source | .repo // .url // .path // empty)"' "$f" || true
+}
+
+# plugin@marketplace ids installed at user scope
+installed_plugins() {
+  local f="$config/plugins/installed_plugins.json"
+  [ -f "$f" ] || return 0
+  jq -r '.plugins | to_entries[] | select(any(.value[]; .scope == "user")) | .key' "$f" || true
+}
+
+# Saving must never shrink a tracked file because this machine lacks its
+# source (not set up yet, or a tool moved its files): skip with a warning
+missing_source() {
+  if [ ! -s "$1" ]; then
+    echo "claude-config: $(tildify "$1") not found — kept $(tildify "$2")" >&2
+    return 0
+  fi
+  return 1
+}
+
+save_plugins() {
+  local disabled
+  missing_source "$config/plugins/installed_plugins.json" "$plugins_list" && return 0
+  disabled=$(jq -r '(.enabledPlugins // {}) | to_entries[] | select(.value == false) | .key' "$settings" 2> /dev/null || true)
+  {
+    echo "# Claude Code marketplaces and user-scope plugins — see bin/claude-config."
+    echo "# \"disabled\" = installed but turned off."
+    known_marketplaces | sort | sed 's/^/marketplace /'
+    installed_plugins | sort | while read -r id; do
+      if grep -qxF "$id" <<< "$disabled"; then
+        echo "plugin $id disabled"
+      else
+        echo "plugin $id"
+      fi
+    done
+  } > "$plugins_list.tmp" && mv "$plugins_list.tmp" "$plugins_list"
+}
+
+restore_plugins() {
+  local have_marketplaces have_plugins kind name arg
+  have_marketplaces=$(known_marketplaces | cut -d' ' -f1)
+  have_plugins=$(installed_plugins)
+  while read -r kind name arg; do
+    case $kind in
+      marketplace)
+        grep -qxF "$name" <<< "$have_marketplaces" || run claude plugin marketplace add "$arg"
+        ;;
+      plugin)
+        grep -qxF "$name" <<< "$have_plugins" && continue
+        run claude plugin install --scope user "$name"
+        # Only a fresh install gets the recorded disabled state; one already
+        # here keeps whatever you set on this machine
+        if [ "$arg" = disabled ]; then run claude plugin disable "$name"; fi
+        ;;
+    esac
+  done < <(grep -Ev '^\s*(#|$)' "$plugins_list")
+}
+
+#
+# Settings
+#
+
+save_settings() {
+  missing_source "$settings" "$settings_base" && return 0
+  # Sorted permission lists keep the diff stable
+  jq --arg home "$HOME" "$untilde $settings_filter"' | walk(if type == "string" then untilde($home) else . end)
+    | if .permissions then .permissions |= with_entries(if (.value | type) == "array" then .value |= sort else . end) else . end' \
+    "$settings" > "$settings_base.tmp" && mv "$settings_base.tmp" "$settings_base"
+}
+
+restore_settings() {
+  local current='{}' merged same='walk(if type == "array" then sort else . end)'
+  [ -s "$settings" ] && current=$(cat "$settings")
+  # Base first, then what's already here wins; permission lists are unioned
+  if ! merged=$(jq -n --argjson base "$(cat "$settings_base")" --argjson cur "$current" '
+    ($base * $cur)
+    | reduce ("allow", "deny", "ask", "additionalDirectories") as $k (.;
+        if ($base.permissions[$k] // $cur.permissions[$k]) then
+          .permissions[$k] = (($base.permissions[$k] // []) + ($cur.permissions[$k] // []) | unique)
+        else . end)'); then
+    echo "claude-config: couldn't merge $(tildify "$settings_base") into $(tildify "$settings") (invalid JSON?)" >&2
+    failed=1
+    return 0
+  fi
+  # Nothing missing (order aside): leave the file alone
+  if [ "$(jq -S "$same" <<< "$merged")" = "$(jq -S "$same" <<< "$current")" ]; then
+    return
+  fi
+  if [ "$dry_run" = true ]; then
+    echo "merge $(tildify "$settings_base") into $(tildify "$settings")"
+    return
+  fi
+  mkdir -p "$config"
+  printf '%s\n' "$merged" > "$settings.tmp" && mv "$settings.tmp" "$settings"
+}
+
+#
+# Skills
+#
+
+save_skills() {
+  missing_source "$skill_lock" "$skills_list" && return 0
+  {
+    echo "# User skills installed with the \`skills\` CLI — see bin/claude-config."
+    echo "# skill <name> <source> <agents>"
+    jq -r '.skills | to_entries[] | "\(.key) \(.value.source)"' "$skill_lock" | sort \
+      | while read -r name source; do
+        local agents=()
+        [ -e "$config/skills/$name" ] && agents+=(claude-code)
+        [ -e "$HOME/.agents/skills/$name" ] && agents+=(codex)
+        [ ${#agents[@]} -gt 0 ] || continue
+        echo "skill $name $source $(
+          IFS=,
+          echo "${agents[*]}"
+        )"
+      done
+  } > "$skills_list.tmp" && mv "$skills_list.tmp" "$skills_list"
+}
+
+restore_skills() {
+  local kind name source agents agent missing npx=(npx)
+  command -v mise > /dev/null && npx=(mise exec node -- npx)
+  while read -r kind name source agents; do
+    [ "$kind" = skill ] || continue
+    # Only the agents that don't have it yet
+    missing=()
+    for agent in ${agents//,/ }; do
+      case $agent in
+        claude-code) [ -e "$config/skills/$name" ] || missing+=("$agent") ;;
+        codex) [ -e "$HOME/.agents/skills/$name" ] || missing+=("$agent") ;;
+      esac
+    done
+    [ ${#missing[@]} -gt 0 ] || continue
+    DO_NOT_TRACK=1 DISABLE_TELEMETRY=1 run "${npx[@]}" -y skills add "$source" -g -s "$name" -a "${missing[@]}" -y
+  done < <(grep -Ev '^\s*(#|$)' "$skills_list")
+}
+
+tildify() {
+  printf '%s' "${1/#$HOME/~}"
+}
+
+case "${1:-}" in
+  save)
+    mkdir -p "$save_dir"
+    save_plugins
+    save_settings
+    save_skills
+    echo "Saved $(grep -c '^plugin ' "$plugins_list") plugins, settings and $(grep -c '^skill ' "$skills_list") skills to $(tildify "$save_dir")"
+    ;;
+  restore)
+    shift
+    part=all
+    for arg in "$@"; do
+      case $arg in
+        --dry-run) dry_run=true ;;
+        plugins | settings | skills) part=$arg ;;
+        *)
+          echo "claude-config: unknown argument: $arg" >&2
+          exit 2
+          ;;
+      esac
+    done
+    # Marketplaces and plugins first: settings don't depend on them, but the
+    # catalog built afterwards (setup/misc.sh) does
+    if [ "$part" = all ] || [ "$part" = plugins ]; then restore_plugins; fi
+    if [ "$part" = all ] || [ "$part" = settings ]; then restore_settings; fi
+    if [ "$part" = all ] || [ "$part" = skills ]; then restore_skills; fi
+    exit "$failed"
+    ;;
+  *)
+    echo "Usage: claude-config save | restore [plugins|settings|skills] [--dry-run]" >&2
+    exit 2
+    ;;
+esac

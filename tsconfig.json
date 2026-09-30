@@ -1,0 +1,15 @@
+// Editor type checking for the Amp plugins (the repo's only TypeScript). Amp
+// loads them itself; this only lets VS Code resolve `@ampcode/plugin` (a
+// devDependency). Without a tsconfig, VS Code falls back to classic module
+// resolution, which never looks in node_modules.
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["tilde/.config/amp/plugins/*.ts"]
+}

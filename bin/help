@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+# Show help for this repo's aliases, `docs/` pages and `bin/` scripts, or fall back to tldr-pages.
+# > More information: <https://github.com/tldr-pages/tlrc>.
+#
+# - Show the alias and shortcut index (`docs/README.md`):
+#
+# `help`
+#
+# - Show help for a script in `bin/`, a docs page (e.g. `gui/safari`), or any command:
+#
+# `help {{command}}`
+#
+# ---
+# License: MIT
+
+cd "$(dirname "$0")/.." || exit
+
+DOTFILES_DIR="$(pwd)"
+config="$DOTFILES_DIR/tilde/.tlrc.toml"
+
+# The pages in docs/ are regular Markdown (headings, tables), which tlrc's
+# strict tldr-page format rejects, so render those with bat instead
+render_markdown() {
+  if command -v bat &> /dev/null; then
+    bat --language=markdown --style=plain --paging=never "$1"
+  else
+    cat "$1"
+  fi
+}
+
+if [[ "$1" != "" ]]; then
+  md="$("$DOTFILES_DIR"/bin/lib/get-tldr-md "$1")"
+else
+  md="$DOTFILES_DIR/docs/README.md"
+fi
+
+if [[ "$md" == "$DOTFILES_DIR/docs/"* ]]; then
+  render_markdown "$md"
+elif [ "$md" != "" ]; then
+  # A tldr page generated from a bin/ script's header comment
+  tldr --config "$config" --render "$md"
+else
+  tldr --config "$config" "$@"
+fi

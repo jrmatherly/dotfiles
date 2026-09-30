@@ -1,0 +1,46 @@
+#!/bin/bash
+#
+# Quick grep based on `ripgrep` (rg), `ack`, or `grep`.
+# > More information: <https://github.com/BurntSushi/ripgrep> or `help rg`.
+#
+# - Recursively search the current folder for a regex pattern:
+#
+# `gf {{pattern}}`
+#
+# - Search for a pattern only in a certain filetype (e.g., html, css, etc.):
+#
+# `gf -t {{file type}} {{pattern}}`
+#
+# - Search for a pattern in files matching a glob (e.g., `README.*`):
+#
+# `gf -g {{glob}} {{pattern}}`
+#
+# - Match only at word boundaries:
+#
+# `gf -w {{pattern}}`
+#
+# - Case-sensitive search:
+#
+# `gf -s {{pattern}}`
+#
+# - Search for a pattern only in a file or folder:
+#
+# `gf {{pattern}} {{file or folder}}`
+#
+# - Replace a pattern (will only print results, use `wg` to do the actual replace):
+#
+# `gf {{pattern}} {{filename}} --replace {{replacement}}`
+#
+# ---
+# Based on https://github.com/sapegin/dotfiles/blob/master/bin/g
+#
+# License: MIT
+
+if command -v rg &> /dev/null; then
+  # See tilde/.ripgreprc for default options
+  rg -C 2 "$@"
+elif command -v ack &> /dev/null; then
+  ack -ri "$@"
+else
+  grep -ri "$@"
+fi

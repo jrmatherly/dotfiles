@@ -1,0 +1,5 @@
+{
+  "folder": "Logbook",
+  "template": "Meta/Templates/Daily Note",
+  "format": "YYYY/YYYY-MM-DD_HHmm"
+}

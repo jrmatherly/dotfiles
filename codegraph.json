@@ -1,0 +1,3 @@
+{
+  "exclude": ["ql-plugins/", "obsidian/.obsidian/plugins/", "pnpm-lock.yaml"]
+}

@@ -1,0 +1,15 @@
+{
+  "types": {
+    "aliases": "aliases",
+    "refs": "multitext",
+    "tags": "tags",
+    "created": "datetime",
+    "deadline": "date",
+    "published": "date",
+    "updated": "date",
+    "start": "date",
+    "rating": "number",
+    "last": "date",
+    "end": "date"
+  }
+}

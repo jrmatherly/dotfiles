@@ -1,0 +1,132 @@
+#!/bin/bash
+#
+# Get macOS software updates, update Homebrew (incl. VS Code), mise and uv tools, the Iosevka Code font, dotfiles, Raycast and Amp; record Claude Code plugins/settings/skills and rebuild their catalog.
+#
+# > A macOS update asks for your login password. Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` to a 1Password secret reference (`op://vault/item/password`) to supply it with a fingerprint instead.
+#
+# - Run updates:
+#
+# `upup`
+#
+# ---
+# License: MIT
+
+set -euo pipefail
+
+header() {
+  echo "$(tput sgr 0 1)$(tput setaf 6)$1$(tput sgr0)"
+}
+
+warning() {
+  tput setaf 1
+  echo "/!\\ $1 /!\\"
+  tput sgr0
+}
+
+# Ask for the administrator password upfront
+warning "Activate sudo"
+sudo echo "Sudo activated!"
+echo
+
+# Dotfiles (a failed pull — offline, or the clone is on a branch with no
+# upstream — shouldn't stop the other updates)
+dotfiles || warning "Couldn't pull the dotfiles — carrying on with the updates"
+echo
+
+# macOS. List first: with nothing to install there's no second scan, and the
+# list says whether an OS update (the one that restarts) is among them.
+header "Updating macOS system…"
+macos_updates="$(softwareupdate -l 2>&1)" || true
+echo "$macos_updates"
+if grep -q 'Label:' <<< "$macos_updates"; then
+  # On Apple Silicon, softwareupdate itself asks for the account password
+  # before an OS update (volume-owner authorization); sudo and Touch ID don't
+  # count. Optional: set DOTFILES_MAC_PASSWORD_OP in ~/.zsh.local to a
+  # 1Password secret reference (op://vault/item/password) and the password is
+  # read with `op` (a fingerprint) instead of typed — see README, Updating.
+  mac_password=""
+  if grep -q 'Action: restart' <<< "$macos_updates" \
+    && [ -n "${DOTFILES_MAC_PASSWORD_OP:-}" ] && command -v op > /dev/null; then
+    mac_password="$(op read "$DOTFILES_MAC_PASSWORD_OP")" \
+      || warning "Couldn't read the Mac password from 1Password — type it at the prompt"
+  fi
+  # printf is a shell builtin, so the password never shows up in `ps`
+  if [ -z "$mac_password" ] \
+    || ! printf '%s\n' "$mac_password" | sudo softwareupdate -ia --verbose --user "$USER" --stdinpass; then
+    sudo softwareupdate -ia --verbose
+  fi
+  unset mac_password
+fi
+echo
+
+# App Store
+# https://github.com/mas-cli/mas#known-issues
+# header "Updating apps from App Store…"
+# mas upgrade
+# echo
+
+# Homebrew (formulae + casks without and with auto_updates)
+header "Updating Homebrew packages…"
+outdated_packages=$(brew outdated --greedy)
+if [ -n "$outdated_packages" ]; then
+  echo "📦 Outdated packages:"
+  echo "$outdated_packages"
+  # --yes: Homebrew asks before upgrading by default; the list is printed above
+  brew upgrade --greedy --yes
+else
+  echo "✨ All packages already up-to-date."
+fi
+echo
+
+# Cleanup
+header "Cleaning up Homebrew…"
+brew cleanup --prune=all
+brew doctor || true
+echo
+
+# mise tools (Node/Python patch releases, npm: CLIs like CodeGraph) — stays
+# within the versions pinned in ~/.config/mise/config.toml; mise itself
+# updates with Homebrew above
+header "Updating mise tools…"
+mise upgrade
+echo
+
+# uv tools (Serena)
+if command -v uv > /dev/null; then
+  header "Updating uv tools…"
+  uv tool upgrade --all
+  echo
+fi
+
+# Iosevka Code Nerd Font (VS Code's font; no Homebrew cask, so not covered by
+# `brew upgrade` above) — reinstalls only when the upstream zip changed
+header "Checking the Iosevka Code font…"
+install-iosevka-code || warning "Iosevka Code font check failed — run it later: install-iosevka-code"
+echo
+
+# Claude Code: record the current plugins, base settings and user skills in
+# the repo (review with `git diff`), then rebuild the catalog of installed
+# skills/agents/MCP servers
+if command -v claude > /dev/null; then
+  header "Recording Claude Code config and rebuilding the catalog…"
+  claude-config save || warning "claude-config save failed — the tracked lists were left as they were"
+  claude-catalog | tail -1 || warning "claude-catalog failed — agents/catalog/curated.toml may name something no longer installed"
+  echo
+fi
+
+# Raycast
+header "Updating Raycast and its extensions…"
+open raycast://extensions/raycast/raycast/check-for-updates
+open raycast://extensions/raycast/raycast/check-for-extension-updates
+echo
+
+# Coding agents (Amp is installed by hand — see agents/README.md — so it may
+# not be here; Claude Code updates itself)
+if command -v amp > /dev/null; then
+  header "Updating coding agent tools…"
+  amp update
+  echo
+fi
+
+# Sign-off: Deadpool with his katanas (bin/nyan)
+nyan

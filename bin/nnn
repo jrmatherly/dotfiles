@@ -1,0 +1,27 @@
+#!/bin/bash
+#
+# Install the Node.js version a project asks for and make it active.
+# > Note: Uses `mise` (reads `mise.toml`, `.nvmrc` or `.node-version`).
+#
+# - Install/activate a project’s Node.js version:
+#
+# `nnn`
+#
+# - Change the global default Node.js version: move it first in the `node`
+#   list in tilde/.config/mise/config.toml (`mise use -g` replaces the list)
+#
+# ---
+# License: MIT
+
+set -euo pipefail
+
+command -v mise &> /dev/null || {
+  echo >&2 "mise is not installed: brew install mise"
+  exit 1
+}
+
+# Installs whatever the current directory resolves to, then reports it.
+# `.nvmrc`/`.node-version` are read because the tracked global config enables
+# `idiomatic_version_file_enable_tools = ["node", "python"]`.
+mise install node
+mise current node

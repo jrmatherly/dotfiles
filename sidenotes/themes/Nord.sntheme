@@ -1,0 +1,338 @@
+{
+  "dark" : {
+    "folder" : {
+      "notes" : {
+        "colors" : [
+          {
+            "code" : {
+
+            },
+            "strikethrough" : {
+
+            },
+            "italic" : {
+
+            },
+            "quote" : {
+
+            },
+            "filePreview" : {
+
+            },
+            "backgroundColor" : "#402023FF",
+            "codeBlock" : {
+
+            },
+            "barColor" : "#BF616AFF",
+            "mark" : {
+
+            },
+            "bold" : {
+
+            },
+            "boldItalic" : {
+
+            },
+            "checkMark" : {
+
+            },
+            "markdownMarkup" : {
+
+            },
+            "header" : {
+
+            }
+          },
+          {
+            "code" : {
+
+            },
+            "strikethrough" : {
+
+            },
+            "italic" : {
+
+            },
+            "quote" : {
+
+            },
+            "filePreview" : {
+
+            },
+            "backgroundColor" : "#402922FF",
+            "codeBlock" : {
+
+            },
+            "barColor" : "#D08770FF",
+            "mark" : {
+
+            },
+            "bold" : {
+
+            },
+            "boldItalic" : {
+
+            },
+            "checkMark" : {
+
+            },
+            "markdownMarkup" : {
+
+            },
+            "header" : {
+
+            }
+          },
+          {
+            "code" : {
+
+            },
+            "strikethrough" : {
+
+            },
+            "italic" : {
+
+            },
+            "quote" : {
+
+            },
+            "filePreview" : {
+
+            },
+            "backgroundColor" : "#403726FF",
+            "codeBlock" : {
+
+            },
+            "barColor" : "#EBCB8BFF",
+            "mark" : {
+
+            },
+            "bold" : {
+
+            },
+            "boldItalic" : {
+
+            },
+            "checkMark" : {
+
+            },
+            "markdownMarkup" : {
+
+            },
+            "header" : {
+
+            }
+          },
+          {
+            "code" : {
+
+            },
+            "strikethrough" : {
+
+            },
+            "italic" : {
+
+            },
+            "quote" : {
+
+            },
+            "filePreview" : {
+
+            },
+            "backgroundColor" : "#37402FFF",
+            "codeBlock" : {
+
+            },
+            "barColor" : "#A3BE8CFF",
+            "mark" : {
+
+            },
+            "bold" : {
+
+            },
+            "boldItalic" : {
+
+            },
+            "checkMark" : {
+
+            },
+            "markdownMarkup" : {
+
+            },
+            "header" : {
+
+            }
+          },
+          {
+            "code" : {
+
+            },
+            "strikethrough" : {
+
+            },
+            "italic" : {
+
+            },
+            "quote" : {
+
+            },
+            "filePreview" : {
+
+            },
+            "backgroundColor" : "#40323DFF",
+            "codeBlock" : {
+
+            },
+            "barColor" : "#B48EADFF",
+            "mark" : {
+
+            },
+            "bold" : {
+
+            },
+            "boldItalic" : {
+
+            },
+            "checkMark" : {
+
+            },
+            "markdownMarkup" : {
+
+            },
+            "header" : {
+
+            }
+          },
+          {
+            "code" : {
+
+            },
+            "strikethrough" : {
+
+            },
+            "italic" : {
+
+            },
+            "quote" : {
+
+            },
+            "filePreview" : {
+
+            },
+            "backgroundColor" : "#2B3540FF",
+            "codeBlock" : {
+
+            },
+            "barColor" : "#81A1C1FF",
+            "mark" : {
+
+            },
+            "bold" : {
+
+            },
+            "boldItalic" : {
+
+            },
+            "checkMark" : {
+
+            },
+            "markdownMarkup" : {
+
+            },
+            "header" : {
+
+            }
+          }
+        ],
+        "clean" : {
+          "code" : {
+            "textColor" : "#A3BE8CFF"
+          },
+          "strikethrough" : {
+
+          },
+          "italic" : {
+
+          },
+          "linkColor" : "#BF616AFF",
+          "quote" : {
+            "textColor" : "#EBCB8BFF"
+          },
+          "filePreview" : {
+            "backgroundColor" : "#37434f"
+          },
+          "backgroundColor" : "#2E3440FF",
+          "codeBlock" : {
+            "backgroundColor" : "#00000027",
+            "textColor" : "#A3BE8CFF"
+          },
+          "mark" : {
+            "backgroundColor" : "#81A1C1FF",
+            "textColor" : "#D8DEE9FF"
+          },
+          "tertiaryTextColor" : "#7C7E81FF",
+          "bold" : {
+
+          },
+          "boldItalic" : {
+
+          },
+          "buttonColor" : "#718ca1",
+          "checkMark" : {
+            "borderColor" : "#FFFFFF1A",
+            "doneBackgroundColor" : "#00000026",
+            "backgroundColor" : "#00000026",
+            "checkMarkColor" : "#88C0D0FF",
+            "doneBorderColor" : "#FFFFFF1A"
+          },
+          "textColor" : "#D8DEE9FF",
+          "markdownMarkup" : {
+            "textColor" : "#4C566AFF"
+          },
+          "header" : {
+            "textColor" : "#81A1C1FF"
+          },
+          "secondaryTextColor" : "#A1A2A7FF"
+        }
+      },
+      "header" : {
+        "buttonColor" : "#81A1C1FF",
+        "backgroundColor" : "#2E3440FF",
+        "textColor" : "#81A1C1FF"
+      }
+    },
+    "systemAppearance" : "dark",
+    "folders" : {
+      "list" : {
+        "buttonColor" : "#81A1C1FF",
+        "backgroundColor" : "#2E3440FF",
+        "textColor" : "#D8DEE9FF",
+        "secondaryTextColor" : "#718ca1"
+      },
+      "header" : {
+        "buttonColor" : "#81A1C1FF",
+        "backgroundColor" : "#2E3440FF",
+        "textColor" : "#81A1C1FF"
+      },
+      "cleanFolderColor" : "#81A1C1FF"
+    },
+    "accentColor" : "#88C0D0FF",
+    "iOS" : {
+
+    },
+    "search" : {
+      "backgroundColor" : "#2E3440FF",
+      "searchField" : {
+        "shadow" : {
+          "offsetX" : 0,
+          "color" : "#00000000",
+          "blurRadius" : 0,
+          "offsetY" : 0
+        },
+        "backgroundColor" : "#11161b",
+        "textColor" : "#D8DEE9FF"
+      },
+      "enableVisualEffects" : true
+    }
+  }
+}

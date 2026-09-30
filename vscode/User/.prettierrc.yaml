@@ -1,0 +1,8 @@
+# Prettier config for VS Code's user settings. It lives here, not only in the
+# repo-root prettier.config.cjs, because VS Code opens these files through
+# ~/Library/Application Support/Code/User — a path outside the repo — where
+# the Prettier extension finds no root config, falls back to its defaults
+# (trailingComma: all) and adds trailing commas on every save. This directory
+# *is* that folder (symlinked), so both paths resolve this file. The nearest
+# config wins, so it also governs `pnpm format`/`pnpm check` here.
+trailingComma: none

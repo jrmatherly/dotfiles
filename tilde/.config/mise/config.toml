@@ -1,0 +1,41 @@
+# Global mise configuration — symlinked to ~/.config/mise/config.toml
+# https://mise.jdx.dev/configuration.html
+
+[tools]
+# Several versions per tool: all get installed, the FIRST is the default on
+# PATH. Projects select another via `.nvmrc` / `.python-version` / `mise.toml`,
+# or run one ad hoc: `mise exec node@22 -- node -v`.
+#
+# Node: 24 (Active LTS) by default — pinned rather than the `lts` alias, which
+# moves to 26 when it becomes LTS in October 2026. 22 = Maintenance LTS,
+# 26 = Current.
+node = ["24", "22", "26"]
+# Global `tsc` for scratch files — projects pin `typescript` in their own
+# devDependencies (`pnpm exec tsc`). Held at major 6 while most projects are
+# still on it; bump to "7" once TS 7 is the norm.
+"npm:typescript" = "6"
+# CodeGraph — code-graph CLI + MCP server for AI agents
+# (https://github.com/colbymchenry/codegraph). Upgrade with `mise upgrade`,
+# not `codegraph upgrade`. setup/misc.sh wires it into Claude Code
+# (`codegraph install --target claude`); indexing a repo (`codegraph init`) is
+# a manual step.
+"npm:@colbymchenry/codegraph" = "latest"
+# Global npm CLIs — installed by mise (not `npm install -g`), so they survive
+# switching the default Node and upgrade with `mise upgrade` (within the major).
+"npm:serverless" = "4"
+"npm:@antfu/ni" = "30"
+# Python for VS Code and scripts — Homebrew's python@3.x only exists as a
+# dependency of other formulae (pipx, awscli…), so don't rely on it. Projects
+# pin their own with `.python-version` / `mise.toml`; uv manages their venvs.
+# Every version's bin dir is on PATH, so `python3.11`…`python3.15` all work
+# directly; plain `python`/`python3` is 3.14. 3.15 is pinned to its release
+# candidate — mise's "3.15" won't match a prerelease — so change it to "3.15"
+# once 3.15.0 is out (October 2026).
+python = ["3.14", "3.11", "3.12", "3.13", "3.15.0rc2"]
+
+[settings]
+# Read `.nvmrc` / `.node-version` (like nvm and fnm) and `.python-version`
+# (like pyenv/uv) — off by default in mise. This repo's own .nvmrc (`lts/*`)
+# relies on it, as does `bin/nnn`.
+# https://mise.jdx.dev/configuration/settings.html
+idiomatic_version_file_enable_tools = ["node", "python"]

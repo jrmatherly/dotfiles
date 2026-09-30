@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Searchable catalog of the Claude Code skills, commands, subagents and MCP servers installed on this machine.">
+<title>Claude Code Catalog</title>
+<style>
+:root{--bg:#fafaf9;--panel:#fff;--fg:#1c1917;--muted:#6b6560;--line:#e7e5e4;--accent:#c2410c;
+--skill:#2563eb;--command:#7c3aed;--agent:#047857;--mcp:#c2410c;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c0a09;--panel:#1c1917;--fg:#f5f5f4;--muted:#a8a29e;--line:#292524;--accent:#fb923c;
+--skill:#60a5fa;--command:#a78bfa;--agent:#34d399;--mcp:#fb923c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0c0a09;--panel:#1c1917;--fg:#f5f5f4;--muted:#a8a29e;--line:#292524;--accent:#fb923c;
+--skill:#60a5fa;--command:#a78bfa;--agent:#34d399;--mcp:#fb923c;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:0 16px}
+.title{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding-top:14px;padding-bottom:6px}
+#theme{margin-left:auto}
+h1{font-size:20px;margin:0}
+.meta{color:var(--muted);font-size:13px;order:3;flex-basis:100%}
+.controls{position:sticky;top:0;z-index:2;background:var(--bg);border-bottom:1px solid var(--line);padding:8px 0}
+.row{display:flex;gap:8px;align-items:center}
+.row+.row{margin-top:8px}
+input[type=search]{flex:1 1 auto;min-width:0;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);font:inherit}
+select{flex:0 1 200px;min-width:0;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--fg);font:inherit}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:999px;padding:4px 12px;white-space:nowrap}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chips{overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}
+[role=tab][aria-selected=true]{border-color:var(--accent);color:var(--accent);font-weight:600}
+.sep{width:1px;align-self:stretch;background:var(--line);flex:none}
+.kbtn{border-color:currentColor}.kbtn[aria-pressed=false]{opacity:.45;text-decoration:line-through}
+.linkbtn{border:none;background:none;color:var(--accent);padding:4px 6px;text-decoration:underline}
+.status{font-size:13px;color:var(--muted);white-space:nowrap}
+main{padding-top:14px;padding-bottom:40px}
+.howto{font-size:14px;margin:0 0 14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+.howto summary{cursor:pointer;font-weight:600}
+.howto ul{margin:6px 0 2px;padding-left:18px}
+code,.name,.use{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.name{font-size:14px;font-weight:600;border:none;background:none;padding:0;border-radius:4px;color:var(--fg);text-align:left;white-space:normal;overflow-wrap:anywhere;cursor:copy}
+.name:hover{text-decoration:underline dotted}
+.kind{font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:1px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.k-skill{color:var(--skill)}.k-command{color:var(--command)}.k-agent{color:var(--agent)}.k-mcp{color:var(--mcp)}
+.src{font-size:12px;color:var(--muted)}
+.off{font-size:11px;color:var(--muted);border:1px dashed var(--muted);border-radius:999px;padding:0 6px}
+.item{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:0 0 8px}
+.item.is-off{opacity:.7}
+.top{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
+.use{font-size:12px;color:var(--muted);margin:2px 0 0;overflow-wrap:anywhere}
+.desc{margin:4px 0 0}
+.clamp{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.more{border:none;background:none;color:var(--accent);padding:0;font-size:13px}
+.note{margin:4px 0 0;font-size:13px;border-left:3px solid var(--accent);padding-left:8px}
+.tools{margin:4px 0 0;font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;overflow-wrap:anywhere}
+.group{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:0 0 14px}
+.group h2{font-size:16px;margin:0 0 4px}
+.pick{font-size:13px;margin:0 0 6px}
+.guide{font-size:14px;color:var(--muted);margin:0 0 8px}
+.group ul{margin:0;padding:0;list-style:none}
+.group li{padding:6px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:minmax(0,380px) 1fr;gap:4px 12px}
+.d-t{margin:0}
+.group li .d{font-size:13px;color:var(--muted);overflow-wrap:anywhere;min-width:0}
+.desc,.note,.guide{overflow-wrap:anywhere}
+.star{color:var(--accent)}
+.srcsec{margin:0 0 10px}
+.srcsec>summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.srcsec>summary::-webkit-details-marker{display:none}
+.srcsec>summary::before{content:"▸";color:var(--muted)}
+.srcsec[open]>summary::before{content:"▾"}
+.srcsec>summary h2{font-size:15px;margin:0}
+.srcsec>summary .pd{flex-basis:100%;font-size:13px;color:var(--muted)}
+.srcsec .body{padding:8px 0 0 12px}
+.empty{background:var(--panel);border:1px dashed var(--line);border-radius:10px;padding:16px;text-align:center}
+.hidelbl{display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap}
+.stag{font-size:11px;padding:0 7px;border-radius:999px;border:1px dashed var(--muted);color:var(--muted);white-space:nowrap}
+.s-retired{border-style:solid;color:#b91c1c;border-color:#b91c1c}.s-new{border-style:solid;color:var(--skill);border-color:var(--skill)}
+.s-review{border-style:solid;color:#b91c1c;border-color:#b91c1c}.s-watch{border-style:solid;color:#b45309;border-color:#b45309}
+.s-retire{background:#b91c1c;color:#fff;border-color:#b91c1c}.s-keep{border-style:solid}
+.usage{font-size:12px;color:var(--muted);margin:2px 0 0}
+.showhidden{margin-top:6px}
+.banner .linkbtn{padding:0}
+.banner{background:var(--panel);border:1px solid var(--skill);border-radius:10px;padding:8px 14px;margin:0 0 14px;font-size:14px}
+.summary{display:flex;flex-wrap:wrap;gap:8px 20px;margin:0 0 10px;font-size:14px}
+.summary b{font-size:18px;display:block}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th button{border:none;background:none;padding:0;font-weight:600;color:var(--fg)}
+td.num,th.num{text-align:right;white-space:nowrap}
+.bar{display:block;height:4px;border-radius:2px;background:var(--mcp);margin-top:3px}
+td .why{color:var(--muted);min-width:220px}
+pre.snip{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;overflow-x:auto;font-size:12px}
+.fine{font-size:12px;color:var(--muted)}
+.name.copycmd{font-family:inherit;font-size:12px;font-weight:400;white-space:nowrap;border:1px solid var(--line);border-radius:6px;padding:2px 8px}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:6px 14px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+@media (max-width:640px){
+  .group li{grid-template-columns:minmax(0,1fr)}
+  .chips{flex-wrap:nowrap}
+  select{flex-basis:120px}
+  .tablewrap table,.tablewrap tbody,.tablewrap tr,.tablewrap td{display:block}
+  .tablewrap thead{display:none}
+  .tablewrap tr{border-bottom:1px solid var(--line);padding:8px 12px}
+  .tablewrap td{border:none;padding:1px 0;text-align:left}
+  .tablewrap td[data-label]{display:inline-block;margin-right:14px}
+  .tablewrap td[data-label]::before{content:attr(data-label) ": ";color:var(--muted);font-size:12px}
+  .tablewrap td[data-label] .fine,.tablewrap .bar{display:none}
+  td .why{min-width:0}
+  .chips{-webkit-mask-image:linear-gradient(to right,#000 88%,transparent);mask-image:linear-gradient(to right,#000 88%,transparent)}
+}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<header class="wrap title">
+  <h1>Claude Code Catalog</h1>
+  <span class="meta" id="meta"></span>
+  <button id="theme" type="button" title="Switch color theme">Theme: auto</button>
+</header>
+<div class="controls"><div class="wrap">
+  <div class="row">
+    <input type="search" id="q" placeholder="Search…" aria-label="Search names and descriptions" title="Press / to focus">
+    <select id="src" aria-label="Filter by source"><option value="">All sources</option></select>
+    <select id="status" aria-label="Filter by status">
+      <option value="">All statuses</option><option value="recommended">★ Recommended</option>
+      <option value="alternative">Alternatives</option><option value="duplicate">Duplicates</option>
+      <option value="ungrouped">Ungrouped (triage)</option><option value="internal">Internal helpers</option><option value="retired">Retired</option>
+      <option value="new">New since last build</option>
+    </select>
+  </div>
+  <div class="row chips">
+    <div role="tablist" aria-label="View" class="row">
+      <button role="tab" id="t-guide" aria-controls="out">Task guide</button>
+      <button role="tab" id="t-all" aria-controls="out">Everything</button>
+      <button role="tab" id="t-plugins" aria-controls="out">Plugins</button>
+    </div>
+    <span class="sep" aria-hidden="true"></span>
+    <span id="kinds" class="row" role="group" aria-label="Filter by kind"></span>
+    <label class="hidelbl"><input type="checkbox" id="hide"> Hide alternatives, internal &amp; retired</label>
+    <button id="clear" class="linkbtn" type="button" hidden>Clear filters</button>
+    <span id="count" class="status" role="status" aria-live="polite"></span>
+  </div>
+</div></div>
+<main class="wrap">
+  <details class="howto" id="howto">
+    <summary>How to read this page (click any name to copy its invocation)</summary>
+    <ul>
+      <li><span class="kind k-skill">skill</span> / <span class="kind k-command">command</span> type <code>/name</code> in Claude Code; an agent calls its Skill tool with the name.</li>
+      <li><span class="kind k-agent">agent</span> not in the <code>/</code> menu. Ask Claude to delegate, e.g. "use the <em>name</em> agent to…" (Agent tool, <code>subagent_type</code>).</li>
+      <li><span class="kind k-mcp">mcp</span> tools appear as <code>mcp__…__tool</code>. Ask for the task; Claude calls the tools. Manage with <code>/mcp</code>.</li>
+      <li><span class="star">★</span> <strong>Recommended</strong>: the go-to choice for that task when several tools overlap. Chosen by hand (the <code>pick</code> list in <code>curated.toml</code>), not computed; groups without a clear default have no star.</li>
+      <li>Status tags: <span class="stag s-alternative">alternative</span> in a task group but not its pick · <span class="stag s-duplicate">duplicate</span> same job as another item · <span class="stag s-ungrouped">ungrouped</span> not yet sorted into any task group · <span class="stag s-internal">internal</span> run by its own plugin, not by you · <span class="stag s-retired">retired</span> marked for removal · <span class="stag s-new">new</span> appeared since the last build.</li>
+      <li><strong>Plugins tab</strong>: context cost, usage and cleanup status per plugin. Plugins are the unit you can remove, so cleanup is judged there.</li>
+    </ul>
+  </details>
+  <div id="banner"></div>
+  <div id="out" role="tabpanel"></div>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+const D = /*DATA*/null;
+const byName = new Map(D.items.map(i => [i.name, i]));
+const pluginBy = new Map(D.plugins.map(p => [p.name, p]));
+const KINDS = {skill:"Skills", command:"Commands", agent:"Subagents", mcp:"MCP"};
+const ALL = Object.keys(KINDS);
+const TABS = ["guide", "all", "plugins"];
+const HIDEABLE = new Set(["alternative", "duplicate", "retired", "internal"]);
+const st = {q:"", src:"", status:"", hide:false, kinds:new Set(ALL), tab:"guide", sort:"cost", dir:-1, expanded:new Set()};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = n => n == null ? "?" : n.toLocaleString();
+const store = {get(k){try{return localStorage.getItem(k)}catch{return null}}, set(k,v){try{localStorage.setItem(k,v)}catch{}}};
+
+// ---- theme ----
+const THEMES = ["auto","light","dark"];
+function applyTheme(t){ t === "auto" ? document.documentElement.removeAttribute("data-theme") : document.documentElement.setAttribute("data-theme", t); $("theme").textContent = "Theme: " + t; }
+let theme = store.get("theme") || "auto"; applyTheme(theme);
+$("theme").onclick = () => { theme = THEMES[(THEMES.indexOf(theme) + 1) % 3]; store.set("theme", theme); applyTheme(theme); };
+
+// ---- controls ----
+$("meta").textContent = `${D.items.length} items · ${D.plugins.length} plugins · ~${fmt(D.total_cost)} always-on tokens · built ${D.built}`;
+[...new Set(D.items.map(i => i.source))].sort().forEach(s => $("src").add(new Option(s, s)));
+if (!D.since) $("status").querySelector('[value=new]').remove();
+for (const [k, label] of Object.entries(KINDS)) {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "kbtn k-" + k; b.dataset.kind = k;
+  b.textContent = `${label} ${D.items.filter(i => i.kind === k).length}`;
+  b.onclick = () => { st.kinds.has(k) ? st.kinds.delete(k) : st.kinds.add(k); update(); };
+  $("kinds").append(b);
+}
+const hw = store.get("howto"); $("howto").open = hw ? hw === "open" : matchMedia("(min-width: 641px)").matches;
+$("howto").querySelector("summary").addEventListener("click", () => setTimeout(() => store.set("howto", $("howto").open ? "open" : "closed")));
+
+// ---- state <-> URL hash ----
+function readHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  st.q = p.get("q") || ""; st.src = p.get("src") || ""; st.status = p.get("status") || "";
+  st.tab = TABS.includes(p.get("tab")) ? p.get("tab") : "guide"; st.hide = p.get("hide") === "1";
+  st.sort = p.get("sort") || "cost"; st.dir = p.get("dir") === "1" ? 1 : -1;
+  const k = p.get("kinds"); st.kinds = new Set(k ? k.split(",").filter(x => ALL.includes(x)) : ALL);
+  $("q").value = st.q; $("src").value = st.src; $("status").value = st.status; $("hide").checked = st.hide;
+}
+function writeHash() {
+  const p = new URLSearchParams();
+  if (st.q) p.set("q", st.q); if (st.src) p.set("src", st.src); if (st.status) p.set("status", st.status);
+  if (st.tab !== "guide") p.set("tab", st.tab); if (st.hide) p.set("hide", "1");
+  if (st.tab === "plugins" && (st.sort !== "cost" || st.dir !== -1)) { p.set("sort", st.sort); p.set("dir", st.dir); }
+  if (st.kinds.size < ALL.length) p.set("kinds", [...st.kinds].join(","));
+  const h = p.toString(); history.replaceState(null, "", h ? "#" + h : location.pathname + location.search);
+}
+
+// ---- rendering helpers ----
+function textMatch(i) {
+  if (!st.q) return true;
+  const hay = `${i.name} ${i.desc} ${i.note || ""} ${i.tools || ""} ${i.source} ${i.status || ""}`.toLowerCase();
+  return st.q.toLowerCase().split(/\s+/).every(w => hay.includes(w));
+}
+const statusOk = i => !st.status || (st.status === "new" ? i.new : i.status === st.status);
+const filterOk = i => st.kinds.has(i.kind) && (!st.src || i.source === st.src) && statusOk(i);
+const hiddenByToggle = i => st.hide && HIDEABLE.has(i.status) && st.status !== i.status;
+const match = i => filterOk(i) && textMatch(i) && !hiddenByToggle(i);
+
+const nameBtn = i => `<button type="button" class="name" data-copy="${esc(i.use || i.name)}" title="Copy ${esc(i.use || i.name)}">${esc(i.name)}</button>`;
+const kindTag = k => `<span class="kind k-${k}">${k}</span>`;
+const statusTag = i => (["alternative", "duplicate", "ungrouped", "retired", "internal"].includes(i.status)
+  ? `<span class="stag s-${i.status}" title="${esc(i.status_why || i.status)}">${i.status}</span>` : "") + (i.new ? ' <span class="stag s-new">new</span>' : "");
+const ago = d => d == null ? "" : d < 1 ? "today" : `${Math.round(d)}d ago`;
+const usageLine = i => i.uses ? `<p class="usage">used ${i.uses}× · last ${ago(i.days_idle)}</p>` : "";
+function text(s, cls) {
+  if (!s) return "";
+  return s.length > 180
+    ? `<p class="${cls} clamp">${esc(s)}</p><button type="button" class="more" aria-expanded="false">more</button>`
+    : `<p class="${cls}">${esc(s)}</p>`;
+}
+
+function card(i) {
+  const where = i.project ? `project: ${i.project}` : i.source;
+  return `<div class="item${i.enabled === false || i.status === "retired" ? " is-off" : ""}"><div class="top">
+    ${nameBtn(i)} ${kindTag(i.kind)}${i.status === "recommended" ? ' <span class="star" role="img" aria-label="recommended">★</span>' : ""}
+    <span class="src">${esc(where)}</span> ${statusTag(i)}
+    ${i.enabled === false ? '<span class="off">disabled</span>' : ""}</div>
+    ${i.use && i.use !== "/" + i.name && i.use !== i.name ? `<p class="use">${esc(i.use)}</p>` : ""}
+    ${usageLine(i)}
+    ${text(i.desc || (i.target ? i.target : ""), "desc")}${i.note ? `<p class="note">${esc(i.note)}</p>` : ""}
+    ${i.status_why && i.status !== "alternative" ? `<p class="note">${esc(i.status)}: ${esc(i.status_why)}</p>` : ""}
+    ${i.tools ? `<p class="tools">tools: ${esc(i.tools)}</p>` : ""}</div>`;
+}
+
+function renderBanner() {
+  if (!D.since || (!D.new.length && !D.removed.length)) return "";
+  const nm = k => esc(k.split(":").slice(1).join(":"));
+  return `<div class="banner" role="status"><strong>Since the last build (${esc(D.since)}):</strong>
+    ${D.new.length} new${D.new.length ? ` (<button type="button" class="linkbtn" id="shownew">show them</button>)` : ""},
+    ${D.removed.length} removed${D.removed.length ? `: ${D.removed.slice(0, 12).map(nm).join(", ")}${D.removed.length > 12 ? "…" : ""}` : ""}.</div>`;
+}
+
+function renderGuide() {
+  let shown = 0, hiddenTotal = 0;
+  const html = D.groups.map((g, gi) => {
+    const picks = new Set([].concat(g.pick || []));
+    const all = (g.items || []).map(n => byName.get(n) || {name:n, desc:"(not installed)", kind:"skill"})
+      .filter(i => filterOk(i) && (!st.q || g.title.toLowerCase().includes(st.q.toLowerCase()) || textMatch(i)));
+    const open = st.expanded.has(gi);
+    const hidden = all.filter(hiddenByToggle);
+    const rows = open ? all : all.filter(i => !hiddenByToggle(i));
+    const ql = st.q.toLowerCase();
+    const famHit = (g.plugins || []).some(pl => (!st.src || st.src === pl) && (!ql || g.title.toLowerCase().includes(ql) || pl.includes(ql)));
+    if (!all.length && !famHit) return "";
+    shown++; hiddenTotal += open ? 0 : hidden.length;
+    return `<section class="group" aria-labelledby="g${gi}"><h2 id="g${gi}">${esc(g.title)}</h2>
+      ${picks.size ? `<p class="pick"><span class="star" aria-hidden="true">★</span> Recommended: ${[...picks].map(p => nameBtn(byName.get(p) || {name:p})).join(", ")}</p>` : ""}
+      ${g.guide ? `<p class="guide">${esc(g.guide)}</p>` : ""}
+      ${(g.plugins || []).length ? `<p class="fine">Whole plugins: ${g.plugins.map(pl => `<button type="button" class="linkbtn" data-src="${esc(pl)}">${esc(pl)} (${D.items.filter(i => i.source === pl).length})</button>`).join(" ")}</p>` : ""}
+      <ul>${rows.map(i => `<li><span>${kindTag(i.kind)} ${nameBtn(i)}${picks.has(i.name) ? ' <span class="star" role="img" aria-label="recommended" title="Recommended pick for this task">★</span>' : ""} ${statusTag(i)}</span>
+        <span class="d">${text(i.note || i.desc, "d-t")}${usageLine(i)}</span></li>`).join("")}</ul>
+      ${hidden.length ? `<button type="button" class="linkbtn showhidden" data-group="${gi}" aria-expanded="${open}">${open ? "Hide" : "Show"} ${hidden.length} hidden (${[...new Set(hidden.map(i => i.status))].join(", ")})</button>` : ""}
+      </section>`;
+  }).join("");
+  const total = D.items.filter(match).length;
+  $("count").textContent = `${shown} of ${D.groups.length} groups` + (hiddenTotal ? ` · ${hiddenTotal} hidden` : "");
+  if (html) return html;
+  return `<div class="empty"><p>No task groups match${st.q ? ` “${esc(st.q)}”` : ""}.</p>
+    ${total ? `<button type="button" id="goall">See ${total} match${total === 1 ? "" : "es"} in Everything →</button>` : `<p class="src">Nothing in the catalog matches either.</p>`}</div>`;
+}
+
+function renderAll() {
+  const rows = D.items.filter(match);
+  const hidden = st.hide ? D.items.filter(i => filterOk(i) && textMatch(i) && hiddenByToggle(i)).length : 0;
+  $("count").textContent = `${rows.length} of ${D.items.length} items` + (hidden ? ` · ${hidden} hidden` : "");
+  if (!rows.length) return `<div class="empty"><p>Nothing matches.</p><button type="button" id="clear2">Clear filters</button></div>`;
+  const bySrc = new Map();
+  rows.forEach(i => { if (!bySrc.has(i.source)) bySrc.set(i.source, []); bySrc.get(i.source).push(i); });
+  const order = ["built-in", "user", "claude.ai (synced)", "claude.ai connector", "project"];
+  const srcs = [...bySrc.keys()].sort((a, b) => ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99) || a.localeCompare(b));
+  const open = !!(st.q || st.src || st.status || srcs.length <= 3);
+  return srcs.map(s => {
+    const p = pluginBy.get(s), list = bySrc.get(s).sort((a, b) => a.name.localeCompare(b.name));
+    const pinfo = p ? ` · ${p.cost != null ? `${p.cost_estimated ? "~" : ""}${fmt(p.cost)} tok` : ""} · <span class="stag s-${p.status}" title="${esc(p.status_why)}">${p.status}</span>` : "";
+    return `<details class="srcsec"${open ? " open" : ""}><summary><h2>${esc(s)}</h2>
+      <span class="src">${list.length} item${list.length === 1 ? "" : "s"}${p && p.marketplace ? " · " + esc(p.marketplace) : ""}${pinfo}</span>
+      ${p && p.desc ? `<span class="pd">${esc(p.desc)}</span>` : ""}</summary>
+      <div class="body">${list.map(card).join("")}</div></details>`;
+  }).join("");
+}
+
+const COLS = [
+  ["name", "Plugin"], ["status", "Status"], ["cost", "Always-on tokens", true], ["uses", "Uses", true],
+  ["days_idle", "Idle", true], ["picks", "★ picks", true], ["items", "Items", true], ["status_why", "Why"], [null, "Action"]];
+const RANK = {review: 0, watch: 1, retire: 2, keep: 3, disabled: 4};
+function renderPlugins() {
+  const q = st.q.toLowerCase();
+  const rows = D.plugins.filter(p => !q || `${p.name} ${p.desc} ${p.status} ${p.status_why}`.toLowerCase().includes(q))
+    .sort((a, b) => {
+      const k = st.sort, va = k === "status" ? RANK[a.status] : a[k], vb = k === "status" ? RANK[b.status] : b[k];
+      if (va == null) return 1; if (vb == null) return -1;
+      return (typeof va === "string" ? va.localeCompare(vb) : va - vb) * st.dir;
+    });
+  const n = s => D.plugins.filter(p => p.status === s).length;
+  const max = Math.max(...D.plugins.map(p => p.cost || 0));
+  const th = D.thresholds;
+  $("count").textContent = `${rows.length} of ${D.plugins.length} plugins`;
+  return `<div class="summary">
+      <span><b>~${fmt(D.total_cost)}</b>always-on tokens (enabled plugins)</span>
+      <span><b>${n("review")}</b>review for cleanup</span><span><b>${n("watch")}</b>watch</span>
+      <span><b>${n("retire")}</b>retired</span><span><b>${n("keep")}</b>keep</span>
+      ${D.has_usage ? "" : "<span><b>?</b>usage data unavailable</span>"}</div>
+    <p class="fine">A plugin is flagged <em>review</em> when it is unused for ≥${th.unused_days} days and ≥${th.unused_sessions} sessions,
+      has no ★ pick, and costs ≥${fmt(th.cost_tokens)} always-on tokens or is ≥${Math.round(th.overlap_ratio * 100)}% alternatives/duplicates.
+      <em>watch</em> = meets the cost/overlap rules but was used recently or is too new to judge. Thresholds live in <code>[cleanup]</code>
+      in curated.toml; your decisions go in <code>[plugin_status]</code>. Uses counts hook runs too, so hook plugins look busy.
+      Costs cover skill/agent/command listings only; MCP tool schemas are extra (see <code>/context</code>). ~ = partly estimated.</p>
+    <div class="tablewrap"><table><thead><tr>${COLS.map(([k, label, num]) => `<th class="${num ? "num" : ""}" ${k ? `aria-sort="${st.sort === k ? (st.dir > 0 ? "ascending" : "descending") : "none"}"` : ""}>${k ? `<button type="button" data-sort="${k}">${label}${st.sort === k ? (st.dir > 0 ? " ▲" : " ▼") : ""}</button>` : label}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(p => `<tr>
+      <td><button type="button" class="linkbtn" data-src="${esc(p.name)}" title="Show this plugin's items">${esc(p.name)}</button><div class="fine">${esc(p.marketplace)}</div></td>
+      <td data-label="Status"><span class="stag s-${p.status}">${p.status}</span></td>
+      <td class="num" data-label="Always-on tokens">${p.cost != null ? (p.cost_estimated ? "~" : "") + fmt(p.cost) : "?"}${p.cost ? `<span class="bar" style="width:${Math.max(4, 100 * p.cost / max)}%"></span>` : ""}</td>
+      <td class="num" data-label="Uses">${fmt(p.uses)}</td>
+      <td class="num" data-label="Idle">${p.days_idle != null ? `${p.days_idle}d` : "?"}${p.sessions_idle != null ? `<div class="fine">${p.sessions_idle} sess</div>` : ""}</td>
+      <td class="num" data-label="★ picks">${p.picks}</td><td class="num" data-label="Items">${p.items}</td>
+      <td><div class="why">${esc(p.status_why)}</div></td>
+      <td>${p.enabled ? `<button type="button" class="name copycmd" data-copy="${esc(p.disable_cmd)}" title="Copy: ${esc(p.disable_cmd)}">Copy disable</button>` : "—"}</td>
+    </tr>`).join("")}</tbody></table></div>
+    ${D.overrides ? `<h2>skillOverrides for retired personal/built-in skills</h2><p class="fine">Plugin skills can't be turned off one by one; these can. Add to ~/.claude/settings.json:</p><pre class="snip">${esc(D.overrides)}</pre>` : ""}`;
+}
+
+function update() {
+  for (const b of $("kinds").children) b.setAttribute("aria-pressed", st.kinds.has(b.dataset.kind));
+  for (const t of TABS) { const el = $("t-" + t); el.setAttribute("aria-selected", st.tab === t); el.tabIndex = st.tab === t ? 0 : -1; }
+  const itemTab = st.tab !== "plugins";
+  for (const id of ["src", "status", "kinds"]) $(id).style.display = itemTab ? "" : "none";
+  $("hide").parentElement.style.display = itemTab ? "" : "none";
+  $("clear").hidden = !(st.q || st.src || st.status || st.hide || st.kinds.size < ALL.length);
+  $("out").setAttribute("aria-labelledby", "t-" + st.tab);
+  $("banner").innerHTML = renderBanner();
+  $("out").innerHTML = st.tab === "guide" ? renderGuide() : st.tab === "all" ? renderAll() : renderPlugins();
+  fitMore();
+  writeHash();
+}
+// only offer "more" where the 3-line clamp actually cut text (closed sections measure 0 → re-check on open)
+function fitMore(root = $("out")) {
+  for (const m of root.querySelectorAll(".more")) { const p = m.previousElementSibling; if (p.classList.contains("clamp") && p.clientHeight) m.hidden = p.scrollHeight <= p.clientHeight + 1; }
+}
+$("out").addEventListener("toggle", e => { if (e.target.open) fitMore(e.target); }, true);
+addEventListener("resize", () => fitMore());
+function setTab(t) { st.tab = t; update(); }
+function clearAll() { Object.assign(st, {q:"", src:"", status:"", hide:false, kinds:new Set(ALL)}); readBack(); update(); }
+function readBack() { $("q").value = st.q; $("src").value = st.src; $("status").value = st.status; $("hide").checked = st.hide; }
+
+// ---- events ----
+$("q").oninput = e => { st.q = e.target.value.trim(); update(); };
+$("src").onchange = e => { st.src = e.target.value; if (st.src) st.tab = "all"; update(); };
+$("status").onchange = e => { st.status = e.target.value; if (st.status === "ungrouped" || st.status === "new") st.tab = "all"; update(); };
+$("hide").onchange = e => { st.hide = e.target.checked; st.expanded.clear(); update(); };
+for (const t of TABS) $("t-" + t).onclick = () => setTab(t);
+$("clear").onclick = clearAll;
+document.querySelector("[role=tablist]").addEventListener("keydown", e => {
+  const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0; if (!d) return;
+  setTab(TABS[(TABS.indexOf(st.tab) + d + TABS.length) % TABS.length]); $("t-" + st.tab).focus();
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "/" && !/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) { e.preventDefault(); $("q").focus(); }
+});
+window.addEventListener("hashchange", () => { readHash(); update(); });
+$("banner").addEventListener("click", e => { if (e.target.id === "shownew") { st.status = "new"; st.tab = "all"; readBack(); update(); } });
+$("out").addEventListener("click", e => {
+  const t = e.target;
+  if (t.id === "goall") return setTab("all");
+  if (t.id === "clear2") return clearAll();
+  if (t.dataset.sort) { st.dir = st.sort === t.dataset.sort ? -st.dir : (t.dataset.sort === "name" || t.dataset.sort === "status" ? 1 : -1); st.sort = t.dataset.sort; return update(); }
+  if (t.dataset.src) { st.src = t.dataset.src; st.tab = "all"; readBack(); return update(); }
+  if (t.dataset.group) { const g = +t.dataset.group; st.expanded.has(g) ? st.expanded.delete(g) : st.expanded.add(g); return update(); }
+  if (t.classList.contains("more")) {
+    const p = t.previousElementSibling, open = p.classList.toggle("clamp");
+    t.textContent = open ? "more" : "less"; t.setAttribute("aria-expanded", !open); return;
+  }
+  const n = t.closest(".name"); if (!n) return;
+  const v = n.dataset.copy, toast = $("toast");
+  const done = ok => { toast.textContent = ok ? `Copied ${v}` : `Copy failed: ${v}`; toast.style.opacity = 1; clearTimeout(done.t); done.t = setTimeout(() => toast.style.opacity = 0, 1400); };
+  navigator.clipboard ? navigator.clipboard.writeText(v).then(() => done(true), () => done(false)) : done(false);
+});
+readHash(); update();
+</script>
+</body>
+</html>

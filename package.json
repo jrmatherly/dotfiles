@@ -1,0 +1,25 @@
+{
+  "name": "dotfiles",
+  "version": "0.0.1",
+  "packageManager": "pnpm@12.5.1",
+  "type": "module",
+  "description": "My personal dotfiles for configuring macOS with Zsh and Homebrew.",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "check": "bin/lib/check",
+    "format": "prettier --log-level warn --ignore-unknown --write \"**/*.{js,cjs,ts,md,json,sh}\" \"bin/*\""
+  },
+  "author": "Jason Matherly",
+  "license": "MIT",
+  "dependencies": {
+    "avif": "^0.6.0"
+  },
+  "devDependencies": {
+    "@ampcode/plugin": "0.0.0-20260923001649-g009f5d9",
+    "prettier": "^3.9.9",
+    "prettier-plugin-sh": "^0.19.0"
+  }
+}
