@@ -37,7 +37,7 @@ Jason's personal dotfiles for configuring macOS with Zsh and Homebrew — a pers
 
 ## Installation
 
-The repo is private, so on a new Mac clone it over HTTPS with the GitHub CLI first — SSH only works after 1Password is set up (keys live there, see [`~/.ssh/github_personal.pub`](#sshgithub_personalpub)).
+On a new Mac, clone over HTTPS — SSH only works after 1Password is set up (keys live there, see [`~/.ssh/github_personal.pub`](#sshgithub_personalpub)).
 
 1. Install the Command Line Tools (for `git`) and [Homebrew](https://brew.sh):
 
@@ -47,13 +47,13 @@ The repo is private, so on a new Mac clone it over HTTPS with the GitHub CLI fir
    eval "$(/opt/homebrew/bin/brew shellenv)" # the installer doesn't put brew on PATH
    ```
 
-1. Authenticate and clone (the `https://` URL forces an HTTPS clone):
+1. Clone the repo (no GitHub login needed; `setup/misc.sh` offers `gh auth login` later):
 
    ```shell
-   brew install gh
-   gh auth login
-   gh repo clone https://github.com/jrmatherly/dotfiles ~/dev/dotfiles
+   git clone https://github.com/jrmatherly/dotfiles.git ~/dev/dotfiles
    ```
+
+   Setting up your own Mac? Fork the repo, clone your fork instead, and go through [Make it yours](#make-it-yours) before running setup.
 
 1. Optional, for signed commits from the start: install 1Password (`brew install --cask 1password`), sign in and turn on **Settings → Developer → Use the SSH agent**. `setup/symlinks.sh` asks how to sign commits — [SSH via 1Password](https://www.1password.dev/ssh/git-commit-signing) (`op-ssh-sign`; paste your public key when asked), GPG, or none — and writes `~/.gitconfig.local`. Choose none if 1Password isn't ready yet and add signing to `~/.gitconfig.local` later.
 1. Run the setup — [automatically](#automatically) or [manually](#manually).
@@ -153,6 +153,22 @@ setup/dash.sh add ~/dev/myapp/docs/html "My App" myapp # or add one directly
 ```
 
 This edits the repo's Dash sync file, so it only takes effect once Dash's sync folder (Dash → Settings → General) points at the repo's `dash/` folder. Quit Dash before running it.
+
+## Make it yours
+
+Setup already asks for your git identity, commit signing and computer name. These values are hard-coded to me, so change them in your fork:
+
+| File | What to change |
+| --- | --- |
+| `README.md`, [`docs/macos tips & tricks.md`](docs/macos%20tips%20%26%20tricks.md) | Title, intro and the `jrmatherly/dotfiles` clone URL and link |
+| [`agents/README.md`](agents/README.md) | The `jrmatherly/skills` links point to my private skills repo — use your own, or the public [skills CLI](https://github.com/vercel-labs/skills) |
+| [`tilde/.config/fastfetch/config.jsonc`](tilde/.config/fastfetch/config.jsonc) | Name, URL and weather `location` |
+| [`lazygit/config.yml`](lazygit/config.yml) | The author name under `authorColors` |
+| [`vscode/User/settings.json`](vscode/User/settings.json) | `notes.notesLocation` — an absolute path with my user name (the Notes extension can't expand `~`) |
+| [`agents/claude-*`](agents/) | My Claude Code plugins, settings and skills. Run `claude-config save` once yours are installed and commit the result |
+| [`agents/catalog/curated.toml`](agents/catalog/curated.toml) | Notes on my tools. `claude-catalog` still builds but exits 1 (a warning in setup) for each entry you don't have installed, like my `coolify` MCP server — delete those |
+| [`setup/Brewfile`](setup/Brewfile) | My apps. Trim it, or pick a subset with `bin/brewpick` |
+| [`LICENSE`](LICENSE) | Add your copyright line; keep the existing ones (MIT requires it) |
 
 ## Local customizations
 
