@@ -87,7 +87,7 @@ To automate the setup of your dotfiles on a new machine, use the [setup](./setup
 ~/dev/dotfiles/setup.sh # after cloning as in step 2 above
 ```
 
-This will install all required dotfiles in your home directory as symlinks. Everything is then configured by editing files in the clone.
+This will install all required dotfiles in your home directory as symlinks. Everything is then configured by editing files in the clone. For a diagram of what it runs, what it downloads and what needs `sudo`, see [setup/README.md](setup/README.md#setupsh-orchestrator).
 
 Options:
 

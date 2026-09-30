@@ -2,6 +2,10 @@
 
 ## setup.sh (orchestrator)
 
+![setup.sh runtime: the step scripts, what they fetch from the internet, what runs as root, and what lands in $HOME](bootstrap-runtime.svg)
+
+The diagram is generated with [Archify](https://github.com/tt-a1i/archify) from [`bootstrap-runtime.archify.json`](bootstrap-runtime.archify.json), whose source line references are pinned to a commit. When the step order, sudo use or download sources change, update that file, re-run `archify finalize` and re-export the SVG.
+
 `../setup.sh` runs these in order: **brew → zsh → misc → symlinks** (plus `dash` with `--dash`). Flags: `-y/--yes`, `--skip-brew`, `--skip-codegraph`, `--dash`, `-h/--help` — see the table in the [main README](../README.md#automatically).
 
 It resolves its own location, so the repo can live anywhere; it creates a `~/dotfiles` symlink to the clone for configs that can't expand variables, and keeps the sudo timestamp alive so long installs don't re-prompt. If `/etc/pam.d/sudo_local` doesn't exist, it creates it to enable Touch ID for `sudo`. It does **not** touch `~/.zshrc` itself — that goes through `symlinks.sh`'s skip/overwrite/backup prompt like every other file.

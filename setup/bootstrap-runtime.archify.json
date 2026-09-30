@@ -1,0 +1,359 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Dotfiles Bootstrap Runtime",
+    "output": ".archify/architecture-dotfiles-runtime-20260930-191319/dotfiles-runtime.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "git@github.com:jrmatherly/dotfiles.git",
+      "provider": "github",
+      "link_mode": "local-only",
+      "revision": "6a384140bf04e3effa4629cf9108e6b0e481ca7f"
+    }
+  },
+  "components": [
+    {
+      "id": "user",
+      "type": "external",
+      "label": "You",
+      "sublabel": "terminal on a Mac",
+      "pos": [40, 220],
+      "size": [130, 64],
+      "sources": [
+        {
+          "path": "setup.sh",
+          "line": 6,
+          "label": "usage"
+        }
+      ]
+    },
+    {
+      "id": "setup",
+      "type": "backend",
+      "label": "setup.sh",
+      "sublabel": "orchestrator · sudo kept alive",
+      "pos": [270, 220],
+      "size": [170, 64],
+      "sources": [
+        {
+          "path": "setup.sh",
+          "line": 129,
+          "end_line": 169,
+          "label": "sudo + step order"
+        }
+      ]
+    },
+    {
+      "id": "system",
+      "type": "security",
+      "label": "macOS system files",
+      "sublabel": "/etc/pam.d · /etc/shells",
+      "pos": [40, 420],
+      "size": [160, 64],
+      "tag": "root",
+      "sources": [
+        {
+          "path": "setup.sh",
+          "line": 123,
+          "end_line": 127,
+          "label": "Touch ID sudo"
+        },
+        {
+          "path": "setup/zsh.sh",
+          "line": 45,
+          "end_line": 53,
+          "label": "register zsh + chsh"
+        }
+      ]
+    },
+    {
+      "id": "brew",
+      "type": "backend",
+      "label": "brew.sh",
+      "sublabel": "Brewfile via brewpick",
+      "pos": [560, 60],
+      "size": [160, 64],
+      "sources": [
+        {
+          "path": "setup/brew.sh",
+          "line": 23,
+          "end_line": 43
+        }
+      ]
+    },
+    {
+      "id": "misc",
+      "type": "backend",
+      "label": "misc.sh",
+      "sublabel": "runtimes · Claude Code · MCP",
+      "pos": [560, 220],
+      "size": [160, 64],
+      "sources": [
+        {
+          "path": "setup/misc.sh",
+          "line": 96,
+          "end_line": 118,
+          "label": "mise install"
+        },
+        {
+          "path": "setup/misc.sh",
+          "line": 138,
+          "end_line": 194,
+          "label": "Claude Code, CodeGraph, MCP"
+        },
+        {
+          "path": "setup/misc.sh",
+          "line": 257,
+          "end_line": 258,
+          "label": "claude-config restore"
+        }
+      ]
+    },
+    {
+      "id": "symlinks",
+      "type": "backend",
+      "label": "symlinks.sh",
+      "sublabel": "tilde/ → ~ (prompts)",
+      "pos": [560, 420],
+      "size": [160, 64],
+      "sources": [
+        {
+          "path": "setup/symlinks.sh",
+          "line": 168,
+          "end_line": 216
+        }
+      ]
+    },
+    {
+      "id": "homebrew",
+      "type": "cloud",
+      "label": "Homebrew",
+      "sublabel": "formulae + casks",
+      "pos": [860, 60],
+      "size": [170, 64],
+      "sources": [
+        {
+          "path": "setup/brew.sh",
+          "line": 23,
+          "end_line": 28
+        }
+      ]
+    },
+    {
+      "id": "registries",
+      "type": "cloud",
+      "label": "Package registries",
+      "sublabel": "mise · npm · PyPI (uv)",
+      "pos": [860, 170],
+      "size": [170, 64],
+      "sources": [
+        {
+          "path": "setup/misc.sh",
+          "line": 111,
+          "end_line": 118
+        },
+        {
+          "path": "setup/misc.sh",
+          "line": 185
+        }
+      ]
+    },
+    {
+      "id": "anthropic",
+      "type": "external",
+      "label": "Claude Code sources",
+      "sublabel": "claude.ai · marketplaces",
+      "pos": [860, 280],
+      "size": [170, 64],
+      "sources": [
+        {
+          "path": "setup/misc.sh",
+          "line": 138
+        },
+        {
+          "path": "bin/claude-config",
+          "line": 127,
+          "end_line": 131,
+          "label": "marketplaces + plugins"
+        }
+      ]
+    },
+    {
+      "id": "home",
+      "type": "database",
+      "label": "$HOME configs",
+      "sublabel": "symlinks into the repo",
+      "pos": [860, 420],
+      "size": [170, 64],
+      "sources": [
+        {
+          "path": "setup/symlinks.sh",
+          "line": 173,
+          "end_line": 216
+        }
+      ]
+    },
+    {
+      "id": "shell",
+      "type": "frontend",
+      "label": "zsh session",
+      "sublabel": "~/.zshrc load order",
+      "pos": [1160, 420],
+      "size": [160, 64],
+      "sources": [
+        {
+          "path": "tilde/.zshrc",
+          "line": 5,
+          "end_line": 38
+        },
+        {
+          "path": "tilde/.zshenv",
+          "line": 5,
+          "label": "$DOTFILES"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Repo scripts · run as you",
+      "wraps": ["setup", "brew", "misc", "symlinks"]
+    },
+    {
+      "kind": "security-group",
+      "label": "root via sudo",
+      "wraps": ["system"]
+    },
+    {
+      "kind": "region",
+      "label": "Internet · third-party code",
+      "wraps": ["homebrew", "registries", "anthropic"]
+    },
+    {
+      "kind": "region",
+      "label": "Machine-local",
+      "wraps": ["home", "shell"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "run-setup",
+      "from": "user",
+      "to": "setup",
+      "label": "./setup.sh",
+      "variant": "emphasis"
+    },
+    {
+      "id": "grant-root",
+      "from": "setup",
+      "to": "system",
+      "label": "sudo tee",
+      "variant": "security"
+    },
+    {
+      "id": "step-brew",
+      "from": "setup",
+      "to": "brew",
+      "label": "1 · brew",
+      "variant": "emphasis"
+    },
+    {
+      "id": "step-misc",
+      "from": "setup",
+      "to": "misc",
+      "label": "3 · misc",
+      "variant": "emphasis"
+    },
+    {
+      "id": "step-symlinks",
+      "from": "setup",
+      "to": "symlinks",
+      "label": "4 · links",
+      "variant": "emphasis"
+    },
+    {
+      "id": "brew-fetch",
+      "from": "brew",
+      "to": "homebrew",
+      "label": "brew bundle",
+      "variant": "dashed"
+    },
+    {
+      "id": "misc-registries",
+      "from": "misc",
+      "to": "registries",
+      "label": "mise · uv",
+      "variant": "dashed"
+    },
+    {
+      "id": "misc-anthropic",
+      "from": "misc",
+      "to": "anthropic",
+      "label": "install · restore",
+      "variant": "dashed"
+    },
+    {
+      "id": "link-home",
+      "from": "symlinks",
+      "to": "home",
+      "label": "ln -s",
+      "variant": "emphasis"
+    },
+    {
+      "id": "load-shell",
+      "from": "home",
+      "to": "shell",
+      "label": "sourced at login",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Primary path",
+      "items": [
+        "./setup.sh runs brew.sh → zsh.sh → misc.sh → symlinks.sh in order",
+        "--skip-brew skips step 1; --dash adds dash.sh",
+        "Idempotent: re-running is how changes are applied"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Trust boundaries",
+      "items": [
+        "setup.sh and zsh.sh write root-owned files (pam sudo_local, /etc/shells)",
+        "Everything else runs as you; symlink_file never overwrites silently",
+        "Third-party code arrives via curl | bash (Homebrew, Claude Code) and package registries"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Supply-chain guards",
+      "items": [
+        "npm min-release-age 7 and allow-git none",
+        "Iosevka font: ETag check, SHA-256 notice",
+        "Telemetry opt-outs in setup.sh and zsh/env.zsh"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Maintenance loop: upup",
+      "items": [
+        "softwareupdate (password via 1Password op read, optional)",
+        "brew upgrade --greedy, mise upgrade, uv tool upgrade",
+        "claude-config save, then claude-catalog rebuild"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "Never tracked",
+      "items": [
+        "~/.zsh.local, ~/.gitconfig.local, ~/.ssh/config.local",
+        "~/.claude/CLAUDE.md (codegraph rewrites it)",
+        "Per-machine .codegraph/ index"
+      ]
+    }
+  ]
+}
