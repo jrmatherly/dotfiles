@@ -97,7 +97,6 @@
     "defaultMode": "auto",
     "additionalDirectories": []
   },
-  "model": "opus",
   "worktree": {
     "baseRef": "fresh"
   },
