@@ -15,9 +15,9 @@ ql-plugins/
 
 # Files that tools write and rewrite themselves. Reformatting them makes each
 # tool and prettier undo each other's changes, so prettier leaves them alone:
-# - CLAUDE.md (any depth): maintained by the auto-memory plugin
+# - CLAUDE.md (any depth): AUTO-MANAGED sections and agent-written edits
 # - .serena/: Serena's project config and memories
-# - .claude/auto-memory/: auto-memory's config and state
+# - .claude/auto-memory/: auto-memory's state, if the plugin is re-enabled here
 # - docs/superpowers/: implementation plans written and checked off by agents
 # - .superpowers/: plan-execution scratch (git-ignored by its own nested
 #   .gitignore, which prettier doesn't read)
