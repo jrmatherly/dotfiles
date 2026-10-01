@@ -15,6 +15,7 @@ tap "azure/azd"
 # trusted too for `azure-functions-core-tools@4` to install.
 tap "azure/functions", trusted: { formulae: ["azure-functions-core-tools"] } # azure-functions-core-tools@4
 tap "azure/kubelogin"
+tap "getsentry/tools" # sentry (cli.sentry.dev)
 tap "kubestellar/tap" # kubestellar-deploy / kubestellar-ops
 tap "microsoft/aspire"
 tap "microsoft/foundry"
@@ -106,6 +107,10 @@ brew "mermaid-cli" # Render Mermaid diagrams
 brew "pipx" # Install Python CLI tools in isolated envs
 brew "pre-commit" # Git hook framework (runs a repo's .pre-commit-config.yaml)
 brew "ruff" # Fast Python linter/formatter
+# Sentry's new CLI (`sentry`, log in with `sentry auth`), not the legacy
+# `sentry-cli` that build tooling pulls in per project. Telemetry is off via
+# DO_NOT_TRACK in zsh/env.zsh.
+brew "getsentry/tools/sentry", trusted: true # Sentry CLI: issues, events, root cause
 brew "uv" # Fast Python package/project manager
 
 # Security / pentesting

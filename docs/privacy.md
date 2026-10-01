@@ -20,6 +20,6 @@
 
 ## Telemetry opt-outs (automatic)
 
-- `zsh/env.zsh` exports opt-outs for Next.js, Strapi, Gatsby, Astro, Storybook, Vercel, AWS CDK, GitHub CLI, Azure Developer CLI, CodeGraph, Azure Functions Core Tools, the .NET CLI, PowerShell, the Azure CLI and Aspire (CLI and dashboard), plus `HOMEBREW_NO_ANALYTICS` and `DO_NOT_TRACK` (the Console Do Not Track convention, honoured by the `skills` CLI among others).
+- `zsh/env.zsh` exports opt-outs for Next.js, Strapi, Gatsby, Astro, Storybook, Vercel, AWS CDK, GitHub CLI, Azure Developer CLI, CodeGraph, Azure Functions Core Tools, the .NET CLI, PowerShell, the Azure CLI and Aspire (CLI and dashboard), plus `HOMEBREW_NO_ANALYTICS` and `DO_NOT_TRACK` (the Console Do Not Track convention, honoured by the `skills` CLI and the Sentry CLI among others).
 - `setup.sh` exports the Microsoft ones and `CODEGRAPH_TELEMETRY` for the install run, before `zsh/env.zsh` is ever sourced. `setup/misc.sh` also runs `codegraph telemetry off`, so agents launched outside a shell stay opted out.
 - Firefox Developer Edition telemetry is turned off in [`firefox/user.js`](../firefox/user.js).
