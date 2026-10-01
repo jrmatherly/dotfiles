@@ -9,7 +9,7 @@ Add `$ARGUMENTS` to the dotfiles. Work through every item; say explicitly when o
 1. **Install method** (pick one):
    - macOS app or system CLI → `setup/Brewfile` (`brew`/`cask`/`vscode` line with a trailing `#` comment), installed by `bin/brewpick --all`.
    - Runtime or npm CLI → `tilde/.config/mise/config.toml` `[tools]` (`"npm:<pkg>" = "<major>"`), with a comment explaining the pin. Never `npm install -g`.
-   - Python CLI → `uv tool install` in `setup/misc.sh`, guarded by `command_exists uv` (`bin/upup` runs `uv tool upgrade --all`).
+   - Python CLI → the Brewfile if Homebrew packages it (e.g. `pipx`, `pre-commit`); otherwise `uv tool install` in `setup/misc.sh`, guarded by `command_exists uv` (`bin/upup` runs `uv tool upgrade --all`).
 2. **Setup wiring** (`setup/misc.sh`): only when the tool needs post-install steps (auth, MCP registration via `claude mcp get <name> || claude mcp add --scope user …`, telemetry off). Keep it idempotent and warn — don't fail — when a step can't run.
 3. **Telemetry**: if the tool phones home, add its opt-out variable to **both** `setup.sh` and `zsh/env.zsh`, and to `docs/privacy.md`.
 4. **Config files**: `$HOME` config goes under `tilde/` at its home-relative path. If the tool rewrites its config via temp-file + rename (breaks symlinks), don't track it — note that in `setup/README.md`.

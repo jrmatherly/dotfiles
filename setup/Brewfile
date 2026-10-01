@@ -104,6 +104,7 @@ brew "markdownlint-cli" # Markdown linter
 brew "markdownlint-cli2" # Markdown linter (v2)
 brew "mermaid-cli" # Render Mermaid diagrams
 brew "pipx" # Install Python CLI tools in isolated envs
+brew "pre-commit" # Git hook framework (runs a repo's .pre-commit-config.yaml)
 brew "ruff" # Fast Python linter/formatter
 brew "uv" # Fast Python package/project manager
 
