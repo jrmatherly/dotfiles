@@ -40,4 +40,13 @@ if command -v mise > /dev/null; then
 else
   python3 agents/catalog/test_build_catalog.py > /dev/null
 fi
+# Parse the Brewfile the way brewpick does (`manual` lines stripped: raw
+# `brew bundle` rejects them) so a typo fails here, not on the next install
+if command -v brew > /dev/null; then
+  brewfile=$(mktemp)
+  grep -v '^manual' setup/Brewfile > "$brewfile"
+  HOMEBREW_NO_AUTO_UPDATE=1 brew bundle list --all --file="$brewfile" > /dev/null \
+    || { rm -f "$brewfile"; echo "setup/Brewfile failed to parse" >&2; exit 1; }
+  rm -f "$brewfile"
+fi
 prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}" "bin/*"
