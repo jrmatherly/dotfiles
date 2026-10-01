@@ -360,6 +360,7 @@ vscode "ms-vscode.remote-explorer"
 vscode "ms-vscode.remote-repositories"
 vscode "orta.vscode-jest"
 vscode "qwtel.sqlite-viewer"
+vscode "rphlmr.vscode-drizzle-orm" # Drizzle ORM: Drizzle Studio and schema helpers
 vscode "vitest.explorer"
 
 # Formatting / linting / quality
