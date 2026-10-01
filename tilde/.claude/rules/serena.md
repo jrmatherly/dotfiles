@@ -33,6 +33,12 @@ The flag auto-activates the nearest ancestor with `.serena/project.yml` or `.git
 
 The docs recommend `serena-hooks remind/activate/auto-approve/cleanup` in `~/.claude/settings.json`, marked alpha and opt-in. Skipped: `remind` nags toward symbolic tools after consecutive Read/Grep calls, which is wrong for LSP-less repos (Bicep/XML); `activate` is redundant with `--project-from-cwd`. Revisit for Python-heavy repos.
 
+## Trusted projects stay empty (`trusted_project_path_patterns: []`)
+
+In `~/.serena/serena_config.yml` (machine state Serena rewrites itself, so it's not tracked). `[]` is the shipped template value (trust arrived in v1.6.0) — it's deliberate, not a gap. Trust only unlocks a project's own `activation_command` (a shell command run in the repo on every activation) and `ls_specific_settings`. With `--project-from-cwd` auto-activating, trusting `~/dev/**` would let any cloned repo run code when Claude Code opens there. No repo here sets either field.
+
+If one ever needs it, add that repo's **exact absolute root** (e.g. `/Users/you/dev/repo`): `~` isn't expanded, and `<root>/**` doesn't match the root itself ([oraios/serena#2001](https://github.com/oraios/serena/issues/2001)). Never `**`. Takes effect on the next Claude Code restart.
+
 ## Verify after any change
 
 `claude mcp get serena` → Args `start-mcp-server --context claude-code --project-from-cwd`, **Connected**. In session: `get_current_config` → context `claude-code`, project active, the excluded tools absent. Changes take effect on next Claude Code restart (MCP + plugin enable/disable load at startup).
