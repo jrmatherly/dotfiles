@@ -38,6 +38,7 @@ SKIP_BREW=false
 # Read by setup/misc.sh — also settable in the environment
 export DOTFILES_SKIP_CODEGRAPH="${DOTFILES_SKIP_CODEGRAPH:-false}"
 RUN_DASH=false
+orig_args=("$@")
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -57,6 +58,19 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+# Record the whole run to private/setup-logs/ (git-ignored) so /validate-setup
+# can read it instead of pasted output. `script` keeps a real terminal, so
+# prompts, Touch ID and colors still work, and it returns the run's exit code.
+# Skipped without a terminal or when already recording.
+if [ -t 0 ] && [ -t 1 ] && [ -z "${DOTFILES_SETUP_LOG:-}" ]; then
+  mkdir -p "$DOTFILES_DIR/private/setup-logs"
+  DOTFILES_SETUP_LOG="$DOTFILES_DIR/private/setup-logs/$(date +%Y%m%d-%H%M%S).log"
+  export DOTFILES_SETUP_LOG
+  echo "Logging this run to ${DOTFILES_SETUP_LOG#"$DOTFILES_DIR"/}"
+  # ${arr[@]+…} keeps an empty array safe under `set -u` in macOS's bash 3.2
+  exec script -q "$DOTFILES_SETUP_LOG" "$DOTFILES_DIR/setup.sh" ${orig_args[@]+"${orig_args[@]}"}
+fi
 
 # Colors, but only when we're attached to a terminal that supports them
 if [ -t 1 ] && command -v tput &> /dev/null && tput setaf 1 &> /dev/null; then

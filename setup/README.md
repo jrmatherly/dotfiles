@@ -10,6 +10,8 @@ The diagram is generated with [Archify](https://github.com/tt-a1i/archify) from 
 
 It resolves its own location, so the repo can live anywhere; it creates a `~/dotfiles` symlink to the clone for configs that can't expand variables, and keeps the sudo timestamp alive so long installs don't re-prompt. If `/etc/pam.d/sudo_local` doesn't exist, it creates it to enable Touch ID for `sudo`. It does **not** touch `~/.zshrc` itself — that goes through `symlinks.sh`'s skip/overwrite/backup prompt like every other file.
 
+When run from a terminal, it records the whole run (prompts included) to `private/setup-logs/<timestamp>.log`, which is git-ignored, by re-running itself under macOS `script`. `/validate-setup after` reads the newest log, so there's no need to paste output.
+
 `macos.sh` is deliberately not part of the run; use `set-defaults`.
 
 ## brew
