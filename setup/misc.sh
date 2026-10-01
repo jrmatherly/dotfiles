@@ -54,7 +54,7 @@ xcode-select -p
 # Make custom binary scripts executable
 info 'Changing access permissions for binary scripts…'
 # shellcheck disable=SC2016 # ${0##*/} is for the inner bash -c, so it must stay unexpanded here
-find "$DOTFILES_DIR/bin" -type f -not -name '.DS_Store' -not -name 'README.md' -exec chmod +x {} \; -exec bash -c 'printf "\r\033[2K  [ \033[00;32m✔\033[0m ] set for %s\n" "${0##*/}"' {} \;
+find "$DOTFILES_DIR/bin" -type f -not -name '.DS_Store' -not -name '*.md' -exec chmod +x {} \; -exec bash -c 'printf "\r\033[2K  [ \033[00;32m✔\033[0m ] set for %s\n" "${0##*/}"' {} \;
 echo
 echo 'Done!' | indent
 echo
