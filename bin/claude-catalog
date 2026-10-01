@@ -10,6 +10,10 @@
 #
 # `claude-catalog --out {{path/to/dir}}`
 #
+# - Rebuild it, then open catalog.html in the browser:
+#
+# `claude-catalog --open`
+#
 # ---
 # Generator and hand-edited notes: agents/catalog/ (build_catalog.py, curated.toml).
 # Exits 1 when curated.toml names something that isn't installed.
@@ -27,5 +31,24 @@ if command -v mise &> /dev/null; then
   build=(mise exec python -- "${build[@]}")
 fi
 
+# --open is ours, not the generator's: take it out and remember the output dir
+# (the caller's last --out, like argparse) to open afterwards
+open_html=false
+out="$HOME/.claude/catalog"
+args=()
+prev=""
+for arg in "$@"; do
+  if [ "$arg" = "--open" ]; then
+    open_html=true
+    continue
+  fi
+  [ "$prev" = "--out" ] && out="$arg"
+  args+=("$arg")
+  prev="$arg"
+done
+
 # A later --out from the caller wins (argparse keeps the last one)
-exec "${build[@]}" --out "$HOME/.claude/catalog" "$@"
+"${build[@]}" --out "$HOME/.claude/catalog" ${args[@]+"${args[@]}"}
+if $open_html; then
+  open "$out/catalog.html"
+fi

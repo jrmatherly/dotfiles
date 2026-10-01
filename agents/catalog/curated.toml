@@ -227,6 +227,9 @@ tools = "microsoft_docs_search, microsoft_code_sample_search, microsoft_docs_fet
 desc = "GitHub's hosted MCP (needs GITHUB_PERSONAL_ACCESS_TOKEN). Disabled; the gh CLI covers most needs."
 [mcp.grafana]
 desc = "Grafana MCP via Docker (needs GRAFANA_URL + service-account token). Disabled."
+[mcp.sentry]
+desc = "Sentry's hosted MCP (sentry plugin): find orgs/projects, search issues and events, Seer root-cause analysis, update issues. The `sentry` CLI covers the same from Bash."
+tools = "search_issues, search_events, get_sentry_resource, analyze_issue_with_seer, update_issue"
 
 # ---------- notes on confusable items ----------
 
