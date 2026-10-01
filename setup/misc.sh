@@ -211,6 +211,28 @@ else
   echo "dotnet not found — skipping PowerShell (install the dotnet-sdk cask first)" | indent
 fi
 
+# Aspire HTTPS dev certificate: `aspire run` in a non-interactive session
+# creates it without trusting it (macOS can't show the Keychain prompt), so the
+# dashboard shows TLS warnings. `aspire certs trust` creates it if missing and
+# asks for the login password. The check greps the message rather than trusting
+# the exit code (unverified for the untrusted case); a wording change only
+# costs an extra prompt.
+if command_exists aspire && command_exists dotnet; then
+  if [[ "$(dotnet dev-certs https --check --trust 2>&1)" == *'A trusted certificate was found'* ]]; then
+    echo "Aspire HTTPS dev certificate already trusted" | indent
+  elif [ -t 0 ]; then
+    read -rp "  [Aspire] Trust the HTTPS dev certificate now (asks for your macOS password)? [y/N] " aspire_trust
+    case "$aspire_trust" in
+      y | Y)
+        aspire certs trust --nologo || warning "aspire certs trust failed — run it later"
+        ;;
+      *) echo "Skipped. Trust it later with: ${BOLD}aspire certs trust${RESET}" | indent ;;
+    esac
+  else
+    echo "[Aspire] HTTPS dev certificate not trusted. Run: ${BOLD}aspire certs trust${RESET}" | indent
+  fi
+fi
+
 if ! command_exists npm; then
   echo "npm not found — skipping Node.js global config and packages" | indent
   exit 0

@@ -148,6 +148,10 @@ export POWERSHELL_TELEMETRY_OPTOUT=1
 # Azure CLI `core.collect_telemetry` as an env var (AZURE_{section}_{name}):
 # https://learn.microsoft.com/cli/azure/azure-cli-configuration
 export AZURE_CORE_COLLECT_TELEMETRY=false
+# https://aspire.dev — `aspire docs get microsoft-collected-cli-telemetry`
+# (and `...-dashboard-telemetry` for the dashboard)
+export ASPIRE_CLI_TELEMETRY_OPTOUT=true
+export ASPIRE_DASHBOARD_TELEMETRY_OPTOUT=true
 
 # Claude Code: use the system + bundled CA cert store (needed behind some corporate proxies)
 export CLAUDE_CODE_CERT_STORE="bundled,system"
