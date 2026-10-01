@@ -443,12 +443,12 @@ rect.c-bg-rect { fill: var(--bg); }
 
         <!-- Connection paths (before components for correct z-order) -->
         <g data-graph-role="automatic-crossover" style="--step:0">
-          <path data-graph-role="automatic-crossover-underlay" d="M 170 243.95 L 270 243.95" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="user" data-edge-to="setup" data-edge-label="./setup.sh" data-edge-key="0" data-edge-id="run-setup" data-composition-points="170,243.95;270,243.95" data-composition-crossover="halo" data-composition-independent="true" d="M 170 243.95 L 270 243.95" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 170 236.95 L 270 236.95" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="user" data-edge-to="setup" data-edge-label="./setup.sh" data-edge-key="0" data-edge-id="run-setup" data-composition-points="170,236.95;270,236.95" data-composition-crossover="halo" data-composition-independent="true" d="M 170 236.95 L 270 236.95" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:1">
-          <path data-graph-role="automatic-crossover-underlay" d="M 270 259 L 243 259 Q 235 259 235 267 L 235 444 Q 235 452 227 452 L 200 452" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="setup" data-edge-to="system" data-edge-label="sudo tee" data-edge-key="1" data-edge-id="grant-root" data-composition-points="270,259;235,259;235,452;200,452" data-composition-crossover="halo" data-composition-independent="true" d="M 270 259 L 243 259 Q 235 259 235 267 L 235 444 Q 235 452 227 452 L 200 452" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 270 266 L 243 266 Q 235 266 235 274 L 235 444 Q 235 452 227 452 L 200 452" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="setup" data-edge-to="system" data-edge-label="sudo tee" data-edge-key="1" data-edge-id="grant-root" data-composition-points="270,266;235,266;235,452;200,452" data-composition-crossover="halo" data-composition-independent="true" d="M 270 266 L 243 266 Q 235 266 235 274 L 235 444 Q 235 452 227 452 L 200 452" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:2">
           <path data-graph-role="automatic-crossover-underlay" d="M 440 238 L 492 238 Q 500 238 500 230 L 500 100 Q 500 92 508 92 L 560 92" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
@@ -481,6 +481,10 @@ rect.c-bg-rect { fill: var(--bg); }
         <g data-graph-role="automatic-crossover" style="--step:9">
           <path data-graph-role="automatic-crossover-underlay" d="M 1030 452 L 1160 452" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
           <path data-edge-from="home" data-edge-to="shell" data-edge-label="sourced at login" data-edge-key="9" data-edge-id="load-shell" data-composition-points="1030,452;1160,452" data-composition-crossover="halo" data-composition-independent="true" d="M 1030 452 L 1160 452" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        </g>
+        <g data-graph-role="automatic-crossover" style="--step:10">
+          <path data-graph-role="automatic-crossover-underlay" d="M 270 252 L 242 252 Q 234 252 234 260 L 234 344 Q 234 352 226 352 L 210 352" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="setup" data-edge-to="runlog" data-edge-label="script(1) log" data-edge-key="10" data-edge-id="record-run" data-composition-points="270,252;234,252;234,352;210,352" data-composition-crossover="halo" data-composition-independent="true" d="M 270 252 L 242 252 Q 234 252 234 260 L 234 344 Q 234 352 226 352 L 210 352" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         </g>
 
         <!-- Components -->
@@ -531,15 +535,15 @@ rect.c-bg-rect { fill: var(--bg); }
         <text x="640" y="106" class="t-muted" font-size="9" text-anchor="middle">Brewfile via brewpick</text>
         </g>
 
-        <g id="node-misc" data-node-id="misc" data-node-label="misc.sh" tabindex="0" role="button" aria-label="Focus misc.sh, runtimes · Claude Code · MCP, Repo scripts · run as you" aria-pressed="false" data-node-kind="backend" data-node-sublabel="runtimes · Claude Code · MCP" data-node-context="Repo scripts · run as you">
-          <title>misc.sh · runtimes · Claude Code · MCP · Repo scripts · run as you</title>
+        <g id="node-misc" data-node-id="misc" data-node-label="misc.sh" tabindex="0" role="button" aria-label="Focus misc.sh, runtimes · Claude Code · dev cert, Repo scripts · run as you" aria-pressed="false" data-node-kind="backend" data-node-sublabel="runtimes · Claude Code · dev cert" data-node-context="Repo scripts · run as you">
+          <title>misc.sh · runtimes · Claude Code · dev cert · Repo scripts · run as you</title>
           <rect x="560" y="220" width="160" height="64" rx="6" class="c-mask"/>
           <rect x="560" y="220" width="160" height="64" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(566 226) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-node-label="" x="640" y="250" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">misc.sh</text>
-        <text x="640" y="266" class="t-muted" font-size="9" text-anchor="middle">runtimes · Claude Code · MCP</text>
+        <text x="640" y="266" class="t-muted" font-size="7.6" text-anchor="middle">runtimes · Claude Code · dev cert</text>
         </g>
 
         <g id="node-symlinks" data-node-id="symlinks" data-node-label="symlinks.sh" tabindex="0" role="button" aria-label="Focus symlinks.sh, tilde/ → ~ (prompts), Repo scripts · run as you" aria-pressed="false" data-node-kind="backend" data-node-sublabel="tilde/ → ~ (prompts)" data-node-context="Repo scripts · run as you">
@@ -613,14 +617,26 @@ rect.c-bg-rect { fill: var(--bg); }
         <text x="1240" y="466" class="t-muted" font-size="9" text-anchor="middle">~/.zshrc load order</text>
         </g>
 
+        <g id="node-runlog" data-node-id="runlog" data-node-label="Setup run log" tabindex="0" role="button" aria-label="Focus Setup run log, private/setup-logs (git-ignored), Architecture component" aria-pressed="false" data-node-kind="database" data-node-sublabel="private/setup-logs (git-ignored)" data-node-context="Architecture component">
+          <title>Setup run log · private/setup-logs (git-ignored) · Architecture component</title>
+          <rect x="40" y="320" width="170" height="64" rx="6" class="c-mask"/>
+          <rect x="40" y="320" width="170" height="64" rx="6" class="c-database" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(46 326) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" x="125" y="350" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Setup run log</text>
+        <text x="125" y="366" class="t-muted" font-size="8.4" text-anchor="middle">private/setup-logs (git-ignored)</text>
+        </g>
+
         <!-- Connection labels -->
         <g data-edge-from="user" data-edge-to="setup" data-edge-label="./setup.sh" data-edge-key="0" data-edge-id="run-setup">
-          <rect x="191" y="223.95" width="58" height="14" rx="3" class="c-mask"/>
-          <text x="220" y="233.95" class="t-edge-emphasis" font-size="8" text-anchor="middle">./setup.sh</text>
+          <rect x="191" y="216.95" width="58" height="14" rx="3" class="c-mask"/>
+          <text x="220" y="226.95" class="t-edge-emphasis" font-size="8" text-anchor="middle">./setup.sh</text>
         </g>
         <g data-edge-from="setup" data-edge-to="system" data-edge-label="sudo tee" data-edge-key="1" data-edge-id="grant-root">
-          <rect x="210.8" y="335.5" width="48.4" height="14" rx="3" class="c-mask"/>
-          <text x="235" y="345.5" class="t-edge-security" font-size="8" text-anchor="middle">sudo tee</text>
+          <rect x="241" y="352" width="48.4" height="14" rx="3" class="c-mask"/>
+          <text x="265.2" y="362" class="t-edge-security" font-size="8" text-anchor="middle">sudo tee</text>
         </g>
         <g data-edge-from="setup" data-edge-to="brew" data-edge-label="1 · brew" data-edge-key="2" data-edge-id="step-brew">
           <rect x="475.8" y="145" width="48.4" height="14" rx="3" class="c-mask"/>
@@ -653,6 +669,10 @@ rect.c-bg-rect { fill: var(--bg); }
         <g data-edge-from="home" data-edge-to="shell" data-edge-label="sourced at login" data-edge-key="9" data-edge-id="load-shell">
           <rect x="1051.6" y="432" width="86.8" height="14" rx="3" class="c-mask"/>
           <text x="1095" y="442" class="t-edge-emphasis" font-size="8" text-anchor="middle">sourced at login</text>
+        </g>
+        <g data-edge-from="setup" data-edge-to="runlog" data-edge-label="script(1) log" data-edge-key="10" data-edge-id="record-run">
+          <rect x="155.60000000000002" y="295" width="72.4" height="14" rx="3" class="c-mask"/>
+          <text x="191.8" y="305" class="t-edge-dashed" font-size="8" text-anchor="middle">script(1) log</text>
         </g>
 
         <!-- Boundary labels (foreground masks keep routes out of titles) -->

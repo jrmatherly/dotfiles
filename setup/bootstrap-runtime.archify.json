@@ -3,13 +3,13 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "Dotfiles Bootstrap Runtime",
-    "output": ".archify/architecture-dotfiles-runtime-20260930-191319/dotfiles-runtime.html",
+    "output": ".archify/architecture-dotfiles-runtime-20261001-131111/review-2/dotfiles-runtime.html",
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:jrmatherly/dotfiles.git",
       "provider": "github",
       "link_mode": "local-only",
-      "revision": "6a384140bf04e3effa4629cf9108e6b0e481ca7f"
+      "revision": "e42bbb01e98a015f4851398a0dc3a952876804cf"
     }
   },
   "components": [
@@ -38,8 +38,8 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 129,
-          "end_line": 169,
+          "line": 149,
+          "end_line": 193,
           "label": "sudo + step order"
         }
       ]
@@ -55,8 +55,8 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 123,
-          "end_line": 127,
+          "line": 141,
+          "end_line": 145,
           "label": "Touch ID sudo"
         },
         {
@@ -86,26 +86,26 @@
       "id": "misc",
       "type": "backend",
       "label": "misc.sh",
-      "sublabel": "runtimes · Claude Code · MCP",
+      "sublabel": "runtimes · Claude Code · dev cert",
       "pos": [560, 220],
       "size": [160, 64],
       "sources": [
         {
           "path": "setup/misc.sh",
           "line": 96,
-          "end_line": 118,
-          "label": "mise install"
-        },
-        {
-          "path": "setup/misc.sh",
-          "line": 138,
           "end_line": 194,
-          "label": "Claude Code, CodeGraph, MCP"
+          "label": "mise, Claude Code, CodeGraph, MCP"
         },
         {
           "path": "setup/misc.sh",
-          "line": 257,
-          "end_line": 258,
+          "line": 214,
+          "end_line": 229,
+          "label": "Aspire dev-cert trust"
+        },
+        {
+          "path": "setup/misc.sh",
+          "line": 274,
+          "end_line": 275,
           "label": "claude-config restore"
         }
       ]
@@ -120,8 +120,8 @@
       "sources": [
         {
           "path": "setup/symlinks.sh",
-          "line": 168,
-          "end_line": 216
+          "line": 161,
+          "end_line": 225
         }
       ]
     },
@@ -190,7 +190,7 @@
         {
           "path": "setup/symlinks.sh",
           "line": 173,
-          "end_line": 216
+          "end_line": 224
         }
       ]
     },
@@ -211,6 +211,22 @@
           "path": "tilde/.zshenv",
           "line": 5,
           "label": "$DOTFILES"
+        }
+      ]
+    },
+    {
+      "id": "runlog",
+      "type": "database",
+      "label": "Setup run log",
+      "sublabel": "private/setup-logs (git-ignored)",
+      "pos": [40, 320],
+      "size": [170, 64],
+      "sources": [
+        {
+          "path": "setup.sh",
+          "line": 62,
+          "end_line": 73,
+          "label": "re-run under script(1)"
         }
       ]
     }
@@ -307,6 +323,13 @@
       "to": "shell",
       "label": "sourced at login",
       "variant": "emphasis"
+    },
+    {
+      "id": "record-run",
+      "from": "setup",
+      "to": "runlog",
+      "label": "script(1) log",
+      "variant": "dashed"
     }
   ],
   "cards": [
@@ -316,7 +339,8 @@
       "items": [
         "./setup.sh runs brew.sh → zsh.sh → misc.sh → symlinks.sh in order",
         "--skip-brew skips step 1; --dash adds dash.sh",
-        "Idempotent: re-running is how changes are applied"
+        "Idempotent: re-running is how changes are applied",
+        "From a terminal, each run is recorded to private/setup-logs/ for /validate-setup"
       ]
     },
     {
@@ -325,7 +349,8 @@
       "items": [
         "setup.sh and zsh.sh write root-owned files (pam sudo_local, /etc/shells)",
         "Everything else runs as you; symlink_file never overwrites silently",
-        "Third-party code arrives via curl | bash (Homebrew, Claude Code) and package registries"
+        "Third-party code arrives via curl | bash (Homebrew, Claude Code) and package registries",
+        "misc.sh trusts the Aspire HTTPS dev cert in your login keychain (macOS may ask)"
       ]
     },
     {
