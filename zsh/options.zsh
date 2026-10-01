@@ -71,6 +71,11 @@ setopt_if_exists no_clobber
 # Autocorrect commands with typos and ask to run the correct command instead
 setopt_if_exists correct     # commands
 setopt_if_exists correct_all # all arguments
+# Agents (Claude Code sets CLAUDECODE=1) overwrite files with `>` and can't
+# answer a "Correct … [nyae]?" prompt, so keep stock behavior for them
+if [[ -n $CLAUDECODE ]]; then
+  setopt clobber no_correct no_correct_all
+fi
 # Allow comments in interactive shells (like Bash does)
 setopt_if_exists interactive_comments
 

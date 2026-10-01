@@ -188,3 +188,11 @@ alias restartmac="sudo shutdown -r now"
 # Show/hide all desktop icons (useful when presenting)
 alias showdesktop="defaults write com.apple.finder CreateDesktop -bool true && killall Finder"
 alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && killall Finder"
+
+# Agents (Claude Code sets CLAUDECODE=1) run commands through this shell and
+# expect the stock tools: `cat`→bat, `find`→fd and `ls`→eza take different
+# flags, `grep -i` silently changes matches, and `-i` prompts hang a
+# non-interactive run. Drop those overrides for agent shells only.
+if [[ -n $CLAUDECODE ]]; then
+  unalias cat cp find grep ls man mv ping rm top 2> /dev/null
+fi
