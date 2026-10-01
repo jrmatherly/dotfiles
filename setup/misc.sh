@@ -216,18 +216,13 @@ fi
 # dashboard shows TLS warnings. `aspire certs trust` creates it if missing and
 # asks for the login password. The check greps the message rather than trusting
 # the exit code (unverified for the untrusted case); a wording change only
-# costs an extra prompt.
+# costs a redundant (idempotent) trust run.
 if command_exists aspire && command_exists dotnet; then
   if [[ "$(dotnet dev-certs https --check --trust 2>&1)" == *'A trusted certificate was found'* ]]; then
     echo "Aspire HTTPS dev certificate already trusted" | indent
   elif [ -t 0 ]; then
-    read -rp "  [Aspire] Trust the HTTPS dev certificate now (asks for your macOS password)? [y/N] " aspire_trust
-    case "$aspire_trust" in
-      y | Y)
-        aspire certs trust --nologo || warning "aspire certs trust failed — run it later"
-        ;;
-      *) echo "Skipped. Trust it later with: ${BOLD}aspire certs trust${RESET}" | indent ;;
-    esac
+    info "🔐 Trusting the Aspire HTTPS dev certificate (macOS may ask for your password)…"
+    aspire certs trust --nologo || warning "aspire certs trust failed — run it later: aspire certs trust"
   else
     echo "[Aspire] HTTPS dev certificate not trusted. Run: ${BOLD}aspire certs trust${RESET}" | indent
   fi
