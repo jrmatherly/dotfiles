@@ -47,6 +47,8 @@ plugin redis-development@claude-plugins-official
 plugin remember@claude-plugins-official
 plugin rust-analyzer-lsp@claude-plugins-official
 plugin security-guidance@claude-plugins-official
+plugin sentry-cli@claude-plugins-official
+plugin sentry@claude-plugins-official
 plugin session-report@claude-plugins-official
 plugin skill-creator@claude-plugins-official
 plugin skills@cole-medin
