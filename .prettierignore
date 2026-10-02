@@ -21,9 +21,13 @@ ql-plugins/
 # - docs/superpowers/: implementation plans written and checked off by agents
 # - .superpowers/: plan-execution scratch (git-ignored by its own nested
 #   .gitignore, which prettier doesn't read)
+# - .claude/settings.local.json: Claude Code's per-machine permission
+#   approvals (git-ignored only by the global excludes file, which prettier
+#   doesn't read either)
 CLAUDE.md
 .serena/
 .claude/auto-memory/
+.claude/settings.local.json
 docs/superpowers/
 .superpowers/
 private/

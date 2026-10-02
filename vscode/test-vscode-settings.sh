@@ -62,6 +62,11 @@ status=$?
 check "undefined template variable: exit 1" "[ $status -eq 1 ]"
 check "undefined template variable: nothing written" "grep -q 'IosevkaCode Nerd Font' '$target'"
 
+printf '{ "a": {{ ENV.PATH }} }\n' > "$work/repo/vscode/User/settings.json.j2"
+VSCODE_SETTINGS_TEMPLATE="$work/repo/vscode/User/settings.json.j2" "$cmd" --preset iosevka --force > /dev/null 2>&1
+status=$?
+check "template can't read the environment (only home is passed)" "[ $status -eq 1 ]"
+
 # Font check: a font fc-list knows must not warn; an unknown one must
 installed=$(fc-list : family | head -1 | cut -d, -f1)
 sed -e "s/'ProFont IIx Nerd Font Mono'/'$installed'/g" "$DOTFILES_DIR/vscode/presets.toml" > "$work/repo/vscode/presets.toml"

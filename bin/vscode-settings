@@ -98,7 +98,7 @@ preset=${preset:-${saved:-iosevka}}
 
 render=$(mktemp)
 trap 'rm -f "$render"' EXIT
-if ! minijinja-cli --strict --env -D "preset=$preset" -o "$render" "$template" "$presets" 2> "$render.err"; then
+if ! minijinja-cli --strict -D "preset=$preset" -D "home=$HOME" -o "$render" "$template" "$presets" 2> "$render.err"; then
   echo "vscode-settings: render failed (preset '$preset'):" >&2
   sed 's/^/  /' "$render.err" >&2
   rm -f "$render.err"

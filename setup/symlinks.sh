@@ -436,7 +436,8 @@ install_codex_config() {
   mkdir -p "$(dirname "$dst")"
   if [ -L "$dst" ] || [ ! -e "$dst" ]; then
     rm -f "$dst"
-    cp "$src" "$dst"
+    # Owner-only: apps add secrets to it (Jean's MCP token)
+    install -m 600 "$src" "$dst"
     success "$(tildify "$dst") (copied from $(tildify "$src"))"
     return
   fi

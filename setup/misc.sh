@@ -71,10 +71,13 @@ info "🔤 Checking the Iosevka Code font…"
 # overwrites edits VS Code made since the last render (drift is a warning).
 if command_exists minijinja-cli; then
   info "🖋️ Rendering VS Code settings…"
-  vscode_settings_args=()
-  [ -t 0 ] && vscode_settings_args=(--choose)
-  "$DOTFILES_DIR/bin/vscode-settings" ${vscode_settings_args[@]+"${vscode_settings_args[@]}"} 2>&1 | indent \
-    || warning "VS Code settings not rendered — fix what's shown above, then run: vscode-settings"
+  # The menu runs unpiped: through `| indent`, read -p's prompt (no newline)
+  # stays in sed's buffer until after you answer
+  if [ -t 0 ]; then
+    "$DOTFILES_DIR/bin/vscode-settings" --choose
+  else
+    "$DOTFILES_DIR/bin/vscode-settings" 2>&1 | indent
+  fi || warning "VS Code settings not rendered — fix what's shown above, then run: vscode-settings"
 else
   warning "minijinja-cli not found, so VS Code settings weren't rendered — brew install minijinja-cli, then run: vscode-settings"
 fi
@@ -306,9 +309,13 @@ if [ -x "$claude_bin" ]; then
   # setup. (bash 3.2: an empty array under set -u is unbound, hence ${…+…})
   gh_git_env=()
   if command_exists gh && gh auth status &> /dev/null; then
-    gh_git_env=(GIT_CONFIG_COUNT=1
-      GIT_CONFIG_KEY_0=credential.https://github.com.helper
-      GIT_CONFIG_VALUE_0='!gh auth git-credential')
+    # The empty first value clears the helper list for github.com, so only gh
+    # answers: otherwise git also hands gh's token to Homebrew git's
+    # osxkeychain helper on success, and it stays in the keychain
+    gh_git_env=(GIT_CONFIG_COUNT=2
+      GIT_CONFIG_KEY_0=credential.https://github.com.helper GIT_CONFIG_VALUE_0=
+      GIT_CONFIG_KEY_1=credential.https://github.com.helper
+      GIT_CONFIG_VALUE_1='!gh auth git-credential')
   fi
   env ${gh_git_env[@]+"${gh_git_env[@]}"} PATH="$(dirname "$claude_bin"):$PATH" "$DOTFILES_DIR/bin/claude-config" restore 2>&1 | indent \
     || warning "Some of it didn't restore — re-run: claude-config restore"

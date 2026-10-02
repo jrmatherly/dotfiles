@@ -61,7 +61,7 @@ if command -v minijinja-cli > /dev/null; then
   bash vscode/test-vscode-settings.sh > /dev/null
   for preset in $(minijinja-cli -t '{% for k in presets %}{{ k }} {% endfor %}' '' vscode/presets.toml); do
     render="vscode/User/.render-check-$preset.json"
-    minijinja-cli --strict --env -D "preset=$preset" -o "$render" vscode/User/settings.json.j2 vscode/presets.toml
+    minijinja-cli --strict -D "preset=$preset" -D "home=$HOME" -o "$render" vscode/User/settings.json.j2 vscode/presets.toml
     prettier --log-level warn --ignore-path .prettierignore --check "$render" || { rm -f "$render"; exit 1; }
     rm -f "$render"
   done
