@@ -195,6 +195,18 @@ if [ -x "$serena_bin" ] && [ -x "$claude_bin" ]; then
   fi
 fi
 
+# rtk (Brewfile) — a Claude Code PreToolUse hook that rewrites Bash calls to
+# their compact rtk form (`git status` → `rtk git status`). --hook-only: no
+# RTK.md or @RTK.md line in ~/.claude/CLAUDE.md. Re-run every time because
+# `claude-config` doesn't track hooks; rtk skips it when already present.
+# Claude Code only: --codex would write through the ~/.codex/AGENTS.md symlink
+# into agents/instructions.md. https://github.com/rtk-ai/rtk#auto-rewrite-hook
+if command_exists rtk; then
+  info "✂️ Connecting rtk to Claude Code…"
+  rtk init -g --hook-only --auto-patch < /dev/null 2>&1 | indent \
+    || warning "rtk init failed — run it later: rtk init -g --hook-only"
+fi
+
 # PowerShell as a .NET global tool — Microsoft-supported, and uses the official
 # dotnet-sdk cask. (The Homebrew `powershell` formula would pull in the
 # `dotnet` formula, which takes over /opt/homebrew/bin/dotnet.) Lands in

@@ -74,7 +74,7 @@ ln -s "$PWD" ~/dotfiles # compatibility path for configs that can't expand varia
 ./setup/dash.sh # optional: Dash docsets from local folders
 ```
 
-`setup.sh` also does a few things the manual path skips: it enables Touch ID for `sudo` (`/etc/pam.d/sudo_local`), keeps `sudo` authorized so long installs don't ask for the password again, and exports telemetry opt-outs (.NET, PowerShell, Azure CLI, Azure Functions Core Tools, Aspire, CodeGraph) before `misc.sh` installs those tools.
+`setup.sh` also does a few things the manual path skips: it enables Touch ID for `sudo` (`/etc/pam.d/sudo_local`), keeps `sudo` authorized so long installs don't ask for the password again, and exports telemetry opt-outs (.NET, PowerShell, Azure CLI, Azure Functions Core Tools, Aspire, CodeGraph, rtk) before `misc.sh` installs those tools.
 
 ### Automatically
 

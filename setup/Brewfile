@@ -106,6 +106,8 @@ brew "markdownlint-cli2" # Markdown linter (v2)
 brew "mermaid-cli" # Render Mermaid diagrams
 brew "pipx" # Install Python CLI tools in isolated envs
 brew "pre-commit" # Git hook framework (runs a repo's .pre-commit-config.yaml)
+# Telemetry is opt-in; RTK_TELEMETRY_DISABLED in zsh/env.zsh blocks it anyway
+brew "rtk" # Compacts command output for coding agents (Claude Code hook: setup/misc.sh)
 brew "ruff" # Fast Python linter/formatter
 # Sentry's new CLI (`sentry`, log in with `sentry auth`), not the legacy
 # `sentry-cli` that build tooling pulls in per project. Telemetry is off via

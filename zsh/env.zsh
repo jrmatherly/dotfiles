@@ -137,6 +137,9 @@ export DO_NOT_TRACK=1
 # also exports it; setup/misc.sh runs `codegraph telemetry off` for
 # GUI-launched agents
 export CODEGRAPH_TELEMETRY=0
+# rtk asks before collecting anything; this blocks it regardless (setup.sh also
+# exports it). https://github.com/rtk-ai/rtk/blob/master/docs/TELEMETRY.md
+export RTK_TELEMETRY_DISABLED=1
 # Keep the Microsoft opt-outs below in sync with setup.sh, which exports them
 # for the install run (before this file is ever sourced)
 # https://learn.microsoft.com/azure/azure-functions/functions-run-local

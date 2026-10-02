@@ -22,7 +22,7 @@ export DOTFILES_DIR
 cd "$DOTFILES_DIR"
 
 # Telemetry opt-outs for the tools this run installs and invokes (dotnet tool
-# install, func, pwsh, az, aspire, codegraph) — zsh/env.zsh sets the same for
+# install, func, pwsh, az, aspire, codegraph, rtk) — zsh/env.zsh sets the same for
 # everyday shells, but it isn't sourced yet on a fresh Mac. Keep the two lists
 # in sync.
 export FUNCTIONS_CORE_TOOLS_TELEMETRY_OPTOUT=1
@@ -32,6 +32,7 @@ export AZURE_CORE_COLLECT_TELEMETRY=false
 export ASPIRE_CLI_TELEMETRY_OPTOUT=true
 export ASPIRE_DASHBOARD_TELEMETRY_OPTOUT=true
 export CODEGRAPH_TELEMETRY=0
+export RTK_TELEMETRY_DISABLED=1
 
 SKIP_CONFIRM=false
 SKIP_BREW=false
