@@ -231,6 +231,13 @@ desc = "Grafana MCP via Docker (needs GRAFANA_URL + service-account token). Disa
 desc = "Sentry's hosted MCP (sentry plugin): find orgs/projects, search issues and events, Seer root-cause analysis, update issues. The `sentry` CLI covers the same from Bash."
 tools = "search_issues, search_events, get_sentry_resource, analyze_issue_with_seer, update_issue"
 
+[mcp.jean]
+desc = "Jean desktop app's MCP server (registered by Jean in ~/.claude.json): its projects, worktrees and chat sessions, plus GitHub/Linear issues, PRs, reviews and merges driven through Jean."
+tools = "list_projects, create_worktree, create_session, send_chat_message, create_pull_request, merge_pull_request, run_review"
+[mcp.agent-browser]
+desc = "agent-browser as an MCP server (installed and registered by Jean): open pages, snapshot for element refs, click, fill, screenshot, tabs. The skills:agent-browser skill drives the same tool as a CLI."
+tools = "agent_browser_open, agent_browser_snapshot, agent_browser_click, agent_browser_fill, agent_browser_screenshot"
+
 # ---------- notes on confusable items ----------
 
 [notes]
@@ -317,7 +324,7 @@ items = ["anthropic-skills:docs", "anthropic-skills:doc-coauthoring", "anthropic
 [[group]]
 title = "Git, commits, PRs, worktrees"
 pick = ["commit-commands:commit", "commit-commands:commit-push-pr"]
-items = ["commit-commands:commit", "commit-commands:commit-push-pr", "commit-commands:clean_gone", "skills:piv-commit", "skills:piv-create-pr", "skills:worktree-create", "skills:worktree-merge", "superpowers:using-git-worktrees", "superpowers:finishing-a-development-branch", "voltagent-dev-exp:git-workflow-manager", "github"]
+items = ["commit-commands:commit", "commit-commands:commit-push-pr", "commit-commands:clean_gone", "skills:piv-commit", "skills:piv-create-pr", "skills:worktree-create", "skills:worktree-merge", "superpowers:finishing-a-development-branch", "voltagent-dev-exp:git-workflow-manager", "github"]
 
 [[group]]
 title = "Memory, CLAUDE.md and project rules"

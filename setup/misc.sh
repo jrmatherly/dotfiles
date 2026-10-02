@@ -313,6 +313,7 @@ if [ -x "$claude_bin" ]; then
   env ${gh_git_env[@]+"${gh_git_env[@]}"} PATH="$(dirname "$claude_bin"):$PATH" "$DOTFILES_DIR/bin/claude-config" restore 2>&1 | indent \
     || warning "Some of it didn't restore — re-run: claude-config restore"
   info "📚 Building the Claude Code catalog…"
-  PATH="$(dirname "$claude_bin"):$PATH" "$DOTFILES_DIR/bin/claude-catalog" 2> /dev/null | tail -1 | indent \
-    || warning "Catalog build failed or agents/catalog/curated.toml names something not installed — run: claude-catalog"
+  # Its lint lines (stderr) say what's wrong when curated.toml is out of date
+  PATH="$(dirname "$claude_bin"):$PATH" "$DOTFILES_DIR/bin/claude-catalog" 2>&1 | indent \
+    || warning "Catalog built with problems (listed above) — fix agents/catalog/curated.toml, then run: claude-catalog"
 fi
