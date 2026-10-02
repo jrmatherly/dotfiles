@@ -165,7 +165,7 @@ Setup already asks for your git identity, commit signing and computer name. Thes
 | [`tilde/.config/fastfetch/config.jsonc`](tilde/.config/fastfetch/config.jsonc) | Name, URL and weather `location` |
 | [`lazygit/config.yml`](lazygit/config.yml) | The author name under `authorColors` |
 | [`vscode/User/settings.json`](vscode/User/settings.json) | `notes.notesLocation` — an absolute path with my user name (the Notes extension can't expand `~`) |
-| [`agents/claude-*`](agents/) | My Claude Code plugins, settings and skills. Run `claude-config save` once yours are installed and commit the result |
+| [`agents/claude-*`](agents/) | My Claude Code plugins, settings and skills, including the `jrmatherly-skills` marketplace (`jstack`) and the `coding-standards` skill from my private skills repo, which you can't clone — drop those lines. Run `claude-config save` once yours are installed and commit the result |
 | [`agents/catalog/curated.toml`](agents/catalog/curated.toml) | Notes on my tools. `claude-catalog` still builds but exits 1 (a warning in setup) for each entry you don't have installed, like my `coolify` MCP server — delete those |
 | [`setup/Brewfile`](setup/Brewfile) | My apps. Trim it, or pick a subset with `bin/brewpick` |
 | [`LICENSE`](LICENSE) | Add your copyright line; keep the existing ones (MIT requires it) |

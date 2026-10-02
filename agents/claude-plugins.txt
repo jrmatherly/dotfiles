@@ -5,6 +5,7 @@ marketplace claude-code-docs costiash/claude-code-docs
 marketplace claude-code-warp warpdotdev/claude-code-warp
 marketplace claude-plugins-official anthropics/claude-plugins-official
 marketplace cole-medin coleam00/skills
+marketplace jrmatherly-skills jrmatherly/skills
 marketplace ponytail DietrichGebert/ponytail
 marketplace severity1-marketplace severity1/severity1-marketplace
 marketplace ui-ux-pro-max-skill nextlevelbuilder/ui-ux-pro-max-skill
@@ -29,6 +30,7 @@ plugin github@claude-plugins-official disabled
 plugin gopls-lsp@claude-plugins-official
 plugin grafana-mcp@claude-plugins-official disabled
 plugin hookify@claude-plugins-official
+plugin jstack@jrmatherly-skills
 plugin langfuse-observability@claude-plugins-official
 plugin langfuse@claude-plugins-official
 plugin logfire@claude-plugins-official
