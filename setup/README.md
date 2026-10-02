@@ -74,7 +74,7 @@ Then it runs `configure_git_identity`, which prompts for your git name/email and
 It also links:
 
 - `vscode/User` → `~/Library/Application Support/Code/User`. The repo is the source of truth, so keep VS Code's built-in Settings Sync off (its `vscode/**/sync/` cache and `vscode/**/profiles/` are gitignored).
-- lazydocker's config, `~/.gnupg/gpg-agent.conf`, the QuickLook plugins (`~/Library/QuickLook`), and Codex's `~/.codex/AGENTS.md` and `config.toml`.
+- lazydocker's config, `~/.gnupg/gpg-agent.conf`, the QuickLook plugins (`~/Library/QuickLook`), and Codex's `~/.codex/AGENTS.md`. Codex's `config.toml` is copied instead (only when missing, or to replace an older link): apps such as NotchBar and Jean rewrite it in place, Jean with a token, so a link would put their writes in the repo. Later runs only warn about tracked lines the live file lacks.
 - The `cot` and `code` command-line tools into `/usr/local/bin` if they're not already on PATH.
 - The Firefox Developer Edition styles, hard-linked into its profile — skipped with a warning if there's no dev-edition profile. The same goes for the CotEditor/VS Code CLIs when those apps aren't installed.
 

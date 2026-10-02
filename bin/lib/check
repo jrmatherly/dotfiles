@@ -7,6 +7,7 @@ set -euo pipefail
 shell_scripts=(
   setup.sh
   setup/*.sh
+  setup/tests/*.sh
   vscode/*.sh
   .claude/hooks/*.sh
   .claude/skills/*/*.sh
@@ -51,6 +52,8 @@ if command -v brew > /dev/null; then
   rm -f "$brewfile"
 fi
 prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}" "bin/*"
+# setup/symlinks.sh: ~/.codex/config.toml is seeded as a copy, never linked
+bash setup/tests/codex-config.sh > /dev/null
 # VS Code settings are rendered from a minijinja template (bin/vscode-settings):
 # test the renderer, and Prettier-check every preset's render inside
 # vscode/User so its .prettierrc.yaml applies (the .j2 itself isn't parseable)

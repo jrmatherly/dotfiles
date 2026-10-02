@@ -20,8 +20,9 @@ info() {
   echo
 }
 
+# %b, not %s: callers wrap long prompts with \n
 user() {
-  printf "\r  [ \033[0;33m?\033[0m ] %s " "$1"
+  printf "\r  [ \033[0;33m?\033[0m ] %b " "$1"
 }
 
 success() {
@@ -421,8 +422,31 @@ install_extras() {
 
   # Base instructions
   symlink_file "$AGENTS_INSTRUCTIONS" "$HOME/.codex/AGENTS.md"
-  # Configuration
-  symlink_file "$DOTFILES_DIR/tilde/.codex/config.toml" "$HOME/.codex/config.toml"
+  # Configuration: a copy, not a link (install_codex_config)
+  install_codex_config
+}
+
+# Codex and apps that register MCP servers (NotchBar, Jean, whose entry carries
+# a token) rewrite ~/.codex/config.toml in place. Through a link those writes
+# would land in the repo, so the tracked file only seeds a missing config (or
+# replaces an old link with a copy). After that, warn about tracked lines the
+# live file lacks and leave it alone.
+install_codex_config() {
+  local src="$DOTFILES_DIR/tilde/.codex/config.toml" dst="$HOME/.codex/config.toml" missing
+  mkdir -p "$(dirname "$dst")"
+  if [ -L "$dst" ] || [ ! -e "$dst" ]; then
+    rm -f "$dst"
+    cp "$src" "$dst"
+    success "$(tildify "$dst") (copied from $(tildify "$src"))"
+    return
+  fi
+  missing=$(grep -vE '^[[:space:]]*(#|$)' "$src" | while IFS= read -r line; do
+    grep -qxF -- "$line" "$dst" || printf '      %s\n' "$line"
+  done)
+  if [ -n "$missing" ]; then
+    warn "$(tildify "$dst") lacks these lines from $(tildify "$src") — add them by hand:"
+    printf '%s\n' "$missing"
+  fi
 }
 
 install_dotfiles
