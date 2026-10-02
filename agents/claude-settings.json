@@ -111,5 +111,6 @@
   "autoDreamEnabled": true,
   "theme": "dark",
   "switchModelsOnFlag": true,
-  "teammateMode": "in-process"
+  "teammateMode": "in-process",
+  "model": "claude-fable-5-1[1m]"
 }
