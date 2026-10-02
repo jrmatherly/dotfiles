@@ -24,6 +24,9 @@ ql-plugins/
 # - .claude/settings.local.json: Claude Code's per-machine permission
 #   approvals (git-ignored only by the global excludes file, which prettier
 #   doesn't read either)
+# - tilde/.claude/rules/jstack-models.md: one line per role, rewritten whole by
+#   /jstack:setup-jstack (prettier would join the lines into a paragraph)
+tilde/.claude/rules/jstack-models.md
 CLAUDE.md
 .serena/
 .claude/auto-memory/
