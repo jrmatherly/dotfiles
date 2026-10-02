@@ -47,6 +47,7 @@ plugin pyright-lsp@claude-plugins-official
 plugin qdrant-skills@claude-plugins-official
 plugin redis-development@claude-plugins-official
 plugin remember@claude-plugins-official
+plugin resume@jrmatherly-skills
 plugin rust-analyzer-lsp@claude-plugins-official
 plugin security-guidance@claude-plugins-official
 plugin sentry-cli@claude-plugins-official

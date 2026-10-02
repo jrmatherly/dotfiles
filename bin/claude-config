@@ -118,7 +118,7 @@ save_plugins() {
 }
 
 restore_plugins() {
-  local have_marketplaces have_plugins kind name arg
+  local have_marketplaces have_plugins kind name arg marketplace updated=""
   have_marketplaces=$(known_marketplaces | cut -d' ' -f1)
   have_plugins=$(installed_plugins)
   while read -r kind name arg; do
@@ -128,6 +128,13 @@ restore_plugins() {
         ;;
       plugin)
         grep -qxF "$name" <<< "$have_plugins" && continue
+        # A marketplace already on this machine may predate the plugin:
+        # refresh it once before the first install from it
+        marketplace="${name#*@}"
+        if grep -qxF "$marketplace" <<< "$have_marketplaces" && ! grep -qxF "$marketplace" <<< "$updated"; then
+          run claude plugin marketplace update "$marketplace"
+          updated+="$marketplace"$'\n'
+        fi
         run claude plugin install --scope user "$name"
         # Only a fresh install gets the recorded disabled state; one already
         # here keeps whatever you set on this machine
