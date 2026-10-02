@@ -1,0 +1,30 @@
+# VS Code font presets for bin/vscode-settings, which renders
+# vscode/User/settings.json.j2. Warp uses ProFont IIx Nerd Font Mono 13 (terminal)
+# and FiraCode Nerd Font Mono (agent). A preset without terminal_size leaves
+# VS Code's terminal font size at its default.
+
+[presets.iosevka]
+label = "Iosevka Code everywhere (SpaceBox companion font; default)"
+editor_family = "'IosevkaCode Nerd Font', 'FiraCode Nerd Font Mono', monospace"
+editor_size = 14
+terminal_family = "'IosevkaCode Nerd Font', 'FiraCode Nerd Font Mono', monospace"
+
+[presets.warp]
+label = "Match Warp: ProFont IIx 13 in editor and terminal"
+editor_family = "'ProFont IIx Nerd Font Mono', 'FiraCode Nerd Font Mono', monospace"
+editor_size = 13
+terminal_family = "'ProFont IIx Nerd Font Mono', 'FiraCode Nerd Font Mono', monospace"
+terminal_size = 13
+
+[presets.warp-terminal]
+label = "Iosevka Code editor, Warp's ProFont IIx 13 in the terminal"
+editor_family = "'IosevkaCode Nerd Font', 'FiraCode Nerd Font Mono', monospace"
+editor_size = 14
+terminal_family = "'ProFont IIx Nerd Font Mono', 'FiraCode Nerd Font Mono', monospace"
+terminal_size = 13
+
+[presets.fira]
+label = "FiraCode everywhere"
+editor_family = "'FiraCode Nerd Font Mono', monospace"
+editor_size = 14
+terminal_family = "'FiraCode Nerd Font Mono', monospace"

@@ -177,6 +177,7 @@ brew "ghostscript" # PostScript/PDF interpreter
 brew "git-lfs" # Git Large File Storage
 brew "imagemagick" # Image manipulation
 brew "jq" # JSON processor
+brew "minijinja-cli" # Jinja2 templates from the CLI (renders VS Code settings: bin/vscode-settings)
 brew "mole" # Reveal Little Snitch-style network connections
 brew "netpbm" # Image format conversion toolkit
 brew "p7zip" # 7-Zip archiver

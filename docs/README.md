@@ -154,6 +154,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `install-color-themes` | Install the repo's Squirrelsong themes into apps — bat cache, Obsidian vault, import hints (see [colors](../colors/README.md)) |
 | `obsidian-vault install` `obsidian-vault capture` | Install the repo's Obsidian settings/templates into the vault, or bring vault changes back (see [obsidian](../obsidian/README.md)) |
 | `install-iosevka-code` | Install VS Code's Iosevka Code font, or update it when the upstream zip changed (see [fonts](../fonts/README.md)) |
+| `vscode-settings` | Render VS Code's `settings.json` from its template with a font preset (`--choose`, `--preset warp`, `--check`); refuses to overwrite edits VS Code made (see [vscode](../vscode/README.md#fonts-and-the-settings-template)) |
 | `sync-all` | Run `obsidian-vault install`, then `install-color-themes` |
 | `upup` | Run macOS, Homebrew, mise, dotfiles and other software updates |
 | `flush-dns` | Flush the DNS cache |

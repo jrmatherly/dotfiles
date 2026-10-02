@@ -37,3 +37,7 @@ obsidian/**/workspace-mobile.json
 
 # Python bytecode (agents/catalog test runs)
 __pycache__/
+# Rendered from vscode/User/settings.json.j2 by bin/vscode-settings
+vscode/User/settings.json
+vscode/User/.settings.rendered
+vscode/User/.render-check-*.json

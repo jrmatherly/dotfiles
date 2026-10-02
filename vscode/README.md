@@ -8,20 +8,35 @@
 
 ## Settings and keybindings
 
-- `User/settings.json` holds the day-to-day preferences: the Iosevka Code Nerd Font (editor and terminal, installed by `bin/install-iosevka-code`, with FiraCode Nerd Font Mono as the fallback — see [fonts](../fonts/README.md)), the SpaceBox color theme, formatter and linter config, etc.
+- `User/settings.json` holds the day-to-day preferences: the editor and terminal fonts, the SpaceBox color theme, formatter and linter config, etc. It's **generated and gitignored**: `bin/vscode-settings` renders it from the tracked template `User/settings.json.j2` with [minijinja-cli](https://github.com/mitsuhiko/minijinja) (Brewfile), filling in the font preset and `$HOME` (for `notes.notesLocation`). See [Fonts and the settings template](#fonts-and-the-settings-template).
 - `User/keybindings.json` is intentionally empty (`[]`), so VS Code uses its stock shortcuts — see `help gui/visual-studio-code`. Add bindings there if you want to customize.
 - `.vscode/settings.json` at the repo root is a different file: workspace settings that apply only while this repo is open (the Brewfile as Ruby, ShellCheck skipping the zsh completion functions, spell-check words). `vscode/User` applies to every project.
 
-Settings in `User/settings.json` that are there for a non-obvious reason (each has a comment next to it):
+Settings in the template that are there for a non-obvious reason (each has a comment next to it):
 
 - `workbench.colorCustomizations` and `python.languageServer` are pinned to the value an extension (Mintlify Doc Writer, Python) writes back on every startup. Removing them makes the repo show as modified after each launch.
 - `dependi.decoration.incompatible.template` adds `\uFE0F` after the ❌. Iosevka Code has its own plain glyph for that character, so without it the "outdated" marker in `package.json` shows in the text color instead of as the red emoji.
 - `files.associations` maps `LICENSE` to plain text. VS Code otherwise guesses Markdown, and markdownlint then complains about the first line.
 - `spacebox-ui.*` and the `[SpaceBox]` colors: see [below](#spacebox-ui-enhancer).
 
+## Fonts and the settings template
+
+`vscode/presets.toml` defines the font presets; `vscode-settings --choose` (also offered during setup) picks one, saves it in `~/.config/dotfiles/vscode.env`, and renders:
+
+| Preset | Editor | Terminal |
+| --- | --- | --- |
+| `iosevka` (default) | Iosevka Code 14 | Iosevka Code |
+| `warp` | ProFont IIx Nerd Font Mono 13 | ProFont IIx 13 (matches Warp's terminal font) |
+| `warp-terminal` | Iosevka Code 14 | ProFont IIx 13 |
+| `fira` | FiraCode Nerd Font Mono 14 | FiraCode |
+
+Each keeps FiraCode Nerd Font Mono as the fallback. Iosevka Code comes from `bin/install-iosevka-code` (see [fonts](../fonts/README.md)), ProFont and FiraCode from the Brewfile's font casks; the renderer warns when a preset's font isn't installed. `vscode-settings --preset warp` switches directly, `--check` compares without writing.
+
+Edit **`User/settings.json.j2`**, never `settings.json`, then run `vscode-settings`. When you change a setting in VS Code's UI (or an extension writes one), it lands only in the generated file. The renderer remembers a hash of what it last wrote, so the next render refuses to overwrite such a change: it shows the diff, you copy the change into the template and re-run, or pass `--force` to drop it. `pnpm check` runs the renderer's tests and Prettier-checks every preset's render.
+
 ## Editing settings
 
-VS Code rewrites `User/settings.json` itself, so the file has to stay exactly as VS Code would write it, or every save produces a diff:
+VS Code rewrites `User/settings.json` itself, so the template has to render exactly what VS Code would write, or every save produces drift:
 
 - No trailing commas. `User/.prettierrc.yaml` sets that for this folder, because VS Code opens these files through `~/Library/Application Support/Code/User`, where the repo's root Prettier config isn't found.
 - Keep the existing key order and grouping, and don't add a setting that only repeats VS Code's default.

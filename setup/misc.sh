@@ -66,6 +66,19 @@ info "🔤 Checking the Iosevka Code font…"
 "$DOTFILES_DIR/bin/install-iosevka-code" 2>&1 | indent \
   || warning "Iosevka Code font not installed — run it later: install-iosevka-code"
 
+# VS Code settings.json is rendered from vscode/User/settings.json.j2 with a
+# font preset (vscode/presets.toml); a terminal gets the preset menu. It never
+# overwrites edits VS Code made since the last render (drift is a warning).
+if command_exists minijinja-cli; then
+  info "🖋️ Rendering VS Code settings…"
+  vscode_settings_args=()
+  [ -t 0 ] && vscode_settings_args=(--choose)
+  "$DOTFILES_DIR/bin/vscode-settings" ${vscode_settings_args[@]+"${vscode_settings_args[@]}"} 2>&1 | indent \
+    || warning "VS Code settings not rendered — fix what's shown above, then run: vscode-settings"
+else
+  warning "minijinja-cli not found, so VS Code settings weren't rendered — brew install minijinja-cli, then run: vscode-settings"
+fi
+
 # GitHub CLI: authenticate if not logged in already. `gh auth login` asks for
 # the account, protocol and auth method itself, and writes ~/.config/gh/hosts.yml
 # (gitignored — it can hold an OAuth token).

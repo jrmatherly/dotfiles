@@ -1,13 +1,15 @@
+{%- set font = presets[preset] -%}
 {
   /**
    * Editor Settings
    * https://code.visualstudio.com/docs/getstarted/settings
    */
-  // Iosevka Code is the SpaceBox theme's companion font (no Homebrew cask:
-  // bin/install-iosevka-code); FiraCode is the fallback until it's installed
-  "editor.fontFamily": "'IosevkaCode Nerd Font', 'FiraCode Nerd Font Mono', monospace",
+  // Font preset from vscode/presets.toml, chosen with bin/vscode-settings.
+  // The default, Iosevka Code, is the SpaceBox theme's companion font (no
+  // Homebrew cask: bin/install-iosevka-code); FiraCode is the fallback
+  "editor.fontFamily": {{ font.editor_family }},
   "editor.fontLigatures": true,
-  "editor.fontSize": 14,
+  "editor.fontSize": {{ font.editor_size }},
   "editor.cursorBlinking": "expand",
   "editor.bracketPairColorization.independentColorPoolPerBracketType": true,
   "editor.guides.bracketPairs": "active",
@@ -67,7 +69,10 @@
     "path": "/bin/zsh",
     "args": ["--login"]
   },
-  "terminal.integrated.fontFamily": "'IosevkaCode Nerd Font', 'FiraCode Nerd Font Mono', monospace",
+  "terminal.integrated.fontFamily": {{ font.terminal_family }},
+{%- if font.terminal_size is defined %}
+  "terminal.integrated.fontSize": {{ font.terminal_size }},
+{%- endif %}
   "terminal.integrated.fontLigatures.enabled": true,
   "terminal.integrated.copyOnSelection": true,
   "terminal-in-status-bar.statusBarAlignment": "right",
@@ -557,7 +562,7 @@
    * Notes
    */
   // Obsidian vault (OBSIDIAN_VAULT in zsh/env.zsh). Must be absolute: the Notes
-  // extension doesn't expand `~` or env vars. On another Mac, change the user
-  // name (a missing folder just shows an empty Notes view)
-  "notes.notesLocation": "/Users/jason/Library/Mobile Documents/com~apple~CloudDocs/Notes"
+  // extension doesn't expand `~` or env vars, so the render fills in $HOME
+  // (a missing folder just shows an empty Notes view)
+  "notes.notesLocation": {{ ENV.HOME ~ "/Library/Mobile Documents/com~apple~CloudDocs/Notes" }}
 }

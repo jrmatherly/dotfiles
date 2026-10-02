@@ -1,0 +1,142 @@
+#!/bin/bash
+#
+# Render VS Code's settings.json from the tracked template, with a font preset.
+#
+# - Render with the saved preset (iosevka if none is saved yet):
+#
+# `vscode-settings`
+#
+# - Pick a preset from a menu, save it, and render:
+#
+# `vscode-settings --choose`
+#
+# - Render a specific preset (iosevka, warp, warp-terminal, fira) and save it:
+#
+# `vscode-settings --preset {{warp}}`
+#
+# - Check whether settings.json matches a fresh render, without writing:
+#
+# `vscode-settings --check`
+#
+# - Overwrite changes VS Code or an extension made to settings.json:
+#
+# `vscode-settings --force`
+#
+# ---
+# Template: vscode/User/settings.json.j2 (minijinja); presets:
+# vscode/presets.toml. settings.json is generated and gitignored: edit the
+# template, never settings.json. The saved choice is in
+# ~/.config/dotfiles/vscode.env.
+#
+# License: MIT
+
+set -euo pipefail
+
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+template="${VSCODE_SETTINGS_TEMPLATE:-$DOTFILES_DIR/vscode/User/settings.json.j2}"
+presets="$(dirname "$template")/../presets.toml"
+dir="${VSCODE_SETTINGS_DIR:-$DOTFILES_DIR/vscode/User}"
+env_file="${VSCODE_SETTINGS_ENV:-$HOME/.config/dotfiles/vscode.env}"
+target="$dir/settings.json"
+# sha256 of the last render, so edits VS Code makes afterwards show up as drift
+stamp="$dir/.settings.rendered"
+
+usage() {
+  echo "usage: vscode-settings [--choose | --preset NAME] [--force] [--check]" >&2
+  exit 2
+}
+
+choose=false force=false check=false preset=
+while [ $# -gt 0 ]; do
+  case $1 in
+    --choose) choose=true ;;
+    --force) force=true ;;
+    --check) check=true ;;
+    --preset)
+      [ $# -ge 2 ] || usage
+      preset=$2
+      shift
+      ;;
+    -h | --help) usage ;;
+    *) usage ;;
+  esac
+  shift
+done
+
+command -v minijinja-cli > /dev/null || {
+  echo "vscode-settings: minijinja-cli not found — brew install minijinja-cli" >&2
+  exit 1
+}
+
+saved=
+# shellcheck disable=SC1090
+[ -f "$env_file" ] && saved=$(. "$env_file" && echo "${VSCODE_FONT_PRESET:-}")
+
+if [ "$choose" = true ]; then
+  current=${saved:-iosevka}
+  names=()
+  i=0
+  while IFS=$'\t' read -r name label; do
+    [ -n "$name" ] || continue
+    names+=("$name")
+    i=$((i + 1))
+    mark=" "
+    [ "$name" = "$current" ] && mark="*"
+    printf ' %s %d) %-14s %s\n' "$mark" "$i" "$name" "$label"
+  done < <(minijinja-cli -t '{% for k, v in presets|items %}{{ k }}	{{ v.label }}
+{% endfor %}' '' "$presets")
+  read -rp "VS Code font preset [Enter keeps $current]: " pick
+  if [ -z "$pick" ]; then
+    preset=$current
+  elif [[ $pick =~ ^[0-9]+$ ]] && [ "$pick" -ge 1 ] && [ "$pick" -le ${#names[@]} ]; then
+    preset=${names[$((pick - 1))]}
+  else
+    preset=$pick
+  fi
+fi
+preset=${preset:-${saved:-iosevka}}
+
+render=$(mktemp)
+trap 'rm -f "$render"' EXIT
+if ! minijinja-cli --strict --env -D "preset=$preset" -o "$render" "$template" "$presets" 2> "$render.err"; then
+  echo "vscode-settings: render failed (preset '$preset'):" >&2
+  sed 's/^/  /' "$render.err" >&2
+  rm -f "$render.err"
+  exit 1
+fi
+rm -f "$render.err"
+
+if [ "$check" = true ]; then
+  if cmp -s "$render" "$target"; then
+    echo "settings.json is up to date (preset $preset)"
+    exit 0
+  fi
+  echo "settings.json differs from a fresh render (preset $preset)" >&2
+  exit 1
+fi
+
+if [ -f "$target" ] && [ "$force" = false ]; then
+  last=$([ -f "$stamp" ] && cat "$stamp" || echo none)
+  if [ "$(shasum -a 256 < "$target" | cut -d' ' -f1)" != "$last" ] && ! cmp -s "$render" "$target"; then
+    echo "vscode-settings: settings.json was changed since the last render (VS Code or an extension)." >&2
+    echo "Move the change into vscode/User/settings.json.j2, then re-run — or --force to drop it:" >&2
+    diff -u "$render" "$target" | sed 's/^/  /' >&2 || true
+    exit 1
+  fi
+fi
+
+# First font of each family list, e.g. 'ProFont IIx Nerd Font Mono', ... → ProFont IIx Nerd Font Mono.
+# fc-list is read once: piping it into grep -q under pipefail fails on SIGPIPE.
+installed_fonts=$(fc-list : family 2> /dev/null || true)
+minijinja-cli -t "{{ presets[preset].editor_family }}
+{{ presets[preset].terminal_family }}" -D "preset=$preset" '' "$presets" \
+  | sed -E "s/^'([^']+)'.*/\1/" | sort -u | while IFS= read -r font; do
+  grep -qxF "$font" <<< "$installed_fonts" \
+    || echo "warning: font '$font' isn't installed (Brewfile font casks, bin/install-iosevka-code)" >&2
+done
+
+mkdir -p "$dir" "$(dirname "$env_file")"
+mv "$render" "$target"
+shasum -a 256 < "$target" | cut -d' ' -f1 > "$stamp"
+echo "VSCODE_FONT_PRESET=$preset" > "$env_file"
+echo "rendered settings.json (preset $preset)"
