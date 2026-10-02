@@ -32,6 +32,10 @@ node = ["24", "22", "26"]
 # candidate — mise's "3.15" won't match a prerelease — so change it to "3.15"
 # once 3.15.0 is out (October 2026).
 python = ["3.14", "3.11", "3.12", "3.13", "3.15.0rc2"]
+# Bun — runs the jstack plugin's j-mode scripts (jrmatherly/skills). Its
+# package-manager settings are in tilde/.bunfig.toml; crash reports are off
+# via DO_NOT_TRACK (zsh/env.zsh).
+bun = "latest"
 
 [settings]
 # Read `.nvmrc` / `.node-version` (like nvm and fnm) and `.python-version`

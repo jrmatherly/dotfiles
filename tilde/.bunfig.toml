@@ -1,0 +1,11 @@
+# Global Bun config — symlinked to ~/.bunfig.toml. Only package-manager
+# commands (bun install/add/update, bunx) read the global file.
+# https://bun.com/docs/runtime/bunfig
+# Mirrors the npm defaults set in setup/misc.sh.
+
+[install]
+# Write "1.2.3", not "^1.2.3" (npm: save-exact)
+exact = true
+# Only install versions published at least 7 days ago, in seconds
+# (npm: min-release-age 7)
+minimumReleaseAge = 604800

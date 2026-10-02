@@ -261,6 +261,7 @@ npm config set allow-git none
 # npm config set allow-remote none
 # Only install package versions published at least 7 days ago
 npm config set min-release-age 7
+# (Bun: the same rules live in tilde/.bunfig.toml)
 
 # Global npm CLIs (serverless, @antfu/ni) are `npm:` tools in the mise config,
 # installed by `mise install` above. aws-cdk comes from the Brewfile.

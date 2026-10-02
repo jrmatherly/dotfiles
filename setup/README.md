@@ -47,6 +47,7 @@ Registers Homebrew's Zsh (installed by the Brewfile) in `/etc/shells` and makes 
   - `npm:typescript` (major 6), for a global `tsc`.
   - `npm:@colbymchenry/codegraph` ([CodeGraph](https://github.com/colbymchenry/codegraph)), tracking `latest`. Upgrade it with `mise upgrade`, not `codegraph upgrade`.
   - `npm:serverless` (major 4) and `npm:@antfu/ni` (major 30): global npm CLIs installed by mise instead of `npm install -g`.
+  - [Bun](https://bun.com) (`latest`), which runs the jstack plugin's `j-mode` scripts from the private skills repo.
 
   The config also sets `idiomatic_version_file_enable_tools = ["node", "python"]`, which is off by default in mise. It makes mise honour `.nvmrc`/`.node-version` (like fnm and nvm) and `.python-version` (like pyenv and uv). This repo's own `.nvmrc` (`lts/*`) and `bin/nnn` both rely on this setting.
 
@@ -58,7 +59,7 @@ Registers Homebrew's Zsh (installed by the Brewfile) in `/etc/shells` and makes 
 - Restores Claude Code's plugins, base settings and user skills with `claude-config restore` (see [agents/README.md](../agents/README.md#claude-code-plugins-settings-skills-and-catalog)): missing marketplaces and plugins are installed, [`agents/claude-settings.json`](../agents/claude-settings.json) is merged into `~/.claude/settings.json` without overwriting what's there, and missing skills are added with `npx skills add`. Then builds the catalog of installed skills, agents and MCP servers with `claude-catalog` (`~/.claude/catalog/`). Both warn instead of failing; re-run them by name.
 - Installs or updates PowerShell as a .NET global tool (`dotnet tool install --global PowerShell`) in `~/.dotnet/tools`, which `tilde/.zprofile` puts on PATH.
 - If the Aspire HTTPS dev certificate isn't trusted yet (checked with `dotnet dev-certs https --check --trust`), runs `aspire certs trust`, which creates the certificate if needed (macOS may ask for your password). Without it, `aspire run` in a non-interactive session creates the certificate untrusted and the dashboard shows TLS warnings. Without a terminal it only prints the command. To start over: `aspire certs clean`, then `aspire certs trust`.
-- Sets strict npm defaults (`save-exact`, `allow-git none`, `min-release-age 7`, quieter logs, no funding messages). Global npm CLIs (`serverless`, `@antfu/ni`) aren't `npm install -g`'d: they're `npm:` tools in the mise config, installed with everything else by `mise install`, so they survive switching the default Node. (aws-cdk comes from the Brewfile.)
+- Sets strict npm defaults (`save-exact`, `allow-git none`, `min-release-age 7`, quieter logs, no funding messages). Bun gets the same two install rules from the tracked `tilde/.bunfig.toml` (`exact`, `minimumReleaseAge` 7 days), linked to `~/.bunfig.toml`. Global npm CLIs (`serverless`, `@antfu/ni`) aren't `npm install -g`'d: they're `npm:` tools in the mise config, installed with everything else by `mise install`, so they survive switching the default Node. (aws-cdk comes from the Brewfile.)
 - Runs `pnpm install` for this repo's own dependencies: Prettier for `pnpm format`, and `avif`, which `bin/optimize-image` uses.
 
 ## symlinks
