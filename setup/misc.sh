@@ -211,6 +211,20 @@ if [ -x "$serena_bin" ] && [ -x "$claude_bin" ]; then
   fi
 fi
 
+# Sidero Labs docs (Talos Linux, Omni) — a remote HTTP MCP server, nothing to
+# install. The matching `siderolabs` skill comes from agents/claude-skills.txt
+# via `claude-config restore` below.
+# https://docs.siderolabs.com/talos/v1.14/learn-more/ai-agent-integration
+if [ -x "$claude_bin" ]; then
+  if "$claude_bin" mcp get siderolabs-docs &> /dev/null; then
+    echo "Sidero Labs docs MCP server already registered with Claude Code" | indent
+  else
+    info "🔌 Registering the Sidero Labs docs MCP server with Claude Code…"
+    "$claude_bin" mcp add --scope user --transport http siderolabs-docs https://docs.siderolabs.com/mcp | indent \
+      || warning "Registering the Sidero Labs docs MCP server failed — run: claude mcp add --scope user --transport http siderolabs-docs https://docs.siderolabs.com/mcp"
+  fi
+fi
+
 # rtk (Brewfile) — a Claude Code PreToolUse hook that rewrites Bash calls to
 # their compact rtk form (`git status` → `rtk git status`). --hook-only: no
 # RTK.md or @RTK.md line in ~/.claude/CLAUDE.md. Re-run every time because
