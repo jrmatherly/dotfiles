@@ -217,8 +217,12 @@ fi
 # https://docs.siderolabs.com/talos/v1.14/learn-more/ai-agent-integration
 if [ -x "$claude_bin" ]; then
   while read -r name url; do
-    if "$claude_bin" mcp get "$name" &> /dev/null; then
-      echo "$name MCP server already registered with Claude Code" | indent
+    if existing=$("$claude_bin" mcp get "$name" 2> /dev/null); then
+      if grep -qF "$url" <<< "$existing"; then
+        echo "$name MCP server already registered with Claude Code" | indent
+      else
+        warning "$name MCP server is registered with a different URL — expected $url"
+      fi
     else
       info "🔌 Registering the $name MCP server with Claude Code…"
       # stdin is the loop's list: keep claude from reading it

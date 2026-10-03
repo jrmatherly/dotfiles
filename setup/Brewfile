@@ -83,17 +83,17 @@ brew "docker" # Docker CLI
 brew "docker-buildx" # Docker Buildx plugin
 brew "docker-compose" # Docker Compose plugin (OrbStack also ships its own)
 brew "egctl" # Envoy Gateway CLI
-brew "fluxcd/tap/flux", trusted: true # Flux CD CLI (GitOps); not core `flux`, InfluxData's query language
 brew "govc" # VMware govc CLI
 brew "helm" # Kubernetes package manager
 brew "hubble" # Cilium network observability CLI
 brew "jfrog-cli" # JFrog Artifactory/Xray CLI
 brew "kubernetes-cli" # kubectl
 brew "kustomize" # Kubernetes config customization
+brew "sops" # Encrypted secrets editor (age/KMS), used by Flux
+brew "fluxcd/tap/flux", trusted: true # Flux CD CLI (GitOps); not core `flux`, InfluxData's query language
 brew "kubestellar/tap/kubestellar-deploy", trusted: true # KubeStellar multi-cluster deployment CLI
 brew "kubestellar/tap/kubestellar-ops", trusted: true # KubeStellar multi-cluster ops CLI
 brew "siderolabs/tap/talosctl", trusted: true # Talos Linux/Kubernetes CLI
-brew "sops" # Encrypted secrets editor (age/KMS), used by Flux
 brew "skyhook-io/tap/radar", trusted: true # Kubernetes topology/traffic/Helm visibility (kubectl-radar)
 cask "freelens" # Kubernetes IDE (Lens fork)
 cask "home-operations/tap/flate", trusted: true # Render and diff Flux GitOps repos offline
