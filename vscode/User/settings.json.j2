@@ -499,6 +499,10 @@
   // The Python extension writes this default back whenever it's missing
   // (pruned in 9d9aa02, re-added since); keeping it here stops the churn
   "python.languageServer": "Default",
+  // With Pyrefly installed the Python extension resolves "Default" to "None"
+  // unless this is true, and Pylance then reports itself disabled. Pylance
+  // does completions, hover and navigation; Pyrefly only reports type errors.
+  "python.pyrefly.disableLanguageServices": true,
   /**
    * Go / Shell / Docker
    */
