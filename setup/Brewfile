@@ -75,12 +75,14 @@ cask "dotnet-sdk" # .NET SDK
 cask "microsoft/foundry/devpack", trusted: true # Microsoft dev pack
 
 # Kubernetes / containers / infra
+brew "cilium-cli" # Install and troubleshoot Cilium (CNI) on a cluster
 brew "docker" # Docker CLI
 brew "docker-buildx" # Docker Buildx plugin
 brew "docker-compose" # Docker Compose plugin (OrbStack also ships its own)
 brew "flux" # GitOps toolkit for Kubernetes
 brew "govc" # VMware govc CLI
 brew "helm" # Kubernetes package manager
+brew "hubble" # Cilium network observability CLI
 brew "jfrog-cli" # JFrog Artifactory/Xray CLI
 brew "kubernetes-cli" # kubectl
 brew "kustomize" # Kubernetes config customization
