@@ -191,7 +191,10 @@ save_skills() {
   {
     echo "# User skills installed with the \`skills\` CLI — see bin/claude-config."
     echo "# skill <name> <source> <agents>"
-    jq -r '.skills | to_entries[] | "\(.key) \(.value.source)"' "$skill_lock" | sort \
+    # A well-known source (https://host/.well-known/agent-skills) is recorded
+    # as a bare host, which `skills add` would read as a GitHub repo
+    jq -r '.skills | to_entries[]
+      | "\(.key) \(if .value.sourceType == "well-known" then "https://" + .value.source else .value.source end)"' "$skill_lock" | sort \
       | while read -r name source; do
         local agents=()
         [ -e "$config/skills/$name" ] && agents+=(claude-code)

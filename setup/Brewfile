@@ -15,7 +15,9 @@ tap "azure/azd"
 # trusted too for `azure-functions-core-tools@4` to install.
 tap "azure/functions", trusted: { formulae: ["azure-functions-core-tools"] } # azure-functions-core-tools@4
 tap "azure/kubelogin"
+tap "fluxcd/tap" # flux (Flux CD CLI; core `flux` is InfluxData's query language)
 tap "getsentry/tools" # sentry (cli.sentry.dev)
+tap "home-operations/tap" # flate
 tap "kubestellar/tap" # kubestellar-deploy / kubestellar-ops
 tap "microsoft/aspire"
 tap "microsoft/foundry"
@@ -76,10 +78,12 @@ cask "microsoft/foundry/devpack", trusted: true # Microsoft dev pack
 
 # Kubernetes / containers / infra
 brew "cilium-cli" # Install and troubleshoot Cilium (CNI) on a cluster
+brew "cmctl" # cert-manager CLI
 brew "docker" # Docker CLI
 brew "docker-buildx" # Docker Buildx plugin
 brew "docker-compose" # Docker Compose plugin (OrbStack also ships its own)
-brew "flux" # GitOps toolkit for Kubernetes
+brew "egctl" # Envoy Gateway CLI
+brew "fluxcd/tap/flux", trusted: true # Flux CD CLI (GitOps); not core `flux`, InfluxData's query language
 brew "govc" # VMware govc CLI
 brew "helm" # Kubernetes package manager
 brew "hubble" # Cilium network observability CLI
@@ -89,8 +93,10 @@ brew "kustomize" # Kubernetes config customization
 brew "kubestellar/tap/kubestellar-deploy", trusted: true # KubeStellar multi-cluster deployment CLI
 brew "kubestellar/tap/kubestellar-ops", trusted: true # KubeStellar multi-cluster ops CLI
 brew "siderolabs/tap/talosctl", trusted: true # Talos Linux/Kubernetes CLI
+brew "sops" # Encrypted secrets editor (age/KMS), used by Flux
 brew "skyhook-io/tap/radar", trusted: true # Kubernetes topology/traffic/Helm visibility (kubectl-radar)
 cask "freelens" # Kubernetes IDE (Lens fork)
+cask "home-operations/tap/flate", trusted: true # Render and diff Flux GitOps repos offline
 cask "orbstack" # Container runtime, ships `docker-compose` as well
 
 # DevOps / CI / linting
