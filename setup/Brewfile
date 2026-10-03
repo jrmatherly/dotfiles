@@ -299,7 +299,6 @@ vscode "ms-toolsai.jupyter-renderers"
 vscode "ms-toolsai.vscode-jupyter-cell-tags"
 vscode "ms-toolsai.vscode-jupyter-slideshow"
 vscode "njpwerner.autodocstring"
-vscode "the0807.uv-toolkit"
 
 # .NET / C# / PHP / Java / Go / Rust / Dart
 vscode "dart-code.dart-code"
