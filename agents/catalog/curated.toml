@@ -203,6 +203,9 @@ tools = "search_astro_docs"
 [mcp.better-auth]
 desc = "Search and fetch Better Auth docs (version-aware: resolve the project's version first)."
 tools = "search_docs, get_doc"
+[mcp.siderolabs-docs]
+desc = "Search the Sidero Labs docs (Talos Linux, Omni); pairs with the siderolabs skill."
+tools = "search_sidero_documentation, query_docs_filesystem_sidero_documentation"
 [mcp.coolify]
 desc = "Self-hosted Coolify PaaS at deploy.matherly.net. Only loaded inside ~/dev/coolify."
 [mcp.azure]
@@ -345,8 +348,8 @@ items = ["session-report:session-report", "skills:opportunity-scan", "skills:abl
 
 [[group]]
 title = "Look up documentation"
-guide = "Claude/Claude Code: claude-docs or the claude-code-guide agent; Claude API code: claude-api. Microsoft/Azure: microsoft-docs. Library-specific docs MCPs: astro-docs, better-auth, cloudflare, workos."
-items = ["claude-docs:claude-docs", "claude-code-guide", "claude-api", "microsoft-docs:microsoft-docs", "microsoft-docs:microsoft-code-reference", "microsoft-learn", "astro-docs", "better-auth", "cloudflare", "workos:workos", "modern-web-guidance:modern-web-guidance"]
+guide = "Claude/Claude Code: claude-docs or the claude-code-guide agent; Claude API code: claude-api. Microsoft/Azure: microsoft-docs. Library-specific docs MCPs: astro-docs, better-auth, cloudflare, workos. Talos/Omni: siderolabs-docs plus the siderolabs skill."
+items = ["claude-docs:claude-docs", "claude-code-guide", "claude-api", "microsoft-docs:microsoft-docs", "microsoft-docs:microsoft-code-reference", "microsoft-learn", "astro-docs", "better-auth", "siderolabs-docs", "siderolabs", "cloudflare", "workos:workos", "modern-web-guidance:modern-web-guidance"]
 plugins = ["claude-docs"]
 
 [[group]]
