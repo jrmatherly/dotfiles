@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Get macOS software updates, update Homebrew (incl. VS Code), mise and uv tools, the Iosevka Code font, dotfiles, Raycast and Amp; record Claude Code plugins/settings/skills and rebuild their catalog.
+# Get macOS software updates, update Homebrew (incl. VS Code), mise and uv tools, the Iosevka Code font, dotfiles, Raycast and Amp; update agent skills, record Claude Code plugins/settings/skills and rebuild their catalog.
 #
 # > A macOS update asks for your login password. Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` to a 1Password secret reference (`op://vault/item/password`) to supply it with a fingerprint instead.
 #
@@ -104,10 +104,15 @@ header "Checking the Iosevka Code font…"
 install-iosevka-code || warning "Iosevka Code font check failed — run it later: install-iosevka-code"
 echo
 
-# Claude Code: record the current plugins, base settings and user skills in
-# the repo (review with `git diff`), then rebuild the catalog of installed
-# skills/agents/MCP servers
+# Claude Code: reinstall the tracked user skills for their listed agents (the
+# only thing that brings an installed skill up to date), record the current
+# plugins, base settings and user skills in the repo (review with `git diff`),
+# then rebuild the catalog of installed skills/agents/MCP servers
 if command -v claude > /dev/null; then
+  header "Updating agent skills…"
+  claude-config restore skills --update > /dev/null \
+    || warning "updating skills failed — see why with: claude-config restore skills --update"
+  echo
   header "Recording Claude Code config and rebuilding the catalog…"
   claude-config save || warning "claude-config save failed — the tracked lists were left as they were"
   claude-catalog | tail -1 || warning "claude-catalog failed — agents/catalog/curated.toml may name something no longer installed"

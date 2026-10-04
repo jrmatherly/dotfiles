@@ -219,6 +219,7 @@ upup
 - upgrades Homebrew formulae and casks (VS Code included) without asking for confirmation, since it prints the list first, then cleans up
 - upgrades mise tools (Node/Python patch releases, CodeGraph, the npm CLIs) and uv tools (Serena)
 - reinstalls the Iosevka Code font if its upstream zip changed
+- reinstalls the tracked agent skills for the agents each is listed for (`claude-config restore skills --update`), which is how an installed skill picks up upstream changes
 - records the Claude Code plugins, base settings and user skills in the repo (`claude-config save`, review with `git diff`) and rebuilds the catalog (`claude-catalog`)
 - asks Raycast to check for app and extension updates
 - updates Amp, if it's installed

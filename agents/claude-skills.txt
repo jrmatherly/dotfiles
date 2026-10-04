@@ -1,6 +1,6 @@
 # User skills installed with the `skills` CLI — see bin/claude-config.
 # skill <name> <source> <agents>
-skill archify tt-a1i/archify claude-code
+skill archify tt-a1i/archify claude-code,codex
 skill better-auth-best-practices better-auth/skills claude-code,codex
 skill better-auth-security-best-practices better-auth/skills claude-code,codex
 skill coding-standards jrmatherly/skills claude-code,codex
@@ -10,5 +10,7 @@ skill find-skills vercel-labs/skills claude-code,codex
 skill microsoft-foundry microsoft/azure-skills codex
 skill organization-best-practices better-auth/skills claude-code,codex
 skill siderolabs https://docs.siderolabs.com claude-code,codex
+skill supabase supabase/agent-skills codex
+skill supabase-postgres-best-practices supabase/agent-skills codex
 skill supabase-prompts jrmatherly/skills claude-code,codex
 skill two-factor-authentication-best-practices better-auth/skills claude-code,codex

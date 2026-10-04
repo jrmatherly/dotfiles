@@ -14,6 +14,10 @@
 #
 # `claude-config restore {{plugins|settings|skills}} --dry-run`
 #
+# - Reinstall every tracked skill for its listed agents, to pick up upstream changes (`upup` runs this):
+#
+# `claude-config restore skills --update`
+#
 # ---
 # Files (in agents/):
 #   claude-plugins.txt   marketplaces + user-scope plugins ("disabled" = off)
@@ -58,6 +62,7 @@ untilde='def untilde($h): (split("//" + $h + "/") | join("~/")) as $s | ($s | sp
            then "~" else $h end) + $p[$i]);'
 
 dry_run=false
+update=false
 failed=0
 
 run() {
@@ -213,9 +218,15 @@ restore_skills() {
   command -v mise > /dev/null && npx=(mise exec node -- npx)
   while read -r kind name source agents; do
     [ "$kind" = skill ] || continue
-    # Only the agents that don't have it yet
+    # Only the agents that don't have it yet. --update takes them all: the
+    # CLI's own `skills update` reinstalls with no agent list, so a skill
+    # tracked for one agent would spread to the rest
     missing=()
     for agent in ${agents//,/ }; do
+      if [ "$update" = true ]; then
+        missing+=("$agent")
+        continue
+      fi
       case $agent in
         claude-code) [ -e "$config/skills/$name" ] || missing+=("$agent") ;;
         codex) [ -e "$HOME/.agents/skills/$name" ] || missing+=("$agent") ;;
@@ -244,6 +255,7 @@ case "${1:-}" in
     for arg in "$@"; do
       case $arg in
         --dry-run) dry_run=true ;;
+        --update) update=true ;;
         plugins | settings | skills) part=$arg ;;
         *)
           echo "claude-config: unknown argument: $arg" >&2
@@ -259,7 +271,7 @@ case "${1:-}" in
     exit "$failed"
     ;;
   *)
-    echo "Usage: claude-config save | restore [plugins|settings|skills] [--dry-run]" >&2
+    echo "Usage: claude-config save | restore [plugins|settings|skills] [--dry-run] [--update]" >&2
     exit 2
     ;;
 esac
