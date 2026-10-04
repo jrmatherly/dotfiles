@@ -55,6 +55,7 @@ plugin sentry@claude-plugins-official
 plugin session-report@claude-plugins-official
 plugin skill-creator@claude-plugins-official
 plugin skills@cole-medin
+plugin supabase@claude-plugins-official
 plugin superdesign@claude-plugins-official
 plugin superpowers@claude-plugins-official
 plugin typescript-lsp@claude-plugins-official

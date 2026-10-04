@@ -121,6 +121,11 @@ brew "ruff" # Fast Python linter/formatter
 # `sentry-cli` that build tooling pulls in per project. Telemetry is off via
 # DO_NOT_TRACK in zsh/env.zsh.
 brew "getsentry/tools/sentry", trusted: true # Sentry CLI: issues, events, root cause
+# The core formula: Supabase's docs install from supabase/tap, which would
+# need trusting. Event delivery is off via DO_NOT_TRACK in zsh/env.zsh
+# (`supabase telemetry status` still says enabled: it reports
+# ~/.supabase/telemetry.json, which the variable doesn't change).
+brew "supabase" # Supabase CLI: local stack, migrations, Edge Functions
 brew "uv" # Fast Python package/project manager
 
 # Security / pentesting
