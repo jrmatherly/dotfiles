@@ -234,7 +234,7 @@ desc = "Grafana MCP via Docker (needs GRAFANA_URL + service-account token). Disa
 desc = "Sentry's hosted MCP (sentry plugin): find orgs/projects, search issues and events, Seer root-cause analysis, update issues. The `sentry` CLI covers the same from Bash."
 tools = "search_issues, search_events, get_sentry_resource, analyze_issue_with_seer, update_issue"
 [mcp.supabase]
-desc = "Supabase's hosted MCP (supabase plugin): projects, SQL, migrations, Edge Functions, advisors, docs. Needs OAuth sign-in via /mcp, then reaches every project in the account, read-write. The `supabase` CLI covers local development from Bash."
+desc = "Supabase's hosted MCP (supabase plugin): projects, SQL, migrations, Edge Functions, advisors, docs. Needs OAuth sign-in via /mcp, then reaches every project in the organization picked there, read-write. The `supabase` CLI covers local development from Bash."
 tools = "execute_sql, apply_migration, get_advisors"
 
 [mcp.jean]

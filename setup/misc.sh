@@ -248,6 +248,14 @@ if command_exists rtk; then
     || warning "rtk init failed — run it later: rtk init -g --hook-only"
 fi
 
+# Supabase CLI (Brewfile) — persisted telemetry opt-out, for runs that don't
+# inherit DO_NOT_TRACK from zsh/env.zsh (GUI-launched tools, scripts). The
+# variable here keeps this call itself from reporting.
+if command_exists supabase; then
+  DO_NOT_TRACK=1 supabase telemetry disable < /dev/null 2>&1 | indent \
+    || warning "supabase telemetry disable failed — run it later"
+fi
+
 # PowerShell as a .NET global tool — Microsoft-supported, and uses the official
 # dotnet-sdk cask. (The Homebrew `powershell` formula would pull in the
 # `dotnet` formula, which takes over /opt/homebrew/bin/dotnet.) Lands in
@@ -325,7 +333,7 @@ fi
 # so put its directory first for both.
 if [ -x "$claude_bin" ]; then
   info "🧩 Restoring Claude Code plugins, settings and skills…"
-  # The private jrmatherly/skills repo (marketplace + coding-standards) is
+  # The private jrmatherly/skills repo (a marketplace and standalone skills) is
   # cloned by non-interactive git: Claude Code tries SSH, then HTTPS. On a
   # fresh Mac neither works yet (~/.ssh/config isn't linked until
   # symlinks.sh, nothing stores a GitHub credential), so hand this one
