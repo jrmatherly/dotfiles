@@ -97,6 +97,12 @@
     "source.organizeImports.biome": "explicit"
   },
   "biome.requireConfiguration": true,
+  // The Oxc extension bundles no binaries: it takes the first `oxfmt` on
+  // PATH without checking it runs, and the mise shim exists everywhere but
+  // only resolves where a mise config pins oxfmt (elsewhere it exits 1 and
+  // the server "crashes 5 times"). Off here; `true` in the workspace
+  // settings of projects that use oxfmt.
+  "oxc.enable.oxfmt": false,
   // Spectral lints every JSON/YAML file by default and warns on each
   // tab-indented line (Obsidian plugin manifests, Web Clipper exports);
   // limit it to API description files
