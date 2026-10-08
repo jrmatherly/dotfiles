@@ -17,8 +17,9 @@
 - Patches are authored against base plus every lower-numbered patch (skills README, "Change or refresh a patch"). The README's `sed` drops the `diff --git` header of a new file, so `git apply` fails with `inconsistent new filename`. Task 1 uses the corrected `sed`, verified on 2026-10-08, and Task 2 fixes the README.
 - `claude plugin test <dir>` runs every `*.test.ts` and `*.test.tsx` under `<dir>` in the hooks-module sandbox. The generated tree ships four upstream Bun test files (`skills/j-mode/scripts/orch/orch.test.ts`, `skills/j-mode/scripts/watch-pr/{cli,github,policy}.test.ts`) that import `bun:test` and fail to load there (verified 2026-10-08: `12 pass, 5 fail` on the full tree). The mod's tests therefore always run on a trimmed copy holding only `.claude-plugin/`, `hooks/`, `types/` and `tests/`. `claude plugin test <dir>/tests` does not work (no `hooks/hooks.json` to load).
 - Write every mods API call as `$.namespace.method(...)`, event names and matcher values as string literals, and pass `$` only to top-level functions of the same file (create page, "Check what Claude Code reads from your mod"). No module-level mutable state. Hot reload resets module variables and `$.state` survives it (interface page, "Keep state").
-- `.catch` on every registration (`Registration.catch`, `claude-code.d.ts` line 9318; `Caught.called` line 1192). Call `next(e)` on every path that does not answer. Colors are theme keys (`ThemeKey`, line 12590), never hex. A `.catch` that only calls `next(e)` behaves the same as no `.catch` (a failed hook is absent and the chain continues), so it documents intent and cannot be unit-tested; the test kit also rejects a `ui.resolve` stub that returns anything but an element table.
+- `.catch` on every registration (`Registration.catch`, `claude-code.d.ts` line 9339; `Caught.called` line 1192). Call `next(e)` on every path that does not answer. Colors are theme keys (`ThemeKey`, line 12590), never hex. A `.catch` that only calls `next(e)` behaves the same as no `.catch` (a failed hook is absent and the chain continues), so it documents intent and cannot be unit-tested; the test kit also rejects a `ui.resolve` stub that returns anything but an element table.
 - Every write to the list goes through `update($, board, change)`, with parsing and applying inside `change`, because `update` re-reads and retries on a version miss (`UpdateFunction`, line 14585) and the model does send parallel `step` calls in one turn (verified: a read-then-write version lost one of two parallel `done` calls).
+- `claude plugin validate` runs without `--strict`: strict mode turns the deliberate missing `version` (and the two informational `types` lines) into a failure. The spec's checklist item 15 suggests `--strict`; it does not fit a plugin that omits `version` on purpose.
 - `check-jstack` must stay bash 3.2. `claude plugin validate` and `claude plugin test` do not type-check (GitHub issue #99771 via the spec), so `tsc` is a separate step. New text in `plugins/jstack` must pass `check-jstack`'s forbidden regex (`\bTask tool\b`, `AskQuestion\b`, `[A-Za-z]jstack`, `\bCursor\b` and the rest). `mcp__jstack__step` passes because `_` precedes `jstack` (checked with `grep -E` on 2026-10-08).
 - Commit subjects in `~/dev/skills` are short, imperative, sentence case. Run `/simplify` then `/code-review` on each commit's diff before committing. Plan prose and code comments follow j-mode. Short sentences, no long dashes, and comments only for a non-obvious why.
 - Task 1's steps share one shell: `$base` and `$edit` are set in step 1 and used through step 11.
@@ -27,7 +28,7 @@
 
 1. A `set` whose `steps` is empty, or has any entry that is not a non-empty string. The tool answers with the valid shape and the list keeps what it had. Pinned in Task 1 test `set with no usable steps is refused`, which sends both an all-bad list and a mixed one.
 2. `done 7` on a three-step list, or `skip` with no reason. The result names the valid range or the missing field and nothing changes. Pinned in Task 1 test `an index outside the list is refused and nothing changes`.
-3. A store record from an older build after a resume, such as a step with an unknown state. The band draws nothing and nothing throws. Pinned in Task 1 test `a bad store record after a resume draws nothing`.
+3. A store record from an older build after a resume, such as a step with an unknown state or a bare string. The band draws nothing and the band below stays. Pinned in Task 1 test `a bad store record after a resume draws nothing`, which tries both shapes. (Whether `toBoard` returned `null` or threw into the `.catch` is not distinguishable from outside; the kit cannot pin "nothing throws".)
 4. Two `step` calls in one turn (the model marks two steps done at once). Both land. Pinned in Task 1 test `parallel done calls both land`.
 5. A survey holding the band, `e.props.hasSurvey` true (`claude-code.d.ts` line 10259). The hook yields with `next(e)`. Pinned in Task 1 test `the band yields to a survey`.
 
@@ -44,7 +45,7 @@ A subagent call (`e.agentId` set, `AgentLoop` line 194) leaving the main list un
 - Modify: `~/dev/skills/scripts/sync-jstack` (the `plugin.json` heredoc)
 
 **Interfaces:**
-- Consumes: `Register` (`claude-code.d.ts` line 9301), `atom`, `read`, `update` from `claude-code` (lines 14701, 14726, 14735; `UpdateFunction` line 14585 resolves to what it wrote), `ToolSpec` with `isDeferred?: boolean` (lines 13117 and 13140, `ToolDeferral` line 12903), `ToolCallResult` `{ result }` (line 12701), tool arguments flat on the `tool.call` event beside `tool` (`ToolCallEnvelope` line 12647), `e.agentId` (line 194), `e.props.hasSurvey` and `e.props.bodyColumns` (lines 10259 and 10284), `$.store.get/set` (lines 3351 to 3366), `$.session.id()` (line 2796, "the transcript file's name"), `classic.SessionStart` `source` values `startup | resume | clear | compact | fork` (line 11645), `PromptComposeSection { id, text, scope }` (line 8381).
+- Consumes: `Register` (`claude-code.d.ts` line 9301), `atom`, `read`, `update` from `claude-code` (lines 14701, 14726, 14735; `UpdateFunction` line 14585 resolves to what it wrote), `ToolSpec` with `isDeferred?: boolean` (lines 13117 and 13140, `ToolDeferral` line 12903), `ToolCallResult` `{ result }` (line 12701), tool arguments flat on the `tool.call` event beside `tool` (`ToolCallEnvelope` line 12647), `e.agentId` (line 194), `e.props.hasSurvey` and `e.props.bodyColumns` (lines 10259 and 10284), `$.store.get/set` (lines 3351 to 3366), `$.session.id()` (line 2796, "the transcript file's name"), `classic.SessionStart` `source` values `startup | resume | clear | compact | fork` (line 11645), `PromptComposeSection { id, text, scope }` (line 8382).
 - Produces: the tool `mcp__jstack__step` (api page, "Add a tool": `mcp__`, plugin name, two underscores, registered name) with ops `set`, `done`, `skip`, `add`, `show`; the atom `{ plugin: 'jstack', key: 'board' }`; store key `steps:<session id>`; system prompt section id `jstack:steps`.
 
 - [ ] **Step 1: Build the base tree and an edit copy**
@@ -188,10 +189,16 @@ test('a valid store record comes back after a resume', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: 'Bug fix · step 2/2 · 1 done: Fix' })).toBeDefined()
 })
 test('a bad store record after a resume draws nothing', async ($, on) => {
-  world(on, new Map([['steps:S1', { playbook: 'Bug fix', steps: [{ text: 'Fix', state: 'later' }], current: 0 }]]))
+  const saved = world(on, new Map<string, unknown>([['steps:S1', { playbook: 'Bug fix', steps: [{ text: 'Fix', state: 'later' }], current: 0 }]]))
   await $.classic.SessionStart({ source: 'resume' })
-  const ui = await mount($, 'terminal')
+  let ui = await mount($, 'terminal')
   expect(await ui.find({ type: 'Text', text: /Bug fix/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: 'below' })).toBeDefined()
+  await ui.unmount()
+  saved.set('steps:S1', 'old-format')
+  await $.classic.SessionStart({ source: 'resume' })
+  ui = await mount($, 'terminal')
+  expect(await ui.find({ type: 'Text', text: /old-format|Bug fix/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: 'below' })).toBeDefined()
 })
 test('prompt.compose appends one session section listing the steps', async ($, on) => {
@@ -633,7 +640,7 @@ Expected: `Validation passed with warnings` with the same `hooks:` and `calls:` 
 2. **Subagent calls are ignored** (`e.agentId` set). j-agent subagents also load j-mode and would overwrite the operator's band.
 3. **`/clear` and `/branch` empty the band; only a resume reloads it** (revised after review). The store key is the session id, and those two commands start a new id (how-claude-code-works page, line 111; `claude-code.d.ts` lines 11054 to 11060). The first draft listed `clear` and `fork` as reload sources, which could never find the record. Carrying the list across would need a shared hand-off key written from a `session.end` hook, with the cross-session race the interface page describes; not worth it for a prototype. The SKILL.md sentence tells the model to `set` again after those commands.
 4. **Store keys are never deleted.** One record per session, under 1 KB, against the 4 MiB limit (reference page, "Limits"). A `session.end` cleanup waits until the store shows growth.
-5. **The `prompt.compose` section is `scope: 'session'`**, after the cache boundary (`claude-code.d.ts` line 8372). Each step change misses the session side of the cache, the same cost the task tools' reminders pay.
+5. **The `prompt.compose` section is `scope: 'session'`**, after the cache boundary (`PromptComposeScope`, `claude-code.d.ts` line 8373). Each step change misses the session side of the cache, the same cost the task tools' reminders pay.
 6. **The declarations are committed** at `jstack/types/claude-code.d.ts` (780 KiB), marked `linguist-generated -diff`. `check-jstack` runs on a fresh stage with no `.claude-plugin/types/`, and a `--plugin-dir` load inside a check would start a session.
 7. **The matcher value is a string literal**, so `claude plugin validate` prints `tool.call{tool=mcp__jstack__step}` without depending on constant folding. **Row color is the `suggestion` theme key**, one `Text` with `wrap: 'truncate-end'` plus a `slice` to `bodyColumns`, so Desktop and terminal agree on one row.
 8. **No render-hook `.catch` test** (revised after review). The kit rejects a `ui.resolve` stub that returns a deny, and a pass-through `.catch` is indistinguishable from no `.catch`, so the first draft's thirteenth test was dropped and a parallel-calls test took its place.
