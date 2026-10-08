@@ -51,7 +51,7 @@ setup/            Brewfile, per-step scripts, macos.sh (defaults), README.md (pe
 tilde/            mirrors $HOME (dotfiles, .config/*, .codex, .ssh/config)
 zsh/              sourced by tilde/.zshrc
 bin/              CLI scripts on PATH (see bin/CLAUDE.md); bin/lib/ helpers also on PATH
-docs/             alias index + docs/gui/<app>.md cheat sheets (rendered by `help`); docs/superpowers/plans/ = open implementation plans (not applied yet); move each to plans/completed/ once fully implemented
+docs/             alias index + docs/gui/<app>.md cheat sheets (rendered by `help`); docs/superpowers/plans/ = open implementation plans (not applied yet); move each to plans/completed/ once fully implemented; docs/superpowers/specs/ = the assessments and designs those plans argue from
 vscode/User/      whole dir symlinked to ~/Library/Application Support/Code/User
 agents/           instructions.md → Amp/Codex AGENTS.md; catalog/ = generator for `bin/claude-catalog`
 obsidian/ firefox/ colors/ ghostty etc.   app config + repo-owned themes
