@@ -525,7 +525,7 @@ git push
 
 ## Companion plan: jstack step band mod
 
-A learning prototype, not a fix, now that Task 3 restores the task tools. Jason chose to plan it now; the plan is `docs/superpowers/plans/2026-10-08-jstack-step-band.md`, written from this sketch in the `~/dev/skills` repo's patch workflow (`docs/superpowers/plans/2026-10-01-jstack.md`, "Patch authoring workflow"). It runs after this plan, since Task 3 decides whether the todolist rule already has what it needs:
+A learning prototype, not a fix, now that Task 3 restores the task tools. Jason chose to plan it now; the plan is `docs/superpowers/plans/2026-10-08-jstack-step-band.md`, written from this sketch in the `~/dev/skills` repo's patch workflow (`docs/superpowers/plans/completed/2026-10-01-jstack.md`, "Patch authoring workflow"). It runs after this plan, since Task 3 decides whether the todolist rule already has what it needs:
 
 - Data shape first: `{ playbook: string, steps: { text: string, state: 'todo' | 'done' | 'skip', reason?: string }[], current: number }` in `$.state` under a typed `PluginState['jstack']`, mirrored to `$.store` by session id and reloaded in a `classic.SessionStart` hook filtered on `source: ['clear', 'resume', 'fork']` (claude-skins `register.tsx` lines 172 to 177).
 - Files, added by a new `80-mod.patch` so `sync-jstack` regenerates them: `hooks/hooks.json` with `{ "modules": ["./register.tsx"] }`, `hooks/register.tsx`, `types/index.d.ts`, `tests/band.test.tsx`. `check-jstack` already runs `claude plugin validate`; add `claude plugin test` and `tsc --noEmit` to it, since validate and test do not type-check (issue #99771).
