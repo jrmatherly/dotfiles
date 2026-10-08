@@ -501,21 +501,13 @@ grep -c -i 'review complete\|findings:' ~/.claude/security/log.txt
 
 Expected: seven distinct `if` strings; the second count in the hundreds; the third 0. If the third is not 0, the model review has started running here; read those lines before deciding, because it then costs a model call per turn.
 
-- [ ] **Step 2: Apply Jason's decision**
+- [ ] **Step 2: Record the outcome**
 
-Keep: no change, Task 5 is done. Disable:
+Decided on 2026-10-08: keep. If Step 1's facts still hold, Task 5 ends here with no change. If the third count is no longer 0 (the model review has started running and now costs a model call per turn), stop and bring the log lines to Jason before anything else. The disable path, should the decision ever change:
 
 ```bash
 claude plugin disable security-guidance@claude-plugins-official
 claude-config save
-git diff agents/claude-plugins.txt
-```
-
-Expected diff: one line gaining ` disabled`.
-
-- [ ] **Step 3: Commit (disable only)**
-
-```bash
 pnpm check
 git add agents/claude-plugins.txt
 git commit -m "Turn security-guidance off: its reviews never ran, one spawn per prompt and edit"
@@ -531,19 +523,20 @@ git push
 - **A status line mod, a context gauge, a Bash hold-and-preview guard, claude-skins, cache-tax, terminal-browser, reflect-mod rule capture, next-steps.** Each is a "no" in the spec's recommendation table with its reason: not possible (`statusLine` cannot be replaced), already shown by the status line, already gated by auto mode and the ask list, no pain point, or a model call per turn for a convenience.
 - **A hook latency meter mod.** Reading the live `hooks.json` files and timing one spawn of each handler answered the fan-out question (about 10 ungated handlers per Bash call, 10 ms for hookify, 0.10 to 0.16 s for security-guidance's prompt hook) without a mod.
 
-## Deferred to its own plan: jstack step band mod
+## Companion plan: jstack step band mod
 
-A learning prototype, not a fix, now that Task 3 restores the task tools. Decide after a week of j-mode sessions with the tools whether the band adds anything the task list in the TUI does not. If it does, write `docs/superpowers/plans/<date>-jstack-step-band.md` from this sketch, in the `~/dev/skills` repo's patch workflow (`docs/superpowers/plans/2026-10-01-jstack.md`, "Patch authoring workflow"):
+A learning prototype, not a fix, now that Task 3 restores the task tools. Jason chose to plan it now; the plan is `docs/superpowers/plans/2026-10-08-jstack-step-band.md`, written from this sketch in the `~/dev/skills` repo's patch workflow (`docs/superpowers/plans/2026-10-01-jstack.md`, "Patch authoring workflow"). It runs after this plan, since Task 3 decides whether the todolist rule already has what it needs:
 
 - Data shape first: `{ playbook: string, steps: { text: string, state: 'todo' | 'done' | 'skip', reason?: string }[], current: number }` in `$.state` under a typed `PluginState['jstack']`, mirrored to `$.store` by session id and reloaded in a `classic.SessionStart` hook filtered on `source: ['clear', 'resume', 'fork']` (claude-skins `register.tsx` lines 172 to 177).
 - Files, added by a new `80-mod.patch` so `sync-jstack` regenerates them: `hooks/hooks.json` with `{ "modules": ["./register.tsx"] }`, `hooks/register.tsx`, `types/index.d.ts`, `tests/band.test.tsx`. `check-jstack` already runs `claude plugin validate`; add `claude plugin test` and `tsc --noEmit` to it, since validate and test do not type-check (issue #99771).
 - Mechanism: `$.tool.register` a private `step` tool with `isDeferred: false` (2.1.293 or later), answered by a `tool.call` hook returning `{ result }` at zero model cost (savvy-progress `register.tsx` lines 716 to 746); one-row `AbovePrompt` band composed with `const below = await next(e)` and a bail on `e.props.hasSurvey` (reflect-mod `register.tsx` lines 379 to 405); theme keys, not hex; `.catch` on every hook even though none gates.
 - Proof: `claude plugin test` mounts `AbovePrompt` on `terminal` and `desktop`; one `--plugin-dir` run where `claude plugin validate` prints `calls: $.tool.register` and the band changes after a `step` call.
 
-## Decisions for review (defaults chosen; change before executing)
+## Decisions (taken by Jason on 2026-10-08)
 
-1. **Task tools on (Task 3).** The docs note the tools' definitions and reminders take context on newer models, and that Claude tracks multi-step work without them. j-mode's playbooks are written around a visible todolist, so the default is on. Reverse by skipping Task 3 and instead patching j-mode's line 13 to keep the list in the reply.
-2. **25-file cap and an always-on `find` (Task 1).** Every Bash call in this repo now pays one `find` over about 6,000 files (0.15 s measured) and one marker touch. Lower the cap or add a command-text prefilter only if the cost shows up in practice.
-3. **security-guidance (Task 5).** Default is keep: the 25 regex reminders run on every edit in every repo here, and the never-run model reviews cost one short spawn per prompt and turn. No upstream report. Say "disable" to drop it.
-4. **hookify off (Task 4).** Hygiene, not speed: about 20 ms per tool call. Reverse with `claude plugin enable hookify@claude-plugins-official && claude-config save`.
-5. **The step band mod stays deferred.** Say "build it" to get the separate plan now.
+1. **Task tools on (Task 3).** Decided: on. The docs note the tools' definitions and reminders take context on newer models; j-mode's playbooks are written around a visible todolist, so the context is spent on purpose.
+2. **25-file cap and an always-on `find` (Task 1).** Decided: as planned. Every Bash call in this repo pays one `find` over about 6,000 files (0.15 s measured) and one marker touch. Revisit only if the cost shows up in practice.
+3. **security-guidance (Task 5).** Decided: keep. The 25 regex reminders run on every edit in every repo here; the never-run model reviews cost one short spawn per prompt and turn. No upstream report. Task 5 is therefore Step 1 only (confirm the facts still hold) and no change.
+4. **hookify off (Task 4).** Decided: disable. Hygiene, not speed: about 20 ms per tool call. Reverse with `claude plugin enable hookify@claude-plugins-official && claude-config save`.
+5. **The step band mod.** Decided: write its plan now, as `docs/superpowers/plans/2026-10-08-jstack-step-band.md`, executed after this plan. The sketch below is its starting point.
+6. **Execution.** Not started. Jason reviews both plans first, then picks native or subagent-driven execution.
