@@ -8,7 +8,7 @@
 
 **Tech Stack:** Claude Code 2.1.295, `/bin/bash` 3.2.57 (the shebang every script here uses; no `mapfile`, no associative arrays), jq 1.8, prettier 3 with prettier-plugin-sh, shellcheck, `bin/claude-config`, `claude plugin`.
 
-**Spec:** `docs/superpowers/specs/2026-10-08-claude-code-mods-assessment.md`. Its "Review corrections" section holds the checks that shaped this plan: `tool_use_id` is on both hook events (hooks.md lines 1595 and 2046), the task tools are absent on Fable without the env var (tools-reference.md "Task tool availability"), hookify has no rule files, security-guidance's model review has never run here, Warp's hooks exit at once outside Warp.
+**Spec:** `docs/superpowers/specs/2026-10-08-claude-code-mods-assessment.md`. Its "Review corrections" section holds the checks that shaped this plan: `tool_use_id` is on both hook events (hooks.md lines 1595 and 2046), the task tools are absent on Fable without the env var (tools-reference.md "Task tool availability"), hookify has no rule files, security-guidance's seven Bash entries are `if`-gated to commits and pushes and its model reviews have never run here, Warp's hooks exit at once outside Warp.
 
 ## Global Constraints
 
@@ -437,8 +437,8 @@ git push
 
 - [ ] **Step 1: Confirm there is still nothing for it to do**
 
-Run: `ls ~/.claude/hookify* .claude/hookify* 2>&1 | head -3`
-Expected: `No such file or directory` for both. hookify's four Python hooks (PreToolUse, PostToolUse, Stop, UserPromptSubmit in `~/.claude/plugins/cache/claude-plugins-official/hookify/*/hooks/hooks.json`) run on every cycle looking for rules that do not exist. If a rule file appears here, stop and ask Jason whether it is wanted.
+Run: `find ~/dev ~/.claude -maxdepth 4 -name 'hookify.*.local.md'`
+Expected: no output. hookify reads only `.claude/hookify.*.local.md` under the current project (`core/config_loader.py` line 210), and its four Python hooks (PreToolUse, PostToolUse, Stop, UserPromptSubmit) run on every cycle looking for them. The gain is hygiene more than speed: a no-rules spawn returns in 0.01 s (measured), so this removes about 20 ms per tool call. If a rule file appears here, stop and ask Jason whether it is wanted.
 
 - [ ] **Step 2: Disable and record**
 
@@ -462,11 +462,11 @@ Expected: exit 0. `curated.toml` may still name hookify items; a disabled plugin
 ```bash
 pnpm check
 git add agents/claude-plugins.txt agents/catalog/curated.toml
-git commit -m "Turn hookify off: no rule files anywhere, four hooks per cycle"
+git commit -m "Turn hookify off: no rule files anywhere, four idle hooks per cycle"
 git push
 ```
 
-### Task 5: Measure security-guidance, then decide
+### Task 5: security-guidance, keep or disable
 
 **Files:**
 - Read: `~/.claude/plugins/cache/claude-plugins-official/security-guidance/*/hooks/hooks.json`
@@ -474,48 +474,51 @@ git push
 - Modify (only if the decision is "disable"): `agents/claude-plugins.txt` via `claude-config save`
 
 **Interfaces:**
-- Consumes: `claude --debug-file`, the hooks debug log format (`"Hook PostToolUse:Bash (PostToolUse) success:…"`).
-- Produces: a measured count of how many times the duplicated PostToolUse Bash handler runs per Bash call, written into the decision below.
+- Consumes: `claude plugin disable`, `claude-config save`.
+- Produces: either no change, or the line `plugin security-guidance@claude-plugins-official disabled`.
 
-- [ ] **Step 1: Confirm the seven entries and the never-run review**
+What the plugin does on this machine, measured on 2026-10-08 (spec, "Review corrections"):
+
+| Event | Handler | Cost here |
+|---|---|---|
+| UserPromptSubmit | `git stash create` baseline for a later diff review | one Python spawn per prompt, 0.10 to 0.16 s |
+| PostToolUse Edit, Write | 25 built-in regex patterns (secrets, SQL and command injection, path traversal, insecure session config), warning injected as `additionalContext` | one spawn per edit |
+| PostToolUse Bash, 7 entries | each gated by its own `if` (`git commit`, `git -C … commit`, `git push`, `git -C … push`, `gt create`, `gt modify`, `gt submit`), reviews the commit diff with a model | one spawn per commit or push; exits at once, "no API credentials" (9 log lines) |
+| Stop, SubagentStop | model review of the turn's diff | one spawn per turn; exits at once, "no API credentials" (142 log lines) |
+| SessionStart | state setup | one spawn per session |
+
+The model reviews need `ANTHROPIC_API_KEY` or a passed OAuth token and have never run here. The regex reminders do run, in every repo on this machine.
+
+- [ ] **Step 1: Confirm the facts still hold**
 
 Run:
 
 ```bash
-jq -r '.hooks.PostToolUse[] | .matcher as $m | .hooks[] | "\($m)\t\(.command)"' ~/.claude/plugins/cache/claude-plugins-official/security-guidance/*/hooks/hooks.json | sort | uniq -c
+jq -c '.hooks.PostToolUse[] | select(.matcher=="Bash") | .hooks[] | .if' ~/.claude/plugins/cache/claude-plugins-official/security-guidance/*/hooks/hooks.json
 grep -c 'LLM review disabled or no API credentials' ~/.claude/security/log.txt
 grep -c -i 'review complete\|findings:' ~/.claude/security/log.txt
 ```
 
-Expected: `7 Bash …security_reminder_hook.py` and `1 Edit|Write|MultiEdit|NotebookEdit …`; the second count is in the hundreds (142 on 2026-10-08), the third is 0. If the third is not 0, the model review has started running on this machine; read those log lines before deciding.
+Expected: seven distinct `if` strings; the second count in the hundreds; the third 0. If the third is not 0, the model review has started running here; read those lines before deciding, because it then costs a model call per turn.
 
-- [ ] **Step 2: Count handler runs for one Bash call**
+- [ ] **Step 2: Apply Jason's decision**
 
-Run from this repo:
+Keep: no change, Task 5 is done. Disable:
 
 ```bash
-claude -p --debug-file /tmp/sg-hooks-debug.txt --allowedTools Bash "Run exactly this shell command and reply DONE: echo hook-count-test"
-grep -c 'security_reminder_hook' /tmp/sg-hooks-debug.txt
-grep -c 'Hook PostToolUse:Bash' /tmp/sg-hooks-debug.txt
+claude plugin disable security-guidance@claude-plugins-official
+claude-config save
+git diff agents/claude-plugins.txt
 ```
 
-Expected: the first count is 7 or more if the duplicates run separately (the docs dedupe only across settings files), 1 if Claude Code dedupes within one plugin. Write the number here: `runs per Bash call: __`.
+Expected diff: one line gaining ` disabled`.
 
-- [ ] **Step 3: Decide with Jason**
-
-The plugin's value here is the regex reminders on Edit/Write (one handler) and on Bash commits (the seven). Its model review has never run and needs an API key the session does not pass. Choose one:
-
-1. Keep it and report the duplicate entries upstream at `anthropics/claude-plugins-official` with the `jq` output from Step 1 and the count from Step 2. Filing an issue is outward-facing: ask Jason before `gh issue create`.
-2. Disable it: `claude plugin disable security-guidance@claude-plugins-official && claude-config save`, commit `agents/claude-plugins.txt` with subject "Turn security-guidance off: eight hook processes per Bash call, review never ran".
-
-Default if Jason does not answer: option 1, the report, because the Edit/Write reminders cost one process per edit and apply in every repo on this machine, including the Kubernetes and Azure ones where a hard-coded secret matters.
-
-- [ ] **Step 4: Commit (option 2 only)**
+- [ ] **Step 3: Commit (disable only)**
 
 ```bash
 pnpm check
 git add agents/claude-plugins.txt
-git commit -m "Turn security-guidance off: eight hook processes per Bash call, review never ran"
+git commit -m "Turn security-guidance off: its reviews never ran, one spawn per prompt and edit"
 git push
 ```
 
@@ -526,7 +529,7 @@ git push
 - **codegraph prompt-hook's 700-character miss injection.** `codegraph prompt-hook --help` lists no flag. Nothing local fixes it; an upstream request is Jason's call.
 - **A j-mode wording patch for sessions without a task tool.** After Task 3 the tools exist on every model, and background and cloud sessions always have them. Not needed.
 - **A status line mod, a context gauge, a Bash hold-and-preview guard, claude-skins, cache-tax, terminal-browser, reflect-mod rule capture, next-steps.** Each is a "no" in the spec's recommendation table with its reason: not possible (`statusLine` cannot be replaced), already shown by the status line, already gated by auto mode and the ask list, no pain point, or a model call per turn for a convenience.
-- **A hook latency meter mod.** The inventory alone justified Tasks 4 and 5; Task 5 step 2 measures with the debug log instead.
+- **A hook latency meter mod.** Reading the live `hooks.json` files and timing one spawn of each handler answered the fan-out question (about 10 ungated handlers per Bash call, 10 ms for hookify, 0.10 to 0.16 s for security-guidance's prompt hook) without a mod.
 
 ## Deferred to its own plan: jstack step band mod
 
@@ -541,6 +544,6 @@ A learning prototype, not a fix, now that Task 3 restores the task tools. Decide
 
 1. **Task tools on (Task 3).** The docs note the tools' definitions and reminders take context on newer models, and that Claude tracks multi-step work without them. j-mode's playbooks are written around a visible todolist, so the default is on. Reverse by skipping Task 3 and instead patching j-mode's line 13 to keep the list in the reply.
 2. **25-file cap and an always-on `find` (Task 1).** Every Bash call in this repo now pays one `find` over about 6,000 files (0.15 s measured) and one marker touch. Lower the cap or add a command-text prefilter only if the cost shows up in practice.
-3. **security-guidance (Task 5).** Default is keep and report upstream. Say "disable" to take option 2.
-4. **hookify off (Task 4).** Reverse with `claude plugin enable hookify@claude-plugins-official && claude-config save`.
+3. **security-guidance (Task 5).** Default is keep: the 25 regex reminders run on every edit in every repo here, and the never-run model reviews cost one short spawn per prompt and turn. No upstream report. Say "disable" to drop it.
+4. **hookify off (Task 4).** Hygiene, not speed: about 20 ms per tool call. Reverse with `claude plugin enable hookify@claude-plugins-official && claude-config save`.
 5. **The step band mod stays deferred.** Say "build it" to get the separate plan now.
