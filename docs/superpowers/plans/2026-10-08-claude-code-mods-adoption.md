@@ -2,47 +2,48 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Close the two gaps the mods assessment confirmed with the smallest mechanism that works (classic hooks for Bash edits that escape `lint-edited.sh`, one settings key for the task tools that Fable 5.1 lacks), trim the plugin hook fan-out the inventory measured, and park the one mod worth building as a separate plan.
+**Goal:** Close the two gaps the mods assessment confirmed with the smallest mechanism that works (one PostToolUse hook for Bash edits that escape `lint-edited.sh`, one settings key for the task tools that Fable 5.1 lacks), trim the plugin hook fan-out the inventory measured, and hand the one mod worth building to its companion plan.
 
-**Architecture:** No mod is built in this plan. A PreToolUse Bash hook drops a marker keyed by `session_id` and `tool_use_id`; a PostToolUse Bash hook runs `find -newer` against it and feeds each changed file to the existing `lint-edited.sh`, which stays the single owner of lint scope and rules. `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` goes into the tracked settings snapshot and is merged into the live settings by `claude-config restore settings`. Plugin changes go through `claude plugin disable` plus `claude-config save`, so `agents/claude-plugins.txt` stays the record.
+**Architecture:** No mod is built in this plan. Claude Code already records which repository files a Bash command changed and hands the list to PostToolUse hooks as `tool_response.bashEditDiff.changedFiles` (gitignored files excluded, since v2.1.269); a new PostToolUse Bash hook feeds each listed file to the existing `lint-edited.sh`, which stays the single owner of lint scope and rules. `bashEditDiffEnabled: true` and `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` go into the tracked settings snapshot and are merged into the live settings by `claude-config restore settings`. Plugin changes go through `claude plugin disable` plus `claude-config save`, so `agents/claude-plugins.txt` stays the record.
 
 **Tech Stack:** Claude Code 2.1.295, `/bin/bash` 3.2.57 (the shebang every script here uses; no `mapfile`, no associative arrays), jq 1.8, prettier 3 with prettier-plugin-sh, shellcheck, `bin/claude-config`, `claude plugin`.
 
-**Spec:** `docs/superpowers/specs/2026-10-08-claude-code-mods-assessment.md`. Its "Review corrections" section holds the checks that shaped this plan: `tool_use_id` is on both hook events (hooks.md lines 1595 and 2046), the task tools are absent on Fable without the env var (tools-reference.md "Task tool availability"), hookify has no rule files, security-guidance's seven Bash entries are `if`-gated to commits and pushes and its model reviews have never run here, Warp's hooks exit at once outside Warp.
+**Spec:** `docs/superpowers/specs/2026-10-08-claude-code-mods-assessment.md`. Its "Review corrections" section holds the checks that shaped this plan: the `bashEditDiff` field on PostToolUse Bash payloads (hooks.md lines 1635 to 1653, probed live on 2026-10-08), the task tools absent on Fable without the env var (tools-reference.md "Task tool availability", probed live), hookify has no rule files, security-guidance's seven Bash entries are `if`-gated to commits and pushes and its model reviews have never run here, Warp's hooks exit at once outside Warp.
 
 ## Global Constraints
 
-- Hook scripts start with `#!/bin/bash` and a header comment, use `set -uo pipefail` (not `-e`: a failing lint must not kill the hook before it reports), and run on bash 3.2: `while IFS= read -r -d '' f` with process substitution instead of `mapfile`; `${#arr[@]}` is safe under `set -u`, `"${arr[@]}"` only after a length check (both verified on this machine).
+- Hook scripts start with `#!/bin/bash` and a header comment, use `set -uo pipefail` (not `-e`: a failing lint must not kill the hook before it reports), and run on bash 3.2: `while IFS= read -r f` with process substitution instead of `mapfile`; `${#arr[@]}` is safe under `set -u`, `"${arr[@]}"` only after a length check (both verified on this machine).
 - `pnpm check` passes after every task. It already covers `.claude/hooks/*.sh` with `bash -n`, shellcheck `--severity=warning` and prettier, so new hook scripts need no wiring there.
-- The lint hook self-checks are not part of `pnpm check`; each is run by hand and allowed in `.claude/settings.json` permissions, like `test-lint-edited.sh` today.
-- Never track `~/.claude/settings.json` or `~/.claude.json`. The tracked snapshot is `agents/claude-settings.json`; `claude-config restore settings` merges it with `jq '$base * $cur'` (live values win, missing keys added, lists unioned), and `claude-config save` writes it back keeping only `CLAUDE_CODE_*`, `DISABLE_*` and `MAX_*` env keys.
+- The lint hook self-checks are not part of `pnpm check`; each is run by hand and allowed in `.claude/settings.json` permissions, like `test-lint-edited.sh` today. The self-checks need `node_modules` (prettier) present; `pnpm install` first on a fresh clone.
+- Never track `~/.claude/settings.json` or `~/.claude.json`. The tracked snapshot is `agents/claude-settings.json`; `claude-config restore settings` merges it with `jq '$base * $cur'` (live values win, missing keys added, lists unioned), and `claude-config save` writes it back keeping top-level keys and only the `CLAUDE_CODE_*`, `DISABLE_*` and `MAX_*` env keys.
 - Docs mirror behavior in the same commit: `CLAUDE.md` line 34 (the hook bullet) and the permissions bullet two lines below it, plus `docs/` and `agents/` READMEs where they describe the changed thing.
-- Commit subjects: short, imperative, sentence case, no prefix. Stage files explicitly. On `main`, commit and push once `pnpm check` passes (standing approval in `CLAUDE.md`, Custom Notes).
-- Before each commit, run the built-in `/simplify` and then `/code-review` on that commit's diff, and keep comments to a non-obvious why (j-mode rules in `~/.claude/rules/jstack-models.md`'s plugin).
-- Settings-file hook edits are read at session start. After Task 2, start a new session before the live check.
+- Commit subjects: short, imperative, sentence case, no prefix, no explanatory clause; detail goes in the body. Stage files explicitly by name, never a directory. On `main`, commit and push once `pnpm check` passes (standing approval in `CLAUDE.md`, Custom Notes).
+- Before each commit, run the built-in `/simplify` and then `/code-review` on that commit's diff, and keep comments to a non-obvious why (j-mode rules, from the jstack plugin's `j-mode` skill).
+- Hook edits in settings files are picked up by Claude Code's file watcher (hooks.md line 714), so the executing session runs the new hook from the moment Task 2 step 2 saves. Restart only if `/hooks` does not list the new entry after a few seconds.
 
 ## Review Focus
 
-1. Two Bash tool calls in flight at once (one parallel tool block). Each call owns a marker named by its `tool_use_id`. A file written between the two markers is reported by at least one PostToolUse run and never by neither. Pinned in Task 1, check 9.
-2. A hook payload without `session_id` or `tool_use_id` (an older event shape, a payload edited by another hook). Both hooks exit 0, write no marker and lint nothing. Pinned in Task 1, check 8.
-3. One command that rewrites many files (`pnpm format`, `scripts/sync-*`). Above 25 changed files the hook prints one line telling Claude to run `pnpm check` and exits 2 without linting file by file. Pinned in Task 1, check 7.
-4. Paths with spaces. The file list comes from `find -print0` and the payload for `lint-edited.sh` is built with `jq --arg`, so a path like `docs/a b.md` is linted and formatted. Pinned in Task 1, check 6.
-5. The common case, a Bash call that reads and writes nothing. `find` over the 5,934 files in this checkout took 0.15 s; the hook finds nothing and exits 0. Measured in Task 2, step 5.
+1. A PostToolUse payload with no `bashEditDiff` at all (an older Claude Code, a Bash call outside a git repository, recording turned off). The hook exits 0 and prints nothing. Pinned in Task 1, check 2.
+2. A git command that moved the working tree (`git checkout`, `git stash`, `git pull`). Claude Code sets `skipped: true` and the hook exits 0, with no "files changed" error block after every pull. Pinned in Task 1, check 3.
+3. One command that rewrites many files (`pnpm format`, `scripts/sync-*`). Above 25 listed files the hook prints one line telling Claude to run `pnpm check` and exits 2 without linting file by file. Pinned in Task 1, check 4.
+4. A listed path with a space, and a listed file the command deleted. The path is passed through `jq --arg`, so it is linted and formatted; the deleted file is skipped by `lint-edited.sh`'s existence check with exit 0. Pinned in Task 1, checks 6 and 8.
+5. A listed file that the command did not write (`shared: true`, another Bash call or an editor saved it at the same time). The hook lints it anyway, the same way the Edit hook lints whatever Edit touched; the docs say the list is best effort. Documented in the `CLAUDE.md` bullet, Task 2 step 5, since no test can pin a race.
+
+Known limits, documented rather than tested: a Bash call that exits non-zero fires PostToolUseFailure, whose payload carries no `bashEditDiff` (probed live on 2026-10-08), so files written by a failing command are not linted until `pnpm check`, which gates every commit. A background command returns before it writes, so its files are never listed either.
 
 ---
 
-### Task 1: Hooks that lint files written through Bash
+### Task 1: A hook that lints files written through Bash
 
 **Files:**
-- Create: `.claude/hooks/mark-tool-start.sh`
 - Create: `.claude/hooks/lint-bash-edits.sh`
 - Create: `.claude/hooks/test-lint-bash-edits.sh`
-- Read: `.claude/hooks/lint-edited.sh` (unchanged; it reads `{"tool_input":{"file_path":…}}` on stdin, exits 2 with problems on stderr, 0 otherwise)
+- Read: `.claude/hooks/lint-edited.sh` (unchanged; it reads `{"tool_input":{"file_path":…}}` on stdin, exits 2 with problems on stderr, 0 otherwise, and skips missing, gitignored and out-of-project paths itself)
 - Read: `.claude/hooks/test-lint-edited.sh` (the style to match)
 
 **Interfaces:**
-- Consumes: hook stdin JSON with `session_id`, `tool_use_id`, `tool_name`, `tool_input`; `CLAUDE_PROJECT_DIR`; `TMPDIR`.
-- Produces: marker files at `${TMPDIR:-/tmp}/claude-lint-markers/<session_id>-<tool_use_id>`; `lint-bash-edits.sh` exit 2 with `lint-edited.sh`'s stderr per file, or exit 0. Task 2 wires both scripts into `.claude/settings.json`.
+- Consumes: PostToolUse hook stdin JSON with `tool_response.bashEditDiff` (`changedFiles` array of absolute paths, `skipped` boolean), `CLAUDE_PROJECT_DIR`.
+- Produces: exit 2 with `lint-edited.sh`'s stderr per file, or exit 0. Task 2 wires the script into `.claude/settings.json` and turns recording on in every permission mode.
 
 - [ ] **Step 1: Write the failing self-check**
 
@@ -51,23 +52,18 @@ Create `.claude/hooks/test-lint-bash-edits.sh`:
 ```bash
 #!/bin/bash
 #
-# Self-check for mark-tool-start.sh + lint-bash-edits.sh — run:
-# .claude/hooks/test-lint-bash-edits.sh
+# Self-check for lint-bash-edits.sh — run: .claude/hooks/test-lint-bash-edits.sh
 
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/../.." && pwd -P)
 cd "$root"
-pre=.claude/hooks/mark-tool-start.sh
-post=.claude/hooks/lint-bash-edits.sh
-# Files to lint live in $tmp (tracked path, so find and lint-edited.sh see
-# them); markers and captured stderr live under private/, which find prunes
-# and git ignores, so the test never counts its own scratch as a changed file
+hook=.claude/hooks/lint-bash-edits.sh
+# Files to lint live in $tmp (a tracked path, so lint-edited.sh sees them);
+# captured stderr lives under private/, which git ignores
 tmp=hooktest-$$
 scratch=private/hooktest-$$
 mkdir -p "$tmp" "$scratch"
-export TMPDIR=$root/$scratch
-markers=$TMPDIR/claude-lint-markers
 err=$scratch/err
 trap 'rm -rf "$root/$tmp" "$root/$scratch"' EXIT
 
@@ -75,75 +71,74 @@ fail() {
   echo "FAIL: $1" >&2
   exit 1
 }
+# A PostToolUse Bash payload whose bashEditDiff lists the given absolute paths
 payload() {
-  printf '{"session_id":"s1","tool_use_id":"%s","tool_name":"Bash","tool_input":{"command":"true"}}' "$1"
+  jq -cn '$ARGS.positional as $p | {tool_name: "Bash", tool_input: {command: "true"},
+    tool_response: {stdout: "", stderr: "", bashEditDiff: {changedFiles: $p, moreFiles: 0}}}' --args "$@"
 }
-# PreToolUse: drop the marker for a call id; returns the hook's exit code
-mark() { payload "$1" | CLAUDE_PROJECT_DIR=$root "$pre"; }
-# PostToolUse: lint what changed since the marker; stderr to $err, returns the exit code
+# Feed a payload to the hook; stderr to $err, returns the hook's exit code
 lint() {
   set +e
-  payload "$1" | CLAUDE_PROJECT_DIR=$root "$post" 2> "$err"
+  CLAUDE_PROJECT_DIR=$root "$hook" 2> "$err"
   rc=$?
   set -e
   return $rc
 }
+expect_rc() {
+  [ "$1" -eq "$2" ] || fail "$3: expected exit $2, got $1"
+}
 
-# 1. A Bash call that writes a shell syntax error → exit 2, problem names the file
-mark t1 || fail "mark: non-zero exit"
+# 1. A listed shell file with a syntax error → exit 2, problem names the file
 printf '#!/bin/bash\nif then\n' > "$tmp/b.sh"
-lint t1 && fail "syntax error via Bash: expected exit 2, got 0"
-[ $? -eq 2 ] || fail "syntax error via Bash: expected exit 2"
-grep -q "$tmp/b.sh" "$err" || fail "syntax error via Bash: file not named in stderr"
-rm "$tmp/b.sh"
+set +e
+payload "$root/$tmp/b.sh" | lint
+rc=$?
+set -e
+expect_rc "$rc" 2 "syntax error"
+grep -q "$tmp/b.sh" "$err" || fail "syntax error: file not named in stderr"
 
-# 2. A call that writes nothing → exit 0, and its marker is gone afterwards
-mark t2
-lint t2 || fail "no writes: non-zero exit"
-[ ! -e "$markers/s1-t2" ] || fail "no writes: marker left behind"
+# 2. No bashEditDiff in the payload (older Claude Code, non-git cwd, recording off) → exit 0
+printf '{"tool_name":"Bash","tool_input":{"command":"true"},"tool_response":{"stdout":"","stderr":""}}' \
+  | CLAUDE_PROJECT_DIR=$root "$hook" 2> "$err" || fail "no bashEditDiff: non-zero exit"
 
-# 3. PostToolUse without a PreToolUse marker (hook added mid-session) → exit 0
-lint t3 || fail "no marker: non-zero exit"
+# 3. skipped: true (git checkout/stash moved the tree) → exit 0 even with files listed
+jq -cn --arg p "$root/$tmp/b.sh" '{tool_name: "Bash", tool_input: {command: "git checkout x"},
+  tool_response: {bashEditDiff: {changedFiles: [$p], skipped: true}}}' \
+  | CLAUDE_PROJECT_DIR=$root "$hook" 2> "$err" || fail "skipped: non-zero exit"
 
-# 4. A write into a gitignored path (private/) → exit 0
-mark t4
-printf '#!/bin/bash\nif then\n' > "$scratch/bad.sh"
-lint t4 || fail "gitignored write: should be skipped"
-
-# 5. Unformatted Markdown written via Bash gets formatted, exit 0
-mark t5
-printf '# T\n\n* a\n' > "$tmp/a.md"
-lint t5 || fail "markdown: non-zero exit"
-grep -q '^- a$' "$tmp/a.md" || fail "markdown: not formatted"
-
-# 6. A path with a space is found and formatted
-mark t6
-printf '# T\n\n* b\n' > "$tmp/a b.md"
-lint t6 || fail "path with space: non-zero exit"
-grep -q '^- b$' "$tmp/a b.md" || fail "path with space: not formatted"
-
-# 7. More than 25 changed files → one line pointing at pnpm check, exit 2, nothing linted
-mark t7
-for i in $(seq 1 26); do printf '# T\n\n* c\n' > "$tmp/bulk$i.md"; done
-lint t7 && fail "bulk: expected exit 2, got 0"
+# 4. More than 25 listed files → one line pointing at pnpm check, exit 2, nothing linted
+bulk=()
+for i in $(seq 1 26); do
+  printf '# T\n\n* c\n' > "$tmp/bulk$i.md"
+  bulk+=("$root/$tmp/bulk$i.md")
+done
+set +e
+payload "${bulk[@]}" | lint
+rc=$?
+set -e
+expect_rc "$rc" 2 "bulk"
 grep -q 'pnpm check' "$err" || fail "bulk: stderr does not point at pnpm check"
 grep -q '^\* c$' "$tmp/bulk1.md" || fail "bulk: files were linted one by one"
 
-# 8. A payload without tool_use_id → both hooks exit 0 and write no marker
-before=$(ls "$markers" 2> /dev/null | wc -l)
-printf '{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"true"}}' \
-  | CLAUDE_PROJECT_DIR=$root "$pre" || fail "no id: pre exited non-zero"
-printf '{"session_id":"s1","tool_name":"Bash","tool_input":{"command":"true"}}' \
-  | CLAUDE_PROJECT_DIR=$root "$post" || fail "no id: post exited non-zero"
-[ "$(ls "$markers" 2> /dev/null | wc -l)" -eq "$before" ] || fail "no id: a marker was written"
+# 5. A listed unformatted Markdown file gets formatted, exit 0
+printf '# T\n\n* a\n' > "$tmp/a.md"
+payload "$root/$tmp/a.md" | lint || fail "markdown: non-zero exit"
+grep -q '^- a$' "$tmp/a.md" || fail "markdown: not formatted"
 
-# 9. Two calls in flight: a write between the two markers is caught by the first
-mark p1
-printf '#!/bin/bash\nif then\n' > "$tmp/p.sh"
-mark p2
-lint p1 && fail "parallel: first call should report the write"
-lint p2 || fail "parallel: second call should see nothing newer than its marker"
-rm "$tmp/p.sh"
+# 6. A path with a space is linted and formatted
+printf '# T\n\n* b\n' > "$tmp/a b.md"
+payload "$root/$tmp/a b.md" | lint || fail "path with space: non-zero exit"
+grep -q '^- b$' "$tmp/a b.md" || fail "path with space: not formatted"
+
+# 7. A listed gitignored file (private/) is skipped by lint-edited.sh → exit 0
+printf '#!/bin/bash\nif then\n' > "$scratch/bad.sh"
+payload "$root/$scratch/bad.sh" | lint || fail "gitignored file: should be skipped"
+
+# 8. A listed file the command deleted → exit 0
+payload "$root/$tmp/gone.sh" | lint || fail "deleted file: non-zero exit"
+
+# 9. A project without lint-edited.sh (CLAUDE_PROJECT_DIR elsewhere) → exit 0, nothing run
+payload "$root/$tmp/b.sh" | CLAUDE_PROJECT_DIR=$root/$tmp "$hook" 2> "$err" || fail "no lint-edited.sh: non-zero exit"
 
 echo "lint-bash-edits: all checks passed"
 ```
@@ -151,65 +146,36 @@ echo "lint-bash-edits: all checks passed"
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `chmod +x .claude/hooks/test-lint-bash-edits.sh && .claude/hooks/test-lint-bash-edits.sh`
-Expected: `FAIL: mark: non-zero exit` (the hook script does not exist yet; the pipe into a missing file fails).
+Expected: `FAIL: syntax error: expected exit 2, got 127` (the hook script does not exist yet), possibly preceded by `jq: error: writing output failed: Broken pipe` from the payload writer, since nothing read its output.
 
-- [ ] **Step 3: Write the PreToolUse marker hook**
-
-Create `.claude/hooks/mark-tool-start.sh`:
-
-```bash
-#!/bin/bash
-#
-# Claude Code PreToolUse hook (Bash): drop a marker before the command runs
-# so lint-bash-edits.sh can `find -newer` the files it wrote. One marker per
-# session + tool_use_id, so parallel Bash calls never share one. Wired up in
-# .claude/settings.json; self-check: .claude/hooks/test-lint-bash-edits.sh
-
-set -uo pipefail
-
-key=$(jq -r 'select(.session_id and .tool_use_id) | "\(.session_id)-\(.tool_use_id)"')
-[[ $key =~ ^[A-Za-z0-9_-]+$ ]] || exit 0
-
-dir=${TMPDIR:-/tmp}/claude-lint-markers
-mkdir -p "$dir" || exit 0
-# A call that never reaches PostToolUse (interrupted turn) leaves its marker
-find "$dir" -type f -mmin +60 -delete 2> /dev/null
-touch "$dir/$key"
-exit 0
-```
-
-- [ ] **Step 4: Write the PostToolUse lint hook**
+- [ ] **Step 3: Write the hook**
 
 Create `.claude/hooks/lint-bash-edits.sh`:
 
 ```bash
 #!/bin/bash
 #
-# Claude Code PostToolUse hook (Bash): lint the files this Bash call wrote
-# (heredocs, sed -i, tee, cp…), which the Edit/Write hook never sees. Every
-# file in the checkout newer than the marker mark-tool-start.sh dropped goes
+# Claude Code PostToolUse hook (Bash): lint the files a Bash command changed
+# (heredocs, sed -i, tee, cp…), which the Edit/Write hook never sees. Claude
+# Code lists them in tool_response.bashEditDiff.changedFiles with gitignored
+# files already dropped (best effort, 200-file cap, v2.1.269+). Each goes
 # through lint-edited.sh, which owns the scope and the rules. Problems go to
 # stderr with exit 2, so Claude sees them although the command already ran.
 # Wired up in .claude/settings.json; self-check: .claude/hooks/test-lint-bash-edits.sh
 
 set -uo pipefail
 
+# Drain stdin before any early exit, or the writer gets a broken pipe
+input=$(cat)
 project=${CLAUDE_PROJECT_DIR:-$(pwd -P)}
-key=$(jq -r 'select(.session_id and .tool_use_id) | "\(.session_id)-\(.tool_use_id)"')
-[[ $key =~ ^[A-Za-z0-9_-]+$ ]] || exit 0
-marker=${TMPDIR:-/tmp}/claude-lint-markers/$key
-[ -f "$marker" ] || exit 0
-trap 'rm -f "$marker"' EXIT
-
-cd "$project" || exit 0
 hook=$project/.claude/hooks/lint-edited.sh
+[ -x "$hook" ] || exit 0
 
-# .git, node_modules and private/ are never ours; lint-edited.sh applies
-# .gitignore and pnpm check's scope to everything else
+# skipped: a git checkout or stash moved the tree, so the list is not edits
 files=()
-while IFS= read -r -d '' f; do
-  files+=("${f#./}")
-done < <(find . \( -name .git -o -name node_modules -o -path ./private \) -prune -o -type f -newer "$marker" -print0 2> /dev/null)
+while IFS= read -r f; do
+  [ -n "$f" ] && files+=("$f")
+done < <(jq -r '.tool_response.bashEditDiff // empty | select(.skipped != true) | .changedFiles[]?' <<< "$input")
 [ "${#files[@]}" -gt 0 ] || exit 0
 
 # A bulk rewrite (pnpm format, a sync script) is pnpm check's job, not 26 hook runs
@@ -220,7 +186,7 @@ fi
 
 problems=""
 for f in "${files[@]}"; do
-  out=$(jq -cn --arg p "$project/$f" '{tool_name: "Bash", tool_input: {file_path: $p}}' | "$hook" 2>&1)
+  out=$(jq -cn --arg p "$f" '{tool_name: "Bash", tool_input: {file_path: $p}}' | "$hook" 2>&1)
   [ $? -eq 2 ] && problems+="$out"$'\n'
 done
 
@@ -231,60 +197,55 @@ fi
 exit 0
 ```
 
-- [ ] **Step 5: Make both executable and run the self-check**
+- [ ] **Step 4: Make it executable and run the self-check**
 
-Run: `chmod +x .claude/hooks/mark-tool-start.sh .claude/hooks/lint-bash-edits.sh && .claude/hooks/test-lint-bash-edits.sh`
+Run: `chmod +x .claude/hooks/lint-bash-edits.sh && .claude/hooks/test-lint-bash-edits.sh`
 Expected: `lint-bash-edits: all checks passed`
 
-- [ ] **Step 6: Run the repo gate and the existing self-check**
+- [ ] **Step 5: Run the repo gate and the existing self-check**
 
 Run: `pnpm check && .claude/hooks/test-lint-edited.sh`
 Expected: both pass. The gate runs shellcheck at `--severity=warning`, so the style-level SC2181 on `[ $? -eq 2 ]` does not fire; the exit code wanted is the pipeline's, which `pipefail` makes the hook's.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add .claude/hooks/mark-tool-start.sh .claude/hooks/lint-bash-edits.sh .claude/hooks/test-lint-bash-edits.sh
-git commit -m "Add hooks that lint files written through Bash"
+git add .claude/hooks/lint-bash-edits.sh .claude/hooks/test-lint-bash-edits.sh
+git commit -m "Add a hook that lints files written through Bash"
 ```
 
-### Task 2: Wire the hooks, verify live, document
+### Task 2: Wire the hook, turn recording on, verify live, document
 
 **Files:**
 - Modify: `.claude/settings.json` (`permissions.allow`, `hooks`)
+- Modify: `agents/claude-settings.json` (top-level `bashEditDiffEnabled`)
 - Modify: `CLAUDE.md:34` (the hook bullet) and `CLAUDE.md:35` (the permissions bullet)
 
 **Interfaces:**
-- Consumes: the two scripts from Task 1 at `${CLAUDE_PROJECT_DIR}/.claude/hooks/`.
-- Produces: a `PreToolUse` block with matcher `Bash` and a second `PostToolUse` entry with matcher `Bash`.
+- Consumes: `lint-bash-edits.sh` from Task 1 at `${CLAUDE_PROJECT_DIR}/.claude/hooks/`; `claude-config restore settings`.
+- Produces: a second `PostToolUse` entry with matcher `Bash`; `bashEditDiffEnabled: true` in `~/.claude/settings.json`, so Claude Code records Bash edits in every permission mode, not only in auto mode (settings-reference.md "bashEditDiffEnabled": scope user or managed, a project file cannot turn it on).
 
 - [ ] **Step 1: Add the permission for the new self-check**
 
-In `.claude/settings.json`, after `"Bash(.claude/hooks/test-lint-edited.sh *)"` add:
+In `.claude/settings.json`, change the last `allow` entry from
 
 ```json
+      "Bash(.claude/hooks/test-lint-edited.sh *)"
+```
+
+to
+
+```json
+      "Bash(.claude/hooks/test-lint-edited.sh *)",
       "Bash(.claude/hooks/test-lint-bash-edits.sh *)"
 ```
 
-- [ ] **Step 2: Add the hooks**
+- [ ] **Step 2: Add the hook**
 
 Replace the `"hooks"` object with:
 
 ```json
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/mark-tool-start.sh",
-            "args": [],
-            "timeout": 5
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|mcp__serena__(replace_content|replace_in_files|replace_symbol_body|insert_after_symbol|insert_before_symbol|rename_symbol|safe_delete_symbol)",
@@ -314,48 +275,49 @@ Replace the `"hooks"` object with:
   }
 ```
 
-- [ ] **Step 3: Validate the JSON and the gate**
+Run: `jq . .claude/settings.json > /dev/null`
+Expected: no error.
 
-Run: `jq . .claude/settings.json > /dev/null && pnpm check`
-Expected: no jq error; `pnpm check` passes (prettier formats `settings.json` through the Edit hook already).
+- [ ] **Step 3: Turn recording on in every permission mode**
 
-- [ ] **Step 4: Live check in a fresh session**
+Run:
 
-Start a new Claude Code session in this repo (hook config is read at startup). Ask it to run, through its Bash tool:
+```bash
+jq '.bashEditDiffEnabled = true' agents/claude-settings.json > agents/claude-settings.json.tmp && mv agents/claude-settings.json.tmp agents/claude-settings.json
+git diff agents/claude-settings.json
+claude-config restore settings --dry-run
+claude-config restore settings
+jq .bashEditDiffEnabled ~/.claude/settings.json
+```
+
+Expected: a one-line diff adding `"bashEditDiffEnabled": true`; the dry run prints `merge ~/dev/dotfiles/agents/claude-settings.json into ~/.claude/settings.json`; the last command prints `true`. The key is top-level, so `claude-config save` keeps it (its filter drops only tool-owned keys, credential helpers and non-`CLAUDE_CODE_*` env).
+
+- [ ] **Step 4: Live check**
+
+In this same session (the file watcher has loaded the hook; confirm with `/hooks` if in doubt), ask Claude to run through its Bash tool:
 
 ```bash
 printf '#!/bin/bash\nif then\n' > hooktest-live.sh
 ```
 
-Expected: the transcript shows a `PostToolUse:Bash` hook error block whose text starts with `lint-edited: problems in hooktest-live.sh`, and Claude reacts to it. Then have it run `rm hooktest-live.sh` and confirm no hook output appears for that call.
+Expected: the transcript shows a `PostToolUse:Bash` hook error block whose text starts with `lint-edited: problems in hooktest-live.sh`, and Claude reacts to it. Then have it run `rm hooktest-live.sh` and confirm no hook output appears for that call. Then have it run `printf '#!/bin/bash\nif then\n' > hooktest-live.sh; false` and confirm that no lint block appears (a failing command fires PostToolUseFailure, whose payload carries no `bashEditDiff`), then `rm hooktest-live.sh` again.
 
-- [ ] **Step 5: Measure the no-write cost**
-
-Time the PostToolUse hook directly on a call that wrote nothing:
-
-```bash
-printf '{"session_id":"s1","tool_use_id":"m1","tool_name":"Bash","tool_input":{"command":"true"}}' | CLAUDE_PROJECT_DIR=$PWD .claude/hooks/mark-tool-start.sh
-time (printf '{"session_id":"s1","tool_use_id":"m1","tool_name":"Bash","tool_input":{"command":"true"}}' | CLAUDE_PROJECT_DIR=$PWD .claude/hooks/lint-bash-edits.sh)
-```
-
-Expected: exit 0 in under 0.5 s. Record the number in the commit message body.
-
-- [ ] **Step 6: Update CLAUDE.md**
+- [ ] **Step 5: Update CLAUDE.md**
 
 Replace the bullet at line 34 with:
 
 ```markdown
-- Claude Code hooks: `.claude/settings.json` runs `.claude/hooks/lint-edited.sh` after Edit/Write (and Serena edit tools). It prettier-formats and lints the one edited file, but only within `pnpm check`'s scope (prettier globs and top-level `bin/*`; `bash -n` + shellcheck only for `bin/lib/check`'s list, so sourced snippets like `colors/*.sh` and `bin/lib/` are skipped), exiting 2 so Claude sees problems. Files written through Bash (heredocs, `sed -i`, `tee`) get the same treatment: `mark-tool-start.sh` (PreToolUse Bash) drops a marker keyed by `session_id` and `tool_use_id` under `$TMPDIR/claude-lint-markers/`, and `lint-bash-edits.sh` (PostToolUse Bash) feeds every file newer than it to `lint-edited.sh`, or asks for `pnpm check` when more than 25 changed. Self-checks: `.claude/hooks/test-lint-edited.sh`, `.claude/hooks/test-lint-bash-edits.sh`.
+- Claude Code hooks: `.claude/settings.json` runs `.claude/hooks/lint-edited.sh` after Edit/Write (and Serena edit tools). It prettier-formats and lints the one edited file, but only within `pnpm check`'s scope (prettier globs and top-level `bin/*`; `bash -n` + shellcheck only for `bin/lib/check`'s list, so sourced snippets like `colors/*.sh` and `bin/lib/` are skipped), exiting 2 so Claude sees problems. Files written through Bash (heredocs, `sed -i`, `tee`) get the same treatment from `lint-bash-edits.sh` (PostToolUse Bash), which reads the changed-file list Claude Code records in `tool_response.bashEditDiff` (`bashEditDiffEnabled: true` in the tracked user settings turns recording on in every permission mode) and feeds each file to `lint-edited.sh`, or asks for `pnpm check` when more than 25 changed. The list is best effort: a file another process saved during the command can appear in it, and a command that exits non-zero or runs in the background records nothing, so `pnpm check` before committing stays the gate. Self-checks: `.claude/hooks/test-lint-edited.sh`, `.claude/hooks/test-lint-bash-edits.sh`.
 ```
 
 In the permissions bullet on the next line, change "and the hook self-check" to "and the hook self-checks".
 
-- [ ] **Step 7: Commit and push**
+- [ ] **Step 6: Commit and push**
 
 ```bash
 pnpm check
-git add .claude/settings.json CLAUDE.md
-git commit -m "Lint files written through Bash in the project hooks"
+git add .claude/settings.json agents/claude-settings.json CLAUDE.md
+git commit -m "Lint files written through Bash in the project hooks" -m "Reads tool_response.bashEditDiff.changedFiles from the PostToolUse payload; bashEditDiffEnabled turns recording on in every permission mode."
 git push
 ```
 
@@ -364,11 +326,10 @@ git push
 **Files:**
 - Modify: `agents/claude-settings.json` (`env`)
 - Read: `bin/claude-config` (`restore_settings`, `save_settings`)
-- Modify (conditional): whichever of `agents/README.md`, `README.md`, `CLAUDE.md` documents `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`
 
 **Interfaces:**
 - Consumes: `claude-config restore settings`, which merges the snapshot into `~/.claude/settings.json` with live values winning.
-- Produces: `TaskCreate`, `TaskGet`, `TaskList`, `TaskUpdate` present in sessions on Fable 5.1, so j-mode's "open the todolist first" rule has a tool to open.
+- Produces: `TaskCreate`, `TaskGet`, `TaskList`, `TaskUpdate` present in sessions on Fable 5.1, so j-mode's "open the todolist first" rule has a tool to open. Probed on 2026-10-08: with the env var exported, the headless `system/init` event listed exactly those four tools plus `Task` and `TaskStop`; without it, only `Task` and `TaskStop`.
 
 - [ ] **Step 1: Add the key to the tracked snapshot**
 
@@ -384,7 +345,7 @@ Expected diff: one added line `"CLAUDE_CODE_ENABLE_TODO_TOOLS": "1",` inside `en
 - [ ] **Step 2: Dry-run the merge, then apply it**
 
 Run: `claude-config restore settings --dry-run`
-Expected: a line `merge ~/dotfiles/agents/claude-settings.json into ~/.claude/settings.json` (path spelling per `tildify`), no error.
+Expected: `merge ~/dev/dotfiles/agents/claude-settings.json into ~/.claude/settings.json`, no error.
 
 Run: `claude-config restore settings && jq .env ~/.claude/settings.json`
 Expected:
@@ -396,32 +357,29 @@ Expected:
 }
 ```
 
-- [ ] **Step 3: Verify the tools appear on the pinned model**
+- [ ] **Step 3: Verify the tools appear on the pinned model, deterministically**
 
-Run in a new terminal (a new process reads the new env):
+Run in a new terminal (a new process reads the new settings):
 
 ```bash
-claude -p "Reply with only the names of your task-tracking tools, comma separated, or NONE."
+claude -p --output-format stream-json --verbose "Reply with the single word ok" 2> /dev/null \
+  | jq -c 'select(.type == "system" and .subtype == "init") | {model, tasks: [.tools[] | select(test("^Task|^Todo"))]}'
 ```
 
-Expected: `TaskCreate, TaskGet, TaskList, TaskUpdate` (order may differ). `NONE` means the setting did not take; check `jq .env ~/.claude/settings.json` and that no `--settings` flag or managed setting overrides it.
+Expected: `{"model":"claude-fable-5-1","tasks":["Task","TaskCreate","TaskGet","TaskList","TaskStop","TaskUpdate"]}`. If `TaskCreate` is missing, the settings `env` route did not take; check `jq .env ~/.claude/settings.json` and try `CLAUDE_CODE_ENABLE_TODO_TOOLS=1 claude -p …` to separate the two.
 
 - [ ] **Step 4: Round-trip the snapshot**
 
 Run: `claude-config save && git status --short agents/`
 Expected: `agents/claude-settings.json` shows the same one-line diff as Step 1 and no other file changed. `save` keeps `CLAUDE_CODE_*` env keys, so the key survives.
 
-- [ ] **Step 5: Document where the other env key is documented**
+- [ ] **Step 5: Commit and push**
 
-Run: `grep -n 'CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS' agents/README.md README.md CLAUDE.md docs/*.md`
-If it is listed anywhere, add directly beneath it, in the same list style: `CLAUDE_CODE_ENABLE_TODO_TOOLS=1` gives the task tools (`TaskCreate` and friends) on every model; Claude Code only ships them by default on Claude 3.x, Opus 4 to 4.7, Sonnet 4 to 4.6 and Haiku 4.5, and jstack's j-mode expects a todolist. If the grep finds nothing, no docs change: `CLAUDE.md`'s "Claude config" bullet already states that `CLAUDE_CODE_*` env keys are tracked.
-
-- [ ] **Step 6: Commit and push**
+No docs change: `grep -rn CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS agents/README.md README.md CLAUDE.md docs` finds nothing today (checked 2026-10-08), and `CLAUDE.md`'s "Claude config" bullet already says `CLAUDE_CODE_*` env keys are tracked.
 
 ```bash
 pnpm check
 git add agents/claude-settings.json
-git add -u agents/README.md README.md CLAUDE.md docs 2> /dev/null || true
 git commit -m "Keep the task tools on every model"
 git push
 ```
@@ -430,10 +388,11 @@ git push
 
 **Files:**
 - Modify (via `claude-config save`): `agents/claude-plugins.txt`
+- Modify: `agents/catalog/curated.toml:344` and `:346`
 
 **Interfaces:**
 - Consumes: `claude plugin disable`, `claude-config save`, `claude-catalog`.
-- Produces: the line `plugin hookify@claude-plugins-official disabled`, so a fresh `./setup.sh` installs it off.
+- Produces: the line `plugin hookify@claude-plugins-official disabled`, so a fresh `./setup.sh` installs it off; a catalog that no longer recommends it.
 
 - [ ] **Step 1: Confirm there is still nothing for it to do**
 
@@ -452,30 +411,31 @@ git diff agents/claude-plugins.txt
 
 Expected diff: `-plugin hookify@claude-plugins-official` / `+plugin hookify@claude-plugins-official disabled`, nothing else. If `save` also writes unrelated changes (a plugin updated since the last save), keep them; they are the live state.
 
-- [ ] **Step 3: Rebuild the catalog**
+- [ ] **Step 3: Stop the catalog recommending it**
+
+In `agents/catalog/curated.toml` line 344, change `Hooks: hookify (rule-based) or update-config / skills:hooks-create (raw settings.json hooks).` to `Hooks: update-config or skills:hooks-create (settings.json hooks); hookify is installed but off.` On line 346 change `plugins = ["plugin-dev", "hookify"]` to `plugins = ["plugin-dev"]`.
 
 Run: `claude-catalog`
-Expected: exit 0. `curated.toml` may still name hookify items; a disabled plugin is still installed, so the generator does not exit 1. If it does, remove the hookify entries it names from `agents/catalog/curated.toml` and rerun.
+Expected: exit 0. A disabled plugin is still installed (`build_catalog.py` line 138 keeps it and marks it disabled), so the `hookify:conversation-analyzer` item on line 350 still resolves.
 
 - [ ] **Step 4: Commit and push**
 
 ```bash
 pnpm check
 git add agents/claude-plugins.txt agents/catalog/curated.toml
-git commit -m "Turn hookify off: no rule files anywhere, four idle hooks per cycle"
+git commit -m "Turn hookify off" -m "No rule files exist anywhere and its four hooks ran idle on every cycle."
 git push
 ```
 
-### Task 5: security-guidance, keep or disable
+### Task 5: security-guidance, keep (decided)
 
 **Files:**
 - Read: `~/.claude/plugins/cache/claude-plugins-official/security-guidance/*/hooks/hooks.json`
 - Read: `~/.claude/security/log.txt`
-- Modify (only if the decision is "disable"): `agents/claude-plugins.txt` via `claude-config save`
 
 **Interfaces:**
-- Consumes: `claude plugin disable`, `claude-config save`.
-- Produces: either no change, or the line `plugin security-guidance@claude-plugins-official disabled`.
+- Consumes: nothing.
+- Produces: no change, unless the facts below have moved.
 
 What the plugin does on this machine, measured on 2026-10-08 (spec, "Review corrections"):
 
@@ -487,35 +447,24 @@ What the plugin does on this machine, measured on 2026-10-08 (spec, "Review corr
 | Stop, SubagentStop | model review of the turn's diff | one spawn per turn; exits at once, "no API credentials" (142 log lines) |
 | SessionStart | state setup | one spawn per session |
 
-The model reviews need `ANTHROPIC_API_KEY` or a passed OAuth token and have never run here. The regex reminders do run, in every repo on this machine.
+The model reviews need `ANTHROPIC_API_KEY` or a passed OAuth token and have never run here. The regex reminders do run, in every repo on this machine. Jason decided on 2026-10-08 to keep the plugin and not to report the duplicate-looking entries upstream.
 
 - [ ] **Step 1: Confirm the facts still hold**
 
 Run:
 
 ```bash
-jq -c '.hooks.PostToolUse[] | select(.matcher=="Bash") | .hooks[] | .if' ~/.claude/plugins/cache/claude-plugins-official/security-guidance/*/hooks/hooks.json
+jq -r '.hooks.PostToolUse[] | select(.matcher=="Bash") | .hooks[] | .if' ~/.claude/plugins/cache/claude-plugins-official/security-guidance/*/hooks/hooks.json | sort -u
 grep -c 'LLM review disabled or no API credentials' ~/.claude/security/log.txt
 grep -c -i 'review complete\|findings:' ~/.claude/security/log.txt
 ```
 
-Expected: seven distinct `if` strings; the second count in the hundreds; the third 0. If the third is not 0, the model review has started running here; read those lines before deciding, because it then costs a model call per turn.
-
-- [ ] **Step 2: Record the outcome**
-
-Decided on 2026-10-08: keep. If Step 1's facts still hold, Task 5 ends here with no change. If the third count is no longer 0 (the model review has started running and now costs a model call per turn), stop and bring the log lines to Jason before anything else. The disable path, should the decision ever change:
-
-```bash
-claude plugin disable security-guidance@claude-plugins-official
-claude-config save
-pnpm check
-git add agents/claude-plugins.txt
-git commit -m "Turn security-guidance off: its reviews never ran, one spawn per prompt and edit"
-git push
-```
+Expected: seven distinct `if` strings (several plugin versions are cached, hence `sort -u`); the second count in the hundreds; the third 0. If the third is not 0, the model review has started running here and now costs a model call per turn; stop and bring the log lines to Jason. Otherwise Task 5 is done with no change.
 
 ## Not doing, and why
 
+- **A PreToolUse marker plus `find -newer`.** The first draft of Task 1 rebuilt the changed-file list this way. Three reviewers showed it counted gitignored files other processes write during every Bash call (the remember plugin alone rewrites a dozen under `.remember/` per PostToolUse; 16,088 of this checkout's 16,444 files are gitignored), tripped the cap on every `git pull`, missed files written by failing commands, and leaked markers. Claude Code's own `bashEditDiff` list has none of those problems and arrives for free.
+- **Wiring the hook to PostToolUseFailure.** Probed live on 2026-10-08: that payload carries `tool_use_id` and `tool_input` but no `bashEditDiff`, so the hook would have nothing to lint. Documented as a known limit instead.
 - **Warp plugin.** Its scripts source `should-use-structured.sh`, which returns false and exits unless `WARP_CLI_AGENT_PROTOCOL_VERSION` is set, so outside Warp each hook is one bash spawn that exits at once. Warp is installed and used. Keep.
 - **NotchBar hooks.** Jason's menu-bar agent status; nine events by design. Keep.
 - **codegraph prompt-hook's 700-character miss injection.** `codegraph prompt-hook --help` lists no flag. Nothing local fixes it; an upstream request is Jason's call.
@@ -532,11 +481,11 @@ A learning prototype, not a fix, now that Task 3 restores the task tools. Jason 
 - Mechanism: `$.tool.register` a private `step` tool with `isDeferred: false` (2.1.293 or later), answered by a `tool.call` hook returning `{ result }` at zero model cost (savvy-progress `register.tsx` lines 716 to 746); one-row `AbovePrompt` band composed with `const below = await next(e)` and a bail on `e.props.hasSurvey` (reflect-mod `register.tsx` lines 379 to 405); theme keys, not hex; `.catch` on every hook even though none gates.
 - Proof: `claude plugin test` mounts `AbovePrompt` on `terminal` and `desktop`; one `--plugin-dir` run where `claude plugin validate` prints `calls: $.tool.register` and the band changes after a `step` call.
 
-## Decisions (taken by Jason on 2026-10-08)
+## Decisions (taken by Jason on 2026-10-08, one revised after review)
 
 1. **Task tools on (Task 3).** Decided: on. The docs note the tools' definitions and reminders take context on newer models; j-mode's playbooks are written around a visible todolist, so the context is spent on purpose.
-2. **25-file cap and an always-on `find` (Task 1).** Decided: as planned. Every Bash call in this repo pays one `find` over about 6,000 files (0.15 s measured) and one marker touch. Revisit only if the cost shows up in practice.
-3. **security-guidance (Task 5).** Decided: keep. The 25 regex reminders run on every edit in every repo here; the never-run model reviews cost one short spawn per prompt and turn. No upstream report. Task 5 is therefore Step 1 only (confirm the facts still hold) and no change.
+2. **Lint closer mechanism (Tasks 1 and 2).** Decided as "25-file cap and an always-on `find`"; revised after the adversarial review of 2026-10-08. The `find` and the PreToolUse marker are gone, because Claude Code already records the changed-file list (`bashEditDiff`) and hands it to the hook. The 25-file cap stays, now applied to that list. Net effect for Jason: the same lint output after a Bash edit, no per-call scan, no marker files, no false "run pnpm check" after a `git pull`. One new user-settings key, `bashEditDiffEnabled: true`, which also makes Claude Code show the diff of Bash edits in the terminal in every permission mode. Say "no diff display" to drop that key and rely on auto mode's default recording.
+3. **security-guidance (Task 5).** Decided: keep. The 25 regex reminders run on every edit in every repo here; the never-run model reviews cost one short spawn per prompt and turn. No upstream report.
 4. **hookify off (Task 4).** Decided: disable. Hygiene, not speed: about 20 ms per tool call. Reverse with `claude plugin enable hookify@claude-plugins-official && claude-config save`.
-5. **The step band mod.** Decided: write its plan now, as `docs/superpowers/plans/2026-10-08-jstack-step-band.md`, executed after this plan. The sketch below is its starting point.
+5. **The step band mod.** Decided: write its plan now, as `docs/superpowers/plans/2026-10-08-jstack-step-band.md`, executed after this plan.
 6. **Execution.** Not started. Jason reviews both plans first, then picks native or subagent-driven execution.
