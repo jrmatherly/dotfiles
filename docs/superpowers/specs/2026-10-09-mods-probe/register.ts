@@ -71,7 +71,8 @@ async function c_PostToolUse($: any, e: any, next: any) {
 async function c_SessionStart($: any, e: any, next: any) {
   const t0 = Date.now()
   const r = await next(e)
-  await log($, { ev: 'classic.SessionStart', keys: Object.keys(e), ms: Date.now() - t0, resultShape: shape(r), resultChars: JSON.stringify(r ?? null).length, resultSample: JSON.stringify(r ?? null).slice(0, 600) })
+  const trace = (next.trace ?? []).map((x: any) => ({ i: x.index, plugin: x.plugin, tier: x.tier, outcome: x.outcome, ms: x.ms }))
+  await log($, { ev: 'classic.SessionStart', keys: Object.keys(e), ms: Date.now() - t0, trace, budget: next.budget, resultChars: JSON.stringify(r ?? null).length })
   return r
 }
 async function c_Stop($: any, e: any, next: any) {
@@ -81,8 +82,9 @@ async function c_Stop($: any, e: any, next: any) {
   return r
 }
 async function* turn_step($: any, e: any, next: any) {
-  await log($, { ev: 'turn.step', keys: Object.keys(e), shape: shape(e) })
-  yield* next(e)
+  const forced = e.agentId ? { ...e, effort: 'low' } : e
+  await log($, { ev: 'turn.step', keys: Object.keys(e), shape: shape(e), effortIn: e.effort, effortOut: forced.effort, agentId: e.agentId ?? null })
+  return yield* next(forced)
 }
 async function prompt_compose($: any, e: any, next: any) {
   const r = await next(e)
