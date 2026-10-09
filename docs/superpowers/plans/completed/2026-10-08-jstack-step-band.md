@@ -646,6 +646,10 @@ Expected: `Validation passed with warnings` with the same `hooks:` and `calls:` 
 8. **No render-hook `.catch` test** (revised after review). The kit rejects a `ui.resolve` stub that returns a deny, and a pass-through `.catch` is indistinguishable from no `.catch`, so the first draft's thirteenth test was dropped and a parallel-calls test took its place.
 9. **Nothing changes in the dotfiles repo** beyond this plan file. `agents/claude-plugins.txt` already names `jstack@jrmatherly-skills`.
 
+## Execution record (2026-10-08)
+
+Executed natively with `superpowers:executing-plans` as `~/dev/skills` commits `551c665` (Task 1) and `f609b8c` (Task 2); Task 3 pushed them, updated the installed plugin to `f609b8cdc22f` and proved the band live in a tmux-driven `--plugin-dir` session. The final fresh-context review (fable) found nothing above Minor. Deviations from the code above, each pinned by a test (18 in total): `classic.SessionStart` reloads on every `source`, not only `resume`, so `/clear` and `/branch` empty the band by construction; the refusal variable is reset at the top of the updater (a stale refusal survived `update`'s retry otherwise); `save` is best effort, so a failed store write does not report the state change as failed; the row is cut by code point; `STATES` derives from `MARK`. Open questions 1, 2 and 4 are settled: `below` composes as a child, `--continue` fires `source: "resume"` and the row came back, and this version writes the root `tsconfig.json`, which the `.gitignore` covers. Open question 3 (MCP tool search) stays open. Deferred minors: the UTF-16 length test before the code-point cut can add a stray ellipsis to a row with emoji that fits; subagents loading j-mode make one refused `step` call each; two parallel saves can land out of order in the store; `check-jstack` reports a failed `cp` as "missing".
+
 ## Open questions
 
 - Is `below` from `await next(e)` on `AbovePrompt` a valid child when no other mod draws there (null or an engine reference)? Settled by Task 3 step 1 in the live session; a refused tree prints the reason in the transcript.
