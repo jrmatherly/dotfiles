@@ -45,11 +45,12 @@ settings="$config/settings.json"
 skill_lock="$HOME/.agents/.skill-lock.json"
 # Never saved: keys other tools write (plugins are restored separately;
 # NotchBar's and CodeGraph's installers add their hooks), credential helpers,
-# and env vars except Claude Code's own switches — env is where API keys and
-# tokens go, and the saved file is committed
+# and env vars except Claude Code's own switches and the one opt-out its
+# plugin hooks read — env is where API keys and tokens go, and the saved file
+# is committed
 settings_filter='del(.enabledPlugins, .extraKnownMarketplaces, .hooks,
     .apiKeyHelper, .awsCredentialExport, .awsAuthRefresh, .otelHeadersHelper)
-  | if .env then .env |= with_entries(select(.key | test("^(CLAUDE_CODE_|DISABLE_|MAX_)")))
+  | if .env then .env |= with_entries(select(.key | test("^(CLAUDE_CODE_|DISABLE_|MAX_|AZURE_MCP_COLLECT_TELEMETRY$)")))
       | if .env == {} then del(.env) else . end
     else . end'
 # $HOME → ~ only where it starts a path (after start, space, ( = : or a

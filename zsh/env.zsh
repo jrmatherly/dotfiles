@@ -130,6 +130,9 @@ export CDK_DISABLE_CLI_TELEMETRY=1
 export GH_TELEMETRY=false
 # https://learn.microsoft.com/azure/developer/azure-developer-cli/telemetry
 export AZURE_DEV_COLLECT_TELEMETRY="no"
+# https://github.com/microsoft/mcp/blob/main/servers/Azure.Mcp.Server/README.md#disabling-all-telemetry
+# also read by the Azure Claude Code plugin's session-start hook (npx @azure/mcp)
+export AZURE_MCP_COLLECT_TELEMETRY=false
 # The Console Do Not Track convention (https://consoledonottrack.com), honoured
 # by e.g. the `skills` CLI (bin/claude-config also sets it for its npx calls)
 export DO_NOT_TRACK=1
