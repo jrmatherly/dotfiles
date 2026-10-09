@@ -29,7 +29,7 @@ plugin frontend-design@claude-plugins-official
 plugin github@claude-plugins-official disabled
 plugin gopls-lsp@claude-plugins-official
 plugin grafana-mcp@claude-plugins-official disabled
-plugin hookify@claude-plugins-official
+plugin hookify@claude-plugins-official disabled
 plugin jstack@jrmatherly-skills
 plugin langfuse-observability@claude-plugins-official
 plugin langfuse@claude-plugins-official

@@ -341,9 +341,9 @@ items = ["claude-md-management:claude-md-improver", "claude-md-management:revise
 [[group]]
 title = "Extend Claude Code (skills, plugins, hooks, MCP)"
 pick = ["skill-creator:skill-creator", "plugin-dev:create-plugin"]
-guide = "Skills: skill-creator (with evals) or superpowers:writing-skills (TDD-style). Hooks: hookify (rule-based) or update-config / skills:hooks-create (raw settings.json hooks). MCP servers: mcp-server-dev."
+guide = "Skills: skill-creator (with evals) or superpowers:writing-skills (TDD-style). Hooks: update-config or skills:hooks-create (settings.json hooks); hookify is installed but off. MCP servers: mcp-server-dev."
 items = ["skill-creator:skill-creator", "superpowers:writing-skills", "skills:skills-create", "plugin-dev:skill-development", "plugin-dev:create-plugin", "plugin-dev:plugin-structure", "plugin-dev:agent-development", "plugin-dev:command-development", "plugin-dev:hook-development", "plugin-dev:mcp-integration", "hookify:hookify", "skills:hooks-create", "update-config", "mcp-server-dev:build-mcp-server", "mcp-server-dev:build-mcp-app", "mcp-server-dev:build-mcpb", "anthropic-skills:mcp-builder", "claude-code-setup:claude-automation-recommender", "find-skills", "plugin-dev:plugin-validator", "plugin-dev:skill-reviewer", "microsoft-docs:microsoft-skill-creator", "voltagent-dev-exp:mcp-developer", "voltagent-meta:agent-installer"]
-plugins = ["plugin-dev", "hookify"]
+plugins = ["plugin-dev"]
 
 [[group]]
 title = "Measure and improve how you work with Claude"

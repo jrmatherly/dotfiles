@@ -116,6 +116,7 @@
   "worktree": {
     "baseRef": "fresh"
   },
+  "bashEditDiffEnabled": true,
   "statusLine": {
     "type": "command",
     "command": "bash ~/.claude/statusline-command.sh",
@@ -127,6 +128,5 @@
   "autoDreamEnabled": true,
   "theme": "dark",
   "switchModelsOnFlag": true,
-  "teammateMode": "in-process",
-  "bashEditDiffEnabled": true
+  "teammateMode": "in-process"
 }
