@@ -126,5 +126,6 @@
   "autoDreamEnabled": true,
   "theme": "dark",
   "switchModelsOnFlag": true,
-  "teammateMode": "in-process"
+  "teammateMode": "in-process",
+  "bashEditDiffEnabled": true
 }

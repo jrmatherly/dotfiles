@@ -7,7 +7,8 @@
       "Bash(shellcheck *)",
       "Bash(bash -n *)",
       "Bash(zsh -n *)",
-      "Bash(.claude/hooks/test-lint-edited.sh *)"
+      "Bash(.claude/hooks/test-lint-edited.sh *)",
+      "Bash(.claude/hooks/test-lint-bash-edits.sh *)"
     ],
     "ask": [
       "Bash(./setup.sh *)",
@@ -46,6 +47,18 @@
             "args": [],
             "timeout": 60,
             "statusMessage": "Formatting and linting the edited file"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/lint-bash-edits.sh",
+            "args": [],
+            "timeout": 60,
+            "statusMessage": "Linting files the command wrote"
           }
         ]
       }

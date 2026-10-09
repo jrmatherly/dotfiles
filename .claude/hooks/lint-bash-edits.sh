@@ -30,8 +30,7 @@ fi
 
 rc=0
 for f in "${files[@]}"; do
-  out=$(jq -cn --arg p "$f" '{tool_name: "Bash", tool_input: {file_path: $p}}' | "$hook" 2>&1)
-  if [ $? -ne 0 ]; then
+  if ! out=$(jq -cn --arg p "$f" '{tool_name: "Bash", tool_input: {file_path: $p}}' | "$hook" 2>&1); then
     printf '%s\n' "$out" >&2
     rc=2
   fi
