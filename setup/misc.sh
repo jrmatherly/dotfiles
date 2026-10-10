@@ -133,6 +133,18 @@ if command_exists mise; then
   else
     mise install | indent
   fi
+  # typescript-language-server (a Terax preset, an `npm:` tool in the config)
+  # finds TypeScript in a project's node_modules or by Node resolution from its
+  # own install dir, which walks up to mise's data dir. mise gives every npm
+  # tool its own prefix, so link the global `npm:typescript` where that walk
+  # finds it. The target path carries the exact version: upup relinks after
+  # `mise upgrade`.
+  if ts_dir="$(mise where npm:typescript 2> /dev/null)"; then
+    mkdir -p "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules"
+    ln -sfn "$ts_dir/node_modules/typescript" "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules/typescript"
+  else
+    warning "npm:typescript is not installed — typescript-language-server will only see a project's own TypeScript"
+  fi
   # Make node/npm available to the rest of this script. `activate --shims` is
   # just a PATH prepend, so fall back to the shim dir if it can't be evaluated.
   if shims_env="$(mise activate bash --shims 2> /dev/null)"; then

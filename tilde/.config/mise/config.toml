@@ -33,6 +33,29 @@ node = ["24", "22", "26"]
 # switching the default Node and upgrade with `mise upgrade` (within the major).
 "npm:serverless" = "4"
 "npm:@antfu/ni" = "30"
+# Language servers for Terax's editor (Brewfile cask `terax`). Terax resolves
+# each preset's executable against the PATH of a non-interactive login shell
+# (`$SHELL -l -c '/usr/bin/env -0'`, 10 s timeout, else the bare GUI PATH),
+# which tilde/.zprofile seeds with mise's shims, so nothing points Terax at
+# these; each preset is still switched on in Terax's settings. Pinned to
+# majors like the other npm CLIs; the executable names are Terax's, not always
+# the package's. The non-npm presets (rust-analyzer, zls, lua-language-server,
+# ruby-lsp) are Brewfile formulae.
+# typescript-language-server finds TypeScript in the project's node_modules or
+# by Node resolution from its own install dir, which walks up to mise's data
+# dir; setup/misc.sh and bin/upup link the `npm:typescript` above there.
+"npm:typescript-language-server" = "6" # `typescript-language-server` (TS/JS)
+"npm:pyright" = "1" # `pyright-langserver` (Python); Terax's Ruff preset uses the Brewfile's `ruff server`
+"npm:intelephense" = "1" # `intelephense` (PHP)
+"npm:yaml-language-server" = "1" # `yaml-language-server`
+"npm:bash-language-server" = "5" # `bash-language-server` (sh, bash, zsh)
+"npm:vscode-langservers-extracted" = "4" # `vscode-json-language-server`, `vscode-css-language-server`, `vscode-html-language-server`
+# svelte-language-server depends on svelte ^4.2.19; svelte 4.2.20 is a 2025
+# backport published without provenance after 5.0.0 had it, which mise's
+# no-downgrade trust check rejects. Reviewed: npm publisher svelte-admin,
+# tag sveltejs/svelte@svelte@4.2.20 (2025-05-20, PR #13556). Exempt only it.
+"npm:svelte-language-server" = { version = "0", trust_policy_excludes = ["svelte@4.2.20"] } # `svelteserver`
+"npm:@vue/language-server" = "3" # `vue-language-server`
 # Python for VS Code and scripts — Homebrew's python@3.x only exists as a
 # dependency of other formulae (pipx, awscli…), so don't rely on it. Projects
 # pin their own with `.python-version` / `mise.toml`; uv manages their venvs.

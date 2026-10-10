@@ -89,6 +89,12 @@ echo
 # updates with Homebrew above
 header "Updating mise tools…"
 mise upgrade
+# Relink the global TypeScript for typescript-language-server (see
+# setup/misc.sh): the link target names the exact version mise installed.
+if ts_dir="$(mise where npm:typescript 2> /dev/null)"; then
+  mkdir -p "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules"
+  ln -sfn "$ts_dir/node_modules/typescript" "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules/typescript"
+fi
 echo
 
 # uv tools (Serena)
