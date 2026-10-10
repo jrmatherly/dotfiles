@@ -176,9 +176,12 @@ fi
 
 # mise's MCP server for Claude Code (user scope — serves whichever project
 # Claude runs in): exposes tools, tasks, env and config, and can run tasks.
-# Documented as experimental, hence MISE_EXPERIMENTAL=1. Note `mise://env`
-# shows real environment values, secrets included, to the agent.
-# https://mise.jdx.dev/mcp.html
+# Note `mise://env` shows real environment values, secrets included, to the
+# agent. Registered through bin/mcp-cache-hints, a stdio proxy that adds the
+# optional cache-hint fields Claude Code 2.1.235+ wrongly requires on
+# tools/list (anthropics/claude-code#88128); without it the server connects
+# with zero tools. `mcp-cache-hints --probe` (run by upup) says when Claude
+# Code no longer needs it. https://mise.jdx.dev/mcp.html
 claude_bin="$(command -v claude || echo "$HOME/.local/bin/claude")"
 
 # Registers a stdio MCP server with Claude Code at user scope, once. A server
@@ -218,7 +221,7 @@ register_mcp() {
 }
 
 if command_exists mise && [ -x "$claude_bin" ]; then
-  register_mcp mise mise -e MISE_EXPERIMENTAL=1 -- "$(command -v mise)" mcp
+  register_mcp mise mise -- "$DOTFILES_DIR/bin/mcp-cache-hints" "$(command -v mise)" mcp
 fi
 
 # Serena — symbol-level code tools over language servers, as an MCP server for

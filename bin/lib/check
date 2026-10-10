@@ -54,6 +54,8 @@ fi
 prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}" "bin/*"
 # setup/symlinks.sh: ~/.codex/config.toml is seeded as a copy, never linked
 bash setup/tests/codex-config.sh > /dev/null
+# bin/mcp-cache-hints: the tools/list proxy mise's MCP server runs through
+bash setup/tests/mcp-cache-hints.sh > /dev/null
 # VS Code settings are rendered from a minijinja template (bin/vscode-settings):
 # test the renderer, and Prettier-check every preset's render inside
 # vscode/User so its .prettierrc.yaml applies (the .j2 itself isn't parseable)

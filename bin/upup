@@ -116,6 +116,9 @@ if command -v claude > /dev/null; then
   header "Recording Claude Code config and rebuilding the catalog…"
   claude-config save || warning "claude-config save failed — the tracked lists were left as they were"
   claude-catalog | tail -1 || warning "claude-catalog failed — agents/catalog/curated.toml may name something no longer installed"
+  # Says when Claude Code stops needing the tools/list proxy mise is
+  # registered through (anthropics/claude-code#88128); exit 1 = still needed
+  mcp-cache-hints --probe || true
   echo
 fi
 

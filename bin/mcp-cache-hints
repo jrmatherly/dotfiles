@@ -1,0 +1,57 @@
+#!/bin/bash
+#
+# Run a stdio MCP server through a proxy that adds the cache hints Claude Code wrongly requires on tools/list (mise's server is registered through it).
+#
+# - Wrap a server (what setup/misc.sh registers for mise):
+#
+# `claude mcp add --scope user mise -- mcp-cache-hints mise mcp`
+#
+# - Check whether Claude Code still needs the proxy (`upup` runs this); exit 0 with the re-register command once it doesn't:
+#
+# `mcp-cache-hints --probe`
+#
+# ---
+# Claude Code 2.1.235+ rejects tools/list, resources/list and prompts/list
+# results that omit the optional `ttlMs`/`cacheScope` cache-hint fields, so a
+# server that leaves them out (mise's `mise mcp`) connects with zero tools and
+# no visible error. Upstream: https://github.com/anthropics/claude-code/issues/88128
+# The proxy adds `ttlMs: 0, cacheScope: "private"` to those results and
+# passes everything else through. When --probe reports "accepts", re-register
+# mise directly, drop the wrapper from setup/misc.sh and delete this script.
+# The probe registers `mise mcp` unwrapped under a temporary name, reads its
+# status, and removes it again.
+
+set -euo pipefail
+
+if [ "${1:-}" = --probe ]; then
+  name=mcp-cache-hints-probe
+  claude mcp remove "$name" -s user &> /dev/null || true
+  # Never leave the temporary server behind, whichever step fails
+  trap 'claude mcp remove "$name" -s user > /dev/null 2>&1 || true' EXIT
+  claude mcp add --scope user "$name" -- mise mcp > /dev/null
+  status=$(claude mcp get "$name" 2>&1 || true)
+  version=$(claude --version 2> /dev/null | cut -d' ' -f1)
+  if grep -q 'tools fetch failed' <<< "$status"; then
+    echo "mcp-cache-hints is still needed: Claude Code $version rejects tools/list without cache hints (anthropics/claude-code#88128)"
+    exit 1
+  fi
+  echo "Claude Code $version accepts tools/list without cache hints: re-register mise directly and retire mcp-cache-hints"
+  echo "  claude mcp remove mise -s user && claude mcp add --scope user mise -- mise mcp"
+  exit 0
+fi
+
+if [ $# -eq 0 ]; then
+  echo "usage: mcp-cache-hints <server command> [args...] | mcp-cache-hints --probe" >&2
+  exit 2
+fi
+
+# App-launched Claude Code has no shell PATH, so fall back to Homebrew's jq
+jq="$(command -v jq || echo /opt/homebrew/bin/jq)"
+
+# The server reads the client's stdin directly; only its stdout is rewritten.
+# A list result is any result object carrying a tools, resources or prompts
+# array; ttlMs 0 means "don't cache", the value the spec says to assume.
+"$@" | "$jq" --unbuffered -c '
+  if (.result | type) == "object" and ([.result | has("tools", "resources", "prompts")] | any)
+  then .result += { ttlMs: 0, cacheScope: "private" }
+  else . end'
