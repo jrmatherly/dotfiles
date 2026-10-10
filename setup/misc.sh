@@ -275,16 +275,12 @@ else
   echo "rea shim or the ghidra formula not found — skipping REA's MCP server" | indent
 fi
 
-# SnippetsLab (Mac App Store, not in the Brewfile) ships `lab`, a CLI that
-# reads the library through the running app, an agent skill and an MCP
-# server. Set up whenever the app is present: bin/install-snippetslab-skill
-# writes the skill (a static copy of `lab skill show`; upup refreshes it)
-# into the shared skills dir with the symlink the skills CLI makes for
-# Claude Code, and the MCP server is registered with Claude Code (user scope,
-# through register_mcp) and Codex. Not in agents/claude-skills.txt: it has no
-# git source. The server launches the app on the first tool call, not at the
-# handshake (measured), so no --no-launch. Write access for create_snippet is
-# the app's own setting (Settings > Integrations).
+# SnippetsLab (Mac App Store, not in the Brewfile): its `lab` helper gives an
+# agent skill (a static copy, so upup refreshes it; no git source, so not in
+# agents/claude-skills.txt) and a stdio MCP server, registered with Claude
+# Code and Codex. The server launches the app on the first tool call, not at
+# the handshake (measured), so no --no-launch. Write access for create_snippet
+# is the app's own setting (Settings > Integrations).
 # https://www.renfei.org/snippets-lab/manual/mac/agentic-tools.html
 snippetslab_lab="/Applications/SnippetsLab.app/Contents/Helpers/lab"
 if [ -x "$snippetslab_lab" ]; then
