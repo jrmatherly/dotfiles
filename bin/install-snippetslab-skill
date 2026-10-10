@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+# Write SnippetsLab's agent skill to `~/.agents/skills/snippetslab/SKILL.md` and link `~/.claude/skills/snippetslab` to it. The skill is a static copy of `lab skill show`, so run this again after a SnippetsLab update; `setup/misc.sh` and `upup` do.
+#
+# - Install or refresh the skill:
+#
+# `install-snippetslab-skill`
+#
+# ---
+# License: MIT
+
+set -euo pipefail
+
+lab="/Applications/SnippetsLab.app/Contents/Helpers/lab"
+skill_dir="$HOME/.agents/skills/snippetslab"
+link="$HOME/.claude/skills/snippetslab"
+
+if [ ! -x "$lab" ]; then
+  echo "SnippetsLab is not installed ($lab not found)" >&2
+  exit 1
+fi
+
+# Generate first, create the directory only for a non-empty result, so a
+# failing `lab skill show` leaves no empty skill dir for the skills CLI and
+# the catalog to trip over.
+tmp="$(mktemp)"
+trap 'rm -f "$tmp"' EXIT
+if ! "$lab" skill show > "$tmp" || [ ! -s "$tmp" ]; then
+  echo "lab skill show produced no skill" >&2
+  exit 1
+fi
+mkdir -p "$skill_dir" "$HOME/.claude/skills"
+mv "$tmp" "$skill_dir/SKILL.md"
+
+# `ln -sfn` onto an existing real directory nests the link inside it, so a
+# copy installed by hand (the app's own instructions write one there) would
+# silently shadow the generated skill.
+if [ -e "$link" ] && [ ! -L "$link" ]; then
+  echo "$link is a real directory, not a link — replace it: rm -r '$link' && ln -s ../../.agents/skills/snippetslab '$link'" >&2
+  exit 1
+fi
+ln -sfn ../../.agents/skills/snippetslab "$link"
+echo "SnippetsLab skill written to $skill_dir/SKILL.md ($(wc -c < "$skill_dir/SKILL.md" | tr -d ' ') bytes)"

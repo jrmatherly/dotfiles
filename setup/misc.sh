@@ -275,6 +275,42 @@ else
   echo "rea shim or the ghidra formula not found — skipping REA's MCP server" | indent
 fi
 
+# SnippetsLab (Mac App Store, not in the Brewfile) ships `lab`, a CLI that
+# reads the library through the running app, an agent skill and an MCP
+# server. Set up whenever the app is present: bin/install-snippetslab-skill
+# writes the skill (a static copy of `lab skill show`; upup refreshes it)
+# into the shared skills dir with the symlink the skills CLI makes for
+# Claude Code, and the MCP server is registered with Claude Code (user scope,
+# through register_mcp) and Codex. Not in agents/claude-skills.txt: it has no
+# git source. The server launches the app on the first tool call, not at the
+# handshake (measured), so no --no-launch. Write access for create_snippet is
+# the app's own setting (Settings > Integrations).
+# https://www.renfei.org/snippets-lab/manual/mac/agentic-tools.html
+snippetslab_lab="/Applications/SnippetsLab.app/Contents/Helpers/lab"
+if [ -x "$snippetslab_lab" ]; then
+  info "📎 Setting up SnippetsLab's agent skill and MCP server…"
+  "$DOTFILES_DIR/bin/install-snippetslab-skill" 2>&1 | indent \
+    || warning "SnippetsLab skill not written — run it later: install-snippetslab-skill"
+  if [ -x "$claude_bin" ]; then
+    register_mcp snippetslab SnippetsLab -- "$snippetslab_lab" mcp
+  fi
+  # `codex mcp get` prints "command: …" and "args: …" lines; compare them the
+  # way register_mcp does for Claude Code, so a registration pasted from the
+  # app's own setup (another path or args) is reported, not silently kept.
+  if command_exists codex; then
+    if codex_existing="$(codex mcp get snippetslab 2> /dev/null)"; then
+      if grep -qF "command: $snippetslab_lab" <<< "$codex_existing" && grep -qF "args: mcp" <<< "$codex_existing"; then
+        echo "SnippetsLab MCP server already registered with Codex" | indent
+      else
+        warning "SnippetsLab MCP server is registered differently with Codex — re-register: codex mcp remove snippetslab && codex mcp add snippetslab -- $snippetslab_lab mcp"
+      fi
+    else
+      codex mcp add snippetslab -- "$snippetslab_lab" mcp | indent \
+        || warning "Registering SnippetsLab with Codex failed — run: codex mcp add snippetslab -- $snippetslab_lab mcp"
+    fi
+  fi
+fi
+
 # Remote documentation MCP servers (HTTP, nothing to install): Astro, Better
 # Auth, and Sidero Labs (Talos Linux, Omni; its `siderolabs` skill comes from
 # agents/claude-skills.txt via `claude-config restore` below).

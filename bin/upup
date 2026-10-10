@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Get macOS software updates, update Homebrew (incl. VS Code), mise and uv tools, the Iosevka Code font, dotfiles, Raycast and Amp; update agent skills, record Claude Code plugins/settings/skills and rebuild their catalog.
+# Get macOS software updates, update Homebrew (incl. VS Code), mise and uv tools, the Iosevka Code font, dotfiles, Raycast and Amp; update agent skills, regenerate the SnippetsLab skill, record Claude Code plugins/settings/skills and rebuild their catalog.
 #
 # > A macOS update asks for your login password. Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` to a 1Password secret reference (`op://vault/item/password`) to supply it with a fingerprint instead.
 #
@@ -119,6 +119,10 @@ if command -v claude > /dev/null; then
   claude-config restore skills --update > /dev/null \
     || warning "updating skills failed — see why with: claude-config restore skills --update"
   echo
+  # SnippetsLab's skill is a static copy of `lab skill show` (see setup/misc.sh)
+  if [ -x /Applications/SnippetsLab.app/Contents/Helpers/lab ]; then
+    install-snippetslab-skill || warning "SnippetsLab skill not refreshed — run it later: install-snippetslab-skill"
+  fi
   header "Recording Claude Code config and rebuilding the catalog…"
   claude-config save || warning "claude-config save failed — the tracked lists were left as they were"
   claude-catalog | tail -1 || warning "claude-catalog failed — agents/catalog/curated.toml may name something no longer installed"

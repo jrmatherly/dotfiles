@@ -15,6 +15,9 @@ fi
 # Visual Studio Code CLI
 export PATH="$PATH:/Applications/Visual Studio Code.app/Contents/Resources/app/bin"
 
+# SnippetsLab's `lab` CLI (Mac App Store app; see setup/misc.sh)
+[ -d /Applications/SnippetsLab.app/Contents/Helpers ] && export PATH="$PATH:/Applications/SnippetsLab.app/Contents/Helpers"
+
 # OrbStack: command-line tools and integration
 # This won't be added again if you remove it.
 source ~/.orbstack/shell/init.zsh 2> /dev/null || :
