@@ -9,6 +9,7 @@ skill email-and-password-best-practices better-auth/skills claude-code,codex
 skill find-skills vercel-labs/skills claude-code,codex
 skill microsoft-foundry microsoft/azure-skills codex
 skill organization-best-practices better-auth/skills claude-code,codex
+skill reverse-engineer-anything morluto/rea claude-code,codex
 skill siderolabs https://docs.siderolabs.com claude-code,codex
 skill supabase supabase/agent-skills codex
 skill supabase-postgres-best-practices supabase/agent-skills codex

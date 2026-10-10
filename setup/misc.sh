@@ -211,6 +211,25 @@ if [ -x "$serena_bin" ] && [ -x "$claude_bin" ]; then
   fi
 fi
 
+# REA — reverse-engineering MCP server (`rea-agents`, a mise npm tool) for
+# Claude Code, driving the Brewfile's Ghidra formula and Hopper cask. Registered
+# through the mise shim so Claude Code finds it when launched from an app
+# without the shell's PATH. GHIDRA_INSTALL_DIR and JAVA_HOME name the keg-only
+# Homebrew paths that `rea doctor` accepts (openjdk@21 is not on PATH); Hopper's
+# cask path is REA's default launcher. The matching skill is an entry in
+# agents/claude-skills.txt. https://github.com/morluto/rea
+rea_shim="$HOME/.local/share/mise/shims/rea"
+rea_env=(-e GHIDRA_INSTALL_DIR=/opt/homebrew/opt/ghidra/libexec -e JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home)
+if [ -x "$rea_shim" ] && [ -x "$claude_bin" ]; then
+  if "$claude_bin" mcp get rea &> /dev/null; then
+    echo "REA MCP server already registered with Claude Code" | indent
+  else
+    info "🔌 Registering REA's MCP server with Claude Code…"
+    "$claude_bin" mcp add --scope user rea "${rea_env[@]}" -- "$rea_shim" mcp | indent \
+      || warning "Registering REA failed — run: claude mcp add --scope user rea ${rea_env[*]} -- $rea_shim mcp"
+  fi
+fi
+
 # Remote documentation MCP servers (HTTP, nothing to install): Astro, Better
 # Auth, and Sidero Labs (Talos Linux, Omni; its `siderolabs` skill comes from
 # agents/claude-skills.txt via `claude-config restore` below).

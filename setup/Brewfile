@@ -136,7 +136,7 @@ brew "dex2jar" # Android dex to jar conversion
 brew "dns2tcp" # Tunnel TCP over DNS
 brew "fcrackzip" # Zip password cracking
 brew "foremost" # File carving/recovery
-brew "ghidra" # NSA reverse engineering framework (`ghidraRun`; pulls openjdk@21)
+brew "ghidra" # NSA reverse engineering framework (`ghidraRun`; REA's Ghidra provider; pulls openjdk@21)
 brew "hydra" # Network login cracker
 brew "john" # John the Ripper password cracker
 brew "knock" # Port knocking client/server
@@ -218,7 +218,7 @@ cask "font-sauce-code-pro-nerd-font"
 cask "font-tinos-nerd-font"
 cask "font-ubuntu-nerd-font"
 cask "git-credential-manager" # Git credential storage/auth helper
-cask "hopper-disassembler" # Disassembler/decompiler (paid license, free demo)
+cask "hopper-disassembler" # Disassembler/decompiler (paid license, free demo; REA's default launcher path)
 cask "iterm2" # Terminal emulator
 cask "nimble-commander" # File manager (zsh `ff` alias, vscode/User/tasks.json)
 cask "obsidian" # Markdown knowledge base (configs tracked in obsidian/)

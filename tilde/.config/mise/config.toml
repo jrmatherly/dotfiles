@@ -20,6 +20,14 @@ node = ["24", "22", "26"]
 # (`codegraph install --target claude`); indexing a repo (`codegraph init`) is
 # a manual step.
 "npm:@colbymchenry/codegraph" = "latest"
+# REA (https://github.com/morluto/rea) — reverse-engineering MCP server and
+# CLI (`rea`) that drives the Brewfile's Ghidra and Hopper; setup/misc.sh
+# registers `rea mcp` with Claude Code. It ships several releases a day, so
+# mise's default 24 h release-age cutoff would hold `latest` a version or two
+# behind; waived for this one tool. (npm's own `min-release-age=7` from
+# setup/misc.sh never applies here: mise installs npm tools with its embedded
+# client, which has its own cutoff.)
+"npm:rea-agents" = { version = "latest", minimum_release_age = "0s" }
 # Global npm CLIs — installed by mise (not `npm install -g`), so they survive
 # switching the default Node and upgrade with `mise upgrade` (within the major).
 "npm:serverless" = "4"
