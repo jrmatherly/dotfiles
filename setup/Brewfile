@@ -109,7 +109,7 @@ brew "golines" # Go long-line formatter, run on save by VS Code (emeraldwalk.run
 brew "gopls" # Go language server
 brew "hadolint" # Dockerfile linter
 brew "just" # Command runner
-brew "lua-language-server" # Lua language server (Terax preset)
+brew "lua-language-server" # Lua language server
 brew "markdownlint-cli" # Markdown linter
 brew "markdownlint-cli2" # Markdown linter (v2)
 brew "mermaid-cli" # Render Mermaid diagrams
@@ -117,9 +117,9 @@ brew "pipx" # Install Python CLI tools in isolated envs
 brew "pre-commit" # Git hook framework (runs a repo's .pre-commit-config.yaml)
 # Telemetry is opt-in; RTK_TELEMETRY_DISABLED in zsh/env.zsh blocks it anyway
 brew "rtk" # Compacts command output for coding agents (Claude Code hook: setup/misc.sh)
-brew "ruby-lsp" # Ruby language server (Terax preset); runs on the Homebrew Ruby it brings (macOS ships 2.6), so a project pinned to another Ruby needs `gem install ruby-lsp` there instead
+brew "ruby-lsp" # Ruby language server; runs on the Homebrew Ruby it brings (macOS ships 2.6), so a project on another Ruby needs `gem install ruby-lsp` there
 brew "ruff" # Fast Python linter/formatter
-brew "rust-analyzer" # Rust language server (Terax preset); standalone formula, no rustup in these dotfiles
+brew "rust-analyzer" # Rust language server
 # Sentry's new CLI (`sentry`, log in with `sentry auth`), not the legacy
 # `sentry-cli` that build tooling pulls in per project. Telemetry is off via
 # DO_NOT_TRACK in zsh/env.zsh.
@@ -129,7 +129,7 @@ brew "getsentry/tools/sentry", trusted: true # Sentry CLI: issues, events, root 
 # persistently via `supabase telemetry disable` in setup/misc.sh.
 brew "supabase" # Supabase CLI: local stack, migrations, Edge Functions
 brew "uv" # Fast Python package/project manager
-brew "zls" # Zig language server (Terax preset); pulls `zig`, `llvm@22` and `lld@22` (about 1.8 GB)
+brew "zls" # Zig language server; pulls `zig`, `llvm@22` and `lld@22` (about 1.8 GB)
 
 # Security / pentesting
 brew "aircrack-ng" # Wi-Fi security auditing suite
@@ -229,7 +229,7 @@ cask "obsidian" # Markdown knowledge base (configs tracked in obsidian/)
 cask "raycast" # Launcher / clipboard history / window management
 cask "royal-tsx" # Remote connection manager (RDP/SSH/VNC)
 cask "syntax-highlight" # Quick Look previews with syntax highlighting (theme in syntax-highlight/)
-cask "terax" # Terminal-first AI workspace (terax.app); its editor's language servers are the `(Terax preset)` formulae above and the `npm:` tools in tilde/.config/mise/config.toml
+cask "terax" # Terminal-first AI workspace (terax.app); its language servers: see tilde/.config/mise/config.toml
 cask "utm" # QEMU-based virtual machines
 cask "warp" # Agentic terminal
 
