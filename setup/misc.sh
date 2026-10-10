@@ -180,14 +180,45 @@ fi
 # shows real environment values, secrets included, to the agent.
 # https://mise.jdx.dev/mcp.html
 claude_bin="$(command -v claude || echo "$HOME/.local/bin/claude")"
-if command_exists mise && [ -x "$claude_bin" ]; then
-  if "$claude_bin" mcp get mise &> /dev/null; then
-    echo "mise MCP server already registered with Claude Code" | indent
+
+# Registers a stdio MCP server with Claude Code at user scope, once. A server
+# of that name registered with the same command, args and environment is left
+# alone; one that differs (a `rea setup` registration, a moved binary, a
+# changed env path) gets a warning with the command to re-register, since
+# `claude mcp add` refuses to overwrite and a silent keep would hide the drift.
+# `claude mcp get` prints "Command: …", "Args: …" and one "KEY=value" line per
+# environment entry, which is what the comparison greps for.
+# Usage: register_mcp <name> <label> [-e KEY=VALUE]... -- <command> [args...]
+register_mcp() {
+  local name="$1" label="$2" existing line i
+  shift 2
+  local -a env_args=()
+  while [ "$1" != "--" ]; do
+    env_args+=("$1" "$2")
+    shift 2
+  done
+  shift
+  if existing=$("$claude_bin" mcp get "$name" 2> /dev/null); then
+    local -a expect=("Command: $1" "Args: ${*:2}")
+    for ((i = 1; i < ${#env_args[@]}; i += 2)); do
+      expect+=("${env_args[i]}")
+    done
+    for line in "${expect[@]}"; do
+      if ! grep -qF -- "$line" <<< "$existing"; then
+        warning "$label MCP server is registered differently (expected '$line') — re-register: claude mcp remove $name -s user && claude mcp add --scope user $name ${env_args[*]+"${env_args[*]}"} -- $*"
+        return 0
+      fi
+    done
+    echo "$label MCP server already registered with Claude Code" | indent
   else
-    info "🔌 Registering mise's MCP server with Claude Code…"
-    "$claude_bin" mcp add --scope user mise -e MISE_EXPERIMENTAL=1 -- "$(command -v mise)" mcp | indent \
-      || warning "Registering the mise MCP server failed — run: claude mcp add --scope user mise -e MISE_EXPERIMENTAL=1 -- mise mcp"
+    info "🔌 Registering the $label MCP server with Claude Code…"
+    "$claude_bin" mcp add --scope user "$name" ${env_args[@]+"${env_args[@]}"} -- "$@" | indent \
+      || warning "Registering $label failed — run: claude mcp add --scope user $name ${env_args[*]+"${env_args[*]}"} -- $*"
   fi
+}
+
+if command_exists mise && [ -x "$claude_bin" ]; then
+  register_mcp mise mise -e MISE_EXPERIMENTAL=1 -- "$(command -v mise)" mcp
 fi
 
 # Serena — symbol-level code tools over language servers, as an MCP server for
@@ -202,32 +233,31 @@ if command_exists uv && [ ! -x "$serena_bin" ]; then
     || warning "Serena install failed — run it later: uv tool install -p 3.13 serena-agent"
 fi
 if [ -x "$serena_bin" ] && [ -x "$claude_bin" ]; then
-  if "$claude_bin" mcp get serena &> /dev/null; then
-    echo "Serena MCP server already registered with Claude Code" | indent
-  else
-    info "🔌 Registering Serena's MCP server with Claude Code…"
-    "$claude_bin" mcp add --scope user serena -- serena start-mcp-server --context claude-code --project-from-cwd | indent \
-      || warning "Registering Serena failed — run: claude mcp add --scope user serena -- serena start-mcp-server --context claude-code --project-from-cwd"
-  fi
+  register_mcp serena Serena -- serena start-mcp-server --context claude-code --project-from-cwd
 fi
 
 # REA — reverse-engineering MCP server (`rea-agents`, a mise npm tool) for
 # Claude Code, driving the Brewfile's Ghidra formula and Hopper cask. Registered
 # through the mise shim so Claude Code finds it when launched from an app
-# without the shell's PATH. GHIDRA_INSTALL_DIR and JAVA_HOME name the keg-only
-# Homebrew paths that `rea doctor` accepts (openjdk@21 is not on PATH); Hopper's
-# cask path is REA's default launcher. The matching skill is an entry in
-# agents/claude-skills.txt. https://github.com/morluto/rea
-rea_shim="$HOME/.local/share/mise/shims/rea"
-rea_env=(-e GHIDRA_INSTALL_DIR=/opt/homebrew/opt/ghidra/libexec -e JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home)
-if [ -x "$rea_shim" ] && [ -x "$claude_bin" ]; then
-  if "$claude_bin" mcp get rea &> /dev/null; then
-    echo "REA MCP server already registered with Claude Code" | indent
+# without the shell's PATH. GHIDRA_INSTALL_DIR and JAVA_HOME are the keg-only
+# Homebrew paths `rea doctor` accepts, read from Homebrew at registration time
+# so a formula moving to a newer openjdk@N shows up as drift (register_mcp
+# warns) instead of a dangling path. Hopper's cask path is REA's default
+# launcher. The matching skill is an entry in agents/claude-skills.txt.
+# https://github.com/morluto/rea
+rea_shim="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims/rea"
+if [ -x "$rea_shim" ] && [ -x "$claude_bin" ] && command_exists brew && [ -d "$(brew --prefix ghidra)/libexec" ]; then
+  ghidra_jdk="$(brew deps --1 ghidra | grep -m1 '^openjdk' || true)"
+  if [ -n "$ghidra_jdk" ]; then
+    register_mcp rea REA \
+      -e "GHIDRA_INSTALL_DIR=$(brew --prefix ghidra)/libexec" \
+      -e "JAVA_HOME=$(brew --prefix "$ghidra_jdk")/libexec/openjdk.jdk/Contents/Home" \
+      -- "$rea_shim" mcp
   else
-    info "🔌 Registering REA's MCP server with Claude Code…"
-    "$claude_bin" mcp add --scope user rea "${rea_env[@]}" -- "$rea_shim" mcp | indent \
-      || warning "Registering REA failed — run: claude mcp add --scope user rea ${rea_env[*]} -- $rea_shim mcp"
+    warning "ghidra formula lists no openjdk dependency — REA's MCP server not registered"
   fi
+else
+  echo "rea shim or the ghidra formula not found — skipping REA's MCP server" | indent
 fi
 
 # Remote documentation MCP servers (HTTP, nothing to install): Astro, Better

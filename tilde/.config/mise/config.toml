@@ -24,10 +24,11 @@ node = ["24", "22", "26"]
 # CLI (`rea`) that drives the Brewfile's Ghidra and Hopper; setup/misc.sh
 # registers `rea mcp` with Claude Code. It ships several releases a day, so
 # mise's default 24 h release-age cutoff would hold `latest` a version or two
-# behind; waived for this one tool. (npm's own `min-release-age=7` from
-# setup/misc.sh never applies here: mise installs npm tools with its embedded
-# client, which has its own cutoff.)
-"npm:rea-agents" = { version = "latest", minimum_release_age = "0s" }
+# behind; shortened to 6 h for this tool. The cutoff also screens the tool's
+# transitive dependencies (mise passes it to its embedded npm client), which
+# is why it is not 0: a few hours still catches a pulled release. npm's own
+# `min-release-age=7` from setup/misc.sh never applies to mise installs.
+"npm:rea-agents" = { version = "latest", minimum_release_age = "6h" }
 # Global npm CLIs — installed by mise (not `npm install -g`), so they survive
 # switching the default Node and upgrade with `mise upgrade` (within the major).
 "npm:serverless" = "4"
