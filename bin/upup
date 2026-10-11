@@ -89,11 +89,12 @@ if devpack_cask="$(brew cat --cask microsoft/foundry/devpack 2> /dev/null)" \
 fi
 echo
 
-# mise tools (Node/Python patch releases, npm: CLIs like CodeGraph) — stays
-# within the versions pinned in ~/.config/mise/config.toml; mise itself
-# updates with Homebrew above
+# mise tools (Node/Python patch releases, npm: CLIs like CodeGraph, GitHub
+# release binaries) — stays within the versions pinned in
+# ~/.config/mise/config.toml (MISE_LOG_LEVEL=warn hides mise's hint about
+# newer releases outside those pins); mise itself updates with Homebrew above
 header "Updating mise tools…"
-mise upgrade
+MISE_LOG_LEVEL=warn mise upgrade
 # Relink the global TypeScript for typescript-language-server (see
 # setup/misc.sh): the link target names the exact version mise installed.
 if ts_dir="$(mise where npm:typescript 2> /dev/null)"; then

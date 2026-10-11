@@ -17,9 +17,7 @@ tap "azure/functions", trusted: { formulae: ["azure-functions-core-tools"] } # a
 tap "azure/kubelogin"
 tap "fluxcd/tap" # flux (Flux CD CLI; core `flux` is InfluxData's query language)
 tap "getsentry/tools" # sentry (cli.sentry.dev)
-tap "home-operations/tap" # flate
 tap "kubestellar/tap" # kubestellar-deploy / kubestellar-ops
-tap "microsoft/aspire"
 tap "microsoft/foundry"
 tap "siderolabs/tap"
 tap "skyhook-io/tap" # radar (Kubernetes visibility)
@@ -69,7 +67,6 @@ brew "azure/azd/azd", trusted: true # Azure Developer CLI
 brew "azure/kubelogin/kubelogin", trusted: true # Azure AD login for kubectl
 brew "azure/functions/azure-functions-core-tools@4", trusted: true # Azure Functions Core Tools
 brew "azurite" # Local Azure Storage emulator
-cask "microsoft/aspire/aspire", trusted: true # .NET Aspire tooling
 # Microsoft's official SDK build at /usr/local/share/dotnet — what workloads,
 # Aspire and VS tooling expect. Do NOT also install the `dotnet` formula: both
 # claim /opt/homebrew/bin/dotnet (Homebrew/homebrew-core#275368).
@@ -100,7 +97,6 @@ brew "kubestellar/tap/kubestellar-ops", trusted: true # KubeStellar multi-cluste
 brew "siderolabs/tap/talosctl", trusted: true # Talos Linux/Kubernetes CLI
 brew "skyhook-io/tap/radar", trusted: true # Kubernetes topology/traffic/Helm visibility (kubectl-radar)
 cask "freelens" # Kubernetes IDE (Lens fork)
-cask "home-operations/tap/flate", trusted: true # Render and diff Flux GitOps repos offline
 cask "orbstack" # Container runtime, ships `docker-compose` as well
 
 # DevOps / CI / linting

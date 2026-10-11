@@ -6,7 +6,7 @@
 #
 # `claude mcp add --scope user mise -- mcp-cache-hints mise mcp`
 #
-# - Check whether Claude Code still needs the proxy (`upup` runs this); exit 0 with the re-register command once it doesn't:
+# - Check whether Claude Code still needs the proxy (`upup` runs this): silent with exit 1 while it does, the re-register command and exit 0 once it doesn't:
 #
 # `mcp-cache-hints --probe`
 #
@@ -30,11 +30,8 @@ if [ "${1:-}" = --probe ]; then
   trap 'claude mcp remove "$name" -s user > /dev/null 2>&1 || true' EXIT
   claude mcp add --scope user "$name" -- mise mcp > /dev/null
   status=$(claude mcp get "$name" 2>&1 || true)
+  grep -q 'tools fetch failed' <<< "$status" && exit 1
   version=$(claude --version 2> /dev/null | cut -d' ' -f1)
-  if grep -q 'tools fetch failed' <<< "$status"; then
-    echo "mcp-cache-hints is still needed: Claude Code $version rejects tools/list without cache hints (anthropics/claude-code#88128)"
-    exit 1
-  fi
   echo "Claude Code $version accepts tools/list without cache hints: re-register mise directly and retire mcp-cache-hints"
   echo "  claude mcp remove mise -s user && claude mcp add --scope user mise -- mise mcp"
   exit 0

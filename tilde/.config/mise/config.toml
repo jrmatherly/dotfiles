@@ -55,6 +55,16 @@ node = ["24", "22", "26"]
 # the exemption once the server depends on a svelte release with provenance.
 "npm:svelte-language-server" = { version = "0", trust_policy_excludes = ["svelte@4.2.20"] } # `svelteserver`
 "npm:@vue/language-server" = "3" # `vue-language-server`
+# Binaries straight from GitHub releases (github backend, which verifies the
+# release checksums and, where published, attestations): both projects' taps
+# ship casks on deprecated stanzas that Homebrew warns about on every run,
+# with no user-side opt-out. Installed this way the Aspire CLI runs
+# "sidecar-less" (microsoft/aspire install-routes.md): Aspire home stays
+# ~/.aspire and `aspire update --self` is off, so mise owns upgrades. Move
+# back to Brewfile casks once microsoft/homebrew-aspire#23 and
+# goreleaser/goreleaser#6873 have landed.
+"github:microsoft/aspire" = "latest" # .NET Aspire CLI; setup/misc.sh runs `aspire certs trust`
+"github:home-operations/flate" = "latest" # Render and diff Flux GitOps repos offline
 # Python for VS Code and scripts — Homebrew's python@3.x only exists as a
 # dependency of other formulae (pipx, awscli…), so don't rely on it. Projects
 # pin their own with `.python-version` / `mise.toml`; uv manages their venvs.
