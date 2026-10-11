@@ -64,7 +64,7 @@ cask "visual-studio-code" # Main code editor; vscode/User settings symlinked to 
 # Cloud / Azure / AWS
 brew "aws-cdk" # AWS Cloud Development Kit
 brew "awscli" # Official Amazon AWS command-line interface
-cask "azure-cli" # Azure CLI (`az`); a cask now, though the devpack cask still declares the old formula as a dependency
+cask "azure-cli" # Azure CLI (`az`)
 brew "azure/azd/azd", trusted: true # Azure Developer CLI
 brew "azure/kubelogin/kubelogin", trusted: true # Azure AD login for kubectl
 brew "azure/functions/azure-functions-core-tools@4", trusted: true # Azure Functions Core Tools
@@ -74,10 +74,11 @@ cask "microsoft/aspire/aspire", trusted: true # .NET Aspire tooling
 # Aspire and VS tooling expect. Do NOT also install the `dotnet` formula: both
 # claim /opt/homebrew/bin/dotnet (Homebrew/homebrew-core#275368).
 cask "dotnet-sdk" # .NET SDK
-# Fails on a fresh Mac until microsoft/homebrew-foundry switches its azure-cli
-# dependency from formula to cask (`brew install --dry-run --cask microsoft/foundry/devpack`
-# says "No available formula with the name azure-cli"). brew.sh reports it and carries on.
-cask "microsoft/foundry/devpack", trusted: true # Microsoft dev pack
+# Its cask still depends on the azure-cli *formula*, which homebrew-core removed,
+# so a fresh install fails ("No available formula with the name azure-cli").
+# When `upup` says that's fixed, make this a cask line again:
+#   cask "microsoft/foundry/devpack", trusted: true # Microsoft dev pack
+manual "microsoft/foundry/devpack" # https://github.com/microsoft/homebrew-foundry/blob/main/Casks/devpack.rb
 
 # Kubernetes / containers / infra
 brew "cilium-cli" # Install and troubleshoot Cilium (CNI) on a cluster

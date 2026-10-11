@@ -18,7 +18,7 @@ When run from a terminal, it records the whole run (prompts included) to `privat
 
 Installs Homebrew (if missing), then packages, applications and VS Code extensions from the [Brewfile](./Brewfile).
 
-Runs through [`bin/brewpick --all`](../bin/brewpick), which strips the Brewfile's `manual` entries (paid downloads with no cask, e.g. the MonoLisa font) before handing it to `brew bundle` — passing the file straight to `brew bundle` fails with `Invalid Brewfile: undefined method 'manual'`. To pick a subset interactively via fzf instead, run `bin/brewpick`.
+Runs through [`bin/brewpick --all`](../bin/brewpick), which strips the Brewfile's `manual` entries (what `brew bundle` can't install: the paid MonoLisa font, and the Foundry devpack while its cask is broken upstream, see the Brewfile comment) before handing it to `brew bundle` — passing the file straight to `brew bundle` fails with `Invalid Brewfile: undefined method 'manual'`. To pick a subset interactively via fzf instead, run `bin/brewpick`.
 
 If an app from the Brewfile is already installed outside Homebrew (downloaded from its website), hand it over first with `brew install --cask --adopt <name>` — otherwise `brew bundle` stops at "It seems there is already an App at …". For casks that update themselves (`auto_updates`, e.g. Comet), `--adopt` keeps the installed copy as-is even when it's newer than the cask.
 
