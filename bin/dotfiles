@@ -19,6 +19,9 @@ DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 cd "$DOTFILES" || exit 1
 
 echo "Pulling changes from upstream…"
+before="$(git rev-parse HEAD)"
 git pull
-echo
-echo "🦏 Open a new terminal for the changes to take effect."
+if [ "$(git rev-parse HEAD)" != "$before" ]; then
+  echo
+  echo "🦏 Open a new terminal for the changes to take effect."
+fi

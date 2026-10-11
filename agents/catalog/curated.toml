@@ -1,7 +1,7 @@
 # Hand-written layer for build_catalog.py. Survives re-runs.
 #   [[builtin]]     things that ship with Claude Code (not discoverable from files)
 #   [[connector]]   claude.ai connectors (configured in the claude.ai account, not on disk)
-#   [mcp.<name>]    description + tool summary for an MCP server found on disk
+#   [mcp.<name>]    description + tool summary for an MCP server found on disk (one missing here only warns: registration is per machine)
 #   [notes]         extra "use when / don't confuse with" note for any item, by exact name
 #   [[group]]       task guide: overlapping options for one job, with a default pick
 # The build fails (exit 1) if a group or note names something that isn't installed.
@@ -208,6 +208,14 @@ desc = "Search the Sidero Labs docs (Talos Linux, Omni); pairs with the siderola
 tools = "search_sidero_documentation, query_docs_filesystem_sidero_documentation"
 [mcp.coolify]
 desc = "Self-hosted Coolify PaaS at deploy.matherly.net. Only loaded inside ~/dev/coolify."
+[mcp.reactive-resume]
+desc = "Reactive Resume at resume.matherly.net (HTTP). Only loaded inside ~/dev/job-search."
+[mcp.rea]
+desc = "REA reverse-engineering tools (rea-agents from mise, with Homebrew Ghidra and JDK): native binaries, managed code, web bundles, browser and Electron runtimes. Pairs with the reverse-engineer-anything skill."
+tools = "open_binary, binary_overview, list_procedures, procedure_pseudo_code, xrefs, analyze_web_bundle, inspect_electron_page, capture_browser_scenario"
+[mcp.snippetslab]
+desc = "The user's local SnippetsLab library via the app's `lab mcp` helper. Read tools are allowed; create_snippet asks."
+tools = "search_snippets, get_snippet, list_filters"
 [mcp.azure]
 desc = "Azure MCP: 70+ tools covering nearly every Azure service (ARM, AKS, App Service, Functions, Cosmos, SQL, Key Vault, Monitor, pricing, quotas, best practices, azd/az CLI generation)."
 tools = "one tool per service, e.g. aks, appservice, cosmos, keyvault, monitor, pricing, deploy, get_azure_bestpractices, extension_cli_generate"

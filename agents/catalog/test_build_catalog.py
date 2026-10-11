@@ -47,4 +47,9 @@ with tempfile.TemporaryDirectory() as d:
     since, new, removed = b.changes([item("b", "x")], f)
     assert (new, removed) == (["skill:b"], ["skill:a"]), (new, removed)
 
+# a curated MCP server that isn't registered here is reported but doesn't fail the build
+probs = b.lint([], {}, {"mcp": {"ghost": {"desc": "x"}}, "notes": {"gone": {}}})
+assert probs == ["curated entry for unknown item: gone", "mcp server not registered on this machine: ghost"], probs
+assert not any(p.startswith(("group", "curated")) for p in probs[1:])
+
 print("ok")

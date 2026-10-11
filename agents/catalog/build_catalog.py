@@ -244,10 +244,15 @@ def lint(items, by_name, cur):
     for n in cur.get("internal", []):
         if n not in by_name:
             problems.append(f"curated internal entry for unknown item: {n}")
-    for n in list(cur.get("notes", {})) + list(cur.get("mcp", {})) + list(cur.get("retire", {})) \
+    for n in list(cur.get("notes", {})) + list(cur.get("retire", {})) \
             + list(cur.get("duplicates", {})) + list(cur.get("duplicates", {}).values()):
         if n not in by_name:
             problems.append(f"curated entry for unknown item: {n}")
+    # MCP registration is per machine (an app that isn't installed, a project
+    # that isn't cloned), so a curated server missing here is a note, not an error
+    for n in cur.get("mcp", {}):
+        if n not in by_name:
+            problems.append(f"mcp server not registered on this machine: {n}")
     for n in cur.get("plugin_status", {}):
         if n not in sources:
             problems.append(f"curated plugin_status for unknown plugin: {n}")
