@@ -201,8 +201,8 @@ claude_bin="$(command -v claude || echo "$HOME/.local/bin/claude")"
 # alone; one that differs (a `rea setup` registration, a moved binary, a
 # changed env path) gets a warning with the command to re-register, since
 # `claude mcp add` refuses to overwrite and a silent keep would hide the drift.
-# `claude mcp get` prints "Command: …", "Args: …" (bare "Args:" when none) and
-# one "KEY=value" line per environment entry, which is what the comparison greps for.
+# `claude mcp get` prints indented "Command: …", "Args: …" (bare "Args:" when
+# none) and "KEY=value" lines; each is matched as a whole line.
 # Usage: register_mcp <name> <label> [-e KEY=VALUE]... -- <command> [args...]
 register_mcp() {
   local name="$1" label="$2" existing line i
@@ -220,7 +220,7 @@ register_mcp() {
       expect+=("${env_args[i]}")
     done
     for line in "${expect[@]}"; do
-      if ! grep -qF -- "$line" <<< "$existing"; then
+      if ! sed 's/^ *//' <<< "$existing" | grep -qxF -- "$line"; then
         warning "$label MCP server is registered differently (expected '$line') — re-register: claude mcp remove $name -s user && claude mcp add --scope user $name ${env_args[*]+"${env_args[*]}"} -- $*"
         return 0
       fi
@@ -270,8 +270,14 @@ if [ -x "$scrapling_bin" ]; then
   "$scrapling_bin" install | indent \
     || warning "Scrapling's browser download failed — run it later: scrapling install"
 fi
+# The entry point exists even for an install without the `ai` extra; --help
+# fails there, where the registered server would die on launch
 if [ -x "$scrapling_mcp_bin" ] && [ -x "$claude_bin" ]; then
-  register_mcp scrapling Scrapling -- "$scrapling_mcp_bin"
+  if "$scrapling_mcp_bin" --help > /dev/null 2>&1; then
+    register_mcp scrapling Scrapling -- "$scrapling_mcp_bin"
+  else
+    warning "scrapling-mcp can't start (installed without the ai extra?) — reinstall: uv tool install --force -p 3.13 'scrapling[ai]'"
+  fi
 fi
 
 # REA — reverse-engineering MCP server (`rea-agents`, a mise npm tool) for

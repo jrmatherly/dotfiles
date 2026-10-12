@@ -110,7 +110,8 @@ if command -v uv > /dev/null; then
   # An upgrade replaces Scrapling's package dir, and with it the marker file
   # that makes `scrapling install` a no-op, so its Chromium is re-checked
   if command -v scrapling > /dev/null; then
-    scrapling install || warning "Scrapling's browser download failed — run it later: scrapling install"
+    out="$(scrapling install 2>&1)" || warning "Scrapling's browser download failed — run it later: scrapling install"
+    [[ $out == *"already installed"* ]] || echo "$out"
   fi
   echo
 fi
