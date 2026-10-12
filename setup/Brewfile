@@ -71,11 +71,7 @@ brew "azurite" # Local Azure Storage emulator
 # Aspire and VS tooling expect. Do NOT also install the `dotnet` formula: both
 # claim /opt/homebrew/bin/dotnet (Homebrew/homebrew-core#275368).
 cask "dotnet-sdk" # .NET SDK
-# Its cask still depends on the azure-cli *formula*, which homebrew-core removed,
-# so a fresh install fails ("No available formula with the name azure-cli").
-# When `upup` says that's fixed, make this a cask line again:
-#   cask "microsoft/foundry/devpack", trusted: true # Microsoft dev pack
-manual "microsoft/foundry/devpack" # https://github.com/microsoft/homebrew-foundry/blob/main/Casks/devpack.rb
+cask "microsoft/foundry/devpack", trusted: true # Microsoft dev pack
 
 # Kubernetes / containers / infra
 brew "cilium-cli" # Install and troubleshoot Cilium (CNI) on a cluster

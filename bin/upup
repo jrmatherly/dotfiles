@@ -82,11 +82,6 @@ echo
 header "Cleaning up Homebrew…"
 brew cleanup --prune=all
 brew doctor || true
-# devpack is `manual` in setup/Brewfile while its cask depends on the removed azure-cli formula
-if devpack_cask="$(brew cat --cask microsoft/foundry/devpack 2> /dev/null)" \
-  && ! grep -qE 'depends_on +formula:.*azure-cli' <<< "$devpack_cask"; then
-  warning "devpack no longer depends on the azure-cli formula: make it a cask line in setup/Brewfile again"
-fi
 echo
 
 # mise tools (Node/Python patch releases, npm: CLIs like CodeGraph, GitHub
