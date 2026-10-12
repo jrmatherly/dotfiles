@@ -267,13 +267,15 @@ if command_exists uv && [ ! -x "$scrapling_bin" ]; then
     || warning "Scrapling install failed — run it later: uv tool install -p 3.13 'scrapling[ai]'"
 fi
 if [ -x "$scrapling_bin" ]; then
-  "$scrapling_bin" install | indent \
+  "$scrapling_bin" install 2>&1 | indent \
     || warning "Scrapling's browser download failed — run it later: scrapling install"
 fi
-# The entry point exists even for an install without the `ai` extra; --help
-# fails there, where the registered server would die on launch
-if [ -x "$scrapling_mcp_bin" ] && [ -x "$claude_bin" ]; then
-  if "$scrapling_mcp_bin" --help > /dev/null 2>&1; then
+# The entry point exists even for an install without the `ai` extra, and
+# `scrapling-mcp --help` passes there (the server module is imported lazily),
+# so import it from the tool's venv before registering a server that would
+# die on launch
+if [ -x "$scrapling_mcp_bin" ] && [ -x "$claude_bin" ] && command_exists uv; then
+  if "$(uv tool dir)/scrapling/bin/python" -c 'import scrapling.core.ai' 2> /dev/null; then
     register_mcp scrapling Scrapling -- "$scrapling_mcp_bin"
   else
     warning "scrapling-mcp can't start (installed without the ai extra?) — reinstall: uv tool install --force -p 3.13 'scrapling[ai]'"
