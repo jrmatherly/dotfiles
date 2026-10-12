@@ -201,8 +201,8 @@ claude_bin="$(command -v claude || echo "$HOME/.local/bin/claude")"
 # alone; one that differs (a `rea setup` registration, a moved binary, a
 # changed env path) gets a warning with the command to re-register, since
 # `claude mcp add` refuses to overwrite and a silent keep would hide the drift.
-# `claude mcp get` prints "Command: …", "Args: …" and one "KEY=value" line per
-# environment entry, which is what the comparison greps for.
+# `claude mcp get` prints "Command: …", "Args: …" (bare "Args:" when none) and
+# one "KEY=value" line per environment entry, which is what the comparison greps for.
 # Usage: register_mcp <name> <label> [-e KEY=VALUE]... -- <command> [args...]
 register_mcp() {
   local name="$1" label="$2" existing line i
@@ -214,7 +214,8 @@ register_mcp() {
   done
   shift
   if existing=$("$claude_bin" mcp get "$name" 2> /dev/null); then
-    local -a expect=("Command: $1" "Args: ${*:2}")
+    local args="${*:2}"
+    local -a expect=("Command: $1" "Args:${args:+ $args}")
     for ((i = 1; i < ${#env_args[@]}; i += 2)); do
       expect+=("${env_args[i]}")
     done
@@ -249,6 +250,28 @@ if command_exists uv && [ ! -x "$serena_bin" ]; then
 fi
 if [ -x "$serena_bin" ] && [ -x "$claude_bin" ]; then
   register_mcp serena Serena -- serena start-mcp-server --context claude-code --project-from-cwd
+fi
+
+# Scrapling — web scraping library with an MCP server (plain, Chromium and
+# stealth fetches, sessions, screenshots) and a CLI that the scrapling-official
+# skill (agents/claude-skills.txt) drives. A uv tool with the `ai` extra (the
+# server plus the browser fetchers; `all` only adds IPython); `bin/upup`
+# upgrades it. `scrapling install` downloads Playwright's Chromium once and is
+# a no-op after. Registered by absolute path so app-launched Claude Code finds
+# it without the shell's PATH. https://scrapling.readthedocs.io/en/latest/ai/mcp-server/
+scrapling_bin="$HOME/.local/bin/scrapling"
+scrapling_mcp_bin="$HOME/.local/bin/scrapling-mcp"
+if command_exists uv && [ ! -x "$scrapling_bin" ]; then
+  info "🕷️ Installing Scrapling…"
+  uv tool install -p 3.13 "scrapling[ai]" | indent \
+    || warning "Scrapling install failed — run it later: uv tool install -p 3.13 'scrapling[ai]'"
+fi
+if [ -x "$scrapling_bin" ]; then
+  "$scrapling_bin" install | indent \
+    || warning "Scrapling's browser download failed — run it later: scrapling install"
+fi
+if [ -x "$scrapling_mcp_bin" ] && [ -x "$claude_bin" ]; then
+  register_mcp scrapling Scrapling -- "$scrapling_mcp_bin"
 fi
 
 # REA — reverse-engineering MCP server (`rea-agents`, a mise npm tool) for

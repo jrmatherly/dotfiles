@@ -216,6 +216,9 @@ tools = "open_binary, binary_overview, list_procedures, procedure_pseudo_code, x
 [mcp.snippetslab]
 desc = "The user's local SnippetsLab library via the app's `lab mcp` helper. Read tools are allowed; create_snippet asks."
 tools = "search_snippets, get_snippet, list_filters"
+[mcp.scrapling]
+desc = "Scrapling web scraping (uv tool): plain HTTP with browser fingerprints, Chromium fetches, and a stealth browser that bypasses Cloudflare Turnstile; sessions, bulk fetches, screenshots. Pass a CSS selector to send only the matching elements to the model."
+tools = "make_request, fetch, stealthy_fetch, bulk_fetch, open_session, session_fetch, screenshot, close_session"
 [mcp.azure]
 desc = "Azure MCP: 70+ tools covering nearly every Azure service (ARM, AKS, App Service, Functions, Cosmos, SQL, Key Vault, Monitor, pricing, quotas, best practices, azd/az CLI generation)."
 tools = "one tool per service, e.g. aks, appservice, cosmos, keyvault, monitor, pricing, deploy, get_azure_bestpractices, extension_cli_generate"
@@ -262,6 +265,7 @@ tools = "agent_browser_open, agent_browser_snapshot, agent_browser_click, agent_
 "anthropic-skills:skill-creator" = "claude.ai-synced copy of skill-creator:skill-creator."
 "skills:piv-run-full-loop" = "'PIV' = plan → implement → validate (from cole-medin's 'skills' plugin). The piv-* skills are steps in that loop; this one chains them."
 "skills:agent-browser" = "A CLI (not MCP) browser driver. Pick chrome-devtools for debugging and browser-use for logged-in scraping."
+"scrapling-official" = "Teaches the Scrapling library and CLI (use --ai-targeted). To scrape in-conversation, use the scrapling MCP server instead."
 "skills:drive-screen" = "Controls the whole desktop (any app), not just the browser."
 "superpowers:using-superpowers" = "Loaded automatically at session start by a hook. There's no need to invoke it."
 "prompt-improver:prompt-improver" = "Fired by a hook when a prompt looks vague. Rarely invoked by hand."
@@ -304,8 +308,8 @@ items = ["superpowers:test-driven-development", "superpowers:verification-before
 [[group]]
 title = "Browser and desktop automation"
 pick = ["chrome-devtools"]
-guide = "chrome-devtools: debugging, perf, console/network. browser-use: your logged-in session, scraping, bot-protected sites. claude-in-chrome: your real Chrome through the extension. agent-browser: CLI scripting. drive-screen: non-browser apps. For public pages, plain WebFetch/curl needs none of these."
-items = ["chrome-devtools", "browser-use", "claude-in-chrome", "skills:agent-browser", "chrome-devtools-mcp:chrome-devtools-cli", "skills:drive-screen", "chrome-devtools-mcp:troubleshooting"]
+guide = "chrome-devtools: debugging, perf, console/network. browser-use: your logged-in session, scraping, bot-protected sites. claude-in-chrome: your real Chrome through the extension. agent-browser: CLI scripting. drive-screen: non-browser apps. For public pages, plain WebFetch/curl needs none of these. scrapling: anonymous scraping and Cloudflare-protected pages, no login; scrapling-official: write Scrapling Python code or spiders."
+items = ["chrome-devtools", "browser-use", "claude-in-chrome", "skills:agent-browser", "chrome-devtools-mcp:chrome-devtools-cli", "skills:drive-screen", "chrome-devtools-mcp:troubleshooting", "scrapling", "scrapling-official"]
 
 [[group]]
 title = "Web performance and accessibility"

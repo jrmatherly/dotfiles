@@ -103,10 +103,15 @@ if ts_dir="$(mise where npm:typescript 2> /dev/null)"; then
 fi
 echo
 
-# uv tools (Serena)
+# uv tools (Serena, Scrapling)
 if command -v uv > /dev/null; then
   header "Updating uv tools…"
   uv tool upgrade --all
+  # An upgrade replaces Scrapling's package dir, and with it the marker file
+  # that makes `scrapling install` a no-op, so its Chromium is re-checked
+  if command -v scrapling > /dev/null; then
+    scrapling install || warning "Scrapling's browser download failed — run it later: scrapling install"
+  fi
   echo
 fi
 
