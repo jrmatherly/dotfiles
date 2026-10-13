@@ -30,6 +30,7 @@
    */
   "workbench.colorTheme": "SpaceBox",
   "workbench.iconTheme": "spacebox.file-icon-theme",
+  "workbench.panel.showLabels": false,
   // See-through backgrounds so SpaceBox UI's blur (below) shows: the theme's
   // own are solid. Only the Command Palette and hovers: `menu.background` is
   // left solid because extension panels such as Claude Code use it for their
@@ -191,8 +192,12 @@
     "https://raw.githubusercontent.com/fastfetch-cli/fastfetch/": true,
     "https://raw.githubusercontent.com/manaflow-ai/cmux/": true,
     "https://raw.githubusercontent.com/microsoft/vscode/": true,
+    // wails.io answers non-browser clients with a Cloudflare challenge (403),
+    // so wails.json files point $schema at the copy in the repo instead
+    "https://raw.githubusercontent.com/wailsapp/wails/": true,
     "https://schema.management.azure.com": true,
     "https://schemastore.azurewebsites.net/": true,
+    "https://spec.openapis.org/": true,
     "https://ui.shadcn.com/schema.json": true,
     "https://www.apptorium.com/schemas/": true,
     "https://www.schemastore.org/": true
