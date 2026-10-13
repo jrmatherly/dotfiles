@@ -100,6 +100,7 @@ brew "actionlint" # GitHub Actions workflow linter
 brew "ansible" # Configuration management / automation
 brew "ast-grep" # Structural code search/lint
 brew "biome" # JS/TS formatter and linter
+brew "go-air" # Live reload for Go apps (`air`); not the `air` formula, an R formatter
 brew "golangci-lint" # Go linters aggregator
 brew "golines" # Go long-line formatter, run on save by VS Code (emeraldwalk.runonsave)
 brew "gopls" # Go language server
