@@ -133,11 +133,22 @@ if command -v claude > /dev/null; then
   header "Recording Claude Code config and rebuilding the catalog…"
   claude-config save || warning "claude-config save failed — the tracked lists were left as they were"
   claude-catalog | tail -1 || warning "claude-catalog failed — agents/catalog/curated.toml may name something no longer installed"
-  # "! Connected · tools fetch failed" is how anthropics/claude-code#88128
-  # showed (fixed by 2.1.299, worked around by a proxy until 7e7db8a);
-  # "✘ Failed to connect" is a stale registration
-  if ! claude mcp get mise 2> /dev/null | grep -qx '  Status: ✔ Connected'; then
-    warning "mise's MCP server isn't healthy — check: claude mcp get mise (re-register: claude mcp remove mise -s user && claude mcp add --scope user mise -- $(command -v mise) mcp)"
+  # A down mise MCP server registered differently from setup/misc.sh (the
+  # retired mcp-cache-hints wrapper, a moved binary) is re-registered. Down
+  # with the right command means "! Connected · tools fetch failed", i.e.
+  # anthropics/claude-code#88128 is back (worked around by a proxy until
+  # 7e7db8a), which re-registering can't fix, so that only warns.
+  mise_bin="$(command -v mise)"
+  mise_mcp="$(claude mcp get mise 2> /dev/null || true)"
+  if ! grep -qx '  Status: ✔ Connected' <<< "$mise_mcp"; then
+    if ! grep -qxF "  Command: $mise_bin" <<< "$mise_mcp" || ! grep -qx '  Args: mcp' <<< "$mise_mcp"; then
+      echo "Re-registering mise's MCP server with Claude Code…"
+      claude mcp remove mise -s user &> /dev/null || true
+      claude mcp add --scope user mise -- "$mise_bin" mcp > /dev/null || true
+      mise_mcp="$(claude mcp get mise 2> /dev/null || true)"
+    fi
+    grep -qx '  Status: ✔ Connected' <<< "$mise_mcp" \
+      || warning "mise's MCP server isn't healthy — check: claude mcp get mise"
   fi
   echo
 fi
