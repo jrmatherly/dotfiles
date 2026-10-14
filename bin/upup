@@ -133,22 +133,31 @@ if command -v claude > /dev/null; then
   header "Recording Claude Code config and rebuilding the catalog…"
   claude-config save || warning "claude-config save failed — the tracked lists were left as they were"
   claude-catalog | tail -1 || warning "claude-catalog failed — agents/catalog/curated.toml may name something no longer installed"
-  # A down mise MCP server registered differently from setup/misc.sh (the
-  # retired mcp-cache-hints wrapper, a moved binary) is re-registered. Down
-  # with the right command means "! Connected · tools fetch failed", i.e.
-  # anthropics/claude-code#88128 is back (worked around by a proxy until
-  # 7e7db8a), which re-registering can't fix, so that only warns.
-  mise_bin="$(command -v mise)"
-  mise_mcp="$(claude mcp get mise 2> /dev/null || true)"
-  if ! grep -qx '  Status: ✔ Connected' <<< "$mise_mcp"; then
-    if ! grep -qxF "  Command: $mise_bin" <<< "$mise_mcp" || ! grep -qx '  Args: mcp' <<< "$mise_mcp"; then
-      echo "Re-registering mise's MCP server with Claude Code…"
-      claude mcp remove mise -s user &> /dev/null || true
-      claude mcp add --scope user mise -- "$mise_bin" mcp > /dev/null || true
-      mise_mcp="$(claude mcp get mise 2> /dev/null || true)"
+  # mise's MCP server (setup/misc.sh registers it). A down user-scope entry
+  # with another command (the retired mcp-cache-hints wrapper, a moved
+  # binary) is re-registered; no entry (removed on purpose) or a local or
+  # project one shadowing it is left alone. "tools fetch failed" with the
+  # right command is anthropics/claude-code#88128 back, which re-registering
+  # can't fix: a proxy covered it until 7e7db8a.
+  if mise_bin="$(command -v mise)"; then
+    mise_get() { claude mcp get mise 2> /dev/null | sed 's/^ *//' || true; }
+    mise_mcp="$(mise_get)"
+    if [ -n "$mise_mcp" ] && ! grep -qx 'Status: ✔ Connected' <<< "$mise_mcp"; then
+      if grep -q '^Scope: User config' <<< "$mise_mcp" \
+        && ! { grep -qxF "Command: $mise_bin" <<< "$mise_mcp" && grep -qx 'Args: mcp' <<< "$mise_mcp"; }; then
+        echo "Re-registering mise's MCP server with Claude Code…"
+        claude mcp remove mise -s user > /dev/null 2>&1 \
+          && claude mcp add --scope user mise -- "$mise_bin" mcp > /dev/null || true
+        mise_mcp="$(mise_get)"
+      fi
+      if grep -qx 'Status: ✔ Connected' <<< "$mise_mcp"; then
+        :
+      elif grep -q 'tools fetch failed' <<< "$mise_mcp"; then
+        warning "mise's MCP server lists no tools: anthropics/claude-code#88128 is back — the proxy is in git history (7e7db8a)"
+      else
+        warning "mise's MCP server isn't connected — see: claude mcp get mise; re-register: claude mcp remove mise -s user; claude mcp add --scope user mise -- $mise_bin mcp"
+      fi
     fi
-    grep -qx '  Status: ✔ Connected' <<< "$mise_mcp" \
-      || warning "mise's MCP server isn't healthy — check: claude mcp get mise"
   fi
   echo
 fi

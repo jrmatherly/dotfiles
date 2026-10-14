@@ -186,10 +186,6 @@ else
   echo "codegraph not found — skipping CodeGraph agent setup" | indent
 fi
 
-# mise's MCP server for Claude Code (user scope — serves whichever project
-# Claude runs in): exposes tools, tasks, env and config, and can run tasks.
-# Note `mise://env` shows real environment values, secrets included, to the
-# agent. https://mise.jdx.dev/mcp.html
 claude_bin="$(command -v claude || echo "$HOME/.local/bin/claude")"
 
 # Registers a stdio MCP server with Claude Code at user scope, once. A server
@@ -229,6 +225,10 @@ register_mcp() {
   fi
 }
 
+# mise's MCP server for Claude Code (user scope — serves whichever project
+# Claude runs in): exposes tools, tasks, env and config, and can run tasks.
+# Note `mise://env` shows real environment values, secrets included, to the
+# agent. https://mise.jdx.dev/mcp.html
 if command_exists mise && [ -x "$claude_bin" ]; then
   register_mcp mise mise -- "$(command -v mise)" mcp
 fi
