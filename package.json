@@ -10,7 +10,7 @@
   },
   "scripts": {
     "check": "bin/lib/check",
-    "format": "prettier --log-level warn --ignore-unknown --write \"**/*.{js,cjs,ts,md,json,sh}\" \"bin/*\""
+    "format": "prettier --log-level warn --ignore-unknown --write \"**/*.{js,cjs,ts,md,json,sh}\" \"bin/*\" \".github/**/*.yml\""
   },
   "author": "Jason Matherly",
   "license": "MIT",
