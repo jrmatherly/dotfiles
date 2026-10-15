@@ -74,7 +74,7 @@ ln -s "$PWD" ~/dotfiles # compatibility path for configs that can't expand varia
 ./setup/dash.sh # optional: Dash docsets from local folders
 ```
 
-`setup.sh` also does a few things the manual path skips: it enables Touch ID for `sudo` (`/etc/pam.d/sudo_local`), keeps `sudo` authorized so long installs don't ask for the password again, and exports telemetry opt-outs (.NET, PowerShell, Azure CLI, Azure Functions Core Tools, Aspire, CodeGraph, rtk) before `misc.sh` installs those tools.
+`setup.sh` also does a few things the manual path skips: it enables Touch ID for `sudo` (`/etc/pam.d/sudo_local`), keeps `sudo` authorized so long installs don't ask for the password again, and exports telemetry opt-outs (.NET, PowerShell, Azure CLI, Azure MCP server, Azure Functions Core Tools, Aspire, CodeGraph, rtk) before `misc.sh` installs those tools.
 
 ### Automatically
 
@@ -217,9 +217,10 @@ upup
 - pulls the latest dotfiles (`git pull` in the clone)
 - installs macOS software updates (a macOS update asks for your login password: see [below](#macos-update-password-from-1password-optional))
 - upgrades Homebrew formulae and casks (VS Code included) without asking for confirmation, since it prints the list first, then cleans up
-- upgrades mise tools (Node/Python patch releases, CodeGraph, the npm CLIs) and uv tools (Serena)
+- upgrades mise tools (Node/Python patch releases, CodeGraph, the npm CLIs, the Aspire CLI and flate) and uv tools (Serena and Scrapling, re-running `scrapling install` so its Chromium matches)
 - reinstalls the Iosevka Code font if its upstream zip changed
-- records the Claude Code plugins, base settings and user skills in the repo (`claude-config save`, review with `git diff`) and rebuilds the catalog (`claude-catalog`)
+- reinstalls the tracked agent skills for the agents each is listed for (`claude-config restore skills --update`), which is how an installed skill picks up upstream changes
+- records the Claude Code plugins, base settings and user skills in the repo (`claude-config save`, review with `git diff`) and rebuilds the catalog (`claude-catalog`), then checks mise's MCP server: if its user-scope entry isn't `✔ Connected` and runs a different command from what setup writes (a moved binary, an old wrapper), it's re-registered; otherwise it warns, naming anthropics/claude-code#88128 when the server lists no tools. A missing registration is left alone
 - asks Raycast to check for app and extension updates
 - updates Amp, if it's installed
 

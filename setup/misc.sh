@@ -133,6 +133,18 @@ if command_exists mise; then
   else
     mise install | indent
   fi
+  # typescript-language-server (a Terax preset, an `npm:` tool in the config)
+  # finds TypeScript in a project's node_modules or by Node resolution from its
+  # own install dir, which walks up to mise's data dir. mise gives every npm
+  # tool its own prefix, so link the global `npm:typescript` where that walk
+  # finds it. The target path carries the exact version: upup relinks after
+  # `mise upgrade`.
+  if ts_dir="$(mise where npm:typescript 2> /dev/null)"; then
+    mkdir -p "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules"
+    ln -sfn "$ts_dir/node_modules/typescript" "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules/typescript"
+  else
+    warning "npm:typescript is not installed — typescript-language-server will only see a project's own TypeScript"
+  fi
   # Make node/npm available to the rest of this script. `activate --shims` is
   # just a PATH prepend, so fall back to the shim dir if it can't be evaluated.
   if shims_env="$(mise activate bash --shims 2> /dev/null)"; then
@@ -174,20 +186,51 @@ else
   echo "codegraph not found — skipping CodeGraph agent setup" | indent
 fi
 
+claude_bin="$(command -v claude || echo "$HOME/.local/bin/claude")"
+
+# Registers a stdio MCP server with Claude Code at user scope, once. A server
+# of that name registered with the same command, args and environment is left
+# alone; one that differs (a `rea setup` registration, a moved binary, a
+# changed env path) gets a warning with the command to re-register, since
+# `claude mcp add` refuses to overwrite and a silent keep would hide the drift.
+# `claude mcp get` prints indented "Command: …", "Args: …" (bare "Args:" when
+# none) and "KEY=value" lines; each is matched as a whole line.
+# Usage: register_mcp <name> <label> [-e KEY=VALUE]... -- <command> [args...]
+register_mcp() {
+  local name="$1" label="$2" existing line i
+  shift 2
+  local -a env_args=()
+  while [ "$1" != "--" ]; do
+    env_args+=("$1" "$2")
+    shift 2
+  done
+  shift
+  if existing=$("$claude_bin" mcp get "$name" 2> /dev/null); then
+    local args="${*:2}"
+    local -a expect=("Command: $1" "Args:${args:+ $args}")
+    for ((i = 1; i < ${#env_args[@]}; i += 2)); do
+      expect+=("${env_args[i]}")
+    done
+    for line in "${expect[@]}"; do
+      if ! sed 's/^ *//' <<< "$existing" | grep -qxF -- "$line"; then
+        warning "$label MCP server is registered differently (expected '$line') — re-register: claude mcp remove $name -s user && claude mcp add --scope user $name ${env_args[*]+"${env_args[*]}"} -- $*"
+        return 0
+      fi
+    done
+    echo "$label MCP server already registered with Claude Code" | indent
+  else
+    info "🔌 Registering the $label MCP server with Claude Code…"
+    "$claude_bin" mcp add --scope user "$name" ${env_args[@]+"${env_args[@]}"} -- "$@" | indent \
+      || warning "Registering $label failed — run: claude mcp add --scope user $name ${env_args[*]+"${env_args[*]}"} -- $*"
+  fi
+}
+
 # mise's MCP server for Claude Code (user scope — serves whichever project
 # Claude runs in): exposes tools, tasks, env and config, and can run tasks.
-# Documented as experimental, hence MISE_EXPERIMENTAL=1. Note `mise://env`
-# shows real environment values, secrets included, to the agent.
-# https://mise.jdx.dev/mcp.html
-claude_bin="$(command -v claude || echo "$HOME/.local/bin/claude")"
+# Note `mise://env` shows real environment values, secrets included, to the
+# agent. https://mise.jdx.dev/mcp.html
 if command_exists mise && [ -x "$claude_bin" ]; then
-  if "$claude_bin" mcp get mise &> /dev/null; then
-    echo "mise MCP server already registered with Claude Code" | indent
-  else
-    info "🔌 Registering mise's MCP server with Claude Code…"
-    "$claude_bin" mcp add --scope user mise -e MISE_EXPERIMENTAL=1 -- "$(command -v mise)" mcp | indent \
-      || warning "Registering the mise MCP server failed — run: claude mcp add --scope user mise -e MISE_EXPERIMENTAL=1 -- mise mcp"
-  fi
+  register_mcp mise mise -- "$(command -v mise)" mcp
 fi
 
 # Serena — symbol-level code tools over language servers, as an MCP server for
@@ -202,12 +245,92 @@ if command_exists uv && [ ! -x "$serena_bin" ]; then
     || warning "Serena install failed — run it later: uv tool install -p 3.13 serena-agent"
 fi
 if [ -x "$serena_bin" ] && [ -x "$claude_bin" ]; then
-  if "$claude_bin" mcp get serena &> /dev/null; then
-    echo "Serena MCP server already registered with Claude Code" | indent
+  register_mcp serena Serena -- serena start-mcp-server --context claude-code --project-from-cwd
+fi
+
+# Scrapling — web scraping library with an MCP server (plain, Chromium and
+# stealth fetches, sessions, screenshots) and a CLI that the scrapling-official
+# skill (agents/claude-skills.txt) drives. A uv tool with the `ai` extra (the
+# server plus the browser fetchers; `all` only adds IPython); `bin/upup`
+# upgrades it. `scrapling install` downloads Playwright's Chromium once and is
+# a no-op after. Registered by absolute path so app-launched Claude Code finds
+# it without the shell's PATH. https://scrapling.readthedocs.io/en/latest/ai/mcp-server/
+scrapling_bin="$HOME/.local/bin/scrapling"
+scrapling_mcp_bin="$HOME/.local/bin/scrapling-mcp"
+if command_exists uv && [ ! -x "$scrapling_bin" ]; then
+  info "🕷️ Installing Scrapling…"
+  uv tool install -p 3.13 "scrapling[ai]" | indent \
+    || warning "Scrapling install failed — run it later: uv tool install -p 3.13 'scrapling[ai]'"
+fi
+if [ -x "$scrapling_bin" ]; then
+  "$scrapling_bin" install 2>&1 | indent \
+    || warning "Scrapling's browser download failed — run it later: scrapling install"
+fi
+# The entry point exists even for an install without the `ai` extra, and
+# `scrapling-mcp --help` passes there (the server module is imported lazily),
+# so import it from the tool's venv before registering a server that would
+# die on launch
+if [ -x "$scrapling_mcp_bin" ] && [ -x "$claude_bin" ] && command_exists uv; then
+  if "$(uv tool dir)/scrapling/bin/python" -c 'import scrapling.core.ai' 2> /dev/null; then
+    register_mcp scrapling Scrapling -- "$scrapling_mcp_bin"
   else
-    info "🔌 Registering Serena's MCP server with Claude Code…"
-    "$claude_bin" mcp add --scope user serena -- serena start-mcp-server --context claude-code --project-from-cwd | indent \
-      || warning "Registering Serena failed — run: claude mcp add --scope user serena -- serena start-mcp-server --context claude-code --project-from-cwd"
+    warning "scrapling-mcp can't start (installed without the ai extra?) — reinstall: uv tool install --force -p 3.13 'scrapling[ai]'"
+  fi
+fi
+
+# REA — reverse-engineering MCP server (`rea-agents`, a mise npm tool) for
+# Claude Code, driving the Brewfile's Ghidra formula and Hopper cask. Registered
+# through the mise shim so Claude Code finds it when launched from an app
+# without the shell's PATH. GHIDRA_INSTALL_DIR and JAVA_HOME are the keg-only
+# Homebrew paths `rea doctor` accepts, read from Homebrew at registration time
+# so a formula moving to a newer openjdk@N shows up as drift (register_mcp
+# warns) instead of a dangling path. Hopper's cask path is REA's default
+# launcher. The matching skill is an entry in agents/claude-skills.txt.
+# https://github.com/morluto/rea
+rea_shim="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims/rea"
+if [ -x "$rea_shim" ] && [ -x "$claude_bin" ] && command_exists brew && [ -d "$(brew --prefix ghidra)/libexec" ]; then
+  ghidra_jdk="$(brew deps --1 ghidra | grep -m1 '^openjdk' || true)"
+  if [ -n "$ghidra_jdk" ]; then
+    register_mcp rea REA \
+      -e "GHIDRA_INSTALL_DIR=$(brew --prefix ghidra)/libexec" \
+      -e "JAVA_HOME=$(brew --prefix "$ghidra_jdk")/libexec/openjdk.jdk/Contents/Home" \
+      -- "$rea_shim" mcp
+  else
+    warning "ghidra formula lists no openjdk dependency — REA's MCP server not registered"
+  fi
+else
+  echo "rea shim or the ghidra formula not found — skipping REA's MCP server" | indent
+fi
+
+# SnippetsLab (Mac App Store, not in the Brewfile): its `lab` helper gives an
+# agent skill (a static copy, so upup refreshes it; no git source, so not in
+# agents/claude-skills.txt) and a stdio MCP server, registered with Claude
+# Code and Codex. The server launches the app on the first tool call, not at
+# the handshake (measured), so no --no-launch. Write access for create_snippet
+# is the app's own setting (Settings > Integrations).
+# https://www.renfei.org/snippets-lab/manual/mac/agentic-tools.html
+snippetslab_lab="/Applications/SnippetsLab.app/Contents/Helpers/lab"
+if [ -x "$snippetslab_lab" ]; then
+  info "📎 Setting up SnippetsLab's agent skill and MCP server…"
+  "$DOTFILES_DIR/bin/install-snippetslab-skill" 2>&1 | indent \
+    || warning "SnippetsLab skill not written — run it later: install-snippetslab-skill"
+  if [ -x "$claude_bin" ]; then
+    register_mcp snippetslab SnippetsLab -- "$snippetslab_lab" mcp
+  fi
+  # `codex mcp get` prints "command: …" and "args: …" lines; compare them the
+  # way register_mcp does for Claude Code, so a registration pasted from the
+  # app's own setup (another path or args) is reported, not silently kept.
+  if command_exists codex; then
+    if codex_existing="$(codex mcp get snippetslab 2> /dev/null)"; then
+      if grep -qF "command: $snippetslab_lab" <<< "$codex_existing" && grep -qF "args: mcp" <<< "$codex_existing"; then
+        echo "SnippetsLab MCP server already registered with Codex" | indent
+      else
+        warning "SnippetsLab MCP server is registered differently with Codex — re-register: codex mcp remove snippetslab && codex mcp add snippetslab -- $snippetslab_lab mcp"
+      fi
+    else
+      codex mcp add snippetslab -- "$snippetslab_lab" mcp | indent \
+        || warning "Registering SnippetsLab with Codex failed — run: codex mcp add snippetslab -- $snippetslab_lab mcp"
+    fi
   fi
 fi
 
@@ -246,6 +369,14 @@ if command_exists rtk; then
   info "✂️ Connecting rtk to Claude Code…"
   rtk init -g --hook-only --auto-patch < /dev/null 2>&1 | indent \
     || warning "rtk init failed — run it later: rtk init -g --hook-only"
+fi
+
+# Supabase CLI (Brewfile) — persisted telemetry opt-out, for runs that don't
+# inherit DO_NOT_TRACK from zsh/env.zsh (GUI-launched tools, scripts). The
+# variable here keeps this call itself from reporting.
+if command_exists supabase; then
+  DO_NOT_TRACK=1 supabase telemetry disable < /dev/null 2>&1 | indent \
+    || warning "supabase telemetry disable failed — run it later"
 fi
 
 # PowerShell as a .NET global tool — Microsoft-supported, and uses the official
@@ -325,7 +456,7 @@ fi
 # so put its directory first for both.
 if [ -x "$claude_bin" ]; then
   info "🧩 Restoring Claude Code plugins, settings and skills…"
-  # The private jrmatherly/skills repo (marketplace + coding-standards) is
+  # The private jrmatherly/skills repo (a marketplace and standalone skills) is
   # cloned by non-interactive git: Claude Code tries SSH, then HTTPS. On a
   # fresh Mac neither works yet (~/.ssh/config isn't linked until
   # symlinks.sh, nothing stores a GitHub credential), so hand this one

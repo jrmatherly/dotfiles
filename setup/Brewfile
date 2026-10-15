@@ -17,9 +17,7 @@ tap "azure/functions", trusted: { formulae: ["azure-functions-core-tools"] } # a
 tap "azure/kubelogin"
 tap "fluxcd/tap" # flux (Flux CD CLI; core `flux` is InfluxData's query language)
 tap "getsentry/tools" # sentry (cli.sentry.dev)
-tap "home-operations/tap" # flate
 tap "kubestellar/tap" # kubestellar-deploy / kubestellar-ops
-tap "microsoft/aspire"
 tap "microsoft/foundry"
 tap "siderolabs/tap"
 tap "skyhook-io/tap" # radar (Kubernetes visibility)
@@ -64,12 +62,11 @@ cask "visual-studio-code" # Main code editor; vscode/User settings symlinked to 
 # Cloud / Azure / AWS
 brew "aws-cdk" # AWS Cloud Development Kit
 brew "awscli" # Official Amazon AWS command-line interface
-brew "azure-cli" # Azure CLI (`az`) — also a dependency of the devpack cask
+cask "azure-cli" # Azure CLI (`az`)
 brew "azure/azd/azd", trusted: true # Azure Developer CLI
 brew "azure/kubelogin/kubelogin", trusted: true # Azure AD login for kubectl
 brew "azure/functions/azure-functions-core-tools@4", trusted: true # Azure Functions Core Tools
 brew "azurite" # Local Azure Storage emulator
-cask "microsoft/aspire/aspire", trusted: true # .NET Aspire tooling
 # Microsoft's official SDK build at /usr/local/share/dotnet — what workloads,
 # Aspire and VS tooling expect. Do NOT also install the `dotnet` formula: both
 # claim /opt/homebrew/bin/dotnet (Homebrew/homebrew-core#275368).
@@ -96,7 +93,6 @@ brew "kubestellar/tap/kubestellar-ops", trusted: true # KubeStellar multi-cluste
 brew "siderolabs/tap/talosctl", trusted: true # Talos Linux/Kubernetes CLI
 brew "skyhook-io/tap/radar", trusted: true # Kubernetes topology/traffic/Helm visibility (kubectl-radar)
 cask "freelens" # Kubernetes IDE (Lens fork)
-cask "home-operations/tap/flate", trusted: true # Render and diff Flux GitOps repos offline
 cask "orbstack" # Container runtime, ships `docker-compose` as well
 
 # DevOps / CI / linting
@@ -104,11 +100,13 @@ brew "actionlint" # GitHub Actions workflow linter
 brew "ansible" # Configuration management / automation
 brew "ast-grep" # Structural code search/lint
 brew "biome" # JS/TS formatter and linter
+brew "go-air" # Live reload for Go apps (`air`); not the `air` formula, an R formatter
 brew "golangci-lint" # Go linters aggregator
 brew "golines" # Go long-line formatter, run on save by VS Code (emeraldwalk.runonsave)
 brew "gopls" # Go language server
 brew "hadolint" # Dockerfile linter
 brew "just" # Command runner
+brew "lua-language-server" # Lua language server
 brew "markdownlint-cli" # Markdown linter
 brew "markdownlint-cli2" # Markdown linter (v2)
 brew "mermaid-cli" # Render Mermaid diagrams
@@ -116,12 +114,19 @@ brew "pipx" # Install Python CLI tools in isolated envs
 brew "pre-commit" # Git hook framework (runs a repo's .pre-commit-config.yaml)
 # Telemetry is opt-in; RTK_TELEMETRY_DISABLED in zsh/env.zsh blocks it anyway
 brew "rtk" # Compacts command output for coding agents (Claude Code hook: setup/misc.sh)
+brew "ruby-lsp" # Ruby language server; runs on the Homebrew Ruby it brings (macOS ships 2.6), so a project on another Ruby needs `gem install ruby-lsp` there
 brew "ruff" # Fast Python linter/formatter
+brew "rust-analyzer" # Rust language server
 # Sentry's new CLI (`sentry`, log in with `sentry auth`), not the legacy
 # `sentry-cli` that build tooling pulls in per project. Telemetry is off via
 # DO_NOT_TRACK in zsh/env.zsh.
 brew "getsentry/tools/sentry", trusted: true # Sentry CLI: issues, events, root cause
+# The core formula: Supabase's docs install from supabase/tap, which would
+# need trusting. Telemetry is off via DO_NOT_TRACK in zsh/env.zsh, and
+# persistently via `supabase telemetry disable` in setup/misc.sh.
+brew "supabase" # Supabase CLI: local stack, migrations, Edge Functions
 brew "uv" # Fast Python package/project manager
+brew "zls" # Zig language server; pulls `zig`, `llvm@22` and `lld@22` (about 1.8 GB)
 
 # Security / pentesting
 brew "aircrack-ng" # Wi-Fi security auditing suite
@@ -132,6 +137,7 @@ brew "dex2jar" # Android dex to jar conversion
 brew "dns2tcp" # Tunnel TCP over DNS
 brew "fcrackzip" # Zip password cracking
 brew "foremost" # File carving/recovery
+brew "ghidra" # NSA reverse engineering framework (`ghidraRun`; REA's Ghidra provider; pulls openjdk@21)
 brew "hydra" # Network login cracker
 brew "john" # John the Ripper password cracker
 brew "knock" # Port knocking client/server
@@ -213,12 +219,14 @@ cask "font-sauce-code-pro-nerd-font"
 cask "font-tinos-nerd-font"
 cask "font-ubuntu-nerd-font"
 cask "git-credential-manager" # Git credential storage/auth helper
+cask "hopper-disassembler" # Disassembler/decompiler (paid license, free demo; REA's default launcher path)
 cask "iterm2" # Terminal emulator
 cask "nimble-commander" # File manager (zsh `ff` alias, vscode/User/tasks.json)
 cask "obsidian" # Markdown knowledge base (configs tracked in obsidian/)
 cask "raycast" # Launcher / clipboard history / window management
 cask "royal-tsx" # Remote connection manager (RDP/SSH/VNC)
 cask "syntax-highlight" # Quick Look previews with syntax highlighting (theme in syntax-highlight/)
+cask "terax" # Terminal-first AI workspace (terax.app); its language servers: see tilde/.config/mise/config.toml
 cask "utm" # QEMU-based virtual machines
 cask "warp" # Agentic terminal
 

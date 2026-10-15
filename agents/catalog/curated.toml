@@ -1,7 +1,7 @@
 # Hand-written layer for build_catalog.py. Survives re-runs.
 #   [[builtin]]     things that ship with Claude Code (not discoverable from files)
 #   [[connector]]   claude.ai connectors (configured in the claude.ai account, not on disk)
-#   [mcp.<name>]    description + tool summary for an MCP server found on disk
+#   [mcp.<name>]    description + tool summary for an MCP server found on disk (one missing here only warns: registration is per machine)
 #   [notes]         extra "use when / don't confuse with" note for any item, by exact name
 #   [[group]]       task guide: overlapping options for one job, with a default pick
 # The build fails (exit 1) if a group or note names something that isn't installed.
@@ -208,6 +208,17 @@ desc = "Search the Sidero Labs docs (Talos Linux, Omni); pairs with the siderola
 tools = "search_sidero_documentation, query_docs_filesystem_sidero_documentation"
 [mcp.coolify]
 desc = "Self-hosted Coolify PaaS at deploy.matherly.net. Only loaded inside ~/dev/coolify."
+[mcp.reactive-resume]
+desc = "Reactive Resume at resume.matherly.net (HTTP). Only loaded inside ~/dev/job-search."
+[mcp.rea]
+desc = "REA reverse-engineering tools (rea-agents from mise, with Homebrew Ghidra and JDK): native binaries, managed code, web bundles, browser and Electron runtimes. Pairs with the reverse-engineer-anything skill."
+tools = "open_binary, binary_overview, list_procedures, procedure_pseudo_code, xrefs, analyze_web_bundle, inspect_electron_page, capture_browser_scenario"
+[mcp.snippetslab]
+desc = "The user's local SnippetsLab library via the app's `lab mcp` helper. Read tools are allowed; create_snippet asks."
+tools = "search_snippets, get_snippet, list_filters"
+[mcp.scrapling]
+desc = "Scrapling web scraping (uv tool): plain HTTP with browser fingerprints, Chromium fetches, and a stealth browser that bypasses Cloudflare Turnstile; sessions, bulk fetches, screenshots. Pass a CSS selector to send only the matching elements to the model."
+tools = "make_request, fetch, stealthy_fetch, bulk_fetch, open_session, session_fetch, screenshot, close_session"
 [mcp.azure]
 desc = "Azure MCP: 70+ tools covering nearly every Azure service (ARM, AKS, App Service, Functions, Cosmos, SQL, Key Vault, Monitor, pricing, quotas, best practices, azd/az CLI generation)."
 tools = "one tool per service, e.g. aks, appservice, cosmos, keyvault, monitor, pricing, deploy, get_azure_bestpractices, extension_cli_generate"
@@ -233,6 +244,9 @@ desc = "Grafana MCP via Docker (needs GRAFANA_URL + service-account token). Disa
 [mcp.sentry]
 desc = "Sentry's hosted MCP (sentry plugin): find orgs/projects, search issues and events, Seer root-cause analysis, update issues. The `sentry` CLI covers the same from Bash."
 tools = "search_issues, search_events, get_sentry_resource, analyze_issue_with_seer, update_issue"
+[mcp.supabase]
+desc = "Supabase's hosted MCP (supabase plugin): projects, SQL, migrations, Edge Functions, advisors, docs. Needs OAuth sign-in via /mcp, then reaches every project in the organization picked there, read-write. The `supabase` CLI covers local development from Bash."
+tools = "execute_sql, apply_migration, get_advisors"
 
 [mcp.jean]
 desc = "Jean desktop app's MCP server (registered by Jean in ~/.claude.json): its projects, worktrees and chat sessions, plus GitHub/Linear issues, PRs, reviews and merges driven through Jean."
@@ -251,6 +265,7 @@ tools = "agent_browser_open, agent_browser_snapshot, agent_browser_click, agent_
 "anthropic-skills:skill-creator" = "claude.ai-synced copy of skill-creator:skill-creator."
 "skills:piv-run-full-loop" = "'PIV' = plan → implement → validate (from cole-medin's 'skills' plugin). The piv-* skills are steps in that loop; this one chains them."
 "skills:agent-browser" = "A CLI (not MCP) browser driver. Pick chrome-devtools for debugging and browser-use for logged-in scraping."
+"scrapling-official" = "Teaches the Scrapling library and CLI (use --ai-targeted). To scrape in-conversation, use the scrapling MCP server instead."
 "skills:drive-screen" = "Controls the whole desktop (any app), not just the browser."
 "superpowers:using-superpowers" = "Loaded automatically at session start by a hook. There's no need to invoke it."
 "prompt-improver:prompt-improver" = "Fired by a hook when a prompt looks vague. Rarely invoked by hand."
@@ -293,8 +308,8 @@ items = ["superpowers:test-driven-development", "superpowers:verification-before
 [[group]]
 title = "Browser and desktop automation"
 pick = ["chrome-devtools"]
-guide = "chrome-devtools: debugging, perf, console/network. browser-use: your logged-in session, scraping, bot-protected sites. claude-in-chrome: your real Chrome through the extension. agent-browser: CLI scripting. drive-screen: non-browser apps. For public pages, plain WebFetch/curl needs none of these."
-items = ["chrome-devtools", "browser-use", "claude-in-chrome", "skills:agent-browser", "chrome-devtools-mcp:chrome-devtools-cli", "skills:drive-screen", "chrome-devtools-mcp:troubleshooting"]
+guide = "chrome-devtools: debugging, perf, console/network. browser-use: your logged-in session, scraping, bot-protected sites. claude-in-chrome: your real Chrome through the extension. agent-browser: CLI scripting. drive-screen: non-browser apps. For public pages, plain WebFetch/curl needs none of these. scrapling: anonymous scraping and Cloudflare-protected pages, no login; scrapling-official: write Scrapling Python code or spiders."
+items = ["chrome-devtools", "browser-use", "claude-in-chrome", "skills:agent-browser", "chrome-devtools-mcp:chrome-devtools-cli", "skills:drive-screen", "chrome-devtools-mcp:troubleshooting", "scrapling", "scrapling-official"]
 
 [[group]]
 title = "Web performance and accessibility"
@@ -338,9 +353,9 @@ items = ["claude-md-management:claude-md-improver", "claude-md-management:revise
 [[group]]
 title = "Extend Claude Code (skills, plugins, hooks, MCP)"
 pick = ["skill-creator:skill-creator", "plugin-dev:create-plugin"]
-guide = "Skills: skill-creator (with evals) or superpowers:writing-skills (TDD-style). Hooks: hookify (rule-based) or update-config / skills:hooks-create (raw settings.json hooks). MCP servers: mcp-server-dev."
+guide = "Skills: skill-creator (with evals) or superpowers:writing-skills (TDD-style). Hooks: update-config or skills:hooks-create (settings.json hooks); hookify is installed but off. MCP servers: mcp-server-dev."
 items = ["skill-creator:skill-creator", "superpowers:writing-skills", "skills:skills-create", "plugin-dev:skill-development", "plugin-dev:create-plugin", "plugin-dev:plugin-structure", "plugin-dev:agent-development", "plugin-dev:command-development", "plugin-dev:hook-development", "plugin-dev:mcp-integration", "hookify:hookify", "skills:hooks-create", "update-config", "mcp-server-dev:build-mcp-server", "mcp-server-dev:build-mcp-app", "mcp-server-dev:build-mcpb", "anthropic-skills:mcp-builder", "claude-code-setup:claude-automation-recommender", "find-skills", "plugin-dev:plugin-validator", "plugin-dev:skill-reviewer", "microsoft-docs:microsoft-skill-creator", "voltagent-dev-exp:mcp-developer", "voltagent-meta:agent-installer"]
-plugins = ["plugin-dev", "hookify"]
+plugins = ["plugin-dev"]
 
 [[group]]
 title = "Measure and improve how you work with Claude"

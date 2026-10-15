@@ -1,5 +1,7 @@
 {
   "env": {
+    "AZURE_MCP_COLLECT_TELEMETRY": "false",
+    "CLAUDE_CODE_ENABLE_TODO_TOOLS": "1",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
   },
   "permissions": {
@@ -71,6 +73,14 @@
       "mcp__plugin_serena_serena__think_about_task_adherence",
       "mcp__plugin_serena_serena__think_about_whether_you_are_done",
       "mcp__plugin_serena_serena__write_memory",
+      "mcp__rea__compare_*",
+      "mcp__rea__decompile",
+      "mcp__rea__function",
+      "mcp__rea__get_*",
+      "mcp__rea__inspect_*",
+      "mcp__rea__list_*",
+      "mcp__rea__search_*",
+      "mcp__rea__trace_*",
       "mcp__sequential-thinking__sequentialthinking",
       "mcp__serena__activate_project",
       "mcp__serena__check_onboarding_performed",
@@ -90,21 +100,60 @@
       "mcp__serena__think_about_collected_information",
       "mcp__serena__think_about_task_adherence",
       "mcp__serena__think_about_whether_you_are_done",
-      "mcp__serena__write_memory"
+      "mcp__serena__write_memory",
+      "mcp__snippetslab__get_snippet",
+      "mcp__snippetslab__info",
+      "mcp__snippetslab__list_filters",
+      "mcp__snippetslab__search_snippets"
     ],
     "deny": [],
-    "ask": [],
+    "ask": [
+      "mcp__plugin_supabase_supabase__apply_migration",
+      "mcp__plugin_supabase_supabase__create_branch",
+      "mcp__plugin_supabase_supabase__create_edge_function_secret",
+      "mcp__plugin_supabase_supabase__create_project",
+      "mcp__plugin_supabase_supabase__delete_branch",
+      "mcp__plugin_supabase_supabase__deploy_edge_function",
+      "mcp__plugin_supabase_supabase__execute_sql",
+      "mcp__plugin_supabase_supabase__merge_branch",
+      "mcp__plugin_supabase_supabase__pause_project",
+      "mcp__plugin_supabase_supabase__rebase_branch",
+      "mcp__plugin_supabase_supabase__reset_branch",
+      "mcp__plugin_supabase_supabase__restore_project",
+      "mcp__plugin_supabase_supabase__update_storage_config",
+      "mcp__rea__capture_browser_scenario",
+      "mcp__rea__capture_electron_scenario",
+      "mcp__rea__capture_native_ui_scenario",
+      "mcp__rea__capture_process_scenario",
+      "mcp__rea__export_evidence_bundle",
+      "mcp__rea__export_web_scripts",
+      "mcp__rea__extract_artifact",
+      "mcp__rea__extract_firmware",
+      "mcp__rea__observe_javascript_runtime",
+      "mcp__rea__observe_native_calls",
+      "mcp__rea__observe_native_ui",
+      "mcp__rea__observe_web_execution",
+      "mcp__rea__observe_web_session",
+      "mcp__snippetslab__create_snippet"
+    ],
     "defaultMode": "auto",
     "additionalDirectories": []
   },
+  "model": "opus",
   "worktree": {
     "baseRef": "fresh"
   },
+  "bashEditDiffEnabled": true,
   "statusLine": {
     "type": "command",
     "command": "bash ~/.claude/statusline-command.sh",
     "padding": 0,
     "refreshInterval": 30
+  },
+  "modelSettings": {
+    "claude-fable-5-1": {
+      "effortLevel": "medium"
+    }
   },
   "tui": "fullscreen",
   "autoMemoryEnabled": true,
