@@ -69,10 +69,9 @@ node = ["24", "22", "26"]
 # dependency of other formulae (pipx, awscli…), so don't rely on it. Projects
 # pin their own with `.python-version` / `mise.toml`; uv manages their venvs.
 # Every version's bin dir is on PATH, so `python3.11`…`python3.15` all work
-# directly; plain `python`/`python3` is 3.14. 3.15 is pinned to its release
-# candidate — mise's "3.15" won't match a prerelease — so change it to "3.15"
-# once 3.15.0 is out (October 2026).
-python = ["3.14", "3.11", "3.12", "3.13", "3.15.0rc2"]
+# directly; plain `python`/`python3` is 3.14. Renovate leaves this list alone
+# (renovate.json), so new minors are added here by hand.
+python = ["3.14", "3.11", "3.12", "3.13", "3.15"]
 # Bun — runs the jstack plugin's j-mode scripts (jrmatherly/skills). Its
 # package-manager settings are in tilde/.bunfig.toml; crash reports are off
 # via DO_NOT_TRACK (zsh/env.zsh).

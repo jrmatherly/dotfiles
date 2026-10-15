@@ -44,7 +44,7 @@ Registers Homebrew's Zsh (installed by the Brewfile) in `/etc/shells` and makes 
 - If the GitHub CLI isn't authenticated, offers to run `gh auth login`. gh keeps the token in the macOS keychain; `~/.config/gh/hosts.yml` is gitignored anyway, since gh falls back to storing the token there in plain text when no keychain is available.
 - Installs runtimes and CLIs with [mise](https://mise.jdx.dev/) from the tracked global config [`tilde/.config/mise/config.toml`](../tilde/.config/mise/config.toml). The script links that config into `~/.config/mise` and runs `mise install` before touching npm. When a tool lists several versions, mise installs all of them and the first is the default on PATH:
   - Node `24` (Active LTS, pinned rather than the moving `lts` alias), plus `22` and `26`.
-  - Python `3.14`, plus `3.11`–`3.13` and the `3.15` release candidate. Every version's `python3.x` is on PATH.
+  - Python `3.14`, plus `3.11`–`3.13` and `3.15`. Every version's `python3.x` is on PATH.
   - `npm:typescript` (major 6), for a global `tsc`.
   - `npm:@colbymchenry/codegraph` ([CodeGraph](https://github.com/colbymchenry/codegraph)), tracking `latest`. Upgrade it with `mise upgrade`, not `codegraph upgrade`.
   - `npm:serverless` (major 4) and `npm:@antfu/ni` (major 30): global npm CLIs installed by mise instead of `npm install -g`.
