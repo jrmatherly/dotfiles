@@ -1,6 +1,16 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
+  "extends": ["config:recommended"],
+  "minimumReleaseAge": "7 days",
+  "packageRules": [
+    {
+      "matchPackageNames": ["@ampcode/plugin"],
+      "schedule": ["* 0-3 * * 1"]
+    },
+    {
+      "matchManagers": ["mise"],
+      "matchPackageNames": ["npm:typescript"],
+      "allowedVersions": "<7"
+    }
   ]
 }

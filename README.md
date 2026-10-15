@@ -232,6 +232,8 @@ It doesn't re-apply the dotfiles. When a pull brings new symlinks, tools or conf
 
 `setup.sh` installs what's missing but doesn't upgrade what's already there; that's `upup`'s job.
 
+The repo's own pins get update PRs from [Renovate](https://docs.renovatebot.com/) (config in [`renovate.json`](renovate.json)): `package.json` and the `packageManager` pnpm, `.nvmrc`, and the versioned tools in the global mise config. It waits 7 days after a release, like `pnpm-workspace.yaml`'s `minimumReleaseAge`, batches the daily `@ampcode/plugin` snapshots into a Monday PR, and keeps mise's `npm:typescript` on major 6. Nothing runs `pnpm check` on its PRs, so check them out and run it before merging. The Brewfile, VS Code extensions and mise's `latest` entries stay with `upup`.
+
 An update of VS Code replaces the files the SpaceBox UI Enhancer patched, so run **SpaceBox Enable UI Enhancer** again afterwards (see [vscode](vscode/README.md#spacebox-ui-enhancer)).
 
 ### macOS update password from 1Password (optional)
