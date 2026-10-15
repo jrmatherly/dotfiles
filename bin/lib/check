@@ -51,7 +51,7 @@ if command -v brew > /dev/null; then
     || { rm -f "$brewfile"; echo "setup/Brewfile failed to parse" >&2; exit 1; }
   rm -f "$brewfile"
 fi
-prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}" "bin/*"
+prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}" "bin/*" ".github/**/*.yml"
 # setup/symlinks.sh: ~/.codex/config.toml is seeded as a copy, never linked
 bash setup/tests/codex-config.sh > /dev/null
 # VS Code settings are rendered from a minijinja template (bin/vscode-settings):

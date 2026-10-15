@@ -28,7 +28,7 @@ There is no build. `pnpm check` is the gate (its only test is the catalog genera
   - `python3 agents/catalog/test_build_catalog.py` (status/cleanup rules of the Claude Code catalog generator)
   - `brew bundle list` on `setup/Brewfile` with `manual` lines stripped (parse check, skipped without `brew`)
   - `vscode/test-vscode-settings.sh` (the renderer's tests) and a Prettier check of every VS Code preset's render (skipped without `minijinja-cli`)
-  - `prettier --check` over js/cjs/ts/md/json/sh and `bin/*`
+  - `prettier --check` over js/cjs/ts/md/json/sh, `.github/**/*.yml` and `bin/*` (not all YAML: app-written configs like `tilde/.config/gh/config.yml` aren't Prettier-clean)
 - `pnpm format`: prettier `--write` over the same globs.
 - Renovate (Mend app, `renovate.json`) opens update PRs for `package.json` and the global mise config's single-version tools (`node`/`python` are disabled: its mise manager reads only a list's first entry); the `check` workflow (`.github/workflows/check.yml`) runs `pnpm check` on macOS for every PR and push to `main`, its PRs included. Keep its `minimumReleaseAge` in step with `pnpm-workspace.yaml`'s, and add an `allowedVersions` rule when a mise comment holds a tool back a major (as for `npm:typescript`).
 - `.prettierignore` also lists zsh files (VS Code's format-on-save runs Prettier's shell plugin, which reads zsh as bash and rewrote `${keys[Ctrl+K]}`); add any new zsh file not ending in `.zsh` there. It skips files that tools rewrite themselves: any `CLAUDE.md`, `.serena/`, `.claude/auto-memory/`, `.claude/settings.local.json`, `docs/superpowers/`, `.superpowers/`, plus the git-ignored local scratch dir `private/`. Don't hand-format them.

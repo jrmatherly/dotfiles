@@ -37,8 +37,8 @@ run() {
   fi
 }
 
-# Prettier: the globs `pnpm check` uses — any *.{js,cjs,ts,md,json,sh} plus
-# the top level of bin/ (`bin/*`); zsh never (prettier-plugin-sh parses it as
+# Prettier: the globs `pnpm check` uses — any *.{js,cjs,ts,md,json,sh}, the
+# workflow YAML under .github/, plus the top level of bin/ (`bin/*`); zsh never (prettier-plugin-sh parses it as
 # bash and corrupts it)
 case $rel in
   *.zsh | tilde/.zshrc | tilde/.zshenv | tilde/.zprofile)
@@ -47,7 +47,7 @@ case $rel in
   tilde/.bash_profile)
     run bash -n "$rel"
     ;;
-  *.js | *.cjs | *.ts | *.md | *.json | *.sh | bin/*)
+  *.js | *.cjs | *.ts | *.md | *.json | *.sh | .github/*.yml | bin/*)
     # bin/* here means the top level only, like the prettier glob
     if [[ $rel != bin/*/* ]] && [ -x node_modules/.bin/prettier ]; then
       run node_modules/.bin/prettier --write --ignore-unknown --log-level warn -- "$rel"
