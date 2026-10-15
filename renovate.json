@@ -9,8 +9,13 @@
     },
     {
       "matchManagers": ["mise"],
-      "matchPackageNames": ["npm:typescript"],
+      "matchDepNames": ["npm:typescript"],
       "allowedVersions": "<7"
+    },
+    {
+      "matchManagers": ["mise"],
+      "matchDepNames": ["node", "python"],
+      "enabled": false
     }
   ]
 }
