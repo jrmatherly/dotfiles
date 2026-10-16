@@ -51,7 +51,7 @@ A dry-run writes its full file list to `~/.config/mole/clean-list.txt`.
 
 These are safe to clear. Expect slower first runs afterwards.
 
-- **npm.** Runs `npm cache clean --force` and deletes `~/.npm/_npx`. `claude-config restore` and `upup` re-fetch the `npx skills` package.
+- **npm.** Runs `npm cache clean --force`. It would also delete every entry under `~/.npm/_npx` (`clean_dev_npm`, `lib/clean/dev.sh`), but the tracked whitelist protects that folder: Claude Code plugin MCP servers such as chrome-devtools launch through `npx`, and a clean that runs while a session is live can leave an entry with its `package.json` gone. npx then treats it as installed and fails with ENOENT until the entry is removed by hand (`rm -rf ~/.npm/_npx/<hash>`).
 - **pnpm.** Runs `pnpm store prune`, which removes unreferenced packages only. Skipped while pnpm runs. Also sweeps `~/Library/Caches/pnpm`.
 - **mise.** Runs `mise cache clear` on `~/Library/Caches/mise`. Installs under `~/.local/share/mise/installs` are report-only (`lib/clean/user.sh`).
 - **uv.** Runs `uv cache prune`, which removes only dangling entries. Nothing in `lib/clean` references `~/.local/share/uv/tools`.
@@ -119,7 +119,7 @@ How the file works:
 - `*` also matches `/`.
 - `mo purge` reads this file too (`bin/purge.sh`).
 
-The shared `mole/whitelist` keeps four of the optional defaults (Playwright, iCloud, Finder's cache and `FINDER_METADATA`) and adds the Go module cache, `~/go/pkg/mod/*`, since every Go repo needs its sources offline. A dry-run with it reports "10 core + 1 custom patterns active" and "Go module cache · would skip (whitelist)".
+The shared `mole/whitelist` keeps four of the optional defaults (Playwright, iCloud, Finder's cache and `FINDER_METADATA`) and adds the Go module cache, `~/go/pkg/mod/*`, since every Go repo needs its sources offline, and the npx cache, `~/.npm/_npx/*`, which Claude Code plugin MCP servers run from (see npm above). A dry-run with it reports "10 core + 2 custom patterns active", "Go module cache · would skip (whitelist)" and "npm cache · would skip (whitelist)". That last line is Mole's parent rule (`is_path_whitelisted`, `lib/core/app_protection.sh`): a pattern under `~/.npm` also protects `~/.npm` itself, so the `npm cache clean --force` step is skipped. The "npm cache directory" (`_cacache`) and "npm logs" sweeps still run, so the whitelist costs only the npx entries themselves.
 
 The defaults left out cover Gradle, Ollama, Surge, R, JetBrains and tealdeer.
 

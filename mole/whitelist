@@ -12,3 +12,8 @@
 FINDER_METADATA
 # Go module cache: sources every Go repo needs offline
 ~/go/pkg/mod/*
+# npx cache: Claude Code plugin MCP servers (chrome-devtools) run from
+# here via npx. Deleting an entry under a live session leaves a stub that
+# npx trusts but cannot read (ENOENT on package.json), and the server
+# fails until the stub is removed by hand.
+~/.npm/_npx/*
