@@ -104,6 +104,7 @@ brew "go-air" # Live reload for Go apps (`air`); not the `air` formula, an R for
 brew "golangci-lint" # Go linters aggregator
 brew "golines" # Go long-line formatter, run on save by VS Code (emeraldwalk.runonsave)
 brew "gopls" # Go language server
+brew "govulncheck" # Go vulnerability scanner (vuln.go.dev)
 brew "hadolint" # Dockerfile linter
 brew "just" # Command runner
 brew "lua-language-server" # Lua language server
