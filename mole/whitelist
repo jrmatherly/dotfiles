@@ -1,0 +1,14 @@
+# Mole's clean and purge whitelist, linked to ~/.config/mole/whitelist by
+# setup/symlinks.sh. A mole/whitelist.local on a Mac replaces this file there.
+# One absolute path or glob per line; comments only at the start of a line.
+# Edit this file, not `mo clean --whitelist`: its editor rewrites the file
+# through the link and drops these comments.
+
+# Optional defaults kept: once this file exists it replaces Mole's built-in
+# optional list (lib/core/base.sh), so the ones we want are repeated here
+~/Library/Caches/ms-playwright*
+~/Library/Mobile Documents*
+~/Library/Caches/com.apple.finder
+FINDER_METADATA
+# Go module cache: sources every Go repo needs offline
+~/go/pkg/mod/*

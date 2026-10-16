@@ -374,6 +374,8 @@ install_extras() {
   # Lazydocker
   symlink_file "$DOTFILES_DIR/lazydocker/config.yml" "$HOME/Library/Application Support/lazydocker/config.yml"
 
+  install_mole_config
+
   # Lazygit: config lives in the repo and is passed via the `lg` alias
   # (`--use-config-dir`); `state.yml` is machine-local and gitignored, so
   # there's nothing to link here.
@@ -424,6 +426,25 @@ install_extras() {
   symlink_file "$AGENTS_INSTRUCTIONS" "$HOME/.codex/AGENTS.md"
   # Configuration: a copy, not a link (install_codex_config)
   install_codex_config
+}
+
+# Mole reads only ~/.config/mole/whitelist and whitelist_optimize, and writes
+# clean-list.txt and purge_paths next to them, so link the two files, not the
+# folder. A gitignored mole/<name>.local replaces the shared file on that Mac.
+# Our own link to the other candidate is removed first, so adding or deleting a
+# .local switches without a prompt; anything else still goes through one.
+install_mole_config() {
+  local name src dst current
+  for name in whitelist whitelist_optimize; do
+    src="$DOTFILES_DIR/mole/$name"
+    [ -e "$src.local" ] && src="$src.local"
+    dst="$HOME/.config/mole/$name"
+    current=$(readlink "$dst" 2> /dev/null || true)
+    if [ "$current" != "$src" ] && { [ "$current" = "$DOTFILES_DIR/mole/$name" ] || [ "$current" = "$DOTFILES_DIR/mole/$name.local" ]; }; then
+      rm "$dst"
+    fi
+    symlink_file "$src" "$dst"
+  done
 }
 
 # Codex and apps that register MCP servers (NotchBar, Jean, whose entry carries

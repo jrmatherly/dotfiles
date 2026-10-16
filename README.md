@@ -33,6 +33,7 @@ Jason's personal dotfiles for configuring macOS with Zsh and Homebrew — a pers
 - [Fonts](fonts/README.md): Hack Nerd Font Mono in the terminals (Ghostty, cmux, fastfetch) and Iosevka Code in VS Code. The Nerd Fonts are Brewfile casks; Iosevka Code has no cask, so `bin/install-iosevka-code` installs it. MonoLisa is an optional paid font (`bin/brewpick` → MonoLisa opens its download page).
 - [macOS apps and VS Code extensions](setup/Brewfile) I use.
 - [macOS tips & tricks](docs/macos%20tips%20%26%20tricks.md).
+- [Mole](docs/mole.md) (`mo`) cleanup guide, with its whitelists tracked in [`mole/`](mole/) and a per-Mac `.local` override.
 - Built-in help: `help` shows the [alias index](docs/README.md), `help <command>` documents any script in `bin/`, and `help gui/<app>` shows [shortcut cheat sheets](docs/gui/) for GUI apps.
 
 ## Installation

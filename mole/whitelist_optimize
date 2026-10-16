@@ -1,0 +1,9 @@
+# Mole's optimize whitelist, linked to ~/.config/mole/whitelist_optimize by
+# setup/symlinks.sh. A mole/whitelist_optimize.local on a Mac replaces this file
+# there. One task id per line, exact match.
+#
+# Empty on purpose: every task runs. Two of them delete history, which favors
+# privacy, so they stay on. To keep that history on one Mac, list either id in
+# its .local:
+#   coreduet_cleanup     usage data (knowledgeC.db) older than 90 days
+#   quarantine_cleanup   the "downloaded from the internet" history
