@@ -4,7 +4,7 @@ Mole is a Mac cleaner and maintenance tool from the Brewfile (`brew "mole"`). Th
 
 ## Summary
 
-- `mo clean` and `mo optimize` are safe for this setup with the tracked whitelist. Mole leaves alone what the setup depends on: mise installs, uv tools (Serena, Scrapling), `~/.claude`, `~/.claude.json`, Claude plugin caches, Scrapling's Playwright Chromium, iCloud and Mail.
+- `mo clean` and `mo optimize` are safe for this setup with the tracked whitelist. Mole leaves alone what the setup depends on: mise installs, uv tools (Serena, Scrapling), `~/.claude`, `~/.claude.json`, Claude plugin caches and the npx cache their MCP servers run from, Scrapling's Playwright Chromium, iCloud and Mail.
 - Run every destructive command from a terminal, never from an agent shell. Without a TTY, `mo clean` and `mo optimize` start deleting without asking.
 - Run `mo purge` interactively only. Its git-tracked protection can't help a project that isn't a git repo.
 - Skip `mo touchid`, `mo completion` and `mo update`. The setup already covers each of them, and `mo completion` breaks the `~/.zshrc` symlink.
