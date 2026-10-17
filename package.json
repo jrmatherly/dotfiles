@@ -1,7 +1,7 @@
 {
   "name": "dotfiles",
   "version": "0.0.1",
-  "packageManager": "pnpm@12.10.1",
+  "packageManager": "pnpm@12.11.2",
   "type": "module",
   "description": "My personal dotfiles for configuring macOS with Zsh and Homebrew.",
   "private": true,
