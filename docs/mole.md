@@ -1,13 +1,13 @@
 # Mole (`mo`)
 
-Mole is a Mac cleaner and maintenance tool from the Brewfile (`brew "mole"`). This page says what each command does on a Mac set up from this repo, which of them to use, and how its config is tracked. It was checked against Mole 1.60.0. Source citations are relative to the install, `$(brew --prefix mole)/libexec`.
+Mole is a Mac cleaner and maintenance tool from the Brewfile (`brew "mole"`). This page says what each command does on a Mac set up from this repo, which of them to use, and how its config is tracked. It was checked against Mole 1.62.0. Source citations are relative to the install, `$(brew --prefix mole)/libexec`.
 
 ## Summary
 
 - `mo clean` and `mo optimize` are safe for this setup with the tracked whitelist. Mole leaves alone what the setup depends on: mise installs, uv tools (Serena, Scrapling), `~/.claude`, `~/.claude.json`, Claude plugin caches and the npx cache their MCP servers run from, Scrapling's Playwright Chromium, iCloud and Mail.
 - Run every destructive command from a terminal, never from an agent shell. Without a TTY, `mo clean` and `mo optimize` start deleting without asking.
 - Run `mo purge` interactively only. Its git-tracked protection can't help a project that isn't a git repo.
-- Skip `mo touchid`, `mo completion` and `mo update`. The setup already covers each of them, and `mo completion` breaks the `~/.zshrc` symlink.
+- Skip `mo touchid`, `mo completion`, `mo update` and `mo remove`. The setup already covers each of them, and `mo completion` would write its line into the tracked `tilde/.zshrc`.
 - Mole's space estimate leaves out the largest caches, such as Go's build cache and Docker or OrbStack data.
 
 ## What each command does
@@ -23,8 +23,10 @@ Mole is a Mac cleaner and maintenance tool from the Brewfile (`brew "mole"`). Th
 | `mo status` | Read-only live dashboard. It prints JSON when piped. | Use freely. |
 | `mo history` | Reads `~/Library/Logs/mole/operations.log`. | Use after a run. |
 | `mo touchid` | Writes `pam_tid.so` to `/etc/pam.d/sudo_local`. | Skip. `setup.sh` writes the same line, and Mole reports "already enabled" (`bin/touchid.sh`). |
-| `mo completion` | Appends an `eval` line to `~/.zshrc` through a temp file and `mv` (`bin/completion.sh`). | Skip. `mv` onto a symlink replaces the link with a regular file, so edits would stop reaching `tilde/.zshrc`. Homebrew's `share/zsh/site-functions/_mole` already completes `mo`. |
+| `mo completion` | Appends an `eval` line to `~/.zshrc`. It follows the link chain and edits the final file (`_completion_rc_target`, `bin/completion.sh`). | Skip. `~/.zshrc` links to `tilde/.zshrc`, so the line would land in the repo. Homebrew's `share/zsh/site-functions/_mole` already completes `mo`. |
 | `mo update` | For a Homebrew install, runs `brew update` and `brew upgrade mole` (`lib/core/common.sh`). | Skip. `upup` already upgrades Homebrew. |
+| `mo slim` | Removes the Intel code from universal apps in `/Applications` and `~/Applications` (`bin/slim.sh`). It thins a clone of each app and swaps it in only if `codesign --verify`, the same Developer ID team and `spctl --assess` all pass. The original goes to Trash. It skips App Store, Apple, running and not-owned apps. Without a TTY it only lists apps. | Optional, and safe for casks. Each cask upgrade or app update brings the Intel code back. The space returns once the Trash is emptied. Run `mo slim --dry-run` first. |
+| `mo remove` | For a Homebrew install, runs `brew uninstall --force mole` and moves `~/.config/mole` to Trash (`lib/manage/remove.sh`). It refuses to run without a TTY. | Skip. `setup.sh` reinstalls Mole from the Brewfile. To drop it, delete `brew "mole"` from `setup/Brewfile` and run `brew uninstall mole`. |
 
 The optimize tasks, by effect:
 
@@ -63,6 +65,7 @@ These are safe to clear. Expect slower first runs afterwards.
   - Runs `brew cleanup --prune=30`, at most weekly (`lib/clean/brew.sh`).
   - The generic `~/Library/Caches/*` sweep also removes `~/Library/Caches/Homebrew`.
   - Whitelisting that folder would also turn off `brew cleanup` (`lib/clean/brew.sh`). Leave it alone.
+- **agent-browser.** Deletes superseded Chrome for Testing builds in `~/.agent-browser/browsers` (`clean_agent_browser_old_chrome`, `lib/clean/dev.sh`). It keeps the newest build, any build from the last day, a pinned build, and every build while one of them runs.
 - **Claude Code.**
   - Deletes old versions in `~/.local/share/claude/versions`. It keeps the active one plus one previous (`MOLE_AI_AGENTS_KEEP`, default 1).
   - Sweeps `~/Library/Caches/claude-cli-nodejs`.
@@ -119,7 +122,7 @@ How the file works:
 - `*` also matches `/`.
 - `mo purge` reads this file too (`bin/purge.sh`).
 
-The shared `mole/whitelist` keeps four of the optional defaults (Playwright, iCloud, Finder's cache and `FINDER_METADATA`) and adds the Go module cache, `~/go/pkg/mod/*`, since every Go repo needs its sources offline, and the npx cache, `~/.npm/_npx/*`, which Claude Code plugin MCP servers run from (see npm above). A dry-run with it reports "10 core + 2 custom patterns active", "Go module cache · would skip (whitelist)" and "npm cache · would skip (whitelist)". That last line is Mole's parent rule (`is_path_whitelisted`, `lib/core/app_protection.sh`): a pattern under `~/.npm` also protects `~/.npm` itself, so the `npm cache clean --force` step is skipped. The "npm cache directory" (`_cacache`) and "npm logs" sweeps still run, so the whitelist costs only the npx entries themselves.
+The shared `mole/whitelist` keeps four of the optional defaults (Playwright, iCloud, Finder's cache and `FINDER_METADATA`) and adds the Go module cache, `~/go/pkg/mod/*`, since every Go repo needs its sources offline, and the npx cache, `~/.npm/_npx/*`, which Claude Code plugin MCP servers run from (see npm above). A dry-run with it reports "10 core + 2 custom patterns active", "Go module cache · would skip (whitelist)" and "npm cache · would skip (whitelist)". That last line is Mole's parent rule (`is_path_whitelisted`, `lib/core/app_protection.sh`): a pattern under `~/.npm` also protects `~/.npm` itself, so the `npm cache clean --force` step is skipped. The "npm cache directory" (`_cacache`), "npm logs" and "npm prebuilds" sweeps still run. The npx entries are skipped without a row of their own, so the whitelist costs only those entries.
 
 The defaults left out cover Gradle, Ollama, Surge, R, JetBrains and tealdeer.
 
@@ -128,7 +131,7 @@ The defaults left out cover Gradle, Ollama, Surge, R, JetBrains and tealdeer.
 - tealdeer isn't used here (`tlrc` is).
 - Add `~/.gradle/caches/*` and `~/.gradle/daemon/*` to a `.local` if a Mac builds with Gradle. The Brewfile's Java and Gradle VS Code extensions can create `~/.gradle`.
 
-To keep Trash, add `~/.Trash` to a `.local`, or set `MOLE_SKIP_TRASH_CLEANUP=1` for one run.
+To keep Trash, add `~/.Trash` to a `.local`. Mole 1.62 dropped the `MOLE_SKIP_TRASH_CLEANUP` switch (`lib/clean/user.sh`).
 
 ### Optimize whitelist
 
@@ -177,7 +180,7 @@ The repo's `bin/` is a target name, but git tracks it, so it's safe.
 5. **Memory pressure is out of scope.** `mo optimize` diagnostics report swap and busy processes, but no task frees memory. Restart the process that holds it.
 6. **First-run prompts and network use.**
    - The first `mo clean` can trigger macOS privacy (TCC) dialogs (`lib/clean/caches.sh`).
-   - Bare `mo` (the menu) checks api.github.com for updates (`mole`, `lib/manage/update.sh`), with no opt-out. The subcommands below don't call it.
+   - Bare `mo` and every interactive subcommand check for a newer Mole, at most once a day. A Homebrew install asks formulae.brew.sh (`run_mole_command`, `lib/manage/update.sh`). There is no opt-out. Piped, `--json` and `--help` runs skip the check.
 
 ## Routine
 
@@ -242,13 +245,13 @@ mo clean --dry-run --debug # explain why an item was skipped
 
 - `sudo mo ...`. Mole refuses to run as root (`bin/clean.sh`).
 - `mo clean`, `mo optimize` or `mo purge --yes` without `--dry-run` from an agent shell, script or cron job.
-- `mo completion`, `mo touchid` or `mo update`, for the reasons in the command table.
+- `mo completion`, `mo touchid`, `mo update` or `mo remove`, for the reasons in the command table.
 - `MO_NO_OPLOG=1` on a real clean or purge. Nothing else records what they delete.
 
 ## Logs and recovery
 
 Clean and purge delete permanently. There is no undo.
 
-- `~/Library/Logs/mole/operations.log` is the only record of what clean and purge removed. It rotates at 5 MB. Review it with `mo history` or `mo history --json`.
-- `~/Library/Logs/mole/deletions.log` covers uninstall and installer only. It's written by `mole_delete`, which only `lib/uninstall/batch.sh` and `bin/installer.sh` call.
+- `~/Library/Logs/mole/operations.log` is the only record of what clean and purge removed. It rotates at 5 MB. It also records optimize tasks, `mo slim`, `mo touchid` and `mo update`, plus a SKIPPED row for each whitelisted path. Review it with `mo history` or `mo history --json`.
+- `~/Library/Logs/mole/deletions.log` covers uninstall, installer and slim only. It's written by `mole_delete`, which only `lib/uninstall/batch.sh`, `bin/installer.sh` and `bin/slim.sh` call.
 - `MOLE_DELETE_MODE=trash` affects that same helper only. It has no effect on clean or purge (`lib/core/file_ops.sh`). Uninstall already defaults to Trash.
