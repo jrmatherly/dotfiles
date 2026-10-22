@@ -145,7 +145,6 @@ brew "hydra" # Network login cracker
 brew "john" # John the Ripper password cracker
 brew "knock" # Port knocking client/server
 brew "nmap" # Network scanning
-brew "sops" # Encrypted secrets manager
 brew "sqlmap" # SQL injection testing
 brew "vbindiff" # Binary file comparison
 
