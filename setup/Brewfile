@@ -163,6 +163,7 @@ brew "tmux" # Terminal multiplexer
 brew "ucspi-tcp" # TCP client/server utilities
 
 # Languages / runtimes / build tools
+brew "bazelisk" # Bazel launcher; also links `bazel` and fetches each repo's .bazelversion (conflicts with the `bazel` formula)
 brew "cmake" # Build system generator
 brew "cmake-docs" # CMake documentation
 brew "coreutils" # GNU core utilities (macOS ships outdated BSD versions)
