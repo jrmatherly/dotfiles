@@ -175,6 +175,7 @@ brew "grep" # GNU grep (macOS ships outdated BSD version)
 brew "moreutils" # Extra useful Unix utilities (sponge, vidir, etc.)
 brew "perl"
 brew "php"
+brew "pkgconf" # Compiler/linker flags for C libraries; also provides `pkg-config`
 brew "pnpm" # Efficient Node.js package manager
 # PowerShell is installed as a .NET global tool by setup/misc.sh — the
 # `powershell` formula depends on the `dotnet` formula, which conflicts with
