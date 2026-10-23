@@ -132,13 +132,13 @@ ${bold}Usage${reset}
 
 ${bold}First time, once per account${reset}
   claude-desktop-account save personal   # the account Desktop is signed in as
-  claude-desktop-account add work        # relaunches at the sign-in screen; sign
-                                         # in with the email code, then:
+  claude-desktop-account add work        # relaunches at the sign-in screen;
+                                         # sign in with the email code, then:
   claude-desktop-account save work
 
 ${bold}Every day${reset}
-  claude-desktop-account switch personal # relaunches signed in as personal, with
-                                         # both accounts' sessions in the Code tab
+  claude-desktop-account switch personal # relaunches as personal, with both
+                                         # accounts' sessions in the Code tab
 
 ${bold}Commands${reset}
   (no command)         Opens a list of your saved accounts in fzf. Enter
