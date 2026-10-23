@@ -17,11 +17,11 @@ Installed by `setup/Brewfile` (`cask "raycast"`).
 Raycast handles window management here (the repo's Rectangle config is optional and unused).
 
 - Search for commands such as **Left Half** in Root Search (halves, fullscreen, exact size/position)
-- Give the ones you use often a hotkey (see below); **Settings → Window Management** has gaps, cycling behaviour and keyboard shortcut presets
+- Give the ones you use often a hotkey (see below); **Settings → Window Management** (in the extension list of the settings sidebar) has gaps, cycling behaviour and keyboard shortcut presets
 
 ## Aliases and hotkeys
 
-- **Settings → Shortcuts:** set an alias ("Add Alias") or **Record Hotkey** for any command
+- **Settings → Shortcuts:** every command in one table; click its **Alias** cell to type one, or **Add Hotkey** to record one (Raycast 2.9)
 - Or select a command in Root Search, press **Cmd+,** (Configure Command) → **Set Alias** / **Set Hotkey**
 - Clipboard History has no default hotkey — assign one the same way
 
@@ -51,7 +51,7 @@ Three script commands in `raycast/claude-desktop-account/` call `bin/claude-desk
 - **Claude Account Usage** adds its 5-hour and weekly usage, refreshed every five minutes. Opt-in: it decrypts the saved token through the Keychain (see `claude-desktop-account --help`, Cautions). Its first run shows a macOS Keychain dialog for "Claude Safe Storage": click **Always Allow** once, or it returns every five minutes. Disable the command in Raycast if you don't want that
 - **Switch Claude Account** takes an account name, asks for confirmation, then switches Claude Desktop to it (the app quits and relaunches)
 
-Add them once: Raycast → **Settings → Extensions → + → Add Script Directory**, then pick `<repo>/raycast/claude-desktop-account`. The commands then appear in Root Search. Save each account first with `claude-desktop-account save {{name}}`.
+Add them once: Raycast → **Settings → Script Commands** (scroll the extension list in the sidebar) **→ Add Script Directory**, then pick `<repo>/raycast/claude-desktop-account`. The commands then appear in Root Search and metadata edits are picked up without a restart. Do not use **Developer → Import Extension**: that imports a packaged extension, not a script directory. Save each account first with `claude-desktop-account save {{name}}`.
 
 ## Sources
 
@@ -60,4 +60,6 @@ Add them once: Raycast → **Settings → Extensions → + → Add Script Direct
 - https://manual.raycast.com/command-aliases-and-hotkeys
 - https://manual.raycast.com/window-management
 - https://manual.raycast.com/clipboard-history
+- https://manual.raycast.com/script-commands
 - https://github.com/raycast/script-commands
+- Local: Raycast 2.9.0 settings window

@@ -6,7 +6,7 @@
 
 Dash's settings sync to the repo's `dash/` folder (`dash/Dash.dashsync`).
 
-- **Dash → Settings → General → Sync folder:** Set Sync Folder… → the repo's `dash/` folder (`$DOTFILES/dash`, e.g. `~/dev/dotfiles/dash`)
+- **Dash → Settings → General → Syncing: Set Up Syncing…** opens the sync sheet; **Set Sync Folder…** → the repo's `dash/` folder (`$DOTFILES/dash`, e.g. `~/dev/dotfiles/dash`). **Stop Syncing** on the same sheet turns it off
 - Under **What to sync**, tick: **General settings**, **View options**, **Docsets, search profiles and docset keywords**, **Bookmarks and web searches**
 - Do **not** use **Sync Snippets** — it moves the snippet database into the folder, which doesn't belong in git
 - Docsets live in `~/Library/Application Support/Dash/DocSets`; sync only records which ones you installed from Settings → Downloads, and Dash re-downloads them on other Macs. Docset order and disabled docsets stay per-Mac
@@ -27,8 +27,8 @@ Dash's settings sync to the repo's `dash/` folder (`dash/Dash.dashsync`).
 
 ## Global shortcuts
 
-- **Settings → General:** set a global hotkey to show Dash, and one to search the selected text
-- **Settings → Integration:** plugins for third-party apps
+- **Settings → General:** three recorders, **Show Dash**, **Show Dash and focus search field** and **Search using selected text**, all unset here
+- **Settings → Integration:** plugins for third-party apps (Raycast, VS Code, JetBrains, Terminal, …), the optional **Dash API Server**, and **AI Agents Integration → Set Up MCP Server…** for agents that speak MCP
 
 ## Snippets
 
@@ -39,4 +39,4 @@ Dash's settings sync to the repo's `dash/` folder (`dash/Dash.dashsync`).
 
 - https://kapeli.com/dash_guide
 - https://kapeli.com/docsets
-- Local: Dash 8.2.0 sync settings panel (`Dash.app/Contents/Resources/DHSyncing.nib`)
+- Local: Dash 8.2.0 settings window (General, Docsets, Integration and the sync sheet)
