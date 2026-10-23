@@ -155,7 +155,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `obsidian-vault install` `obsidian-vault capture` | Install the repo's Obsidian settings/templates into the vault, or bring vault changes back (see [obsidian](../obsidian/README.md)) |
 | `install-iosevka-code` | Install VS Code's Iosevka Code font, or update it when the upstream zip changed (see [fonts](../fonts/README.md)) |
 | `install-snippetslab-skill` | Write SnippetsLab's agent skill (`lab skill show`) to `~/.agents/skills/snippetslab` and link it into `~/.claude/skills`; run by setup and `upup` |
-| `claude-desktop-account list` `claude-desktop-account switch {{name}}` | Switch the Claude Desktop app between saved claude.ai accounts without an email code, keeping every account's Claude Code sessions in the Code tab (`save`, `switch` and `add` quit and relaunch the app; `sync` needs it quit, or `--force`) |
+| `claude-desktop-account list` `claude-desktop-account switch {{name}}` | Switch the Claude Desktop app between saved claude.ai accounts without an email code, keeping every account's Claude Code sessions in the Code tab (`save`, `switch` and `add` quit and relaunch the app; `sync` needs it quit, or `--force`; `rename`, `remove`; `--help` for the full page) |
 | `vscode-settings` | Render VS Code's `settings.json` from its template with a font preset (`--choose`, `--preset warp`, `--check`); refuses to overwrite edits VS Code made (see [vscode](../vscode/README.md#fonts-and-the-settings-template)) |
 | `sync-all` | Run `obsidian-vault install`, then `install-color-themes` |
 | `upup` | Run macOS, Homebrew, mise, dotfiles and other software updates |

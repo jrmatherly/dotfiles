@@ -22,6 +22,14 @@
 #
 # `claude-desktop-account add {{name}}`
 #
+# - Rename a saved account, or remove one (it moves to the backups folder):
+#
+# `claude-desktop-account rename {{old}} {{new}}`
+#
+# - Full help, with the flags, folders and cautions:
+#
+# `claude-desktop-account --help`
+#
 # - Leave Claude quit afterwards (save, switch, add):
 #
 # `claude-desktop-account switch {{name}} --no-relaunch`
@@ -85,7 +93,46 @@ fail() {
 }
 
 usage() {
-  sed -n '/^# - /,/^# ---/p' "$0" | sed -e 's/^# \{0,1\}//' -e '/^---$/d'
+  cat << EOF
+${bold}claude-desktop-account${reset}: switch Claude Desktop between saved claude.ai accounts
+without an email code, keeping every account's Claude Code sessions in the Code tab.
+
+${bold}Usage${reset}
+  claude-desktop-account <command> [name] [--no-relaunch] [--force]
+
+${bold}Commands${reset}
+  list                 Saved accounts: name, account id, saved at, Code sessions.
+                       * marks the one Desktop is signed in as.
+  save <name>          Save the login Desktop has now under <name>.
+                       Refuses a <name> that holds a different account (--force
+                       replaces it and keeps the old one in the backups folder).
+  add <name>           Sign Desktop out locally so another account can sign in.
+                       Sign in with the email code, then run: save <name>
+  switch <name>        Quit Desktop, swap in the saved login, merge every
+                       account's Code sessions into every account's list,
+                       relaunch. Refuses to drop a login you never saved
+                       (--force overrides).
+  sync                 Only the session-list merge. Needs Desktop quit, or --force.
+  rename <old> <new>   Rename a saved account. Nothing else changes.
+  remove <name>        Move a saved account to the backups folder.
+
+${bold}Options${reset}
+  --no-relaunch        Leave Desktop quit after save, switch or add.
+  --force              See save, switch and sync above.
+  -h, --help           This page. \`help claude-desktop-account\` shows the short form.
+
+${bold}Folders${reset}
+  Profiles   $store/<name>/
+  Backups    $backups/   (last ten replaced logins, plus replaced or removed profiles)
+  Desktop    $desktop_dir
+
+${bold}Cautions${reset}
+  Never use Desktop's own Log out to change accounts; it may revoke the saved
+  token. Use add or switch. Sign in with the email code, not Google, so the
+  browser hand-back lands in the right window. Profiles are per Mac: the app
+  encrypts them with this Mac's Keychain key. Save each account once per Mac.
+  Chats, Projects and memory stay per account; only Claude Code sessions carry over.
+EOF
 }
 
 # The app writes config.json tab-indented, no final newline, mode 0600; match
@@ -292,8 +339,27 @@ require_profile() {
     || fail "No saved account named $1 (see: claude-desktop-account list)"
 }
 
+valid_name() {
+  [[ $1 =~ ^[A-Za-z0-9._-]+$ && $1 != . && $1 != .. ]] \
+    || fail "Give a name made of letters, digits, . _ - (got: $1)"
+}
+
+profile_rename() {
+  require_profile "$1"
+  [[ ! -e $store/$2 ]] || fail "$2 already exists"
+  mv "$store/$1" "$store/$2"
+  echo "Renamed $1 to $2"
+}
+
+profile_remove() {
+  require_profile "$1"
+  (umask 077 && mkdir -p "$backups")
+  mv "$store/$1" "$backups/profile-$1-$(date +%Y%m%d-%H%M%S)-$$"
+  echo "Moved $1 to $backups (Desktop's current login is untouched)"
+}
+
 main() {
-  local cmd=${1:-} name='' relaunch=1 force='' arg active
+  local cmd=${1:-} names=() name='' relaunch=1 force='' arg active
   [[ -n $cmd ]] || {
     usage
     exit 2
@@ -305,10 +371,7 @@ main() {
       --force) force=1 ;;
       -h | --help) cmd=help ;;
       -*) fail "Unknown option: $arg" ;;
-      *)
-        [[ -z $name ]] || fail "One name only (got $name and $arg)"
-        name=$arg
-        ;;
+      *) names+=("$arg") ;;
     esac
   done
   [[ -z $force || $cmd == sync || $cmd == switch || $cmd == save ]] || fail "--force applies to sync, switch and save"
@@ -318,10 +381,16 @@ main() {
       usage
       return 0
       ;;
-    list | sync) ;;
-    save | switch | add)
-      [[ $name =~ ^[A-Za-z0-9._-]+$ && $name != . && $name != .. ]] \
-        || fail "Give a name made of letters, digits, . _ -"
+    list | sync) [[ ${#names[@]} -eq 0 ]] || fail "$cmd takes no name" ;;
+    save | switch | add | remove)
+      [[ ${#names[@]} -eq 1 ]] || fail "$cmd takes exactly one name"
+      name=${names[0]}
+      valid_name "$name"
+      ;;
+    rename)
+      [[ ${#names[@]} -eq 2 ]] || fail "rename takes the old name and the new name"
+      valid_name "${names[0]}"
+      valid_name "${names[1]}"
       ;;
     *)
       usage >&2
@@ -340,6 +409,14 @@ main() {
         fail "Claude Desktop is running: quit it first, or pass --force"
       fi
       index_sync
+      return 0
+      ;;
+    rename)
+      profile_rename "${names[0]}" "${names[1]}"
+      return 0
+      ;;
+    remove)
+      profile_remove "$name"
       return 0
       ;;
     save) signed_in || fail "Claude Desktop is signed out: sign in first, then save" ;;
