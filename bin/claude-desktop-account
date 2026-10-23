@@ -116,73 +116,103 @@ fail() {
 usage() {
   cat << EOF
 ${bold}claude-desktop-account${reset}
-Switch Claude Desktop between saved claude.ai accounts without an email code,
-and keep every account's Claude Code sessions listed in the Code tab.
+Switch the Claude Desktop app between claude.ai accounts you have saved, without
+typing an email code each time. After a switch, the Code tab lists the Claude
+Code sessions of every saved account, so you can continue where you left off.
 
 ${bold}Usage${reset}
-  claude-desktop-account               (fzf picker; Enter switches, esc quits)
+  claude-desktop-account                    open a picker of saved accounts
   claude-desktop-account list
   claude-desktop-account show <name>
   claude-desktop-account save|add|switch|remove <name> [--no-relaunch] [--force]
   claude-desktop-account rename <old> <new>
   claude-desktop-account sync [--force]
+  claude-desktop-account usage [name]
+  claude-desktop-account current
 
 ${bold}First time, once per account${reset}
-  claude-desktop-account save personal     # the account Desktop is signed in as
-  claude-desktop-account add work          # Desktop relaunches at its sign-in screen
-  (sign in with the email code)
+  claude-desktop-account save personal   # the account Desktop is signed in as
+  claude-desktop-account add work        # relaunches at the sign-in screen; sign
+                                         # in with the email code, then:
   claude-desktop-account save work
 
 ${bold}Every day${reset}
-  claude-desktop-account switch personal   # no email code; both accounts' sessions listed
+  claude-desktop-account switch personal # relaunches signed in as personal, with
+                                         # both accounts' sessions in the Code tab
 
 ${bold}Commands${reset}
-  (none)               On a terminal with fzf: pick a saved account, Enter
-                       switches to it. Otherwise prints this page.
-  list                 Saved accounts; * marks the one Desktop is signed in as.
-  show <name>          One saved account: id, save time, Code sessions per org.
-  save <name>          Save the current login as <name>. Refuses a name that
-                       holds a different account; --force replaces it and keeps
-                       the old one in the backups folder.
-  add <name>           Sign Desktop out locally so another account can sign in,
-                       then save it with: save <name>
-  switch <name>        Quit Desktop, swap in the saved login, merge every
-                       account's Code sessions into every list, relaunch.
-                       Refuses to drop a login you never saved; --force drops it.
-  sync                 Only the session-list merge. Needs Desktop quit; --force
-                       runs it anyway.
-  rename <old> <new>   Rename a saved account.
-  remove <name>        Move a saved account to the backups folder.
-  usage [name]         5-hour and weekly usage per saved account, with reset
-                       times. Opt-in, see Cautions.
-  current              The signed-in saved account's name, or "not saved", or
-                       "signed out".
-  pick                 The fzf picker, same as a bare invocation on a terminal.
+  (no command)         Opens a list of your saved accounts in fzf. Enter
+                       switches to the highlighted one; esc changes nothing.
+                       Without a terminal or without fzf, prints this page.
+  list                 Prints every saved account on one line: name, the first
+                       eight characters of its account id, when it was saved,
+                       and how many Code sessions it has. A leading * marks the
+                       account Desktop is signed in as right now.
+  show <name>          Prints one saved account in detail, including its Code
+                       session count per organization. The picker shows this
+                       as its preview.
+  save <name>          Stores the login Desktop currently has under <name>, so
+                       you can switch back to it later without an email code.
+                       Desktop quits and relaunches, still signed in. If <name>
+                       already holds a different account, save stops; add
+                       --force to replace it (the old profile is kept in the
+                       backups folder).
+  add <name>           Prepares Desktop for signing in to another account: the
+                       current login is saved (if it has a name), Desktop
+                       relaunches at its sign-in screen, and you sign in with
+                       the email code. Then run: save <name>
+  switch <name>        Quits Desktop, puts the saved login for <name> in place,
+                       copies every account's Code session entries into every
+                       account's list, and relaunches Desktop signed in as
+                       <name>. The login you are leaving is re-saved first. If
+                       that login was never saved, switch stops so you do not
+                       lose it; add --force to proceed anyway.
+  sync                 Copies every saved account's Code session entries into
+                       every other account's list, without changing accounts.
+                       switch already does this; run sync by itself when a
+                       session is missing from the Code tab. Desktop must be
+                       quit, because it rewrites these files while it runs;
+                       add --force to run while it is open.
+  rename <old> <new>   Renames a saved account. Nothing else changes.
+  remove <name>        Removes a saved account by moving its folder to the
+                       backups folder. Desktop's current login is untouched.
+  usage [name]         Prints each saved account's 5-hour and weekly usage as a
+                       percentage, with the time each window resets. Give a
+                       name to see one account. Opt-in; see Cautions.
+  current              Prints the name of the saved account Desktop is signed
+                       in as, "not saved" if the current login has no name, or
+                       "signed out". For scripts and the Raycast commands.
+  pick                 Opens the fzf picker, the same as running the command
+                       with no arguments.
 
 ${bold}Options${reset}
-  --no-relaunch        Leave Desktop quit after save, switch or add.
-  --force              Override the refusal named under save, switch or sync.
-  -h, --help           This page. \`help claude-desktop-account\` is the short form.
+  --no-relaunch        Leave Desktop quit after save, switch or add, instead of
+                       relaunching it.
+  --force              save: replace a profile that holds a different account.
+                       switch: proceed even though the current login was never
+                       saved. sync: run while Desktop is open.
+  -h, --help           This page. \`help claude-desktop-account\` is the short
+                       form.
 
 ${bold}Folders${reset}
   Profiles   $store/<name>/
   Backups    $backups/
-             (last ten replaced logins, plus replaced or removed profiles)
+             (the last ten replaced logins, plus replaced or removed profiles)
   Desktop    $desktop_dir
 
 ${bold}Cautions${reset}
   - Never use Desktop's own Log out to change accounts; it may revoke the
-    saved token. Use add or switch.
+    saved token on the server. Use add or switch instead.
   - Sign in with the email code, not Google, so the browser hand-back lands
     in the right window.
   - Profiles are per Mac: the app encrypts them with this Mac's Keychain key.
-    Save each account once per Mac.
+    Save each account once on every Mac you use.
   - usage decrypts the saved tokens with this Mac's Keychain key and reads
     Anthropic's OAuth usage endpoint with them, outside the app. Third-party
     coverage says Anthropic's terms discourage that pattern. It is read-only
-    and only runs when you ask for it; the call is yours.
-  - Chats, Projects and memory stay per account. Only Claude Code sessions
-    carry over.
+    and only runs when you ask for it. Whether to use it is your decision.
+  - Chats, Projects and memory on claude.ai stay with their account. Only
+    Claude Code sessions carry over.
 EOF
 }
 
