@@ -137,6 +137,30 @@ list=$(cda list)
 check_true "list marks beta active" grep -Eq '^\* beta +bbbbbbbb  2026-01-01T00:00:00Z  4 sessions$' <<< "$list"
 check_true "list leaves alpha unmarked" grep -Eq '^  alpha +aaaaaaaa  ' <<< "$list"
 
+# show, the fzf picker (stub fzf picks the beta row) and the Raycast scripts
+check "show prints the profile and its sessions per org" "beta
+account bbbbbbbb
+saved at 2026-01-01T00:00:00Z
+org org-b: 4 sessions" "$(cda show beta)"
+check "show of an unknown name fails" 1 "$(exit_code cda show nope)"
+printf '#!/bin/sh\necho "fzf $*" > "%s/fzf-args"\ntee "%s/fzf-in" | grep "^beta "\n' "$tmp" "$tmp" > "$tmp/bin/fzf"
+chmod +x "$tmp/bin/fzf"
+out=$(cda pick)
+check "picker switches to the chosen row" "beta is already signed in" "$(head -1 <<< "$out")"
+check "picker rows put the name first and mark the active one" \
+  "beta             bbbbbbbb  2026-01-01T00:00:00Z  4 sessions  (signed in)" "$(grep '^beta' "$tmp/fzf-in")"
+check "picker previews with show" "fzf --header Enter: switch   esc: quit --preview $script show {1}" "$(cat "$tmp/fzf-args")"
+printf '#!/bin/sh\nexit 130\n' > "$tmp/bin/fzf"
+cp "$d/config.json" "$tmp/config-before"
+check "picker esc exits 0" 0 "$(exit_code cda pick)"
+check_true "picker esc changes nothing" cmp -s "$d/config.json" "$tmp/config-before"
+bare() { cda < /dev/null; }
+check "bare without a terminal prints usage and exits 2" 2 "$(exit_code bare)"
+raycast="$(cd "$(dirname "$script")/.." && pwd -P)/raycast/claude-desktop-account"
+check "current prints the active name" beta "$(cda current)"
+check "Raycast inline shows the active account" beta "$("$raycast/claude-account.sh")"
+check "Raycast switch ends with a toast line" "Switched to beta" "$("$raycast/switch-claude-account.sh" beta | tail -1)"
+
 # sync refuses while Desktop runs (pgrep finds it)
 printf '#!/bin/sh\nexit 0\n' > "$tmp/bin/pgrep"
 check "sync refuses while Desktop runs" 1 "$(exit_code cda sync)"
@@ -152,6 +176,7 @@ check "save refuses when signed out" 1 "$(exit_code cda save gamma --no-relaunch
 check "unknown command exits 2" 2 "$(exit_code cda bogus)"
 check "two names fail" 1 "$(exit_code cda switch alpha beta --no-relaunch)"
 check "list with a name fails" 1 "$(exit_code cda list alpha)"
+check "current with a name fails" 1 "$(exit_code cda current x)"
 check "--help shows the commands" 1 "$(cda --help | grep -c "^  rename <old> <new>   ")"
 check "rename moves the profile" "Renamed alpha to home" "$(cda rename alpha home)"
 check_true "renamed profile keeps its login" test -f "$p/home/config.json" -a ! -e "$p/alpha"
@@ -197,5 +222,38 @@ for i in $(seq 1 12); do mkdir -p "$p-backups/login-2020010100000$i-1"; done
 printf '{"oauth:tokenCache":"x","oauth:tokenCacheV2":"enc-Q","lastKnownAccountUuid":"qqqqqqqq-0000"}' > "$d/config.json"
 cda add eps --no-relaunch > /dev/null 2>&1
 check "login backups pruned to ten" 10 "$(find "$p-backups" -mindepth 1 -maxdepth 1 -type d -name 'login-*' | wc -l | tr -d ' ')"
+
+# usage: a fixture token cache encrypted the way the app does; security and
+# curl are stubs on PATH, so no Keychain and no network
+mkdir -p "$p/usagey" "$p/stale"
+pw='fixture pass!$'
+printf '#!/bin/sh\nprintf %%s "%s"\n' "$pw" > "$tmp/bin/security"
+printf '{"five_hour":{"utilization":42.6,"resets_at":"2026-10-23T19:45:00.123456+00:00"},"seven_day":{"utilization":18.0,"resets_at":"2026-10-27T13:00:00Z"}}' > "$tmp/usage.json"
+printf '#!/bin/sh\necho "curl $*" >> "%s/curl-args"\ncat "%s/usage.json"; printf "\\n200"\n' "$tmp" "$tmp" > "$tmp/bin/curl"
+chmod +x "$tmp/bin/security" "$tmp/bin/curl"
+key=$(openssl kdf -keylen 16 -kdfopt digest:SHA1 -kdfopt "hexpass:$(printf '%s' "$pw" | xxd -p | tr -d '\n')" -kdfopt salt:saltysalt -kdfopt iter:1003 PBKDF2 | tr -d ':')
+encrypt() { { printf 'v10'; printf '%s' "$1" | openssl enc -aes-128-cbc -K "$key" -iv 20202020202020202020202020202020; } | base64; }
+future=$(($(date +%s) + 3600))000
+past=$(($(date +%s) - 3600))000
+# bash 3.2 (the shebang) mis-parses escaped quotes nested in $(...), so build
+# each plaintext in a variable first.
+plain='{"acct:uuuuuuuu-1|c:o:a:user:profile user:inference":{"token":"tok-u","expiresAt":FUTURE},"acct:uuuuuuuu-1|c:o:a:user:other":{"token":"wrong","expiresAt":FUTURE}}'
+enc=$(encrypt "${plain//FUTURE/$future}")
+jq -n --arg v "$enc" '{"oauth:tokenCacheV2":$v}' > "$p/usagey/config.json"
+printf '{"account":"uuuuuuuu-1","savedAt":"2026-01-01T00:00:00Z"}' > "$p/usagey/meta.json"
+plain='{"acct:ssssssss-1|c:o:a:user:profile":{"token":"old","expiresAt":PAST}}'
+enc=$(encrypt "${plain//PAST/$past}")
+jq -n --arg v "$enc" '{"oauth:tokenCacheV2":$v}' > "$p/stale/config.json"
+printf '{"account":"ssssssss-1","savedAt":"2026-01-01T00:00:00Z"}' > "$p/stale/meta.json"
+expected="5h 42% (resets $(date -r 1792784700 '+%a %H:%M'))  7d 18% (resets $(date -r 1793106000 '+%a %H:%M'))"
+check "usage decrypts the saved token and reads the endpoint" "usagey           $expected" "$(cda usage usagey)"
+check_true "usage sends the token as a bearer with the beta header" grep -q 'Authorization: Bearer tok-u -H anthropic-beta: oauth-2025-04-20 https://api.anthropic.com/api/oauth/usage' "$tmp/curl-args"
+check "usage reports an expired token" "stale            token expired, sign in and re-save" "$(cda usage stale)"
+check "usage for an unknown name prints nothing" "" "$(cda usage nope)"
+check "usage lists every saved account in order" "stale            token expired, sign in and re-save
+usagey           $expected" "$(cda usage | grep -E '^(stale|usagey) ')"
+check "usage never prints a token" 0 "$(cda usage | grep -c 'tok-u')"
+printf '{"oauth:tokenCache":"x","oauth:tokenCacheV2":"enc","lastKnownAccountUuid":"uuuuuuuu-1"}' > "$d/config.json"
+check "Raycast usage command shows the active account's figures" "usagey           $expected" "$("$raycast/claude-account-usage.sh")"
 
 echo "All claude-desktop-account checks passed"

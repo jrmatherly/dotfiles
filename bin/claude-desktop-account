@@ -6,6 +6,14 @@
 #
 # `claude-desktop-account list`
 #
+# - Pick a saved account with fzf and switch to it (bare on a terminal, or `pick`):
+#
+# `claude-desktop-account`
+#
+# - Show one saved account and its Code-tab session count per org:
+#
+# `claude-desktop-account show {{name}}`
+#
 # - Save the account signed in now under a name (quits and relaunches Claude):
 #
 # `claude-desktop-account save {{name}}`
@@ -25,6 +33,14 @@
 # - Rename a saved account, or remove one (it moves to the backups folder):
 #
 # `claude-desktop-account rename {{old}} {{new}}`
+#
+# - Show each saved account's 5-hour and weekly usage (reads the saved tokens, see --help):
+#
+# `claude-desktop-account usage`
+#
+# - Print the name of the signed-in saved account (for scripts and Raycast):
+#
+# `claude-desktop-account current`
 #
 # - Full help, with the flags, folders and cautions:
 #
@@ -61,6 +77,10 @@
 # key in that Mac's login Keychain ("Claude Safe Storage"), so a profile
 # copied to another Mac won't decrypt. Save each account once per Mac.
 # macOS only (osascript, open, Application Support paths).
+#
+# Bare invocation on a terminal with fzf runs `pick`; `pick` and `current`
+# are also commands, for scripts and the self-check. The self-check stubs
+# security and curl on PATH to test `usage` without the Keychain or network.
 #
 # Follow-up: Desktop projects (spaces) in
 # local-agent-mode-sessions/<account>/<org>/spaces.json are not synced yet.
@@ -99,7 +119,9 @@ Switch Claude Desktop between saved claude.ai accounts without an email code,
 and keep every account's Claude Code sessions listed in the Code tab.
 
 ${bold}Usage${reset}
+  claude-desktop-account               (fzf picker; Enter switches, esc quits)
   claude-desktop-account list
+  claude-desktop-account show <name>
   claude-desktop-account save|add|switch|remove <name> [--no-relaunch] [--force]
   claude-desktop-account rename <old> <new>
   claude-desktop-account sync [--force]
@@ -114,7 +136,10 @@ ${bold}Every day${reset}
   claude-desktop-account switch personal   # no email code; both accounts' sessions listed
 
 ${bold}Commands${reset}
+  (none)               On a terminal with fzf: pick a saved account, Enter
+                       switches to it. Otherwise prints this page.
   list                 Saved accounts; * marks the one Desktop is signed in as.
+  show <name>          One saved account: id, save time, Code sessions per org.
   save <name>          Save the current login as <name>. Refuses a name that
                        holds a different account; --force replaces it and keeps
                        the old one in the backups folder.
@@ -127,6 +152,11 @@ ${bold}Commands${reset}
                        runs it anyway.
   rename <old> <new>   Rename a saved account.
   remove <name>        Move a saved account to the backups folder.
+  usage [name]         5-hour and weekly usage per saved account, with reset
+                       times. Opt-in, see Cautions.
+  current              The signed-in saved account's name, or "not saved", or
+                       "signed out".
+  pick                 The fzf picker, same as a bare invocation on a terminal.
 
 ${bold}Options${reset}
   --no-relaunch        Leave Desktop quit after save, switch or add.
@@ -146,6 +176,10 @@ ${bold}Cautions${reset}
     in the right window.
   - Profiles are per Mac: the app encrypts them with this Mac's Keychain key.
     Save each account once per Mac.
+  - usage decrypts the saved tokens with this Mac's Keychain key and reads
+    Anthropic's OAuth usage endpoint with them, outside the app. Third-party
+    coverage says Anthropic's terms discourage that pattern. It is read-only
+    and only runs when you ask for it; the call is yours.
   - Chats, Projects and memory stay per account. Only Claude Code sessions
     carry over.
 EOF
@@ -328,22 +362,111 @@ index_sync() {
   done
 }
 
+# The app encrypts its token cache like Chromium: PBKDF2-SHA1 of the
+# "Claude Safe Storage" login-keychain password (salt saltysalt, 1003 rounds,
+# 16 bytes) as an AES-128-CBC key, IV of 16 spaces, "v10" prefix.
+safe_storage_key() {
+  local pw
+  pw=$(security find-generic-password -w -s "Claude Safe Storage" 2> /dev/null) \
+    || fail "Could not read \"Claude Safe Storage\" from the login Keychain"
+  openssl kdf -keylen 16 -kdfopt digest:SHA1 -kdfopt "hexpass:$(printf '%s' "$pw" | xxd -p | tr -d '\n')" \
+    -kdfopt salt:saltysalt -kdfopt iter:1003 PBKDF2 | tr -d ':'
+}
+
+# Prints the account's newest unexpired profile-scoped access token from a
+# config.json, or nothing.
+access_token() {
+  local key=$1 cfg=$2 account=$3
+  jq -r '.["oauth:tokenCacheV2"] // empty' "$cfg" | base64 -d | tail -c +4 \
+    | openssl enc -d -aes-128-cbc -K "$key" -iv 20202020202020202020202020202020 2> /dev/null \
+    | jq -r --arg a "acct:$account|" --argjson now "$(date +%s)000" '
+        [to_entries[] | select(.key | startswith($a) and contains("user:profile"))
+         | select(.value.expiresAt > $now)] | max_by(.value.expiresAt) | .value.token // empty'
+}
+
+usage_jq='
+  def pct: (.utilization // 0 | floor | tostring) + "%";
+  def at: if .resets_at then " (resets " + (.resets_at | sub("(\\.[0-9]+)?(\\+00:00|Z)$"; "Z") | fromdate | strflocaltime("%a %H:%M")) + ")" else "" end;
+  "5h " + (.five_hour | pct) + (.five_hour | at) + "  7d " + (.seven_day | pct) + (.seven_day | at)'
+
+# The 5h and 7d figures for one config.json, or a short reason.
+usage_text() {
+  local key=$1 cfg=$2 account=$3 token code body msg=''
+  token=$(access_token "$key" "$cfg" "$account")
+  if [[ -z $token ]]; then
+    msg='token expired, sign in and re-save'
+  elif ! body=$(curl -sS --max-time 10 -w '\n%{http_code}' \
+    -H "Authorization: Bearer $token" -H "anthropic-beta: oauth-2025-04-20" \
+    https://api.anthropic.com/api/oauth/usage 2> /dev/null); then
+    msg=unavailable
+  else
+    code=${body##*$'\n'}
+    body=${body%$'\n'*}
+    case $code in
+      200) ;;
+      401) msg='token expired, sign in and re-save' ;;
+      429) msg='rate limited' ;;
+      *) msg="unavailable (HTTP $code)" ;;
+    esac
+  fi
+  [[ -n $msg ]] && echo "$msg" && return 0
+  jq -r "$usage_jq" <<< "$body"
+}
+
+# One line per saved account plus the live login when it is unsaved. The
+# fetches run in parallel; one key derivation serves them all.
+usage_report() {
+  local only=${1:-} key out meta dir name live i=0
+  key=$(safe_storage_key)
+  out=$(mktemp -d)
+  for meta in "$store"/*/meta.json; do
+    [[ -f $meta ]] || continue
+    dir=$(dirname "$meta")
+    name=${dir##*/}
+    [[ -z $only || $only == "$name" ]] || continue
+    i=$((i + 1))
+    printf '%-16s %s\n' "$name" "$(usage_text "$key" "$dir/config.json" "$(jq -r .account "$meta")")" > "$out/$(printf %03d "$i")" &
+  done
+  live=$(live_account)
+  if [[ -z $only && -n $live && -z $(active_profile) ]]; then
+    printf '%-16s %s\n' "(signed in)" "$(usage_text "$key" "$config" "$live")" > "$out/999" &
+  fi
+  wait
+  cat "$out"/* 2> /dev/null
+  rm -rf "$out"
+}
+
+count_sessions() {
+  [[ -d $1 ]] || {
+    echo 0
+    return 0
+  }
+  find "$1" -name 'local_*.json' -type f | wc -l | tr -d ' '
+}
+
+# The signed-in saved account's name, or "not saved", or "signed out".
+current_profile() {
+  local active
+  signed_in || {
+    echo "signed out"
+    return 0
+  }
+  active=$(active_profile)
+  echo "${active:-not saved}"
+}
+
 list_profiles() {
-  local live meta dir account count mark any=''
+  local live meta dir account mark any=''
   live=$(live_account)
   for meta in "$store"/*/meta.json; do
     [[ -f $meta ]] || continue
     any=1
     dir=$(dirname "$meta")
     account=$(jq -r .account "$meta")
-    count=0
-    if [[ -d $sessions/$account ]]; then
-      count=$(find "$sessions/$account" -name 'local_*.json' -type f | wc -l | tr -d ' ')
-    fi
     mark='  '
     [[ $account == "$live" ]] && mark='* '
     printf '%s%-16s %s  %s  %s sessions\n' "$mark" "${dir##*/}" "${account:0:8}" \
-      "$(jq -r .savedAt "$meta")" "$count"
+      "$(jq -r .savedAt "$meta")" "$(count_sessions "$sessions/$account")"
   done
   [[ -n $any ]] || echo "No saved accounts yet: run claude-desktop-account save <name> for the signed-in one, add <name> for another"
   [[ -z $live || -n $(active_profile) ]] \
@@ -367,6 +490,36 @@ profile_rename() {
   echo "Renamed $1 to $2"
 }
 
+profile_show() {
+  local account org n
+  account=$(jq -r .account "$store/$1/meta.json")
+  echo "$1"
+  echo "account ${account:0:8}"
+  echo "saved at $(jq -r .savedAt "$store/$1/meta.json")"
+  for org in "$sessions/$account"/*/; do
+    [[ -d $org ]] || continue
+    n=$(count_sessions "$org")
+    org=${org%/}
+    org=${org##*/}
+    echo "org ${org:0:8}: $n sessions"
+  done
+}
+
+# Name first so fzf's {1} is the name; the signed-in mark moves to the end.
+pick_profile() {
+  local rows choice
+  [[ -f $config ]] || fail "No $config: open Claude Desktop once first"
+  rows=$(list_profiles | sed -nE 's/^\* (.* sessions)$/\1  (signed in)/p; s/^  (.* sessions)$/\1/p')
+  [[ -n $rows ]] || {
+    list_profiles
+    return 0
+  }
+  # fzf exits 130 on esc and 1 with nothing matched: both mean no change.
+  choice=$(fzf --header 'Enter: switch   esc: quit' \
+    --preview "$(printf %q "$0") show {1}" <<< "$rows") || return 0
+  main switch "${choice%% *}"
+}
+
 profile_remove() {
   require_profile "$1"
   (umask 077 && mkdir -p "$backups")
@@ -377,8 +530,12 @@ profile_remove() {
 main() {
   local cmd=${1:-} names=() name='' relaunch=1 force='' arg active
   [[ -n $cmd ]] || {
-    usage
-    exit 2
+    if [[ -t 0 ]] && command -v fzf > /dev/null; then
+      cmd=pick
+    else
+      usage
+      exit 2
+    fi
   }
   shift
   for arg in "$@"; do
@@ -397,8 +554,9 @@ main() {
       usage
       return 0
       ;;
-    list | sync) [[ ${#names[@]} -eq 0 ]] || fail "$cmd takes no name" ;;
-    save | switch | add | remove)
+    list | sync | current | pick) [[ ${#names[@]} -eq 0 ]] || fail "$cmd takes no name" ;;
+    usage) [[ ${#names[@]} -le 1 ]] || fail "usage takes at most one name" ;;
+    save | switch | add | remove | show)
       [[ ${#names[@]} -eq 1 ]] || fail "$cmd takes exactly one name"
       name=${names[0]}
       valid_name "$name"
@@ -431,8 +589,26 @@ main() {
       profile_rename "${names[0]}" "${names[1]}"
       return 0
       ;;
+    usage)
+      usage_report "${names[0]:-}"
+      return 0
+      ;;
+    current)
+      current_profile
+      return 0
+      ;;
+    pick)
+      command -v fzf > /dev/null || fail "pick needs fzf"
+      pick_profile
+      return 0
+      ;;
     remove)
       profile_remove "$name"
+      return 0
+      ;;
+    show)
+      require_profile "$name"
+      profile_show "$name"
       return 0
       ;;
     save) signed_in || fail "Claude Desktop is signed out: sign in first, then save" ;;

@@ -43,6 +43,16 @@ Raycast handles window management here (the repo's Rectangle config is optional 
 - **Cmd+P:** filter by type (text, images, files, links, …)
 - **Cmd+.:** pin; **Cmd+E:** rename
 
+## Claude account script commands
+
+Three script commands in `raycast/claude-desktop-account/` call `bin/claude-desktop-account`:
+
+- **Claude Account** shows the signed-in saved account in Root Search (`not saved` or `signed out` otherwise), refreshed every minute
+- **Claude Account Usage** adds its 5-hour and weekly usage, refreshed every five minutes. Opt-in: it decrypts the saved token through the Keychain (see `claude-desktop-account --help`, Cautions); disable the command in Raycast if you don't want that
+- **Switch Claude Account** takes an account name, asks for confirmation, then switches Claude Desktop to it (the app quits and relaunches)
+
+Add them once: Raycast → **Settings → Extensions → + → Add Script Directory**, then pick `<repo>/raycast/claude-desktop-account`. The commands then appear in Root Search. Save each account first with `claude-desktop-account save {{name}}`.
+
 ## Sources
 
 - https://manual.raycast.com/settings
@@ -50,3 +60,4 @@ Raycast handles window management here (the repo's Rectangle config is optional 
 - https://manual.raycast.com/command-aliases-and-hotkeys
 - https://manual.raycast.com/window-management
 - https://manual.raycast.com/clipboard-history
+- https://github.com/raycast/script-commands

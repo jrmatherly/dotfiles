@@ -12,6 +12,7 @@ shell_scripts=(
   bin/lib/test-*
   .claude/hooks/*.sh
   .claude/skills/*/*.sh
+  raycast/*/*.sh
 )
 
 bash_syntax_files=(
