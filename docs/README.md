@@ -9,7 +9,7 @@
 | `help` | Show this page (`docs/README.md`) |
 | `help {{command}}` | For a script in `bin/` (e.g. `help br`), show a tldr-style page generated from the script's header comment; for any other command, show its [tldr-pages](https://tldr.sh/) entry |
 | `help gui/{{app}}` | Show keyboard shortcuts for a GUI app (see [GUI app shortcuts](#gui-app-shortcuts)) |
-| `help "macos settings"` `help "macos tips & tricks"` `help mole` | Show the other pages in `docs/` |
+| `help "macos settings"` `help "macos tips & tricks"` `help mole` `help claude-desktop-account` `help claude-config` `help claude-catalog` | Show the other pages in `docs/` |
 | `alias` | List all active aliases |
 
 ## Enhanced CLI tools
