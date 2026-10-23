@@ -113,3 +113,13 @@ Proof. A live session in the Desktop Code tab with Ponytail's band off: the band
 - Whether `$.command.run` of another plugin's namespaced command is allowed from a mod. The types document the call shape, not a cross-plugin rule; the fallback above covers a refusal.
 - The exact `rateLimits` entry shape (`window`, `percent`, `resetsAt` names are a guess; read `SessionRateLimit` in the types before coding).
 - The Ponytail band's actual per-turn wall time on this machine; `next.trace` on `turn.complete` would give it.
+
+## Built the same evening
+
+The band shipped as `jstack/patches/90-band.patch` in `~/dev/skills` (commits `2a4a54a`, `fcddc50`), installed at user scope, with Ponytail's band hidden through its own `~/.claude/.ponytail-band` flag. Three engine rules the design notes above got wrong, learned from `claude plugin validate` and a live `--plugin-dir` session on 2.1.309:
+
+- A plugin lists one hooks module. The meter lives in `hooks/meter.tsx` and `register.tsx` imports it; `hooks.json` is unchanged.
+- A plugin may hook `session.start` once without a matcher, so the meter's startup work runs from the step band's hook. Validate also refuses handing `$` to an imported arrow function; an imported function declaration is fine.
+- The engine refuses its own node (the `below` tree from `next(e)`) under a `Box` that carries `width`. The whole band was skipped on every redraw until the width moved to the metrics row alone. `claude plugin test` did not catch it; the debug log did (`a hook returned a tree that does not validate`).
+
+Live on the terminal surface, the band drew the buttons from startup, the metrics after the first turn with cost, context and both quota windows matching the status line, and the agents row through one Explore fan-out, with no engine warnings. The Desktop Code tab is unverified until a new session starts there.
