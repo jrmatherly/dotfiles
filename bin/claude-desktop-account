@@ -94,44 +94,60 @@ fail() {
 
 usage() {
   cat << EOF
-${bold}claude-desktop-account${reset}: switch Claude Desktop between saved claude.ai accounts
-without an email code, keeping every account's Claude Code sessions in the Code tab.
+${bold}claude-desktop-account${reset}
+Switch Claude Desktop between saved claude.ai accounts without an email code,
+and keep every account's Claude Code sessions listed in the Code tab.
 
 ${bold}Usage${reset}
-  claude-desktop-account <command> [name] [--no-relaunch] [--force]
+  claude-desktop-account list
+  claude-desktop-account save|add|switch|remove <name> [--no-relaunch] [--force]
+  claude-desktop-account rename <old> <new>
+  claude-desktop-account sync [--force]
+
+${bold}First time, once per account${reset}
+  claude-desktop-account save personal     # the account Desktop is signed in as
+  claude-desktop-account add work          # Desktop relaunches at its sign-in screen
+  (sign in with the email code)
+  claude-desktop-account save work
+
+${bold}Every day${reset}
+  claude-desktop-account switch personal   # no email code; both accounts' sessions listed
 
 ${bold}Commands${reset}
-  list                 Saved accounts: name, account id, saved at, Code sessions.
-                       * marks the one Desktop is signed in as.
-  save <name>          Save the login Desktop has now under <name>.
-                       Refuses a <name> that holds a different account (--force
-                       replaces it and keeps the old one in the backups folder).
-  add <name>           Sign Desktop out locally so another account can sign in.
-                       Sign in with the email code, then run: save <name>
+  list                 Saved accounts; * marks the one Desktop is signed in as.
+  save <name>          Save the current login as <name>. Refuses a name that
+                       holds a different account; --force replaces it and keeps
+                       the old one in the backups folder.
+  add <name>           Sign Desktop out locally so another account can sign in,
+                       then save it with: save <name>
   switch <name>        Quit Desktop, swap in the saved login, merge every
-                       account's Code sessions into every account's list,
-                       relaunch. Refuses to drop a login you never saved
-                       (--force overrides).
-  sync                 Only the session-list merge. Needs Desktop quit, or --force.
-  rename <old> <new>   Rename a saved account. Nothing else changes.
+                       account's Code sessions into every list, relaunch.
+                       Refuses to drop a login you never saved; --force drops it.
+  sync                 Only the session-list merge. Needs Desktop quit; --force
+                       runs it anyway.
+  rename <old> <new>   Rename a saved account.
   remove <name>        Move a saved account to the backups folder.
 
 ${bold}Options${reset}
   --no-relaunch        Leave Desktop quit after save, switch or add.
-  --force              See save, switch and sync above.
-  -h, --help           This page. \`help claude-desktop-account\` shows the short form.
+  --force              Override the refusal named under save, switch or sync.
+  -h, --help           This page. \`help claude-desktop-account\` is the short form.
 
 ${bold}Folders${reset}
   Profiles   $store/<name>/
-  Backups    $backups/   (last ten replaced logins, plus replaced or removed profiles)
+  Backups    $backups/
+             (last ten replaced logins, plus replaced or removed profiles)
   Desktop    $desktop_dir
 
 ${bold}Cautions${reset}
-  Never use Desktop's own Log out to change accounts; it may revoke the saved
-  token. Use add or switch. Sign in with the email code, not Google, so the
-  browser hand-back lands in the right window. Profiles are per Mac: the app
-  encrypts them with this Mac's Keychain key. Save each account once per Mac.
-  Chats, Projects and memory stay per account; only Claude Code sessions carry over.
+  - Never use Desktop's own Log out to change accounts; it may revoke the
+    saved token. Use add or switch.
+  - Sign in with the email code, not Google, so the browser hand-back lands
+    in the right window.
+  - Profiles are per Mac: the app encrypts them with this Mac's Keychain key.
+    Save each account once per Mac.
+  - Chats, Projects and memory stay per account. Only Claude Code sessions
+    carry over.
 EOF
 }
 
