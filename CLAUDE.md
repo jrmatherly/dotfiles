@@ -26,7 +26,7 @@ There is no build. `pnpm check` is the gate. Its tests are fixture self-checks: 
   - `zsh -n` on `tilde/.zshenv`, `tilde/.zshrc`, `zsh/*.zsh`
   - `shellcheck --severity=warning` on the same bash scripts (`.shellcheckrc` also enables `check-unassigned-uppercase`)
   - `python3 agents/catalog/test_build_catalog.py` (status/cleanup rules of the Claude Code catalog generator)
-  - `setup/tests/codex-config.sh` (`~/.codex/config.toml` is seeded as a copy, never linked) and `bin/lib/test-claude-desktop-account` (the account switcher against a fixture Desktop folder, with `pgrep`/`osascript`/`pkill`/`open` stubbed on PATH)
+  - `setup/tests/codex-config.sh` (`~/.codex/config.toml` is seeded as a copy, never linked) and `bin/lib/test-claude-desktop-account` (the account switcher against a fixture Desktop folder, with `pgrep`/`osascript`/`pkill`/`open`/`fzf`/`security`/`curl` stubbed on PATH)
   - `brew bundle list` on `setup/Brewfile` with `manual` lines stripped (parse check, skipped without `brew`)
   - `vscode/test-vscode-settings.sh` (the renderer's tests) and a Prettier check of every VS Code preset's render (skipped without `minijinja-cli`)
   - `prettier --check` over js/cjs/ts/md/json/sh, `.github/**/*.yml` and `bin/*` (not all YAML: app-written configs like `tilde/.config/gh/config.yml` aren't Prettier-clean)

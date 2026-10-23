@@ -83,8 +83,13 @@
 # are also commands, for scripts and the self-check. The self-check stubs
 # security and curl on PATH to test `usage` without the Keychain or network.
 #
+# config.json.journal is left alone: it is the app's write-ahead copy, headed
+# by the sha256 of the config.json it was taken from, and the app discards it
+# at startup when that digest no longer matches (as after a switch).
+#
 # Follow-up: Desktop projects (spaces) in
-# local-agent-mode-sessions/<account>/<org>/spaces.json are not synced yet.
+# local-agent-mode-sessions/<account>/<org>/spaces.json and the per-org
+# archived-sessions.idx (which sessions show as archived) are not synced yet.
 #
 # Based on github.com/snlperstripes/claude-account-switcher (Go, tray app).
 #
@@ -211,6 +216,8 @@ ${bold}Cautions${reset}
     Anthropic's OAuth usage endpoint with them, outside the app. Third-party
     coverage says Anthropic's terms discourage that pattern. It is read-only
     and only runs when you ask for it. Whether to use it is your decision.
+    The derived AES key is on the openssl command line for the moment of each
+    decrypt (visible in ps to this user, who can read the profiles anyway).
   - Chats, Projects and memory on claude.ai stay with their account. Only
     Claude Code sessions carry over.
 EOF
@@ -555,7 +562,11 @@ pick_profile() {
   # fzf exits 130 on esc and 1 with nothing matched: both mean no change.
   choice=$(fzf --header 'Enter: switch   esc: quit' \
     --preview "$(printf %q "$0") show {1}" <<< "$rows") || return 0
-  main switch "${choice%% *}"
+  if [[ -n $relaunch ]]; then
+    main switch "${choice%% *}"
+  else
+    main switch "${choice%% *}" --no-relaunch
+  fi
 }
 
 profile_remove() {
@@ -593,7 +604,10 @@ main() {
       return 0
       ;;
     list | sync | current | pick) [[ ${#names[@]} -eq 0 ]] || fail "$cmd takes no name" ;;
-    usage) [[ ${#names[@]} -le 1 ]] || fail "usage takes at most one name" ;;
+    usage)
+      [[ ${#names[@]} -le 1 ]] || fail "usage takes at most one name"
+      [[ ${#names[@]} -eq 0 ]] || valid_name "${names[0]}"
+      ;;
     save | switch | add | remove | show)
       [[ ${#names[@]} -eq 1 ]] || fail "$cmd takes exactly one name"
       name=${names[0]}

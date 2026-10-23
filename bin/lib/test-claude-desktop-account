@@ -8,8 +8,9 @@
 #
 # ---
 # Never touches the real Claude Desktop folder: CLAUDE_DESKTOP_DIR and
-# CLAUDE_DESKTOP_PROFILES point into a temp dir, and pgrep, osascript, pkill
-# and open are stubbed on PATH so no app is quit or launched.
+# CLAUDE_DESKTOP_PROFILES point into a temp dir, and pgrep, osascript, pkill,
+# open, fzf, security and curl are stubbed on PATH so no app is quit or
+# launched and no Keychain or network is touched.
 #
 # License: MIT
 
@@ -150,6 +151,10 @@ check "picker switches to the chosen row" "beta is already signed in" "$(head -1
 check "picker rows put the name first and mark the active one" \
   "beta             bbbbbbbb  2026-01-01T00:00:00Z  4 sessions  (signed in)" "$(grep '^beta' "$tmp/fzf-in")"
 check "picker previews with show" "fzf --header Enter: switch   esc: quit --preview $script show {1}" "$(cat "$tmp/fzf-args")"
+check "picker relaunches by default" "open -a Claude" "$(cat "$tmp/calls")"
+rm -f "$tmp/calls"
+cda pick --no-relaunch > /dev/null
+check_true "picker forwards --no-relaunch" test ! -e "$tmp/calls"
 printf '#!/bin/sh\nexit 130\n' > "$tmp/bin/fzf"
 cp "$d/config.json" "$tmp/config-before"
 check "picker esc exits 0" 0 "$(exit_code cda pick)"
@@ -256,6 +261,13 @@ check_true "usage passes the bearer token on stdin, not argv" grep -qx 'header =
 check "usage never puts the token on a command line" 0 "$(grep -c 'curl .*tok-u' "$tmp/curl-args")"
 check "usage reports an expired token" "stale            token expired, sign in and re-save" "$(cda usage stale)"
 check "usage for an unknown name fails loudly" 1 "$(exit_code cda usage nope)"
+cp -R "$p/usagey" "$tmp/outside"
+check_true "usage rejects a path as a name" grep -q 'Give a name' <<< "$(cda usage ../outside 2>&1)"
+printf '#!/bin/sh\ncat > /dev/null; printf "{}\\n401"\n' > "$tmp/bin/curl"
+check "usage reports a rejected token" "usagey           token expired, sign in and re-save" "$(cda usage usagey)"
+printf '#!/bin/sh\ncat > /dev/null; printf "{}\\n429"\n' > "$tmp/bin/curl"
+check "usage reports rate limiting" "usagey           rate limited" "$(cda usage usagey)"
+printf '#!/bin/sh\n{ echo "curl $*"; cat; } >> "%s/curl-args"\ncat "%s/usage.json"; printf "\\n200"\n' "$tmp" "$tmp" > "$tmp/bin/curl"
 printf '{"oauth:tokenCacheV2":"djEwbm90IHJlYWxseSBlbmNyeXB0ZWQgYnl0ZXM="}' > "$p/stale/config.json"
 check "usage says when a cache will not decrypt" "stale            cannot decrypt (the profile was saved on another Mac, or the app changed its key)" "$(cda usage stale)"
 enc=$(encrypt "${plain//PAST/$past}")
