@@ -39,4 +39,4 @@ Dash's settings sync to the repo's `dash/` folder (`dash/Dash.dashsync`).
 
 - https://kapeli.com/dash_guide
 - https://kapeli.com/docsets
-- Local: Dash 8.1.1 sync settings panel (`Dash.app/Contents/Resources/DHSyncing.nib`)
+- Local: Dash 8.2.0 sync settings panel (`Dash.app/Contents/Resources/DHSyncing.nib`)

@@ -1,6 +1,6 @@
 # Squirrelsong Color Theme
 
-This setup uses the [Squirrelsong](https://sapegin.me/squirrelsong/) theme where one exists. Terminal tools use the **Dark Deep Purple** variant. Visual Studio Code is the exception: it uses the SpaceBox theme (`workbench.colorTheme` in [vscode/User/settings.json](../vscode/User/settings.json)).
+This setup uses the [Squirrelsong](https://sapegin.me/squirrelsong/) theme where one exists. Terminal tools use the **Dark Deep Purple** variant. Visual Studio Code is the exception: it uses the SpaceBox theme (`workbench.colorTheme` in [vscode/User/settings.json.j2](../vscode/User/settings.json.j2), the template `bin/vscode-settings` renders).
 
 ## Files in this folder
 

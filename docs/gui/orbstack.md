@@ -45,4 +45,4 @@
 - https://docs.orbstack.dev/docker/domains
 - https://docs.orbstack.dev/machines/
 - https://docs.orbstack.dev/machines/ssh
-- Installed OrbStack 2.2.3: `orb --help`, `orbctl --help`, `~/.orbstack/shell/init.zsh`, `~/.orbstack/ssh/config`
+- Installed OrbStack 2.2.4: `orb --help`, `orbctl --help`, `~/.orbstack/shell/init.zsh`, `~/.orbstack/ssh/config`
