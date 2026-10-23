@@ -46,7 +46,7 @@ node = ["24", "22", "26"]
 "npm:typescript-language-server" = "6"
 "npm:pyright" = "1" # `pyright-langserver`; Terax's Ruff preset uses the Brewfile's `ruff server`
 "npm:intelephense" = "1"
-"npm:yaml-language-server" = "1"
+"npm:yaml-language-server" = "2"
 "npm:bash-language-server" = "5"
 "npm:vscode-langservers-extracted" = "4" # `vscode-json-language-server`, `vscode-css-language-server`, `vscode-html-language-server`
 # svelte-language-server needs svelte ^4.2.19; 4.2.20 is a 2025 backport
