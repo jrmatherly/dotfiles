@@ -76,7 +76,8 @@
 # machine. Profiles are per Mac, though: the app encrypts the login with a
 # key in that Mac's login Keychain ("Claude Safe Storage"), so a profile
 # copied to another Mac won't decrypt. Save each account once per Mac.
-# macOS only (osascript, open, Application Support paths).
+# macOS only (osascript, open, security, Application Support paths); needs jq,
+# fzf for the picker, curl and the system python3 and openssl for usage.
 #
 # Bare invocation on a terminal with fzf runs `pick`; `pick` and `current`
 # are also commands, for scripts and the self-check. The self-check stubs
@@ -365,28 +366,32 @@ index_sync() {
 # The app encrypts its token cache like Chromium: PBKDF2-SHA1 of the
 # "Claude Safe Storage" login-keychain password (salt saltysalt, 1003 rounds,
 # 16 bytes) as an AES-128-CBC key, IV of 16 spaces, "v10" prefix.
+# The password goes to python3 on stdin, never on a command line. System
+# python3 has PBKDF2; macOS's LibreSSL `openssl` lacks `kdf` but has `enc`.
 safe_storage_key() {
-  local pw
-  pw=$(security find-generic-password -w -s "Claude Safe Storage" 2> /dev/null) \
+  security find-generic-password -w -s "Claude Safe Storage" 2> /dev/null \
+    | /usr/bin/python3 -c 'import hashlib, sys; print(hashlib.pbkdf2_hmac("sha1", sys.stdin.buffer.read().rstrip(b"\n"), b"saltysalt", 1003, 16).hex())' \
     || fail "Could not read \"Claude Safe Storage\" from the login Keychain"
-  openssl kdf -keylen 16 -kdfopt digest:SHA1 -kdfopt "hexpass:$(printf '%s' "$pw" | xxd -p | tr -d '\n')" \
-    -kdfopt salt:saltysalt -kdfopt iter:1003 PBKDF2 | tr -d ':'
 }
 
 # Prints the account's newest unexpired profile-scoped access token from a
-# config.json, or nothing.
+# config.json; "cannot decrypt" when the cache does not open with this key.
 access_token() {
-  local key=$1 cfg=$2 account=$3
-  jq -r '.["oauth:tokenCacheV2"] // empty' "$cfg" | base64 -d | tail -c +4 \
-    | openssl enc -d -aes-128-cbc -K "$key" -iv 20202020202020202020202020202020 2> /dev/null \
-    | jq -r --arg a "acct:$account|" --argjson now "$(date +%s)000" '
-        [to_entries[] | select(.key | startswith($a) and contains("user:profile"))
-         | select(.value.expiresAt > $now)] | max_by(.value.expiresAt) | .value.token // empty'
+  local key=$1 cfg=$2 account=$3 plain
+  plain=$(jq -r '.["oauth:tokenCacheV2"] // empty' "$cfg" | base64 -d | tail -c +4 \
+    | openssl enc -d -aes-128-cbc -K "$key" -iv 20202020202020202020202020202020 2> /dev/null) \
+    || {
+      echo "cannot decrypt"
+      return 0
+    }
+  jq -r --arg a "acct:$account|" --argjson now "$(date +%s)000" '
+      [to_entries[] | select(.key | startswith($a) and contains("user:profile"))
+       | select(.value.expiresAt > $now)] | max_by(.value.expiresAt) | .value.token // empty' <<< "$plain"
 }
 
 usage_jq='
   def pct: (.utilization // 0 | floor | tostring) + "%";
-  def at: if .resets_at then " (resets " + (.resets_at | sub("(\\.[0-9]+)?(\\+00:00|Z)$"; "Z") | fromdate | strflocaltime("%a %H:%M")) + ")" else "" end;
+  def at: if .resets_at then " (resets " + (.resets_at | try (sub("(\\.[0-9]+)?(\\+00:00|Z)$"; "Z") | fromdate | strflocaltime("%a %H:%M")) catch .) + ")" else "" end;
   "5h " + (.five_hour | pct) + (.five_hour | at) + "  7d " + (.seven_day | pct) + (.seven_day | at)'
 
 # The 5h and 7d figures for one config.json, or a short reason.
@@ -395,9 +400,12 @@ usage_text() {
   token=$(access_token "$key" "$cfg" "$account")
   if [[ -z $token ]]; then
     msg='token expired, sign in and re-save'
-  elif ! body=$(curl -sS --max-time 10 -w '\n%{http_code}' \
-    -H "Authorization: Bearer $token" -H "anthropic-beta: oauth-2025-04-20" \
-    https://api.anthropic.com/api/oauth/usage 2> /dev/null); then
+  elif [[ $token == "cannot decrypt" ]]; then
+    msg='cannot decrypt (the profile was saved on another Mac, or the app changed its key)'
+  # The bearer header goes in on stdin so the token never sits in argv.
+  elif ! body=$(printf 'header = "Authorization: Bearer %s"\n' "$token" \
+    | curl -sS --max-time 10 -K - -w '\n%{http_code}' \
+      -H "anthropic-beta: oauth-2025-04-20" https://api.anthropic.com/api/oauth/usage 2> /dev/null); then
     msg=unavailable
   else
     code=${body##*$'\n'}
@@ -410,13 +418,14 @@ usage_text() {
     esac
   fi
   [[ -n $msg ]] && echo "$msg" && return 0
-  jq -r "$usage_jq" <<< "$body"
+  jq -r "$usage_jq" <<< "$body" 2> /dev/null || echo "unreadable response"
 }
 
 # One line per saved account plus the live login when it is unsaved. The
 # fetches run in parallel; one key derivation serves them all.
 usage_report() {
   local only=${1:-} key out meta dir name live i=0
+  [[ -z $only ]] || require_profile "$only"
   key=$(safe_storage_key)
   out=$(mktemp -d)
   for meta in "$store"/*/meta.json; do
@@ -432,7 +441,7 @@ usage_report() {
     printf '%-16s %s\n' "(signed in)" "$(usage_text "$key" "$config" "$live")" > "$out/999" &
   fi
   wait
-  cat "$out"/* 2> /dev/null
+  cat "$out"/* 2> /dev/null || true
   rm -rf "$out"
 }
 
@@ -508,7 +517,6 @@ profile_show() {
 # Name first so fzf's {1} is the name; the signed-in mark moves to the end.
 pick_profile() {
   local rows choice
-  [[ -f $config ]] || fail "No $config: open Claude Desktop once first"
   rows=$(list_profiles | sed -nE 's/^\* (.* sessions)$/\1  (signed in)/p; s/^  (.* sessions)$/\1/p')
   [[ -n $rows ]] || {
     list_profiles
@@ -537,7 +545,7 @@ main() {
       exit 2
     fi
   }
-  shift
+  [[ $# -eq 0 ]] || shift
   for arg in "$@"; do
     case $arg in
       --no-relaunch) relaunch= ;;

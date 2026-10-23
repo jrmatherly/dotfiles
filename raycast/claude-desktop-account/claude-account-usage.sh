@@ -2,8 +2,9 @@
 #
 # Raycast inline command: the signed-in saved account with its 5-hour and
 # weekly usage. Opt-in: it reads the saved token through the Keychain, see
-# `claude-desktop-account --help`, Cautions. Add it in Raycast only if you
-# want that.
+# `claude-desktop-account --help`, Cautions. The first run shows a macOS
+# Keychain dialog for "Claude Safe Storage"; click Always Allow once, or the
+# dialog returns on every refresh. Add it in Raycast only if you want that.
 #
 # @raycast.schemaVersion 1
 # @raycast.title Claude Account Usage

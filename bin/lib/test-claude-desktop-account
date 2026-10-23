@@ -156,6 +156,9 @@ check "picker esc exits 0" 0 "$(exit_code cda pick)"
 check_true "picker esc changes nothing" cmp -s "$d/config.json" "$tmp/config-before"
 bare() { cda < /dev/null; }
 check "bare without a terminal prints usage and exits 2" 2 "$(exit_code bare)"
+# bare on a real terminal runs the picker: `script` lends one
+printf '#!/bin/sh\ngrep "^beta "\n' > "$tmp/bin/fzf"
+check "bare on a terminal switches through the picker" "beta is already signed in" "$(script -q /dev/null "$script" < /dev/null 2>&1 | grep -o 'beta is already signed in')"
 raycast="$(cd "$(dirname "$script")/.." && pwd -P)/raycast/claude-desktop-account"
 check "current prints the active name" beta "$(cda current)"
 check "Raycast inline shows the active account" beta "$("$raycast/claude-account.sh")"
@@ -229,9 +232,9 @@ mkdir -p "$p/usagey" "$p/stale"
 pw='fixture pass!$'
 printf '#!/bin/sh\nprintf %%s "%s"\n' "$pw" > "$tmp/bin/security"
 printf '{"five_hour":{"utilization":42.6,"resets_at":"2026-10-23T19:45:00.123456+00:00"},"seven_day":{"utilization":18.0,"resets_at":"2026-10-27T13:00:00Z"}}' > "$tmp/usage.json"
-printf '#!/bin/sh\necho "curl $*" >> "%s/curl-args"\ncat "%s/usage.json"; printf "\\n200"\n' "$tmp" "$tmp" > "$tmp/bin/curl"
+printf '#!/bin/sh\n{ echo "curl $*"; cat; } >> "%s/curl-args"\ncat "%s/usage.json"; printf "\\n200"\n' "$tmp" "$tmp" > "$tmp/bin/curl"
 chmod +x "$tmp/bin/security" "$tmp/bin/curl"
-key=$(openssl kdf -keylen 16 -kdfopt digest:SHA1 -kdfopt "hexpass:$(printf '%s' "$pw" | xxd -p | tr -d '\n')" -kdfopt salt:saltysalt -kdfopt iter:1003 PBKDF2 | tr -d ':')
+key=$(printf '%s' "$pw" | /usr/bin/python3 -c 'import hashlib, sys; print(hashlib.pbkdf2_hmac("sha1", sys.stdin.buffer.read(), b"saltysalt", 1003, 16).hex())')
 encrypt() { { printf 'v10'; printf '%s' "$1" | openssl enc -aes-128-cbc -K "$key" -iv 20202020202020202020202020202020; } | base64; }
 future=$(($(date +%s) + 3600))000
 past=$(($(date +%s) - 3600))000
@@ -247,9 +250,16 @@ jq -n --arg v "$enc" '{"oauth:tokenCacheV2":$v}' > "$p/stale/config.json"
 printf '{"account":"ssssssss-1","savedAt":"2026-01-01T00:00:00Z"}' > "$p/stale/meta.json"
 expected="5h 42% (resets $(date -r 1792784700 '+%a %H:%M'))  7d 18% (resets $(date -r 1793106000 '+%a %H:%M'))"
 check "usage decrypts the saved token and reads the endpoint" "usagey           $expected" "$(cda usage usagey)"
-check_true "usage sends the token as a bearer with the beta header" grep -q 'Authorization: Bearer tok-u -H anthropic-beta: oauth-2025-04-20 https://api.anthropic.com/api/oauth/usage' "$tmp/curl-args"
+check_true "usage reads its config from stdin" grep -q -- ' -K - ' "$tmp/curl-args"
+check_true "usage sends the beta header and the endpoint" grep -q 'anthropic-beta: oauth-2025-04-20 https://api.anthropic.com/api/oauth/usage' "$tmp/curl-args"
+check_true "usage passes the bearer token on stdin, not argv" grep -qx 'header = "Authorization: Bearer tok-u"' "$tmp/curl-args"
+check "usage never puts the token on a command line" 0 "$(grep -c 'curl .*tok-u' "$tmp/curl-args")"
 check "usage reports an expired token" "stale            token expired, sign in and re-save" "$(cda usage stale)"
-check "usage for an unknown name prints nothing" "" "$(cda usage nope)"
+check "usage for an unknown name fails loudly" 1 "$(exit_code cda usage nope)"
+printf '{"oauth:tokenCacheV2":"djEwbm90IHJlYWxseSBlbmNyeXB0ZWQgYnl0ZXM="}' > "$p/stale/config.json"
+check "usage says when a cache will not decrypt" "stale            cannot decrypt (the profile was saved on another Mac, or the app changed its key)" "$(cda usage stale)"
+enc=$(encrypt "${plain//PAST/$past}")
+jq -n --arg v "$enc" '{"oauth:tokenCacheV2":$v}' > "$p/stale/config.json"
 check "usage lists every saved account in order" "stale            token expired, sign in and re-save
 usagey           $expected" "$(cda usage | grep -E '^(stale|usagey) ')"
 check "usage never prints a token" 0 "$(cda usage | grep -c 'tok-u')"
