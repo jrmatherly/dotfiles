@@ -4,7 +4,7 @@
 
 ## Purpose
 
-User CLI scripts, all on `PATH`. `zsh/path.zsh` prepends both `$DOTFILES/bin` and `$DOTFILES/bin/lib`. Each script is standalone and doubles as its own documentation through `help <script>`.
+User CLI scripts, all on `PATH`. `zsh/path.zsh` prepends both `$DOTFILES/bin` and `$DOTFILES/bin/lib`. Each top-level `bin/` script is standalone and doubles as its own documentation through `help <script>` (`get-tldr-md` reads `docs/` and `bin/` only, so `bin/lib/` headers aren't rendered).
 
 <!-- END AUTO-MANAGED -->
 
