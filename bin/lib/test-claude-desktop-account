@@ -110,8 +110,9 @@ check "switch keeps config.json private" 600 "$(stat -f %Lp "$d/config.json")"
 check "switch re-saves the outgoing profile" enc-A2-new "$(jq -r '.["oauth:tokenCacheV2"]' "$p/alpha/config.json")"
 check "switch restores Cookies" cookie-B "$(cat "$d/Cookies")"
 check_true "switch removes a Cookies-journal the profile lacks" test ! -e "$d/Cookies-journal"
-check "switch writes one backup beside the store" 1 "$(find "$p-backups" -type f | wc -l | tr -d ' ')"
-check "backup is the previous config" "$before" "$(cat "$p"-backups/*)"
+check "switch writes one backup folder beside the store" 1 "$(find "$p-backups" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+check "backup is the previous config" "$before" "$(cat "$p"-backups/*/config.json)"
+check "backup holds the previous cookies" cookie-A "$(cat "$p"-backups/*/Cookies)"
 check_true "--no-relaunch does not launch" test ! -e "$tmp/calls"
 
 # sync (run by switch)
@@ -127,6 +128,9 @@ check "sync falls back to mtime" '{}' "$(cat "$s/bbbbbbbb-2222/org-b/local_s5.js
 check "sync is idempotent" "aaaaaaaa-1111/org-a: 0 written
 bbbbbbbb-2222/org-b: 0 written" "$(cda sync)"
 check "switch to the signed-in account only syncs" "beta is already signed in" "$(cda switch beta --no-relaunch | head -1)"
+rm "$d/Cookies"
+cda switch beta --no-relaunch > /dev/null
+check "same-name switch repairs missing cookies" cookie-B "$(cat "$d/Cookies")"
 
 # list marks the active profile
 list=$(cda list)
@@ -154,5 +158,34 @@ check "switch refuses to drop an unsaved login" 1 "$(exit_code cda switch alpha 
 check "switch --force drops it anyway" 0 "$(exit_code cda switch alpha --no-relaunch --force)"
 check "forced switch restored alpha" aaaaaaaa-1111 "$(jq -r .lastKnownAccountUuid "$d/config.json")"
 check "no backups folder inside the profile store" "" "$(ls -d "$p/backups" 2> /dev/null || true)"
+
+# save refuses to overwrite a profile that holds another account
+printf '{"oauth:tokenCacheV2":"enc-Z","lastKnownAccountUuid":"zzzzzzzz-9999"}' > "$d/config.json"
+check "save over another account's profile fails" 1 "$(exit_code cda save beta --no-relaunch)"
+check "the refused save left beta untouched" bbbbbbbb-2222 "$(jq -r .account "$p/beta/meta.json")"
+check "save --force replaces it" 0 "$(exit_code cda save beta --no-relaunch --force)"
+check "forced save moved the old profile to backups" 1 "$(find "$p-backups" -maxdepth 1 -name 'profile-beta-*' | wc -l | tr -d ' ')"
+check "forced save holds the new account" zzzzzzzz-9999 "$(jq -r .account "$p/beta/meta.json")"
+
+# an error after the quit still relaunches when relaunch is on
+rm -f "$tmp/calls"
+check "switch to a missing profile fails" 1 "$(exit_code cda switch nope)"
+check_true "a failure before the quit does not launch" test ! -e "$tmp/calls"
+printf '{"theme":"dark"}' > "$d/config.json"
+check "save when signed out fails before quitting" 1 "$(exit_code cda save delta)"
+check_true "and does not launch" test ! -e "$tmp/calls"
+
+# empty pointer set does not crash under bash 3.2
+rm -f "$s"/*/*/local_*.json
+check "sync with no pointers says so" "No Code tab sessions to sync" "$(cda sync)"
+
+# list with nothing saved
+check "list with no profiles explains" "No saved accounts yet: run claude-desktop-account save <name> for the signed-in one, add <name> for another" "$(CLAUDE_DESKTOP_PROFILES="$tmp/empty" cda list)"
+
+# backups prune to the newest ten
+for i in $(seq 1 12); do mkdir -p "$p-backups/login-2020010100000$i-1"; done
+printf '{"oauth:tokenCache":"x","oauth:tokenCacheV2":"enc-Q","lastKnownAccountUuid":"qqqqqqqq-0000"}' > "$d/config.json"
+cda add eps --no-relaunch > /dev/null 2>&1
+check "login backups pruned to ten" 10 "$(find "$p-backups" -mindepth 1 -maxdepth 1 -type d -name 'login-*' | wc -l | tr -d ' ')"
 
 echo "All claude-desktop-account checks passed"
