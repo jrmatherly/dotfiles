@@ -1,0 +1,353 @@
+#!/bin/bash
+#
+# Switch the Claude Desktop app between saved claude.ai accounts, without an email code.
+#
+# - List saved accounts; `*` marks the one signed in now:
+#
+# `claude-desktop-account list`
+#
+# - Save the account signed in now under a name (quits and relaunches Claude):
+#
+# `claude-desktop-account save {{name}}`
+#
+# - Switch to a saved account and sync the Code tab's session list:
+#
+# `claude-desktop-account switch {{name}}`
+#
+# - Make every account's Claude Code sessions show in every account's Code tab:
+#
+# `claude-desktop-account sync`
+#
+# - Sign out locally so a new account can sign in, then save it under that name:
+#
+# `claude-desktop-account add {{name}}`
+#
+# - Leave Claude quit afterwards (save, switch, add):
+#
+# `claude-desktop-account switch {{name}} --no-relaunch`
+#
+# - Sync while Claude runs, or switch away from a login that was never saved:
+#
+# `claude-desktop-account sync --force`
+#
+# ---
+# Mechanism: a Desktop login is three keys of config.json (oauth:tokenCache,
+# oauth:tokenCacheV2, lastKnownAccountUuid) plus the Cookies and
+# Cookies-journal files (in Network/ when that folder exists). The app
+# encrypts them with its own Keychain key; they are copied as opaque bytes.
+# The Code tab lists one claude-code-sessions/<account>/<org>/local_<id>.json
+# pointer per session, with no account field, while transcripts live in the
+# shared ~/.claude/projects, so copying a pointer shows the session to another
+# account. A deleted_<id> file marks a session the user deleted; sync never
+# copies it back and never deletes anything.
+#
+# Profiles: ${CLAUDE_DESKTOP_PROFILES:-~/.config/dotfiles/claude-desktop-accounts}/<name>/
+# (config.json, Cookies, Cookies-journal, meta.json). The sibling
+# <profiles>-backups/ folder keeps the config.json each switch or add
+# replaced. Desktop folder: ${CLAUDE_DESKTOP_DIR:-~/Library/Application Support/Claude}.
+#
+# Any number of accounts, any Mac: nothing here names an account or a
+# machine. Profiles are per Mac, though: the app encrypts the login with a
+# key in that Mac's login Keychain ("Claude Safe Storage"), so a profile
+# copied to another Mac won't decrypt. Save each account once per Mac.
+# macOS only (osascript, open, Application Support paths).
+#
+# Follow-up: Desktop projects (spaces) in
+# local-agent-mode-sessions/<account>/<org>/spaces.json are not synced yet.
+#
+# Based on github.com/snlperstripes/claude-account-switcher (Go, tray app).
+#
+# License: MIT
+
+set -euo pipefail
+
+desktop_dir="${CLAUDE_DESKTOP_DIR:-$HOME/Library/Application Support/Claude}"
+store="${CLAUDE_DESKTOP_PROFILES:-$HOME/.config/dotfiles/claude-desktop-accounts}"
+backups="${store%/}-backups"
+config="$desktop_dir/config.json"
+sessions="$desktop_dir/claude-code-sessions"
+cookies=$desktop_dir
+[[ -d $desktop_dir/Network ]] && cookies=$desktop_dir/Network
+auth_keys='["oauth:tokenCache","oauth:tokenCacheV2","lastKnownAccountUuid"]'
+
+bold=$(tput bold 2> /dev/null || true)
+yellow=$(tput setaf 3 2> /dev/null || true)
+red=$(tput setaf 1 2> /dev/null || true)
+reset=$(tput sgr0 2> /dev/null || true)
+
+info() { echo "${bold}$*${reset}"; }
+warning() { echo "${yellow}$*${reset}" >&2; }
+fail() {
+  echo "${red}$*${reset}" >&2
+  exit 1
+}
+
+usage() {
+  sed -n '/^# - /,/^# ---/p' "$0" | sed -e 's/^# \{0,1\}//' -e '/^---$/d'
+}
+
+# The app writes config.json tab-indented, no final newline, mode 0600; match
+# it so only the touched keys change and the token file stays private.
+jq_write() {
+  local dest=$1 out
+  shift
+  out=$(jq --tab "$@")
+  (umask 077 && printf '%s' "$out" > "$dest.tmp")
+  mv "$dest.tmp" "$dest"
+}
+
+desktop_running() { pgrep -xq Claude; }
+
+wait_gone() {
+  local i
+  for ((i = 0; i < $1 * 2; i++)); do
+    desktop_running || return 0
+    sleep 0.5
+  done
+  ! desktop_running
+}
+
+# The cookie database is locked and config.json rewritten while the app runs.
+desktop_quit() {
+  desktop_running || return 0
+  info "Quitting Claude"
+  osascript -e 'tell application "Claude" to quit' > /dev/null || true
+  wait_gone 8 && return 0
+  pkill -x Claude || true
+  wait_gone 10 || fail "Claude did not quit; quit it by hand and retry"
+}
+
+desktop_launch() {
+  info "Launching Claude"
+  open -a Claude
+}
+
+signed_in() { jq -e 'has("oauth:tokenCacheV2")' "$config" > /dev/null; }
+
+live_account() {
+  signed_in || return 0
+  jq -r '.lastKnownAccountUuid // empty' "$config"
+}
+
+# The saved profile whose account is signed in now, if any.
+active_profile() {
+  local live meta
+  live=$(live_account)
+  [[ -n $live ]] || return 0
+  for meta in "$store"/*/meta.json; do
+    [[ -f $meta ]] || continue
+    if [[ $(jq -r .account "$meta") == "$live" ]]; then
+      basename "$(dirname "$meta")"
+      return 0
+    fi
+  done
+}
+
+# Copy the cookie files from one folder to another, removing a destination
+# whose source is absent, so a profile restores exactly what it saved.
+copy_cookies() {
+  local f
+  for f in Cookies Cookies-journal; do
+    if [[ -f $1/$f ]]; then cp -p "$1/$f" "$2/$f"; else rm -f "$2/$f"; fi
+  done
+}
+
+backup_config() {
+  local dest
+  (umask 077 && mkdir -p "$backups")
+  dest="$backups/config-$(date +%Y%m%d-%H%M%S)-$$.json"
+  cp -p "$config" "$dest"
+  echo "Backed up config.json to $dest"
+}
+
+profile_save() {
+  local name=$1 dir="$store/$1"
+  signed_in || fail "Claude Desktop is signed out: sign in first, then save"
+  (umask 077 && mkdir -p "$dir")
+  jq_write "$dir/config.json" --argjson k "$auth_keys" \
+    'with_entries(select(.key as $x | $k | index($x)))' "$config"
+  copy_cookies "$cookies" "$dir"
+  jq_write "$dir/meta.json" -n --arg a "$(live_account)" \
+    --arg t "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{account: $a, savedAt: $t}'
+  echo "Saved the signed-in account as $name"
+}
+
+profile_restore() {
+  local name=$1 dir="$store/$1"
+  backup_config
+  jq_write "$config" --slurpfile p "$dir/config.json" --argjson k "$auth_keys" \
+    'reduce $k[] as $x (.; if $p[0] | has($x) then .[$x] = $p[0][$x] else del(.[$x]) end)' \
+    "$config"
+  copy_cookies "$dir" "$cookies"
+  echo "Restored $name"
+}
+
+# True when src has later activity than dst: lastActivityAt from the JSON, or
+# the file mtime when either lacks it or isn't valid JSON.
+is_newer() {
+  local src=$1 dst=$2 cmp
+  [[ -e $dst ]] || return 0
+  cmp=$(jq -rn --slurpfile a "$src" --slurpfile b "$dst" \
+    '$a[0].lastActivityAt as $x | $b[0].lastActivityAt as $y
+     | if $x == null or $y == null then "mtime" elif $x > $y then "yes" else "no" end' \
+    2> /dev/null) || cmp=mtime
+  case $cmp in
+    yes) return 0 ;;
+    mtime) [[ $src -nt $dst ]] ;;
+    *) return 1 ;;
+  esac
+}
+
+index_sync() {
+  local dirs=() srcs=() target src name id tombstones=" " f count
+  for f in "$sessions"/*/*/; do
+    [[ -d $f ]] && dirs+=("${f%/}")
+  done
+  [[ ${#dirs[@]} -gt 0 ]] || {
+    echo "No Code tab session lists found"
+    return 0
+  }
+  for f in "$sessions"/*/*/deleted_*; do
+    [[ -e $f ]] || continue
+    id=${f##*/deleted_}
+    tombstones+="${id%.json} "
+  done
+  for f in "$sessions"/*/*/local_*.json; do
+    [[ -f $f ]] && srcs+=("$f")
+  done
+  for target in "${dirs[@]}"; do
+    count=0
+    for src in "${srcs[@]}"; do
+      [[ ${src%/*} != "$target" ]] || continue
+      name=${src##*/}
+      id=${name#local_}
+      [[ $tombstones == *" ${id%.json} "* ]] && continue
+      # cp -p keeps the mtime, so an equal mtime plus equal bytes means already
+      # synced; cmp is far cheaper than the jq run per pair below.
+      if [[ -e $target/$name && ! $src -nt $target/$name && ! $target/$name -nt $src ]] \
+        && cmp -s "$src" "$target/$name"; then
+        continue
+      fi
+      if is_newer "$src" "$target/$name"; then
+        cp -p "$src" "$target/$name"
+        count=$((count + 1))
+      fi
+    done
+    echo "${target#"$sessions"/}: $count written"
+  done
+}
+
+list_profiles() {
+  local live meta dir account count mark
+  live=$(live_account)
+  for meta in "$store"/*/meta.json; do
+    [[ -f $meta ]] || continue
+    dir=$(dirname "$meta")
+    account=$(jq -r .account "$meta")
+    count=0
+    if [[ -d $sessions/$account ]]; then
+      count=$(find "$sessions/$account" -name 'local_*.json' -type f | wc -l | tr -d ' ')
+    fi
+    mark='  '
+    [[ $account == "$live" ]] && mark='* '
+    printf '%s%-16s %s  %s  %s sessions\n' "$mark" "${dir##*/}" "${account:0:8}" \
+      "$(jq -r .savedAt "$meta")" "$count"
+  done
+  [[ -z $live || -n $(active_profile) ]] \
+    || echo "Signed in now: ${live:0:8} (not saved; run: claude-desktop-account save <name>)"
+}
+
+require_profile() {
+  [[ -f $store/$1/meta.json && -f $store/$1/config.json ]] \
+    || fail "No saved account named $1 (see: claude-desktop-account list)"
+}
+
+main() {
+  local cmd=${1:-} name='' relaunch=1 force='' arg active
+  [[ -n $cmd ]] || {
+    usage
+    exit 2
+  }
+  shift
+  for arg in "$@"; do
+    case $arg in
+      --no-relaunch) relaunch= ;;
+      --force) force=1 ;;
+      -h | --help) cmd=help ;;
+      -*) fail "Unknown option: $arg" ;;
+      *)
+        [[ -z $name ]] || fail "One name only (got $name and $arg)"
+        name=$arg
+        ;;
+    esac
+  done
+  [[ -z $force || $cmd == sync || $cmd == switch ]] || fail "--force applies to sync and switch"
+
+  case $cmd in
+    -h | --help | help)
+      usage
+      return 0
+      ;;
+    list | sync) ;;
+    save | switch | add)
+      [[ $name =~ ^[A-Za-z0-9._-]+$ && $name != . && $name != .. ]] \
+        || fail "Give a name made of letters, digits, . _ -"
+      ;;
+    *)
+      usage >&2
+      exit 2
+      ;;
+  esac
+  [[ -f $config ]] || fail "No $config: open Claude Desktop once first"
+
+  case $cmd in
+    list) list_profiles ;;
+    sync)
+      if desktop_running && [[ -z $force ]]; then
+        fail "Claude Desktop is running: quit it first, or pass --force"
+      fi
+      index_sync
+      ;;
+    save)
+      desktop_quit
+      profile_save "$name"
+      ;;
+    switch)
+      require_profile "$name"
+      if signed_in && [[ -z $(active_profile) && -z $force ]]; then
+        fail "The signed-in account isn't saved and would need its email code again: run save <name> first, or pass --force"
+      fi
+      desktop_quit
+      active=$(active_profile)
+      if [[ $active == "$name" ]]; then
+        echo "$name is already signed in"
+      else
+        # Re-save first so token refreshes since the last save aren't lost.
+        [[ -z $active ]] || profile_save "$active"
+        profile_restore "$name"
+      fi
+      index_sync
+      ;;
+    add)
+      desktop_quit
+      active=$(active_profile)
+      if [[ -n $active ]]; then
+        profile_save "$active"
+      elif signed_in; then
+        warning "The signed-in account isn't saved; it will need its email code again"
+      fi
+      backup_config
+      jq_write "$config" --argjson k "$auth_keys" 'delpaths($k | map([.]))' "$config"
+      rm -f "$cookies/Cookies" "$cookies/Cookies-journal"
+      ;;
+  esac
+
+  if [[ $cmd == save || $cmd == switch || $cmd == add ]] && [[ -n $relaunch ]]; then
+    desktop_launch
+  fi
+  if [[ $cmd == add ]]; then
+    info "Sign in with the new account (email code), then run: claude-desktop-account save $name"
+  fi
+}
+
+main "$@"

@@ -1,0 +1,158 @@
+#!/bin/bash
+#
+# Self-check for claude-desktop-account against a fixture Desktop folder.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-claude-desktop-account`
+#
+# ---
+# Never touches the real Claude Desktop folder: CLAUDE_DESKTOP_DIR and
+# CLAUDE_DESKTOP_PROFILES point into a temp dir, and pgrep, osascript, pkill
+# and open are stubbed on PATH so no app is quit or launched.
+#
+# License: MIT
+
+set -euo pipefail
+
+script="$(cd "$(dirname "$0")/.." && pwd -P)/claude-desktop-account"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+export CLAUDE_DESKTOP_DIR="$tmp/desktop" CLAUDE_DESKTOP_PROFILES="$tmp/profiles"
+d=$CLAUDE_DESKTOP_DIR p=$CLAUDE_DESKTOP_PROFILES s=$CLAUDE_DESKTOP_DIR/claude-code-sessions
+mkdir -p "$tmp/bin"
+# pgrep says "not running" so quit is a no-op; the other three only log.
+printf '#!/bin/sh\nexit 1\n' > "$tmp/bin/pgrep"
+for stub in osascript pkill open; do
+  printf '#!/bin/sh\necho "%s $*" >> "%s/calls"\n' "$stub" "$tmp" > "$tmp/bin/$stub"
+done
+chmod +x "$tmp"/bin/*
+export PATH="$tmp/bin:$PATH"
+cda() { "$script" "$@"; }
+
+check() {
+  if [[ $2 != "$3" ]]; then
+    printf 'FAIL: %s\n  expected: %s\n  actual:   %s\n' "$1" "$2" "$3" >&2
+    exit 1
+  fi
+  echo "ok: $1"
+}
+check_true() {
+  local name=$1
+  shift
+  "$@" || {
+    echo "FAIL: $name" >&2
+    exit 1
+  }
+  echo "ok: $name"
+}
+exit_code() {
+  "$@" > /dev/null 2>&1 && echo 0 || echo $?
+}
+
+mkdir -p "$d" "$p/beta" "$s/aaaaaaaa-1111/org-a" "$s/bbbbbbbb-2222/org-b"
+tab=$'\t'
+printf '{\n\t"theme": "dark",\n\t"oauth:tokenCache": "enc-A1",\n\t"windowBounds": {\n\t\t"x": 1,\n\t\t"y": 2.50\n\t},\n\t"oauth:tokenCacheV2": "enc-A2",\n\t"lastKnownAccountUuid": "aaaaaaaa-1111",\n\t"zeta": [\n\t\t"é",\n\t\tnull\n\t]\n}' > "$d/config.json"
+printf cookie-A > "$d/Cookies"
+printf journal-A > "$d/Cookies-journal"
+
+# save captures exactly the three keys and the cookie files
+cda save alpha > /dev/null
+check "save keeps only the auth keys, in order" \
+  '{"oauth:tokenCache":"enc-A1","oauth:tokenCacheV2":"enc-A2","lastKnownAccountUuid":"aaaaaaaa-1111"}' \
+  "$(jq -c . "$p/alpha/config.json")"
+check "save copies Cookies" cookie-A "$(cat "$p/alpha/Cookies")"
+check "save copies Cookies-journal" journal-A "$(cat "$p/alpha/Cookies-journal")"
+check "save records the account" aaaaaaaa-1111 "$(jq -r .account "$p/alpha/meta.json")"
+check "save writes the profile config private" 600 "$(stat -f %Lp "$p/alpha/config.json")"
+check "save writes meta.json private" 600 "$(stat -f %Lp "$p/alpha/meta.json")"
+check "save relaunches the app" "open -a Claude" "$(cat "$tmp/calls")"
+rm "$tmp/calls"
+
+printf '{"oauth:tokenCache":"enc-B1","oauth:tokenCacheV2":"enc-B2","lastKnownAccountUuid":"bbbbbbbb-2222"}' > "$p/beta/config.json"
+printf '{"account":"bbbbbbbb-2222","savedAt":"2026-01-01T00:00:00Z"}' > "$p/beta/meta.json"
+printf cookie-B > "$p/beta/Cookies"
+
+printf '{"lastActivityAt":100,"title":"one"}' > "$s/aaaaaaaa-1111/org-a/local_s1.json"
+printf '{"lastActivityAt":200}' > "$s/aaaaaaaa-1111/org-a/local_s2.json"
+printf '{"lastActivityAt":150}' > "$s/bbbbbbbb-2222/org-b/local_s2.json"
+printf '{"lastActivityAt":300}' > "$s/aaaaaaaa-1111/org-a/local_s3.json"
+touch "$s/bbbbbbbb-2222/org-b/deleted_s3"
+printf '{"lastActivityAt":50}' > "$s/bbbbbbbb-2222/org-b/local_s4.json"
+printf '{}' > "$s/aaaaaaaa-1111/org-a/local_s5.json"
+printf '{"old":true}' > "$s/bbbbbbbb-2222/org-b/local_s5.json"
+touch -t 202001010000 "$s/bbbbbbbb-2222/org-b/local_s5.json"
+# Same mtime, different content: the mtime prefilter must not hide a newer lastActivityAt
+touch -t 202101010000 "$s/aaaaaaaa-1111/org-a/local_s2.json" "$s/bbbbbbbb-2222/org-b/local_s2.json"
+
+# A token refresh since the save, which switch must keep by re-saving alpha
+before=$(jq --tab '.["oauth:tokenCacheV2"] = "enc-A2-new"' "$d/config.json")
+printf '%s' "$before" > "$d/config.json"
+
+out=$(cda switch beta --no-relaunch)
+check "switch merges keys in place, other keys byte-identical" \
+  "{
+${tab}\"theme\": \"dark\",
+${tab}\"oauth:tokenCache\": \"enc-B1\",
+${tab}\"windowBounds\": {
+${tab}${tab}\"x\": 1,
+${tab}${tab}\"y\": 2.50
+${tab}},
+${tab}\"oauth:tokenCacheV2\": \"enc-B2\",
+${tab}\"lastKnownAccountUuid\": \"bbbbbbbb-2222\",
+${tab}\"zeta\": [
+${tab}${tab}\"é\",
+${tab}${tab}null
+${tab}]
+}" "$(cat "$d/config.json")"
+check "switch keeps config.json private" 600 "$(stat -f %Lp "$d/config.json")"
+check "switch re-saves the outgoing profile" enc-A2-new "$(jq -r '.["oauth:tokenCacheV2"]' "$p/alpha/config.json")"
+check "switch restores Cookies" cookie-B "$(cat "$d/Cookies")"
+check_true "switch removes a Cookies-journal the profile lacks" test ! -e "$d/Cookies-journal"
+check "switch writes one backup beside the store" 1 "$(find "$p-backups" -type f | wc -l | tr -d ' ')"
+check "backup is the previous config" "$before" "$(cat "$p"-backups/*)"
+check_true "--no-relaunch does not launch" test ! -e "$tmp/calls"
+
+# sync (run by switch)
+check "sync output" "aaaaaaaa-1111/org-a: 1 written
+bbbbbbbb-2222/org-b: 3 written" "$(grep written <<< "$out")"
+check "sync copies a missing pointer" '{"lastActivityAt":100,"title":"one"}' "$(cat "$s/bbbbbbbb-2222/org-b/local_s1.json")"
+check "sync prefers the newer lastActivityAt despite equal mtimes" 200 "$(jq .lastActivityAt "$s/bbbbbbbb-2222/org-b/local_s2.json")"
+check "sync keeps the newer copy" 200 "$(jq .lastActivityAt "$s/aaaaaaaa-1111/org-a/local_s2.json")"
+check_true "sync skips a tombstoned id" test ! -e "$s/bbbbbbbb-2222/org-b/local_s3.json"
+check_true "sync never deletes" test -e "$s/aaaaaaaa-1111/org-a/local_s3.json" -a -e "$s/bbbbbbbb-2222/org-b/deleted_s3"
+check "sync copies the other way" 50 "$(jq .lastActivityAt "$s/aaaaaaaa-1111/org-a/local_s4.json")"
+check "sync falls back to mtime" '{}' "$(cat "$s/bbbbbbbb-2222/org-b/local_s5.json")"
+check "sync is idempotent" "aaaaaaaa-1111/org-a: 0 written
+bbbbbbbb-2222/org-b: 0 written" "$(cda sync)"
+check "switch to the signed-in account only syncs" "beta is already signed in" "$(cda switch beta --no-relaunch | head -1)"
+
+# list marks the active profile
+list=$(cda list)
+check_true "list marks beta active" grep -Eq '^\* beta +bbbbbbbb  2026-01-01T00:00:00Z  4 sessions$' <<< "$list"
+check_true "list leaves alpha unmarked" grep -Eq '^  alpha +aaaaaaaa  ' <<< "$list"
+
+# sync refuses while Desktop runs (pgrep finds it)
+printf '#!/bin/sh\nexit 0\n' > "$tmp/bin/pgrep"
+check "sync refuses while Desktop runs" 1 "$(exit_code cda sync)"
+check "sync --force runs anyway" 0 "$(exit_code cda sync --force)"
+printf '#!/bin/sh\nexit 1\n' > "$tmp/bin/pgrep"
+
+# add re-saves the active login and signs out locally
+out=$(cda add gamma --no-relaunch)
+check "add clears the auth keys" '["theme","windowBounds","zeta"]' "$(jq -c keys_unsorted "$d/config.json")"
+check_true "add removes the cookie files" test ! -e "$d/Cookies"
+check_true "add prints the save step" grep -q 'claude-desktop-account save gamma' <<< "$out"
+check "save refuses when signed out" 1 "$(exit_code cda save gamma --no-relaunch)"
+check "unknown command exits 2" 2 "$(exit_code cda bogus)"
+check "two names fail" 1 "$(exit_code cda switch alpha beta --no-relaunch)"
+check "--force outside sync or switch fails" 1 "$(exit_code cda list --force)"
+# an unsaved login must not be switched away from silently
+printf '{"oauth:tokenCacheV2":"enc-Z","lastKnownAccountUuid":"zzzzzzzz-9999"}' > "$d/config.json"
+check "switch refuses to drop an unsaved login" 1 "$(exit_code cda switch alpha --no-relaunch)"
+check "switch --force drops it anyway" 0 "$(exit_code cda switch alpha --no-relaunch --force)"
+check "forced switch restored alpha" aaaaaaaa-1111 "$(jq -r .lastKnownAccountUuid "$d/config.json")"
+check "no backups folder inside the profile store" "" "$(ls -d "$p/backups" 2> /dev/null || true)"
+
+echo "All claude-desktop-account checks passed"
