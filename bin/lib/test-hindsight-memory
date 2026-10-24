@@ -87,6 +87,12 @@ check "installer not rerun by init" 1 "$(wc -l < "$HOME/installer.log" | tr -d '
 jq '.embedVersion = "9.9.9"' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
 check_true "init resets embedVersion to the pin" hm init
 check "embedVersion follows the pin" 1.1.0 "$(jq -r .embedVersion "$cfg")"
+jq '.pageTriggerCron = "0 6 * * *" | .autoInject = "reflect"' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
+check_true "init migrates the old repo cron" hm init
+check "old repo cron moves to the current default, a chosen autoInject stays" "H */6 * * * reflect" "$(jq -r '[.pageTriggerCron, .autoInject] | join(" ")' "$cfg")"
+jq '.pageTriggerCron = "H 3 * * *"' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
+check_true "init keeps a user cron" hm init
+check "user cron kept" "H 3 * * *" "$(jq -r .pageTriggerCron "$cfg")"
 check_true "upgrade reruns the installer" hm upgrade
 check "installer rerun by upgrade" 2 "$(wc -l < "$HOME/installer.log" | tr -d ' ')"
 check "upgrade keeps the edited list" '["~/work"]' "$(jq -c .optInPaths "$cfg")"

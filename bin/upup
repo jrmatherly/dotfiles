@@ -225,7 +225,7 @@ if command -v rustup > /dev/null; then
   # entry landed can see (zsh/path.zsh, tilde/.zprofile). Hindsight's daemon
   # preflight runs `cargo --version`, so a stale shell can't cold-start it
   cargo --version > /dev/null 2>&1 \
-    || status notice Rust "cargo not on this shell's PATH (rustup's proxies live in /opt/homebrew/opt/rustup/bin); open a new terminal"
+    || status notice Rust "cargo --version failed: rustup's proxies live in /opt/homebrew/opt/rustup/bin, so open a new terminal, or run: rustup default stable"
 fi
 
 # uv tools (Serena, Scrapling)
@@ -306,15 +306,13 @@ if command -v claude > /dev/null; then
   if [ -f "${HINDSIGHT_CONFIG:-$HOME/.hindsight/coding-agent.json}" ]; then
     step "Hindsight memory"
     if capture hindsight-memory upgrade; then
-      if newer=$(grep -o 'newer release [^;]*' <<< "$out"); then
-        status notice "Hindsight memory" "$newer; bump CODING_AGENTS_VERSION in bin/hindsight-memory"
-      else
-        status ok "Hindsight memory" "runtime re-staged, hooks re-wired"
-      fi
       # The installer's own warnings (▲ lines: no uv, no cargo, no LLM) don't
       # fail it, but each one means the daemon can't cold-start from this shell
-      warned=$(sed -n 's/^│  ▲ //p' <<< "$out")
+      warned=$(sed -n 's/^│  ▲ \(..*\)/\1/p' <<< "$out")
+      newer=$(grep -o 'newer release [^;]*' <<< "$out" || true)
+      [ -z "$newer" ] || status notice "Hindsight memory" "$newer; bump CODING_AGENTS_VERSION in bin/hindsight-memory"
       [ -z "$warned" ] || status notice "Hindsight memory" "installer: ${warned%%$'\n'*}; see the log"
+      [ -n "$newer$warned" ] || status ok "Hindsight memory" "runtime re-staged, hooks re-wired"
     else
       status fail "Hindsight memory" "run: hindsight-memory upgrade"
       show

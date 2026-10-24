@@ -118,7 +118,13 @@ write_cfg() {
 }
 
 # shellcheck disable=SC2016 # $d is a jq variable
-merge_defaults() { write_cfg '$d * . | .embedVersion = $d.embedVersion' --argjson d "$(defaults)"; }
+# "0 6 * * *" was this script's own earlier default, not a user's choice, so it
+# moves to the current one; any other value is kept
+merge_defaults() {
+  write_cfg '$d * . | .embedVersion = $d.embedVersion
+    | if .pageTriggerCron == "0 6 * * *" then .pageTriggerCron = $d.pageTriggerCron else . end' \
+    --argjson d "$(defaults)"
+}
 
 need_config() { [ -f "$cfg" ] || fail "no config at $cfg; run: hindsight-memory init"; }
 

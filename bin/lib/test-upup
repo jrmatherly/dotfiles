@@ -130,6 +130,7 @@ touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin
 run
 check_true "changes: newer Hindsight release is a notice" has '^● Hindsight memory +newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION in bin/hindsight-memory$'
 check_true "changes: the installer's ▲ warning is a notice, first line only" has '^● Hindsight memory +installer: macOS needs a current Rust toolchain to build the daemon.s dependencies \(litellm; see the log$'
+check_true "changes: a warned or newer Hindsight step is not also ok" lacks '^✔ Hindsight memory'
 check_true "changes: names the packages before upgrading" has '^    upgrading 1 package: gh…$'
 check_true "changes: a further edit to dirty config is a change" has '^↻ Claude config +tracked Claude config changed$'
 check_true "changes: dotfiles pulled" has '^↻ dotfiles +pulled 1 commit$'
@@ -153,11 +154,17 @@ check_true "changes: new terminal action" has '^  › Open a new terminal: dotfi
 check_true "changes: not everything up to date" lacks 'Everything up to date'
 check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/upup-*.log
 
+# A warning alone (no newer release) must still replace the ok line
+rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer"
+run
+check_true "warned: installer warning is the step's only line" lacks '^✔ Hindsight memory'
+check_true "warned: installer warning still a notice" has '^● Hindsight memory +installer: '
+
 rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
 touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust" "$STATE/no-cargo"
 run
 check_true "update: Rust names the channel and versions" has '^↻ Rust +stable 1\.99\.0→1\.99\.1$'
-check_true "update: cargo missing from PATH is a notice" has "^● Rust +cargo not on this shell's PATH \(rustup's proxies live in /opt/homebrew/opt/rustup/bin\); open a new terminal$"
+check_true "update: a failing cargo is a notice" has "^● Rust +cargo --version failed: rustup's proxies live in /opt/homebrew/opt/rustup/bin, so open a new terminal, or run: rustup default stable$"
 check_true "update: uv names the upgraded tool and the one whose dependencies moved" has '^↻ uv +serena-agent v0\.1\.4 -> v0\.1\.5, scrapling dependencies$'
 check_true "update: uv output shown" has '^    Modified scrapling environment$'
 check_true "update: no unrecognized uv output" lacks 'unrecognized output'
