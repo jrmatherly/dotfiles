@@ -202,6 +202,26 @@ if ts_dir="$(mise where npm:typescript 2> /dev/null)"; then
   ln -sfn "$ts_dir/node_modules/typescript" "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules/typescript"
 fi
 
+# Rust toolchain (rustup itself is a Homebrew formula, upgraded above). Per
+# toolchain: "<channel>-<triple> updated - rustc NEW (…) (from rustc OLD (…))" or "… unchanged - …"
+if command -v rustup > /dev/null; then
+  step Rust
+  rust_updated=""
+  if ! capture rustup update --no-self-update; then
+    status fail Rust "run: rustup update"
+    show
+  elif
+    rust_updated=$(sed -nE 's/^ *([a-z]+)[^ ]* updated - rustc ([0-9.]+).*from rustc ([0-9.]+).*/\1 \3→\2/p' <<< "$out")
+    [ -n "$rust_updated" ]
+  then
+    status changed Rust "$(list <<< "$rust_updated")"
+  elif grep -q ' unchanged - ' <<< "$out"; then
+    status ok Rust "up to date"
+  else
+    status notice Rust "unrecognized output, see the log"
+  fi
+fi
+
 # uv tools (Serena, Scrapling)
 if command -v uv > /dev/null; then
   step uv

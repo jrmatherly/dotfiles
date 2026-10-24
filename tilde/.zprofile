@@ -24,3 +24,6 @@ source ~/.orbstack/shell/init.zsh 2> /dev/null || :
 
 # .NET Core SDK tools
 export PATH="$PATH:$HOME/.dotnet/tools"
+
+# Rust: rustup's proxies and cargo-installed binaries, after Homebrew's bin (why: zsh/path.zsh)
+export PATH="$PATH:/opt/homebrew/opt/rustup/bin:$HOME/.cargo/bin"

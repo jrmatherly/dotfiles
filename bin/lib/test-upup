@@ -53,6 +53,9 @@ stub mise 'case $1 in
     fi ;;
   *) exit 1 ;;
 esac'
+stub rustup 'if [ -e "$STATE/rust" ]; then
+  echo "  stable-aarch64-apple-darwin updated - rustc 1.99.1 (58cf8f9c3 2026-10-13) (from rustc 1.99.0 (b940084d7 2026-09-28))"
+else echo "  stable-aarch64-apple-darwin unchanged - rustc 1.99.1 (58cf8f9c3 2026-10-13)"; fi'
 stub uv 'if [ -e "$STATE/uv" ]; then
   echo "Updated serena-agent v0.1.4 -> v0.1.5"; echo " - serena-agent==0.1.4"; echo " + serena-agent==0.1.5"
   echo "Installed 3 executables: index-project, serena, serena-mcp-server"
@@ -111,6 +114,7 @@ check_true "up to date: plugins counted" has '^✔ plugins +2 plugins up to date
 check_true "up to date: Claude Code version" has '^✔ Claude Code +2\.1\.310 up to date$'
 check_true "up to date: skills counted" has '^✔ agent skills +2 tracked skills reinstalled for their agents$'
 check_true "up to date: Hindsight memory re-staged" has '^✔ Hindsight memory +runtime re-staged, hooks re-wired$'
+check_true "up to date: Rust is ok" has '^✔ Rust +up to date$'
 check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
 check_true "up to date: one-line summary" has '^Everything up to date\.$'
 check_true "up to date: log path printed" has '^Log: logs/upup-[0-9]{8}-[0-9]{6}\.log$'
@@ -145,8 +149,9 @@ check_true "changes: not everything up to date" lacks 'Everything up to date'
 check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
-touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv"
+touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust"
 run
+check_true "update: Rust names the channel and versions" has '^↻ Rust +stable 1\.99\.0→1\.99\.1$'
 check_true "update: uv names the upgraded tool and the one whose dependencies moved" has '^↻ uv +serena-agent v0\.1\.4 -> v0\.1\.5, scrapling dependencies$'
 check_true "update: uv output shown" has '^    Modified scrapling environment$'
 check_true "update: no unrecognized uv output" lacks 'unrecognized output'

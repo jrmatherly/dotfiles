@@ -23,6 +23,14 @@ prepend "$HOME/.dotnet/tools"
 # Flutter
 prepend "$HOME/Projects/flutter/bin"
 
+# Rust: cargo-installed binaries and rustup's proxies (the rustup formula is
+# keg-only). Prepended before Homebrew's bin so they end up AFTER it in PATH:
+# the keg also ships a rust-analyzer proxy, which only works once that rustup
+# component is installed and would otherwise shadow the rust-analyzer formula.
+# tilde/.zprofile appends the same two for login and GUI shells.
+prepend "$HOME/.cargo/bin"
+prepend "/opt/homebrew/opt/rustup/bin"
+
 # Homebrew binaries
 # > $(brew --prefix)
 homebrew_path="/opt/homebrew"

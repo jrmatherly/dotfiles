@@ -10,7 +10,7 @@ Add `$ARGUMENTS` to the dotfiles. Work through every item; say explicitly when o
 1. **Install method** (pick one):
    - macOS app or system CLI → `setup/Brewfile` (`brew`/`cask` line with a trailing `#` comment), installed by `bin/brewpick --all`.
    - VS Code extension → a `vscode "<publisher.id>"` line in the matching extension section of `setup/Brewfile`.
-   - Runtime or npm CLI → `tilde/.config/mise/config.toml` `[tools]` (`"npm:<pkg>" = "<major>"`), with a comment explaining the pin. Never `npm install -g`.
+   - Runtime or npm CLI → `tilde/.config/mise/config.toml` `[tools]` (`"npm:<pkg>" = "<major>"`), with a comment explaining the pin. Never `npm install -g`. Rust is the exception: the system toolchain is Homebrew's `rustup` (its proxies are on PATH after Homebrew's bin); only a project that pins another version goes through mise's rust backend.
    - Python CLI → the Brewfile if Homebrew packages it (e.g. `pipx`, `pre-commit`); otherwise `uv tool install` in `setup/misc.sh`, guarded by `command_exists uv` (`bin/upup` runs `uv tool upgrade --all`).
 2. **Brewfile specifics**:
    - Third-party tap: add `tap "<org>/<tap>"` to the Taps block, and write the package fully qualified with `trusted: true` (trust per package, never the whole tap; see the Brewfile header).

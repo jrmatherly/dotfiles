@@ -120,6 +120,10 @@ brew "rtk" # Compacts command output for coding agents (Claude Code hook: setup/
 brew "ruby-lsp" # Ruby language server; runs on the Homebrew Ruby it brings (macOS ships 2.6), so a project on another Ruby needs `gem install ruby-lsp` there
 brew "ruff" # Fast Python linter/formatter
 brew "rust-analyzer" # Rust language server
+# The system Rust (keg-only; PATH order in zsh/path.zsh). setup/misc.sh makes
+# stable the default, upup runs `rustup update`; a project pinning another
+# version goes through mise's rust backend, which reuses this rustup.
+brew "rustup" # Rust toolchain installer; Hindsight's daemon start needs cargo on macOS
 # Sentry's new CLI (`sentry`, log in with `sentry auth`), not the legacy
 # `sentry-cli` that build tooling pulls in per project. Telemetry is off via
 # DO_NOT_TRACK in zsh/env.zsh.

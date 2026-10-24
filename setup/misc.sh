@@ -156,6 +156,20 @@ else
   echo "mise not found — skipping runtime installation" | indent
 fi
 
+# Rust — Homebrew's rustup (Brewfile) is the system toolchain manager. Make
+# stable the default when it isn't: a proxy with no default toolchain downloads
+# one on first use, which Hindsight's daemon start runs inside a 10 s
+# `cargo --version` check. `rustup default` alone is a local read.
+rustup=/opt/homebrew/opt/rustup/bin/rustup
+if [ -x "$rustup" ]; then
+  if "$rustup" default 2> /dev/null | grep -q '^stable-'; then
+    echo "Rust: stable is the default toolchain" | indent
+  else
+    info "🦀 Installing the stable Rust toolchain with rustup…"
+    "$rustup" default stable 2>&1 | indent || warning "rustup default stable failed — run it later"
+  fi
+fi
+
 # Claude Code — Anthropic's native installer, into ~/.local/bin (zsh/path.zsh
 # puts it on PATH). Only when missing: it auto-updates itself afterwards.
 # https://docs.claude.com/en/docs/claude-code/setup
