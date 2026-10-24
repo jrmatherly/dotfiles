@@ -37,7 +37,7 @@ stub dotfiles '[ -e "$STATE/pull" ] && git -C "$DOTFILES" -c user.name=t -c user
 stub softwareupdate 'echo "No new software available."'
 stub brew 'case $1 in
   outdated) [ -e "$STATE/brew" ] && echo gh ;;
-  upgrade) echo "==> Upgrading gh" ;;
+  upgrade) echo "==> Upgrading gh"; echo "==> Caveats"; echo "==> gh"; echo "zsh completions installed"; echo "==> Upgraded 1 outdated package"; echo "gh       2.103.1  -> 2.103.2" ;;
   cleanup) echo "==> This operation has freed approximately 29.5MB of disk space." ;;
   doctor) echo "Your system is ready to brew." ;;
 esac
@@ -80,6 +80,7 @@ check_true() {
   echo "ok: $name"
 }
 has() { grep -Eq -- "$1" <<< "$screen"; }
+lacks() { ! has "$1"; }
 lacks() { ! grep -Eq -- "$1" <<< "$screen"; }
 run() { screen=$("$script" < /dev/null 2>&1 | sed $'s/\x1b\\[[0-9;]*m//g'); }
 
@@ -96,14 +97,15 @@ check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' 
 rm -rf "$DOTFILES/logs"
 touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin"
 run
-check_true "changes: dotfiles pulled" has '^↻ dotfiles +pulled 1 commits$'
-check_true "changes: brew upgrade output shown" has '^==> Upgrading gh$'
-check_true "changes: Homebrew upgraded" has '^↻ Homebrew +1 upgraded: gh$'
+check_true "changes: dotfiles pulled" has '^↻ dotfiles +pulled 1 commit$'
+check_true "changes: brew upgrade noise stays off screen" lacks '^==> Upgrading gh$'
+check_true "changes: brew caveats shown" has '^    zsh completions installed$'
+check_true "changes: Homebrew upgraded with versions" has '^↻ Homebrew +1 upgraded: gh 2.103.1→2.103.2$'
 check_true "changes: mise version change" has '^↻ mise +1 upgraded: node 24.1.0→24.1.1$'
 check_true "changes: mise held release is a notice" has '^● mise +aspire 13.6.3 held until 2026-10-24 14:17 EDT by minimum_release_age$'
 check_true "changes: uv failure names the command" has '^✖ uv +run: uv tool upgrade --all$'
 check_true "changes: uv failure output shown" has '^    error: network down$'
-check_true "changes: plugin update listed" has '^↻ plugins +1 plugins updated: alpha@m 1.0.0 → 1.1.0$'
+check_true "changes: plugin update listed" has '^↻ plugins +1 plugin updated: alpha@m 1.0.0 → 1.1.0$'
 check_true "changes: steps after the failure still run" has '^✔ Raycast +asked to check for updates$'
 for section in Changed Notices Failed "Action needed"; do
   check_true "changes: summary has $section" has "^$section\$"

@@ -65,6 +65,11 @@ list() {
   awk 'NR > 1 { printf ", " } { printf "%s", $0 } END { print "" }'
 }
 
+# plural <n> <noun>: "1 plugin", "3 plugins"
+plural() {
+  printf '%s %s' "$1" "$2$([ "$1" = 1 ] || echo s)"
+}
+
 echo "Logging to ${log#"$DOTFILES"/}"
 
 step sudo
@@ -80,7 +85,7 @@ if capture dotfiles; then
   if [ "$before" = "$after" ]; then
     status ok dotfiles "up to date"
   else
-    status changed dotfiles "pulled $(git -C "$DOTFILES" rev-list --count "$before..$after") commits"
+    status changed dotfiles "pulled $(plural "$(git -C "$DOTFILES" rev-list --count "$before..$after")" commit)"
     git -C "$DOTFILES" log --oneline "$before..$after" | sed 's/^/    /' | tee -a "$log"
     actions+=("Open a new terminal: dotfiles changed" "Re-run setup.sh --skip-brew: dotfiles pulled new commits")
   fi
@@ -126,11 +131,16 @@ elif [ -z "$outdated_packages" ]; then
   status ok Homebrew "up to date"
 else
   printf '%s\n' "$outdated_packages" >> "$log"
-  # --yes: Homebrew asks before upgrading by default; the list is in the status line
-  if brew upgrade --greedy --yes 2>&1 | tee -a "$log"; then
-    status changed Homebrew "$(wc -l <<< "$outdated_packages" | tr -d ' ') upgraded: $(list <<< "$outdated_packages")"
+  # --yes: Homebrew asks before upgrading by default; the list is in the status
+  # line. Of its output only the closing "name old -> new" table and the
+  # caveats reach the screen
+  if capture brew upgrade --greedy --yes; then
+    versions=$(sed -n '/^==> Upgraded /,$p' <<< "$out" | sed -nE 's/^([^ ]+) +([^ ]+) +-> +(.*)$/\1 \2→\3/p')
+    status changed Homebrew "$(wc -l <<< "$outdated_packages" | tr -d ' ') upgraded: $(list <<< "${versions:-$outdated_packages}")"
+    sed -n '/^==> Caveats$/,/^==> Upgraded /{/^==> /d; s/^/    /p;}' <<< "$out"
   else
     status fail Homebrew "upgrade failed; run: brew upgrade --greedy"
+    show
   fi
 fi
 step "brew cleanup"
@@ -271,7 +281,7 @@ if command -v claude > /dev/null; then
   done < <(jq -r '.plugins | keys[]' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json" 2> /dev/null)
   plugin_updates=$(sed '/^$/d' <<< "$plugin_updates")
   if [ -n "$plugin_updates" ]; then
-    status changed plugins "$(wc -l <<< "$plugin_updates" | tr -d ' ') plugins updated: $(list <<< "$plugin_updates")"
+    status changed plugins "$(plural "$(wc -l <<< "$plugin_updates" | tr -d ' ')" plugin) updated: $(list <<< "$plugin_updates")"
     actions+=("Restart Claude Code to apply plugin updates")
   else
     status ok plugins "$plugin_count plugins up to date"
