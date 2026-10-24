@@ -7,7 +7,7 @@
 - Run `claude-config save` after installing or removing a plugin or skill, or changing a setting, then review `git diff agents/` and commit. `save` records what this machine has now.
 - `save` never shrinks a tracked file whose source is missing on this machine (a Mac that is not set up yet). It warns and keeps the tracked file. Writes go through a temp file and `mv`.
 - `restore` only adds. Settings already on the machine win, permission lists are unioned, and nothing is rewritten when nothing is missing.
-- Secrets never land in the tracked settings: credential helpers are dropped, and of `env` only Claude Code's own switches survive.
+- Secrets never land in the tracked settings: credential helpers are dropped, and of `env` only Claude Code's own switches and the variables plugin hooks read (`AZURE_MCP_COLLECT_TELEMETRY`, `HINDSIGHT_API_LLM_PROVIDER`) survive.
 
 ## Commands
 
@@ -24,7 +24,7 @@
 | File | Contents | On restore |
 | --- | --- | --- |
 | `agents/claude-plugins.txt` | `marketplace <name> <source>` lines and `plugin <id>[ disabled]` lines for user-scope plugins | Missing marketplaces are added; missing plugins installed (after a `claude plugin marketplace update <name>` for a marketplace already on the machine, which may predate the plugin); recorded-disabled plugins are disabled only on a fresh install |
-| `agents/claude-settings.json` | `~/.claude/settings.json` minus the keys tools own (`enabledPlugins`, `extraKnownMarketplaces`, `hooks`), with `$HOME` written as `~` where it starts a path and permission lists sorted. Never saved: `apiKeyHelper`, `awsCredentialExport`, `awsAuthRefresh`, `otelHeadersHelper`, and any `env` entry other than `CLAUDE_CODE_*`, `DISABLE_*`, `MAX_*` and `AZURE_MCP_COLLECT_TELEMETRY` | Merged into the live file: existing values win, permission lists are unioned, no rewrite when nothing is missing. An invalid merge warns instead of aborting |
+| `agents/claude-settings.json` | `~/.claude/settings.json` minus the keys tools own (`enabledPlugins`, `extraKnownMarketplaces`, `hooks`), with `$HOME` written as `~` where it starts a path and permission lists sorted. Never saved: `apiKeyHelper`, `awsCredentialExport`, `awsAuthRefresh`, `otelHeadersHelper`, and any `env` entry other than `CLAUDE_CODE_*`, `DISABLE_*`, `MAX_*`, `AZURE_MCP_COLLECT_TELEMETRY` and `HINDSIGHT_API_LLM_PROVIDER` | Merged into the live file: existing values win, permission lists are unioned, no rewrite when nothing is missing. An invalid merge warns instead of aborting |
 | `agents/claude-skills.txt` | `skill <name> <source> <agents>` from `~/.agents/.skill-lock.json`. A `well-known` source is saved as the URL the CLI stored, since its bare host fails as a git clone | `npx skills add <source> -g -s <name> -a <agents> -y` for the agents that lack it, with telemetry off and stdin from `/dev/null` |
 
 Agents map to folders: `claude-code` is `~/.claude/skills`, `codex` is `~/.agents/skills`.
