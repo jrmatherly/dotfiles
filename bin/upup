@@ -130,6 +130,20 @@ if command -v claude > /dev/null; then
   if [ -x /Applications/SnippetsLab.app/Contents/Helpers/lab ]; then
     install-snippetslab-skill || warning "SnippetsLab skill not refreshed — run it later: install-snippetslab-skill"
   fi
+  # Plugins get no upgrade elsewhere: refresh every marketplace, then each
+  # installed plugin (the CLI takes one name). Only real updates are printed;
+  # Claude Code applies them on its next start
+  header "Updating Claude Code marketplaces and plugins…"
+  claude plugin marketplace update > /dev/null \
+    || warning "updating marketplaces failed — see why with: claude plugin marketplace update"
+  while read -r id; do
+    if out=$(claude plugin update "$id" 2>&1 < /dev/null); then
+      grep -F 'updated from' <<< "$out" || true
+    else
+      warning "updating $id failed — see why with: claude plugin update $id"
+    fi
+  done < <(jq -r '.plugins | keys[]' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json" 2> /dev/null)
+  echo
   header "Recording Claude Code config and rebuilding the catalog…"
   claude-config save || warning "claude-config save failed — the tracked lists were left as they were"
   claude-catalog | tail -1 || warning "claude-catalog failed — agents/catalog/curated.toml may name something no longer installed"

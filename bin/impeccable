@@ -1,0 +1,28 @@
+#!/bin/bash
+#
+# Run the Impeccable engine launcher of the installed Claude Code plugin from a terminal, for its by-hand verbs.
+#
+# - Show whether the engine sends usage data, or turn it off for good:
+#
+# `impeccable telemetry {{status|off}}`
+#
+# - Any other engine verb (`help` lists them):
+#
+# `impeccable {{verb}}`
+#
+# ---
+# License: MIT
+
+set -euo pipefail
+
+# The plugin never puts its launcher on PATH: the skill and hooks call it by
+# path under the plugin cache, whose directory carries the plugin version and
+# moves on every update, so a symlink would go stale. Ask the registry instead.
+registry="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json"
+root=$(jq -r '.plugins["impeccable@impeccable"] | (if type == "array" then .[0] else . end) | .installPath // empty' "$registry" 2> /dev/null || true)
+launcher="$root/skills/impeccable/scripts/impeccable"
+if [ -z "$root" ] || [ ! -x "$launcher" ]; then
+  echo "impeccable: the Claude Code plugin isn't installed (no impeccable@impeccable in $registry). Install it: claude plugin install impeccable@impeccable" >&2
+  exit 127
+fi
+exec "$launcher" "$@"

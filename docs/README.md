@@ -159,6 +159,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `vscode-settings` | Render VS Code's `settings.json` from its template with a font preset (`--choose`, `--preset warp`, `--check`); refuses to overwrite edits VS Code made (see [vscode](../vscode/README.md#fonts-and-the-settings-template)) |
 | `sync-all` | Run `obsidian-vault install`, then `install-color-themes` |
 | `upup` | Run macOS, Homebrew, mise, dotfiles and other software updates |
+| `impeccable` `impeccable telemetry status` | Run the installed Impeccable plugin's engine launcher from a terminal (the plugin never puts it on PATH); `impeccable help` lists its verbs |
 | `flush-dns` | Flush the DNS cache |
 | `shutdownmac` | Shut down macOS system |
 | `restartmac` | Restart the computer |
