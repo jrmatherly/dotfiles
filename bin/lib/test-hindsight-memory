@@ -1,0 +1,132 @@
+#!/bin/bash
+#
+# Self-check for hindsight-memory against a fixture HOME.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-hindsight-memory`
+#
+# ---
+# Never touches the real ~/.hindsight, Claude Code or Codex config: HOME is a
+# temp dir, and the vendor installer, hindsight-embed and npm are stub
+# scripts that only log their arguments.
+#
+# License: MIT
+
+set -euo pipefail
+
+script="$(cd "$(dirname "$0")/.." && pwd -P)/hindsight-memory"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+mkdir -p "$tmp/bin"
+# mise keeps its config-trust records under HOME, so a shim run under the
+# fixture HOME would refuse the global config; keep the real state dir
+export MISE_STATE_DIR="${MISE_STATE_DIR:-$HOME/.local/state/mise}"
+
+# mktemp's /var/… is a symlink to /private/var/…; use the real path so HOME
+# looks like a shell's
+HOME=$(cd "$tmp" && pwd -P)
+export HOME
+export HINDSIGHT_CONFIG="$HOME/.hindsight/coding-agent.json"
+export HINDSIGHT_MEMORY_INSTALLER="$HOME/bin/installer"
+export HINDSIGHT_MEMORY_EMBED="$HOME/bin/embed"
+export HINDSIGHT_MEMORY_NPM="$HOME/bin/npm"
+cfg=$HINDSIGHT_CONFIG
+
+mkdir -p "$HOME/bin"
+cat > "$HOME/bin/installer" << 'EOF'
+#!/bin/bash
+echo "$*" >> "$HOME/installer.log"
+if [ "$1" = install ]; then
+  [ -e "$HOME/installer-fails" ] && exit 1
+  # like the real installer: set serverMode, keep every other key
+  mkdir -p "$(dirname "$HINDSIGHT_CONFIG")"
+  { cat "$HINDSIGHT_CONFIG" 2> /dev/null || echo '{}'; } | jq -c '.serverMode = "daemon"' > "$HINDSIGHT_CONFIG.s"
+  mv "$HINDSIGHT_CONFIG.s" "$HINDSIGHT_CONFIG"
+fi
+exit 0
+EOF
+cat > "$HOME/bin/embed" << 'EOF'
+#!/bin/bash
+echo "$*" >> "$HOME/embed.log"
+EOF
+cat > "$HOME/bin/npm" << 'EOF'
+#!/bin/bash
+if [ -e "$HOME/npm-newer" ]; then echo 0.9.0; elif [ -e "$HOME/npm-older" ]; then echo 0.8.1; else echo 0.8.2; fi
+EOF
+chmod +x "$HOME"/bin/*
+hm() { "$script" "$@"; }
+
+check() {
+  if [[ $2 != "$3" ]]; then
+    printf 'FAIL: %s\n  expected: %s\n  actual:   %s\n' "$1" "$2" "$3" >&2
+    exit 1
+  fi
+  echo "ok: $1"
+}
+check_true() {
+  local name=$1
+  shift
+  "$@" || {
+    echo "FAIL: $name" >&2
+    exit 1
+  }
+  echo "ok: $name"
+}
+
+check_true "init runs the installer once with both harnesses" hm init
+check "installer args" "install claude-code codex --server daemon" "$(cat "$HOME/installer.log")"
+check "init writes the default paths" '["~/dev"]' "$(jq -c .optInPaths "$cfg")"
+check "init writes the other defaults" "daemon true false 1.1.0 false 0 6 * * * 10 redact" "$(jq -r '[.serverMode, .optInOnly, .autoUpdate, .embedVersion, .codebaseSurvey, .pageTriggerCron, .pageRefreshEveryTurns, .defaultBankConfig.memory_defense.rules[0].action] | join(" ")' "$cfg")"
+jq '.optInPaths = ["~/work"]' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
+check_true "init again keeps the edited list and skips the installer" hm init
+check "edited list kept" '["~/work"]' "$(jq -c .optInPaths "$cfg")"
+check "installer not rerun by init" 1 "$(wc -l < "$HOME/installer.log" | tr -d ' ')"
+jq '.embedVersion = "9.9.9"' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
+check_true "init resets embedVersion to the pin" hm init
+check "embedVersion follows the pin" 1.1.0 "$(jq -r .embedVersion "$cfg")"
+check_true "upgrade reruns the installer" hm upgrade
+check "installer rerun by upgrade" 2 "$(wc -l < "$HOME/installer.log" | tr -d ' ')"
+check "upgrade keeps the edited list" '["~/work"]' "$(jq -c .optInPaths "$cfg")"
+check "no notice when npm has the pinned version" "" "$(hm upgrade | grep 'newer release' || true)"
+touch "$HOME/npm-older"
+check "no notice when npm's latest is older than the pin" "" "$(hm upgrade | grep 'newer release' || true)"
+rm "$HOME/npm-older"
+touch "$HOME/npm-newer"
+check "upgrade notices a newer release" "newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION" "$(hm upgrade | grep 'newer release')"
+check_true "paths add strips a trailing slash and collapses HOME" hm paths add "$HOME/dev/x/"
+check "stored list" '["~/work","~/dev/x"]' "$(jq -c .optInPaths "$cfg")"
+check_true "paths add is idempotent" hm paths add "$HOME/dev/x"
+check "no duplicate" 2 "$(jq '.optInPaths | length' "$cfg")"
+check_true "paths add keeps a path outside HOME" hm paths add /opt/src
+check_true "paths add does not collapse a sibling of HOME" hm paths add "${HOME}2/x"
+check "outside and sibling stored literally" "/opt/src ${HOME}2/x" "$(jq -r '.optInPaths[2:] | join(" ")' "$cfg")"
+# shellcheck disable=SC2088 # the literal ~ is the stored form under test
+check "paths list prints one per line" "$(printf '~/work\n~/dev/x\n/opt/src\n%s2/x' "$HOME")" "$(hm paths list)"
+check "bare paths lists too" "$(hm paths list)" "$(hm paths)"
+check_true "paths remove drops the path" hm paths remove ~/work
+check "removed" '["~/dev/x","/opt/src","'"${HOME}"'2/x"]' "$(jq -c .optInPaths "$cfg")"
+check_true "paths remove of an unknown path exits 1" bash -c '! "$0" paths remove ~/nope 2> /dev/null' "$script"
+check_true "off writes disabled" hm off
+check "disabled true" true "$(jq .disabled "$cfg")"
+check_true "on clears it" hm on
+check "disabled false" false "$(jq .disabled "$cfg")"
+check_true "survey on writes codebaseSurvey" hm survey on
+check "survey true" true "$(jq .codebaseSurvey "$cfg")"
+check_true "status prints the config summary" bash -c '"$0" status | grep -q "optInPaths"' "$script"
+check_true "uninstall calls the vendor uninstall and stops the daemon" hm uninstall
+check "uninstall args" "uninstall all" "$(tail -1 "$HOME/installer.log")"
+check "daemon stopped" "-p coding-agent daemon stop" "$(tail -1 "$HOME/embed.log")"
+check_true "uninstall sets the config aside so upup skips it" test ! -e "$cfg" -a -f "$cfg.uninstalled"
+check_true "init after uninstall restores the config and reruns the installer" hm init
+check "restored list" '["~/dev/x","/opt/src","'"${HOME}"'2/x"]' "$(jq -c .optInPaths "$cfg")"
+check "installer rerun after uninstall" "install claude-code codex --server daemon" "$(tail -1 "$HOME/installer.log")"
+echo '{not json' > "$cfg"
+check_true "an invalid config fails instead of being replaced" bash -c '! "$0" on 2> /dev/null && [ "$(cat "$1")" = "{not json" ] && [ ! -e "$1.tmp" ]' "$script" "$cfg"
+rm "$cfg"
+check_true "paths add without a config exits 1 and creates nothing" bash -c '! "$0" paths add ~/dev/y 2> /dev/null && [ ! -e "$1" ]' "$script" "$cfg"
+check_true "off without a config exits 1 and creates nothing" bash -c '! "$0" off 2> /dev/null && [ ! -e "$1" ]' "$script" "$cfg"
+touch "$HOME/installer-fails"
+check_true "init exits 1 when the installer fails and leaves no config" bash -c '! "$0" init > /dev/null 2>&1 && [ ! -e "$HINDSIGHT_CONFIG" ]' "$script"
+check_true "upgrade exits 1 when the installer fails" bash -c '! "$0" upgrade > /dev/null 2>&1' "$script"

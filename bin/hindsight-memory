@@ -1,0 +1,235 @@
+#!/bin/bash
+#
+# Manage Hindsight's local long-term memory for Claude Code and Codex (the hook package, its daemon and ~/.hindsight/coding-agent.json).
+#
+# - Install the pinned hook package when it's missing, then merge this repo's defaults into the config (setup/misc.sh runs this):
+#
+# `hindsight-memory init`
+#
+# - Re-run the pinned installer and report a newer npm release (`upup` runs this):
+#
+# `hindsight-memory upgrade`
+#
+# - List, add or remove the repo prefixes memory is active in:
+#
+# `hindsight-memory paths {{list|add|remove}} {{~/dev/project}}`
+#
+# - Turn every hook on or off (the kill switch):
+#
+# `hindsight-memory {{on|off}}`
+#
+# - Turn the codebase survey on or off (a `claude -p` agent samples the repo to seed memory):
+#
+# `hindsight-memory survey {{on|off}}`
+#
+# - Show the daemon, the config, today's model calls and the plugin log:
+#
+# `hindsight-memory status`
+#
+# - Remove the hooks and the MCP server and stop the daemon (the config is kept aside as coding-agent.json.uninstalled, the memory database stays; `init` restores both):
+#
+# `hindsight-memory uninstall`
+#
+# ---
+# Defaults are merged additively: keys already in the config win, so
+# hand edits survive init and upgrade; embedVersion alone always follows the pin. The config is never tracked in the repo.
+# Paths are stored as typed, one trailing slash stripped and a true $HOME
+# prefix written as ~, because the plugin expands only ~ and tests a literal
+# prefix.
+#
+# Overrides (the self-check uses them; each is split on whitespace, so a
+# path with spaces is not supported):
+#   HINDSIGHT_CONFIG            the config file (the plugin honours it too)
+#   HINDSIGHT_MEMORY_INSTALLER  instead of npx -y @vectorize-io/hindsight-coding-agents@<pin>
+#   HINDSIGHT_MEMORY_EMBED      instead of uvx hindsight-embed@<pin>
+#   HINDSIGHT_MEMORY_NPM        instead of npm
+#
+# License: MIT
+
+set -euo pipefail
+
+# Bumping either pin is a reviewed commit
+CODING_AGENTS_VERSION=0.8.2
+EMBED_VERSION=1.1.0
+
+cfg=${HINDSIGHT_CONFIG:-$HOME/.hindsight/coding-agent.json}
+# shellcheck disable=SC2206 # each override is a command plus arguments, split on purpose
+{
+  installer=(${HINDSIGHT_MEMORY_INSTALLER:-npx -y @vectorize-io/hindsight-coding-agents@$CODING_AGENTS_VERSION})
+  embed=(${HINDSIGHT_MEMORY_EMBED:-uvx hindsight-embed@$EMBED_VERSION})
+  npm_cmd=(${HINDSIGHT_MEMORY_NPM:-npm})
+}
+
+yellow=$(tput setaf 3 2> /dev/null || true)
+red=$(tput setaf 1 2> /dev/null || true)
+reset=$(tput sgr0 2> /dev/null || true)
+warning() { echo "${yellow}hindsight-memory: $*${reset}" >&2; }
+fail() {
+  echo "${red}hindsight-memory: $*${reset}" >&2
+  exit 1
+}
+
+usage() {
+  echo "usage: hindsight-memory init|upgrade|status|uninstall|on|off|survey on|off|paths [list|add <dir>|remove <dir>]" >&2
+  exit 1
+}
+
+# The survey is off: it spawns a claude -p agent with Read over the repo, untracked
+# files included; daily page refresh and a roster every ten turns cut background calls
+defaults() {
+  cat << EOF
+{
+  "serverMode": "daemon",
+  "optInOnly": true,
+  "optInPaths": ["~/dev"],
+  "autoUpdate": false,
+  "embedVersion": "$EMBED_VERSION",
+  "codebaseSurvey": false,
+  "pageTriggerCron": "0 6 * * *",
+  "pageRefreshEveryTurns": 10,
+  "defaultBankConfig": {
+    "memory_defense": {
+      "enabled": true,
+      "rules": [{ "on": "sensitive_data", "action": "redact" }]
+    }
+  }
+}
+EOF
+}
+
+# The one writer: write_cfg <jq filter> [jq args…]; a missing file reads as {}
+write_cfg() {
+  local filter=$1
+  shift
+  mkdir -p "$(dirname "$cfg")"
+  if [ -e "$cfg" ]; then
+    jq -e . "$cfg" > /dev/null 2>&1 || fail "unreadable or invalid JSON: $cfg"
+    jq "$@" "$filter" "$cfg" > "$cfg.tmp"
+  else
+    echo '{}' | jq "$@" "$filter" > "$cfg.tmp"
+  fi
+  mv "$cfg.tmp" "$cfg"
+}
+
+# shellcheck disable=SC2016 # $d is a jq variable
+merge_defaults() { write_cfg '$d * . | .embedVersion = $d.embedVersion' --argjson d "$(defaults)"; }
+
+need_config() { [ -f "$cfg" ] || fail "no config at $cfg; run: hindsight-memory init"; }
+
+# upup treats the config's presence as "installed", so uninstall keeps it aside
+aside=$cfg.uninstalled
+
+run_installer() {
+  if ! "${installer[@]}" install claude-code codex --server daemon; then
+    [ ! -f "$cfg" ] || mv "$cfg" "$aside"
+    fail "the installer failed"
+  fi
+  [ -f "$cfg" ] || fail "the installer left no config at $cfg"
+}
+
+norm_path() {
+  local p=${1%/}
+  [ -n "$p" ] || p=/
+  # shellcheck disable=SC2088 # the literal ~ is the stored form
+  case $p in
+    "$HOME" | "$HOME"/*) printf '%s\n' "~${p#"$HOME"}" ;;
+    *) printf '%s\n' "$p" ;;
+  esac
+}
+
+cmd_init() {
+  if [ ! -f "$cfg" ]; then
+    [ ! -f "$aside" ] || mv "$aside" "$cfg"
+    run_installer
+  fi
+  merge_defaults
+}
+
+cmd_upgrade() {
+  local latest newest
+  run_installer
+  merge_defaults
+  latest=$("${npm_cmd[@]}" view @vectorize-io/hindsight-coding-agents version 2> /dev/null) || latest=""
+  newest=$(printf '%s\n%s\n' "$CODING_AGENTS_VERSION" "$latest" | sort -V | tail -1)
+  if [ -n "$latest" ] && [ "$newest" != "$CODING_AGENTS_VERSION" ]; then
+    echo "newer release $latest on npm; bump CODING_AGENTS_VERSION"
+  fi
+}
+
+# shellcheck disable=SC2016 # $p is a jq variable
+cmd_paths() {
+  local p
+  case ${1:-list} in
+    list)
+      need_config
+      jq -r '.optInPaths[]?' "$cfg"
+      ;;
+    add)
+      [ $# -eq 2 ] || usage
+      p=$(norm_path "$2")
+      need_config
+      write_cfg '.optInPaths = ((.optInPaths // []) | if index([$p]) then . else . + [$p] end)' --arg p "$p"
+      ;;
+    remove)
+      [ $# -eq 2 ] || usage
+      p=$(norm_path "$2")
+      need_config
+      jq -e --arg p "$p" '(.optInPaths // []) | index([$p]) != null' "$cfg" > /dev/null \
+        || fail "not in optInPaths: $p"
+      write_cfg '.optInPaths -= [$p]' --arg p "$p"
+      ;;
+    *) usage ;;
+  esac
+}
+
+# shellcheck disable=SC2016 # $k and $v are jq variables
+# Only init creates the config: upup treats its presence as "installed"
+set_flag() {
+  need_config
+  write_cfg '.[$k] = $v' --arg k "$1" --argjson v "$2"
+}
+
+cmd_status() {
+  local log=$HOME/.hindsight/profiles/coding-agent.log
+  local plugin_log=$HOME/.hindsight/coding-agents-logs/plugin.log
+  local calls=0
+  "${embed[@]}" -p coding-agent daemon status || true
+  need_config
+  jq '{serverMode, disabled, optInOnly, optInPaths, codebaseSurvey}' "$cfg"
+  [ -f "$log" ] && calls=$(grep -c "^$(date +%F).*scope=" "$log" || true)
+  echo "model calls today: $calls"
+  if [ -f "$plugin_log" ]; then
+    echo "plugin.log:"
+    tail -10 "$plugin_log"
+  fi
+}
+
+cmd_uninstall() {
+  "${installer[@]}" uninstall all || fail "the vendor uninstall failed"
+  "${embed[@]}" -p coding-agent daemon stop || warning "the coding-agent daemon did not stop (it may not be running)"
+  [ ! -f "$cfg" ] || mv "$cfg" "$aside"
+}
+
+[ $# -gt 0 ] || usage
+[ "$1" = uninstall ] || command -v jq > /dev/null || fail "jq is required"
+
+case $1 in
+  init) cmd_init ;;
+  upgrade) cmd_upgrade ;;
+  paths)
+    shift
+    cmd_paths "$@"
+    ;;
+  on) set_flag disabled false ;;
+  off) set_flag disabled true ;;
+  survey)
+    case ${2:-} in
+      on) set_flag codebaseSurvey true ;;
+      off) set_flag codebaseSurvey false ;;
+      *) usage ;;
+    esac
+    ;;
+  status) cmd_status ;;
+  uninstall) cmd_uninstall ;;
+  *) usage ;;
+esac

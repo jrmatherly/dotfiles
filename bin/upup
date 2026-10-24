@@ -273,6 +273,21 @@ if command -v claude > /dev/null; then
     status fail "agent skills" "run: claude-config restore skills --update"
     show
   fi
+  # Re-running the pinned installer is the vendor's update and re-wires hooks a
+  # release adds; a newer release is only reported, since the pin is a reviewed commit
+  if [ -f "${HINDSIGHT_CONFIG:-$HOME/.hindsight/coding-agent.json}" ]; then
+    step "Hindsight memory"
+    if capture hindsight-memory upgrade; then
+      if newer=$(grep -o 'newer release [^;]*' <<< "$out"); then
+        status notice "Hindsight memory" "$newer; bump CODING_AGENTS_VERSION in bin/hindsight-memory"
+      else
+        status ok "Hindsight memory" "runtime re-staged, hooks re-wired"
+      fi
+    else
+      status fail "Hindsight memory" "run: hindsight-memory upgrade"
+      show
+    fi
+  fi
   # SnippetsLab's skill is a static copy of `lab skill show` (see setup/misc.sh)
   if [ -x /Applications/SnippetsLab.app/Contents/Helpers/lab ]; then
     step "SnippetsLab skill"

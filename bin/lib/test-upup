@@ -72,7 +72,10 @@ stub claude-catalog 'echo "wrote /tmp/cat/CATALOG.md, CATALOG-lite.md, catalog.h
 stub open 'exit 0'
 stub amp 'echo "Amp is already up to date"'
 stub nyan 'exit 0'
+stub hindsight-memory '[ -e "$STATE/hindsight-fails" ] && { echo "installer failed"; exit 1; }; [ -e "$STATE/hindsight-newer" ] && echo "newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION"; echo "runtime re-staged"'
 export PATH="$tmp/bin:$PATH"
+export HINDSIGHT_CONFIG="$STATE/coding-agent.json"
+echo '{}' > "$HINDSIGHT_CONFIG"
 
 check_true() {
   local name=$1
@@ -102,6 +105,7 @@ check_true "up to date: config left dirty before the run is unchanged" has '^✔
 check_true "up to date: plugins counted" has '^✔ plugins +2 plugins up to date$'
 check_true "up to date: Claude Code version" has '^✔ Claude Code +2\.1\.310 up to date$'
 check_true "up to date: skills counted" has '^✔ agent skills +2 tracked skills reinstalled for their agents$'
+check_true "up to date: Hindsight memory re-staged" has '^✔ Hindsight memory +runtime re-staged, hooks re-wired$'
 check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
 check_true "up to date: one-line summary" has '^Everything up to date\.$'
 check_true "up to date: log path printed" has '^Log: logs/upup-[0-9]{8}-[0-9]{6}\.log$'
@@ -109,8 +113,9 @@ check_true "up to date: summary links the catalog" has '^Catalog: file:///tmp/ca
 check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs"
-touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails"
+touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer"
 run
+check_true "changes: newer Hindsight release is a notice" has '^● Hindsight memory +newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION in bin/hindsight-memory$'
 check_true "changes: names the packages before upgrading" has '^    upgrading 1 package: gh…$'
 check_true "changes: a further edit to dirty config is a change" has '^↻ Claude config +tracked Claude config changed$'
 check_true "changes: dotfiles pulled" has '^↻ dotfiles +pulled 1 commit$'
@@ -135,10 +140,16 @@ check_true "changes: not everything up to date" lacks 'Everything up to date'
 check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
-touch "$STATE/claude"
+touch "$STATE/claude" "$STATE/hindsight-fails"
 run
 check_true "update: Claude Code updated" has '^↻ Claude Code +2\.1\.310 → 2\.1\.311$'
 check_true "update: Claude Code restart action" has '^  › Restart Claude Code to run 2\.1\.311$'
+check_true "update: Hindsight failure names the command" has '^✖ Hindsight memory +run: hindsight-memory upgrade$'
+check_true "update: Hindsight failure output shown" has '^    installer failed$'
+
+rm -rf "$DOTFILES/logs" "$HINDSIGHT_CONFIG"
+run
+check_true "no Hindsight config: step skipped" lacks 'Hindsight memory'
 
 rm -rf "$DOTFILES/logs"
 rc=0

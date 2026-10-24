@@ -59,6 +59,8 @@ prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}"
 bash setup/tests/codex-config.sh > /dev/null
 # bin/claude-desktop-account against a fixture Desktop folder (never the real one)
 bash bin/lib/test-claude-desktop-account > /dev/null
+# bin/hindsight-memory against a fixture HOME with the installer, hindsight-embed and npm stubbed
+bash bin/lib/test-hindsight-memory > /dev/null
 # bin/upup's report against stubbed tools (nothing is upgraded)
 bash bin/lib/test-upup > /dev/null
 # VS Code settings are rendered from a minijinja template (bin/vscode-settings):
