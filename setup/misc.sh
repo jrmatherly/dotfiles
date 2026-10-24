@@ -456,24 +456,7 @@ fi
 # so put its directory first for both.
 if [ -x "$claude_bin" ]; then
   info "🧩 Restoring Claude Code plugins, settings and skills…"
-  # The private jrmatherly/skills repo (a marketplace and standalone skills) is
-  # cloned by non-interactive git: Claude Code tries SSH, then HTTPS. On a
-  # fresh Mac neither works yet (~/.ssh/config isn't linked until
-  # symlinks.sh, nothing stores a GitHub credential), so hand this one
-  # command gh's credential helper through the environment. Writing it to
-  # ~/.gitconfig.local instead would make symlinks.sh skip git identity
-  # setup. (bash 3.2: an empty array under set -u is unbound, hence ${…+…})
-  gh_git_env=()
-  if command_exists gh && gh auth status &> /dev/null; then
-    # The empty first value clears the helper list for github.com, so only gh
-    # answers: otherwise git also hands gh's token to Homebrew git's
-    # osxkeychain helper on success, and it stays in the keychain
-    gh_git_env=(GIT_CONFIG_COUNT=2
-      GIT_CONFIG_KEY_0=credential.https://github.com.helper GIT_CONFIG_VALUE_0=
-      GIT_CONFIG_KEY_1=credential.https://github.com.helper
-      GIT_CONFIG_VALUE_1='!gh auth git-credential')
-  fi
-  env ${gh_git_env[@]+"${gh_git_env[@]}"} PATH="$(dirname "$claude_bin"):$PATH" "$DOTFILES_DIR/bin/claude-config" restore 2>&1 | indent \
+  PATH="$(dirname "$claude_bin"):$PATH" "$DOTFILES_DIR/bin/claude-config" restore 2>&1 | indent \
     || warning "Some of it didn't restore — re-run: claude-config restore"
   info "📚 Building the Claude Code catalog…"
   # Its lint lines (stderr) say what's wrong when curated.toml is out of date

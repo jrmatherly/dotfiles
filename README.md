@@ -162,10 +162,10 @@ Setup already asks for your git identity, commit signing and computer name. Thes
 | File | What to change |
 | --- | --- |
 | `README.md`, [`docs/macos tips & tricks.md`](docs/macos%20tips%20%26%20tricks.md) | Title, intro and the `jrmatherly/dotfiles` clone URL and link |
-| [`agents/README.md`](agents/README.md) | The `jrmatherly/skills` links point to my private skills repo — use your own, or the public [skills CLI](https://github.com/vercel-labs/skills) |
+| [`agents/README.md`](agents/README.md) | The `jrmatherly/skills` links point to my skills repo — use it, your own, or the [skills CLI](https://github.com/vercel-labs/skills) alone |
 | [`tilde/.config/fastfetch/config.jsonc`](tilde/.config/fastfetch/config.jsonc) | Name, URL and weather `location` |
 | [`lazygit/config.yml`](lazygit/config.yml) | The author name under `authorColors` |
-| [`agents/claude-*`](agents/) | My Claude Code plugins, settings and skills, including the `jrmatherly-skills` marketplace (`jstack`, `resume`) and the `coding-standards` skill from my private skills repo, which you can't clone — drop those lines. Run `claude-config save` once yours are installed and commit the result |
+| [`agents/claude-*`](agents/) | My Claude Code plugins, settings and skills, including the `jrmatherly-skills` marketplace (`jstack`, `resume`) and the `coding-standards` skill from my public skills repo — keep them or drop those lines. Run `claude-config save` once yours are installed and commit the result |
 | [`agents/catalog/curated.toml`](agents/catalog/curated.toml) | Notes on my tools. `claude-catalog` still builds but exits 1 (a warning in setup) for each skill, command or agent you don't have installed — delete those. An `[mcp.*]` entry you lack, like my `coolify` server, only prints a `lint:` note, because MCP registration is per machine |
 | [`setup/Brewfile`](setup/Brewfile) | My apps. Trim it, or pick a subset with `bin/brewpick` |
 | [`LICENSE`](LICENSE) | Add your copyright line; keep the existing ones (MIT requires it) |

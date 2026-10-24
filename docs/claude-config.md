@@ -31,7 +31,7 @@ Agents map to folders: `claude-code` is `~/.claude/skills`, `codex` is `~/.agent
 
 ## On a fresh Mac
 
-`setup/misc.sh` runs `claude-config restore` after Claude Code, npm config and PowerShell are in place, then `claude-catalog`. For that run only, `gh` is made the sole git credential helper for github.com, so the private `jrmatherly/skills` marketplace and its skills clone without writing `~/.gitconfig.local`. Both steps warn on failure and never abort setup.
+`setup/misc.sh` runs `claude-config restore` after Claude Code, npm config and PowerShell are in place, then `claude-catalog`. Both steps warn on failure and never abort setup.
 
 ## Why not the CLI's own update
 
