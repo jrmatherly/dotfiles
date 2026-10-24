@@ -11,3 +11,9 @@ typeset -U fpath
 if [[ -d /opt/homebrew/opt/zsh/share/zsh/functions ]]; then
   fpath=(/opt/homebrew/opt/zsh/share/zsh/functions ${fpath:#/opt/homebrew/Cellar/zsh/*/share/zsh/functions})
 fi
+
+# Hindsight's extraction provider. The coding-agent daemon picks the first API
+# key it finds when this is unset, and a daemon already running is adopted, not
+# restarted, so the first session of the day would otherwise decide billing.
+# Set here rather than in zsh/env.zsh because only interactive shells read that.
+export HINDSIGHT_API_LLM_PROVIDER=claude-code

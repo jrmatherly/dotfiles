@@ -18,7 +18,7 @@ Jason's personal dotfiles for configuring macOS with Zsh and Homebrew — a pers
 - Custom color scheme: [Squirrelsong](colors/).
 - Handy [CLI scripts](bin/), including [`brewpick`](bin/brewpick) — the Brewfile installer used by `setup/brew.sh` (`brewpick --all`), which can also run as an fzf checklist to install just a subset of the formulae/casks/VS Code extensions.
 - [`upup`](bin/upup): one command to update macOS, Homebrew, runtimes and the rest (see [Updating](#updating)).
-- Coding agents [config automation](agents/): shared instructions for Amp and Codex, plus Claude Code's plugins, settings and skills, restored by setup along with a catalog of everything installed.
+- Coding agents [config automation](agents/): shared instructions for Amp and Codex, plus Claude Code's plugins, settings and skills, restored by setup along with a catalog of everything installed, and opt-in per-repo [Hindsight](https://github.com/vectorize-io/hindsight) memory for Claude Code and Codex (`hindsight-memory`).
 - [Custom zsh theme](tilde/.starship.toml) with Git status, etc. using [Starship](https://starship.rs/).
 - Runtime versions (Node, Python, etc.) managed by [mise](https://mise.jdx.dev/), activated in [`tilde/.zprofile`](tilde/.zprofile) (shims, for GUI apps) and [`zsh/init.zsh`](zsh/init.zsh) (full shell integration).
 - [Git aliases](tilde/.gitconfig), with identity/signing configured per-machine via `~/.gitconfig.local` (see [Local customizations](#local-customizations)) — commit signing via SSH through 1Password, or GPG.
@@ -222,6 +222,7 @@ upup
 - reinstalls the Iosevka Code font if its upstream zip changed
 - updates Claude Code itself (`claude update`) and reports its version, before the steps below so they run on the new binary
 - reinstalls the tracked agent skills for the agents each is listed for (`claude-config restore skills --update`), which is how an installed skill picks up upstream changes
+- re-runs the pinned Hindsight memory installer (`hindsight-memory upgrade`, only when `~/.hindsight/coding-agent.json` exists) and reports a newer release on npm as a notice, since the version pin in `bin/hindsight-memory` is bumped by hand
 - refreshes the Claude Code marketplaces and updates every installed plugin (`claude plugin marketplace update`, then `claude plugin update` per plugin; Claude Code applies them on its next start; `-y` accepts a marketplace-declared install command without showing it, since the tracked marketplaces are vetted ones)
 - records the Claude Code plugins, base settings and user skills in the repo (`claude-config save`, review with `git diff`) and rebuilds the catalog (`claude-catalog`), then checks mise's MCP server: if its user-scope entry isn't `✔ Connected` and runs a different command from what setup writes (a moved binary, an old wrapper), it's re-registered; otherwise it warns, naming anthropics/claude-code#88128 when the server lists no tools. A missing registration is left alone
 - asks Raycast to check for app and extension updates

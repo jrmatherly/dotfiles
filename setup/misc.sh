@@ -278,6 +278,20 @@ if [ -x "$scrapling_mcp_bin" ] && [ -x "$claude_bin" ] && command_exists uv; the
   fi
 fi
 
+# Hindsight — per-repo long-term memory for Claude Code and Codex via the vendor
+# installer (what it writes: setup/README.md and the spec,
+# docs/superpowers/specs/2026-10-24-hindsight-memory.md). Tracked snapshots stay
+# clean: `claude-config save` drops `hooks`, and the [mcp_servers] block lands in
+# the seeded copy ~/.codex/config.toml. It registers its MCP server with
+# `claude mcp add`, hence the PATH prefix. `bin/upup` upgrades it.
+if command_exists npx && command_exists uvx && command_exists jq && [ -x "$claude_bin" ]; then
+  info "🧠 Setting up Hindsight memory…"
+  PATH="$(dirname "$claude_bin"):$PATH" "$DOTFILES_DIR/bin/hindsight-memory" init 2>&1 | indent \
+    || warning "Hindsight memory setup failed — run it later: hindsight-memory init"
+else
+  echo "npx, uvx, jq or claude not found — skipping Hindsight memory" | indent
+fi
+
 # REA — reverse-engineering MCP server (`rea-agents`, a mise npm tool) for
 # Claude Code, driving the Brewfile's Ghidra formula and Hopper cask. Registered
 # through the mise shim so Claude Code finds it when launched from an app

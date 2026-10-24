@@ -27,3 +27,7 @@ Define verifiable success criteria (tests, outputs, checks). Run available valid
 ## Plans
 
 - At the end of each plan, list unresolved questions to answer. Keep questions extremely concise — sacrifice grammar for brevity. Provide your recommended answer for each.
+
+## Memory (Hindsight)
+
+Sessions under the opt-in paths in `~/.hindsight/coding-agent.json` have per-repo long-term memory through the Hindsight hooks; the `hindsight-coding-agent` skill documents the tools. Search the knowledge pages first for project questions, credit memory only when it informed the answer, treat it as a lead to verify against the code, and record a `Correction: <topic>` document when it is wrong. Manage it with `hindsight-memory` (`paths`, `on|off`, `status`), never a bare `npx @vectorize-io/hindsight-coding-agents` call, since the version is pinned there.
