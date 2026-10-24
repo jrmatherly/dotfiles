@@ -168,6 +168,11 @@ if [ -x "$rustup" ]; then
     info "🦀 Installing the stable Rust toolchain with rustup…"
     "$rustup" default stable 2>&1 | indent || warning "rustup default stable failed — run it later"
   fi
+  # A rust installed through mise but not declared leaves a cargo shim that answers
+  # "No version is set", and the shims precede rustup's bin on a GUI-launched PATH
+  if mise ls --installed rust 2> /dev/null | grep -q .; then
+    warning "mise has a rust install whose cargo shim shadows rustup — run: mise uninstall --all rust && mise reshim"
+  fi
 fi
 
 # Claude Code — Anthropic's native installer, into ~/.local/bin (zsh/path.zsh

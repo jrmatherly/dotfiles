@@ -210,12 +210,12 @@ cmd_status() {
   need_config
   jq '{serverMode, disabled, optInOnly, optInPaths, codebaseSurvey}' "$cfg"
   api="http://127.0.0.1:$(jq -r '.apiPort // 9077' "$cfg")"
-  if banks=$(curl -sf --max-time 3 "$api/v1/default/banks" | jq -r '.banks[].bank_id'); then
+  if banks=$(curl -sf --max-time 3 "$api/v1/default/banks" 2> /dev/null | jq -r '.banks[].bank_id'); then
     since=$(date -u -v-24H +%FT%TZ)
     echo "model calls, last 24 h, per bank (from $api):"
     for bank in $banks; do
       # 500 is the endpoint's page cap; the model split covers that many, the total is exact
-      curl -sf --max-time 5 "$api/v1/default/banks/$bank/llm-requests?call_type=llm&start_date=$since&limit=500" \
+      curl -sf --max-time 5 "$api/v1/default/banks/$bank/llm-requests?call_type=llm&start_date=$since&limit=500" 2> /dev/null \
         | jq -r --arg b "$bank" '.items as $i | "  \($b): \(.total) calls" + ($i | group_by(.model) | map(" · \(.[0].model) ×\(length)") | join("")) + (if .total > ($i | length) then " (model split: first \($i | length))" else "" end)' \
         || echo "  $bank: request log unavailable"
     done
