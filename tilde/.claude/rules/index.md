@@ -8,4 +8,4 @@ Tracked in the dotfiles repo (`tilde/.claude/rules/`). `~/.claude/CLAUDE.md` is 
 - **Catalog** — `catalog.md`: where the catalog of installed skills, commands, subagents and MCP servers lives, and how to rebuild it.
 - **Browser checks** — `chrome-devtools.md`: use the chrome-devtools MCP for UI reviews too; `emulate` for phone widths, where screenshots can be saved, reproduce at the reporter's viewport, re-run the motivating metric, close subagent pages.
 - **Handoffs** — `handoffs.md`: an open question names the check that settles it; inherited workaround lines are verified or dropped.
-- **jstack models** — `jstack-models.md`: which model each jstack role runs on (fable for judgment and synthesis, opus for code, sonnet for exploration). Written by `/jstack:setup-jstack`; re-run it to change the budget.
+- **jstack models** — `jstack-models.md`: which model and reasoning effort each jstack role runs on, as `model effort` lines (fable for judgment and synthesis, opus for code, sonnet for exploration, all at medium effort). Written by `/jstack:setup-jstack`; re-run it to change the budget.
