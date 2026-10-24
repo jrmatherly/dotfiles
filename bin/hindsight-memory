@@ -33,9 +33,9 @@
 # ---
 # Defaults are merged additively: keys already in the config win, so
 # hand edits survive init and upgrade; embedVersion alone always follows the pin. The config is never tracked in the repo.
-# Paths are stored as typed, one trailing slash stripped and a true $HOME
-# prefix written as ~, because the plugin expands only ~ and tests a literal
-# prefix.
+# Paths are stored as typed (a relative one resolved against the current
+# directory), one trailing slash stripped and a true $HOME prefix written as ~,
+# because the plugin expands only ~ and tests a literal prefix.
 #
 # Overrides (the self-check uses them; each is split on whitespace, so a
 # path with spaces is not supported):
@@ -119,17 +119,16 @@ need_config() { [ -f "$cfg" ] || fail "no config at $cfg; run: hindsight-memory 
 # upup treats the config's presence as "installed", so uninstall keeps it aside
 aside=$cfg.uninstalled
 
-run_installer() {
-  if ! "${installer[@]}" install claude-code codex --server daemon; then
-    [ ! -f "$cfg" ] || mv "$cfg" "$aside"
-    fail "the installer failed"
-  fi
-  [ -f "$cfg" ] || fail "the installer left no config at $cfg"
-}
+run_installer() { "${installer[@]}" install claude-code codex --server daemon; }
 
 norm_path() {
   local p=${1%/}
   [ -n "$p" ] || p=/
+  case $p in
+    .) p=$PWD ;;
+    /* | '~'*) ;;
+    *) p=$PWD/${p#./} ;;
+  esac
   # shellcheck disable=SC2088 # the literal ~ is the stored form
   case $p in
     "$HOME" | "$HOME"/*) printf '%s\n' "~${p#"$HOME"}" ;;
@@ -140,14 +139,22 @@ norm_path() {
 cmd_init() {
   if [ ! -f "$cfg" ]; then
     [ ! -f "$aside" ] || mv "$aside" "$cfg"
-    run_installer
+    # Only a config this run created or restored goes back aside: with hooks
+    # already wired, a missing config would mean vendor defaults everywhere
+    if ! run_installer; then
+      # A partial run may have wired one harness already
+      "${installer[@]}" uninstall all || true
+      [ ! -f "$cfg" ] || mv "$cfg" "$aside"
+      fail "the installer failed"
+    fi
+    [ -f "$cfg" ] || fail "the installer left no config at $cfg"
   fi
   merge_defaults
 }
 
 cmd_upgrade() {
   local latest newest
-  run_installer
+  run_installer || fail "the installer failed; the config is unchanged"
   merge_defaults
   latest=$("${npm_cmd[@]}" view @vectorize-io/hindsight-coding-agents version 2> /dev/null) || latest=""
   newest=$(printf '%s\n%s\n' "$CODING_AGENTS_VERSION" "$latest" | sort -V | tail -1)
@@ -193,6 +200,10 @@ cmd_status() {
   local log=$HOME/.hindsight/profiles/coding-agent.log
   local plugin_log=$HOME/.hindsight/coding-agents-logs/plugin.log
   local calls=0
+  if [ ! -f "$cfg" ] && [ -f "$aside" ]; then
+    echo "uninstalled (config kept at $aside; run: hindsight-memory init)"
+    return
+  fi
   "${embed[@]}" -p coding-agent daemon status || true
   need_config
   jq '{serverMode, disabled, optInOnly, optInPaths, codebaseSurvey}' "$cfg"
