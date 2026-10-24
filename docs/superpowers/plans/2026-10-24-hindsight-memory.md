@@ -297,34 +297,34 @@ git commit -m "Keep one Hindsight memory path and file its docs skills in the ca
 - Modify: `.remember/remember.md` through the `remember` skill at the end.
 - Modify: `docs/superpowers/specs/2026-10-24-hindsight-memory.md` (the measured numbers go in Risks).
 
-- [ ] **Step 1: Claude Code in an opted-in repo**
+- [x] **Step 1: Claude Code in an opted-in repo** (2026-10-24: banner names `coding-agent::dotfiles`; `session_start` with 5 pages; the sync and the credited answer were seen in the day's sessions)
 
 Open a fresh Claude Code session in `~/dev/dotfiles`. Expected: the 🧠 banner names bank `coding-agent::dotfiles`, `~/.hindsight/coding-agents-logs/plugin.log` shows `seed_started`, `~/.hindsight/profiles/coding-agent.log` shows `Claude Code: Using Claude Agent SDK`, and within two minutes `hindsight_sync_status` reports `"synced": true`. Ask "what is this repo's gate before a commit" and expect an answer that credits Hindsight memory after the seed has run.
 
-- [ ] **Step 2: Codex in the same repo**
+- [ ] **Step 2: Codex in the same repo** (deferred: Codex is not in use on this machine)
 
 Run `codex` in `~/dev/dotfiles`, one prompt. Expected: `diag.jsonl` gains a line with `"harness": "codex"` and `reflect_ok` or an `inject_*` event, and `npx -y @vectorize-io/hindsight-coding-agents@0.8.2 stats` lists both harnesses.
 
-- [ ] **Step 3: A repo outside the list**
+- [ ] **Step 3: A repo outside the list** (deferred by the owner on 2026-10-24)
 
 Clone any small public repo to `/tmp/outside` and open Claude Code there. Expected: the banner reports memory inert, and `uvx hindsight-embed@1.1.0 -p coding-agent bank list` (which starts the daemon if it is down) shows no bank for it.
 
-- [ ] **Step 4: Desktop-launched session**
+- [x] **Step 4: Desktop-launched session** (2026-10-24 19:03Z: `command -v cargo node uv claude` resolved all four, `cargo` from `/opt/homebrew/opt/rustup/bin`; `diag.jsonl` shows `session_start` 5 pages, `inject_pages` 482 ms, `pages_ok`, `retain_ok`)
 
 Start Claude Code from the Claude Desktop app's Code tab in `~/dev/dotfiles`. Expected: the same banner, a `reflect_ok` or fallback event in `diag.jsonl`, and the provider line in `profiles/coding-agent.log`, which together prove PATH held `node`, `uv` and `claude`.
 
-- [ ] **Step 5: Daemon down and kill switch**
+- [ ] **Step 5: Daemon down and kill switch** (deferred by the owner on 2026-10-24)
 
 Run `uvx hindsight-embed@1.1.0 -p coding-agent daemon stop`, open a session, send one prompt. Expected: the reply starts within a few seconds and `diag.jsonl` records `reflect_failed` or an `inject_*_failed`. Then `hindsight-memory off`, a new session. Expected: no banner, no new `diag.jsonl` line. `hindsight-memory on` afterwards.
 
-- [ ] **Step 6: Uninstall and reinstall round trip**
+- [ ] **Step 6: Uninstall and reinstall round trip** (deferred by the owner on 2026-10-24)
 
 Run `hindsight-memory uninstall`. Expected: `jq '.hooks[][] .hooks[].command' ~/.claude/settings.json | grep -c hindsight` prints 0, `claude mcp get hindsight` fails, `~/.codex/hooks.json` has no hindsight entry, NotchBar's and rtk's hooks are untouched. Run `hindsight-memory init`. Expected: all three back, `optInPaths` unchanged.
 
-- [ ] **Step 7: Measure the turn cost**
+- [x] **Step 7: Measure the turn cost** (2026-10-24: the first-prompt reflect timed out at 20 s in 5 of 5 sessions, which is why `autoInject` became `pages`; the pages injection took 482 ms; the numbers are in the spec's Risks)
 
 From `diag.jsonl`, record the `ms` of the first-prompt reflect for three sessions. From `hindsight-memory status`, record `model calls today` after a normal day. Put both numbers in the spec's Risks section, and flag it if the reflect exceeds 20 s or the day exceeds 150 calls.
 
-- [ ] **Step 8: Handoff**
+- [x] **Step 8: Handoff** (`.remember/remember.md`, 2026-10-24)
 
 Run the `remember` skill with the measured numbers, the bank name, and the open question of whether to add `permissions.allow` rules for the read-only `mcp__hindsight__*` tools in `agents/claude-settings.json`.
