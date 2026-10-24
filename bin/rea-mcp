@@ -1,0 +1,49 @@
+#!/bin/bash
+#
+# Start REA's MCP server with the Homebrew JDK its Ghidra formula depends on, resolved at launch.
+#
+# - What Claude Code runs for the `rea` server (registered by setup/misc.sh):
+#
+# `rea-mcp`
+#
+# - See the environment it would hand to `rea mcp`:
+#
+# `rea-mcp --print-env`
+#
+# ---
+# License: MIT
+
+set -euo pipefail
+
+# Ghidra's JDK moves: the ghidra formula depended on openjdk@21, then 12.2 moved
+# it to openjdk@25 (2026-10-22). A JAVA_HOME pinned in the Claude Code
+# registration dangled until the next setup run, so nothing versioned is
+# registered. This resolves both paths from Homebrew every start (about 0.3 s),
+# the same JDK Homebrew's own ghidraRun wrapper uses, and like that wrapper a
+# JAVA_HOME already in the environment wins. Looked up by absolute path too,
+# since an app-launched Claude Code has no Homebrew on PATH.
+brew="$(command -v brew || echo /opt/homebrew/bin/brew)"
+[ -x "$brew" ] || {
+  echo "rea-mcp: Homebrew not found" >&2
+  exit 127
+}
+ghidra="$("$brew" --prefix ghidra)/libexec"
+[ -d "$ghidra" ] || {
+  echo "rea-mcp: the ghidra formula isn't installed (brew install ghidra)" >&2
+  exit 127
+}
+if [ -z "${JAVA_HOME:-}" ]; then
+  jdk="$(HOMEBREW_NO_ENV_HINTS=1 "$brew" deps --1 ghidra | grep -m1 '^openjdk' || true)"
+  [ -n "$jdk" ] || {
+    echo "rea-mcp: the ghidra formula lists no openjdk dependency" >&2
+    exit 1
+  }
+  JAVA_HOME="$("$brew" --prefix "$jdk")/libexec/openjdk.jdk/Contents/Home"
+fi
+export GHIDRA_INSTALL_DIR="$ghidra" JAVA_HOME
+if [ "${1:-}" = --print-env ]; then
+  echo "GHIDRA_INSTALL_DIR=$GHIDRA_INSTALL_DIR"
+  echo "JAVA_HOME=$JAVA_HOME"
+  exit 0
+fi
+exec "${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims/rea" mcp "$@"

@@ -312,25 +312,17 @@ else
 fi
 
 # REA — reverse-engineering MCP server (`rea-agents`, a mise npm tool) for
-# Claude Code, driving the Brewfile's Ghidra formula and Hopper cask. Registered
-# through the mise shim so Claude Code finds it when launched from an app
-# without the shell's PATH. GHIDRA_INSTALL_DIR and JAVA_HOME are the keg-only
-# Homebrew paths `rea doctor` accepts, read from Homebrew at registration time
-# so a formula moving to a newer openjdk@N shows up as drift (register_mcp
-# warns) instead of a dangling path. Hopper's cask path is REA's default
-# launcher. The matching skill is an entry in agents/claude-skills.txt.
-# https://github.com/morluto/rea
+# Claude Code, driving the Brewfile's Ghidra formula and Hopper cask. The
+# registered command is bin/rea-mcp, which resolves GHIDRA_INSTALL_DIR and
+# JAVA_HOME from Homebrew at every launch (the ghidra formula's openjdk@N, the
+# JDK Homebrew's own ghidraRun wrapper uses) and execs the mise shim. The
+# registration therefore holds no versioned path: a JAVA_HOME pinned here
+# dangled when Ghidra 12.2 moved from openjdk@21 to @25 (2026-10-24). Hopper's
+# cask path is REA's default launcher. The skill is an entry in
+# agents/claude-skills.txt. https://github.com/morluto/rea
 rea_shim="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims/rea"
 if [ -x "$rea_shim" ] && [ -x "$claude_bin" ] && command_exists brew && [ -d "$(brew --prefix ghidra)/libexec" ]; then
-  ghidra_jdk="$(brew deps --1 ghidra | grep -m1 '^openjdk' || true)"
-  if [ -n "$ghidra_jdk" ]; then
-    register_mcp rea REA \
-      -e "GHIDRA_INSTALL_DIR=$(brew --prefix ghidra)/libexec" \
-      -e "JAVA_HOME=$(brew --prefix "$ghidra_jdk")/libexec/openjdk.jdk/Contents/Home" \
-      -- "$rea_shim" mcp
-  else
-    warning "ghidra formula lists no openjdk dependency — REA's MCP server not registered"
-  fi
+  register_mcp rea REA -- "$DOTFILES_DIR/bin/rea-mcp"
 else
   echo "rea shim or the ghidra formula not found — skipping REA's MCP server" | indent
 fi

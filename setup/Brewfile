@@ -145,7 +145,7 @@ brew "dex2jar" # Android dex to jar conversion
 brew "dns2tcp" # Tunnel TCP over DNS
 brew "fcrackzip" # Zip password cracking
 brew "foremost" # File carving/recovery
-brew "ghidra" # NSA reverse engineering framework (`ghidraRun`; REA's Ghidra provider; pulls openjdk@21)
+brew "ghidra" # NSA reverse engineering framework (`ghidraRun`; REA's Ghidra provider; pulls the openjdk@N that bin/rea-mcp hands REA)
 brew "gitleaks" # Scan git repos and files for leaked secrets
 brew "hydra" # Network login cracker
 brew "john" # John the Ripper password cracker
