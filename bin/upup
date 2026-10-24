@@ -210,7 +210,9 @@ if command -v uv > /dev/null; then
     show
   elif grep -q 'Nothing to upgrade' <<< "$out"; then
     status ok uv "up to date"
-  elif uv_updated=$(sed -n 's/^Updated //p' <<< "$out") && [ -n "$uv_updated" ]; then
+  # "Updated <tool> vA -> vB" when the tool moved, "Modified <tool> environment"
+  # when only its dependencies did; both count as a change
+  elif uv_updated=$(sed -n 's/^Updated //p; s/^Modified \(.*\) environment$/\1 dependencies/p' <<< "$out") && [ -n "$uv_updated" ]; then
     status changed uv "$(list <<< "$uv_updated")"
     show
   else
