@@ -2,6 +2,7 @@
 #
 # Get macOS software updates, update Homebrew (incl. VS Code), mise and uv tools, the Iosevka Code font, dotfiles, Raycast and Amp; update agent skills, regenerate the SnippetsLab skill, record Claude Code plugins/settings/skills and rebuild their catalog.
 #
+# > Reads like a report: one status line per step and a summary at the end. Full tool output goes to `logs/upup-<timestamp>.log` in the dotfiles repo, and to the screen only when a step changed something or failed.
 # > A macOS update asks for your login password. Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` to a 1Password secret reference (`op://vault/item/password`) to supply it with a fingerprint instead.
 #
 # - Run updates:
@@ -13,32 +14,88 @@
 
 set -euo pipefail
 
-header() {
-  echo "$(tput sgr 0 1)$(tput setaf 6)$1$(tput sgr0)"
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+mkdir -p "$DOTFILES/logs"
+log="$DOTFILES/logs/upup-$(date +%Y%m%d-%H%M%S).log"
+changed=() notices=() failed=() actions=()
+
+# level → glyph and tput color
+style() {
+  case $1 in
+    ok) echo "✔ 2" ;;
+    changed) echo "↻ 6" ;;
+    notice) echo "● 3" ;;
+    fail) echo "✖ 1" ;;
+    prompt) echo "› 5" ;;
+  esac
 }
 
-warning() {
-  tput setaf 1
-  echo "/!\\ $1 /!\\"
-  tput sgr0
+# status <level> <step> <detail>: print the line, log it, collect it for the summary
+status() {
+  local glyph color
+  read -r glyph color <<< "$(style "$1")"
+  printf '%s%s%s %-18s %s\n' "$(tput setaf "$color")" "$glyph" "$(tput sgr0)" "$2" "$3"
+  printf '%s %s  %s\n' "$glyph" "$2" "$3" >> "$log"
+  case $1 in
+    changed) changed+=("$2  $3") ;;
+    notice) notices+=("$2  $3") ;;
+    fail) failed+=("$2  $3") ;;
+  esac
 }
 
-# Ask for the administrator password upfront
-warning "Activate sudo"
-sudo echo "Sudo activated!"
-echo
+step() {
+  printf '\n== %s ==\n' "$1" >> "$log"
+}
 
-# Dotfiles (a failed pull — offline, or the clone is on a branch with no
-# upstream — shouldn't stop the other updates)
-dotfiles || warning "Couldn't pull the dotfiles — carrying on with the updates"
-echo
+# capture <cmd…>: the output lands in $out and the log; returns the command's status
+capture() {
+  local rc
+  out=$("$@" 2>&1) && rc=0 || rc=$?
+  [ -z "$out" ] || printf '%s\n' "$out" >> "$log"
+  return "$rc"
+}
+
+# The captured output, indented, for a step that changed something or failed
+show() {
+  [ -z "$out" ] || sed 's/^/    /' <<< "$out"
+}
+
+# stdin lines → "a, b, c"
+list() {
+  awk 'NR > 1 { printf ", " } { printf "%s", $0 } END { print "" }'
+}
+
+echo "Logging to ${log#"$DOTFILES"/}"
+
+step sudo
+status prompt sudo "Password for sudo, once for the whole run"
+sudo -v
+
+# Dotfiles (a failed pull, offline or on a branch with no upstream, shouldn't
+# stop the other updates)
+step dotfiles
+before="$(git -C "$DOTFILES" rev-parse HEAD 2> /dev/null || true)"
+if capture dotfiles; then
+  after="$(git -C "$DOTFILES" rev-parse HEAD 2> /dev/null || true)"
+  if [ "$before" = "$after" ]; then
+    status ok dotfiles "up to date"
+  else
+    status changed dotfiles "pulled $(git -C "$DOTFILES" rev-list --count "$before..$after") commits"
+    git -C "$DOTFILES" log --oneline "$before..$after" | sed 's/^/    /' | tee -a "$log"
+    actions+=("Open a new terminal: dotfiles changed" "Re-run setup.sh --skip-brew: dotfiles pulled new commits")
+  fi
+else
+  status fail dotfiles "couldn't pull, carried on; run: dotfiles"
+  show
+fi
 
 # macOS. List first: with nothing to install there's no second scan, and the
 # list says whether an OS update (the one that restarts) is among them.
-header "Updating macOS system…"
-macos_updates="$(softwareupdate -l 2>&1)" || true
-echo "$macos_updates"
+step macOS
+capture softwareupdate -l || true
+macos_updates="$out"
 if grep -q 'Label:' <<< "$macos_updates"; then
+  status changed macOS "$(sed -n 's/^.*Label: //p' <<< "$macos_updates" | list)"
   # On Apple Silicon, softwareupdate itself asks for the account password
   # before an OS update (volume-owner authorization); sudo and Touch ID don't
   # count. Optional: set DOTFILES_MAC_PASSWORD_OP in ~/.zsh.local to a
@@ -48,150 +105,281 @@ if grep -q 'Label:' <<< "$macos_updates"; then
   if grep -q 'Action: restart' <<< "$macos_updates" \
     && [ -n "${DOTFILES_MAC_PASSWORD_OP:-}" ] && command -v op > /dev/null; then
     mac_password="$(op read "$DOTFILES_MAC_PASSWORD_OP")" \
-      || warning "Couldn't read the Mac password from 1Password — type it at the prompt"
+      || status notice macOS "couldn't read the Mac password from 1Password; type it at the prompt"
   fi
   # printf is a shell builtin, so the password never shows up in `ps`
   if [ -z "$mac_password" ] \
-    || ! printf '%s\n' "$mac_password" | sudo softwareupdate -ia --verbose --user "$USER" --stdinpass; then
-    sudo softwareupdate -ia --verbose
+    || ! printf '%s\n' "$mac_password" | sudo softwareupdate -ia --verbose --user "$USER" --stdinpass 2>&1 | tee -a "$log"; then
+    sudo softwareupdate -ia --verbose 2>&1 | tee -a "$log" \
+      || status fail macOS "install failed; run: sudo softwareupdate -ia --verbose"
   fi
   unset mac_password
+else
+  status ok macOS "no updates"
 fi
-echo
-
-# App Store
-# https://github.com/mas-cli/mas#known-issues
-# header "Updating apps from App Store…"
-# mas upgrade
-# echo
 
 # Homebrew (formulae + casks without and with auto_updates)
-header "Updating Homebrew packages…"
-outdated_packages=$(brew outdated --greedy)
-if [ -n "$outdated_packages" ]; then
-  echo "📦 Outdated packages:"
-  echo "$outdated_packages"
-  # --yes: Homebrew asks before upgrading by default; the list is printed above
-  brew upgrade --greedy --yes
+step Homebrew
+if ! outdated_packages=$(brew outdated --greedy 2>> "$log"); then
+  status fail Homebrew "couldn't list outdated packages; run: brew outdated --greedy"
+elif [ -z "$outdated_packages" ]; then
+  status ok Homebrew "up to date"
 else
-  echo "✨ All packages already up-to-date."
+  printf '%s\n' "$outdated_packages" >> "$log"
+  # --yes: Homebrew asks before upgrading by default; the list is in the status line
+  if brew upgrade --greedy --yes 2>&1 | tee -a "$log"; then
+    status changed Homebrew "$(wc -l <<< "$outdated_packages" | tr -d ' ') upgraded: $(list <<< "$outdated_packages")"
+  else
+    status fail Homebrew "upgrade failed; run: brew upgrade --greedy"
+  fi
 fi
-echo
-
-# Cleanup
-header "Cleaning up Homebrew…"
-brew cleanup --prune=all
-brew doctor || true
-echo
+step "brew cleanup"
+if capture brew cleanup --prune=all; then
+  freed=$(sed -n 's/.*freed approximately \(.*\) of disk space.*/\1/p' <<< "$out")
+  status ok "brew cleanup" "$([ -n "$freed" ] && echo "freed $freed" || echo "nothing to clean")"
+else
+  status fail "brew cleanup" "run: brew cleanup --prune=all"
+  show
+fi
+step "brew doctor"
+if ! capture brew doctor && ! grep -q 'Your system is ready to brew' <<< "$out"; then
+  status notice "brew doctor" "$(grep -m1 '^Warning:' <<< "$out" || head -1 <<< "$out")"
+fi
 
 # mise tools (Node/Python patch releases, npm: CLIs like CodeGraph, GitHub
 # release binaries) — stays within the versions pinned in
 # ~/.config/mise/config.toml (MISE_LOG_LEVEL=warn hides mise's hint about
 # newer releases outside those pins); mise itself updates with Homebrew above
-header "Updating mise tools…"
-MISE_LOG_LEVEL=warn mise upgrade
+step mise
+mise_before=$(mise ls --json 2>> "$log" || echo '{}')
+if capture env MISE_LOG_LEVEL=warn mise upgrade; then
+  mise_after=$(mise ls --json 2>> "$log" || echo '{}')
+  upgraded=$(jq -rn --argjson a "$mise_before" --argjson b "$mise_after" '
+    def installed($x; $t): [$x[$t][]? | select(.installed) | .version];
+    $b | keys[] as $t
+    | installed($a; $t) as $old | installed($b; $t) as $new
+    | ($new - $old) as $added | select($added | length > 0)
+    | ($old - $new) as $removed
+    | ($t | sub(".*[:/]"; "")) + " "
+      + (if $removed | length > 0 then ($removed | join(",")) + "→" else "" end)
+      + ($added | join(","))' || true)
+  if [ -n "$upgraded" ]; then
+    status changed mise "$(wc -l <<< "$upgraded" | tr -d ' ') upgraded: $(list <<< "$upgraded")"
+  else
+    status ok mise "up to date"
+  fi
+else
+  status fail mise "run: mise upgrade"
+  show
+fi
+while read -r tool version until; do
+  status notice mise "${tool##*[:/]} $version held until $until by minimum_release_age"
+done < <(sed -nE 's/.*WARN +newer ([^ ]+) release ([^ ]+) \(released [^,]*, eligible ([^)]*)\) ignored by minimum_release_age.*/\1 \2 \3/p' <<< "$out")
 # Relink the global TypeScript for typescript-language-server (see
 # setup/misc.sh): the link target names the exact version mise installed.
 if ts_dir="$(mise where npm:typescript 2> /dev/null)"; then
   mkdir -p "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules"
   ln -sfn "$ts_dir/node_modules/typescript" "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules/typescript"
 fi
-echo
 
 # uv tools (Serena, Scrapling)
 if command -v uv > /dev/null; then
-  header "Updating uv tools…"
-  uv tool upgrade --all
+  step uv
+  if ! capture uv tool upgrade --all; then
+    status fail uv "run: uv tool upgrade --all"
+    show
+  elif grep -q 'Nothing to upgrade' <<< "$out"; then
+    status ok uv "up to date"
+  elif uv_updated=$(sed -n 's/^Updated //p' <<< "$out") && [ -n "$uv_updated" ]; then
+    status changed uv "$(list <<< "$uv_updated")"
+    show
+  else
+    status notice uv "unrecognized output, see the log"
+  fi
   # An upgrade replaces Scrapling's package dir, and with it the marker file
   # that makes `scrapling install` a no-op, so its Chromium is re-checked
   if command -v scrapling > /dev/null; then
-    out="$(scrapling install 2>&1)" || warning "Scrapling's browser download failed — run it later: scrapling install"
-    [[ $out == *"already installed"* ]] || echo "$out"
+    step Scrapling
+    if ! capture scrapling install; then
+      status fail Scrapling "browser download failed; run: scrapling install"
+    elif [[ $out != *"already installed"* ]]; then
+      status changed Scrapling "browser reinstalled"
+    fi
   fi
-  echo
 fi
 
 # Iosevka Code Nerd Font (VS Code's font; no Homebrew cask, so not covered by
 # `brew upgrade` above) — reinstalls only when the upstream zip changed
-header "Checking the Iosevka Code font…"
-install-iosevka-code || warning "Iosevka Code font check failed — run it later: install-iosevka-code"
-echo
+step Iosevka
+if ! capture install-iosevka-code; then
+  status fail Iosevka "font check failed; run: install-iosevka-code"
+  show
+elif grep -q '^Installed Iosevka' <<< "$out"; then
+  status changed Iosevka "new release installed"
+  actions+=("Restart apps to pick up the new Iosevka Code font")
+else
+  status ok Iosevka "up to date"
+fi
+if grep -q 'differs from the reviewed one' <<< "$out"; then
+  status notice Iosevka "zip differs from the reviewed one; review it, then set REVIEWED_SHA256 in bin/install-iosevka-code"
+fi
 
 # Claude Code: reinstall the tracked user skills for their listed agents (the
 # only thing that brings an installed skill up to date), record the current
 # plugins, base settings and user skills in the repo (review with `git diff`),
 # then rebuild the catalog of installed skills/agents/MCP servers
 if command -v claude > /dev/null; then
-  header "Updating agent skills…"
-  claude-config restore skills --update > /dev/null \
-    || warning "updating skills failed — see why with: claude-config restore skills --update"
-  echo
+  step "agent skills"
+  if capture claude-config restore skills --update; then
+    status ok "agent skills" "$(grep -c '^skill ' "$DOTFILES/agents/claude-skills.txt" || true) tracked skills reinstalled for their agents"
+  else
+    status fail "agent skills" "run: claude-config restore skills --update"
+    show
+  fi
   # SnippetsLab's skill is a static copy of `lab skill show` (see setup/misc.sh)
   if [ -x /Applications/SnippetsLab.app/Contents/Helpers/lab ]; then
-    install-snippetslab-skill || warning "SnippetsLab skill not refreshed — run it later: install-snippetslab-skill"
+    step "SnippetsLab skill"
+    if capture install-snippetslab-skill; then
+      status ok "SnippetsLab skill" "rewritten"
+    else
+      status fail "SnippetsLab skill" "not refreshed; run: install-snippetslab-skill"
+      show
+    fi
   fi
   # Plugins get no upgrade elsewhere: refresh every marketplace, then each
   # installed plugin (the CLI takes one name; every scope in the registry, not
-  # just user scope as claude-config's save does). Only real updates are
-  # printed; Claude Code applies them on its next start. `-y` accepts a
-  # marketplace-declared install command unseen (required off a terminal);
-  # the tracked marketplaces are ones we vetted, see agents/claude-plugins.txt
-  header "Updating Claude Code marketplaces and plugins…"
-  claude plugin marketplace update > /dev/null < /dev/null \
-    || warning "updating marketplaces failed — see why with: claude plugin marketplace update"
+  # just user scope as claude-config's save does). Claude Code applies updates
+  # on its next start. `-y` accepts a marketplace-declared install command
+  # unseen (required off a terminal); the tracked marketplaces are ones we
+  # vetted, see agents/claude-plugins.txt
+  step plugins
+  if ! capture claude plugin marketplace update < /dev/null; then
+    status fail marketplaces "run: claude plugin marketplace update"
+    show
+  fi
+  plugin_count=0 plugin_updates=""
   while read -r id; do
-    if out=$(claude plugin update -y "$id" 2>&1 < /dev/null); then
-      grep -E 'updated|downgraded from' <<< "$out" || true
+    plugin_count=$((plugin_count + 1))
+    if capture claude plugin update -y "$id" < /dev/null; then
+      plugin_updates+=$(grep -E 'updated|downgraded from' <<< "$out" \
+        | sed -E 's/^.*Plugin "?([^" ]+)"? (updated|downgraded) from ([^ ]+) to ([^ ]*[^ .]).*$/\1 \3 → \4/; s/^✔ *//' \
+        || true)$'\n'
     else
-      warning "updating $id failed — see why with: claude plugin update $id"
+      status fail plugins "updating $id failed; run: claude plugin update $id"
+      show
     fi
   done < <(jq -r '.plugins | keys[]' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json" 2> /dev/null)
-  echo
-  header "Recording Claude Code config and rebuilding the catalog…"
-  claude-config save || warning "claude-config save failed — the tracked lists were left as they were"
-  claude-catalog | tail -1 || warning "claude-catalog failed — agents/catalog/curated.toml may name something no longer installed"
+  plugin_updates=$(sed '/^$/d' <<< "$plugin_updates")
+  if [ -n "$plugin_updates" ]; then
+    status changed plugins "$(wc -l <<< "$plugin_updates" | tr -d ' ') plugins updated: $(list <<< "$plugin_updates")"
+    actions+=("Restart Claude Code to apply plugin updates")
+  else
+    status ok plugins "$plugin_count plugins up to date"
+  fi
+
+  step "Claude config"
+  if ! capture claude-config save; then
+    status fail "Claude config" "claude-config save failed; the tracked lists were left as they were"
+    show
+  elif [ -n "$(git -C "$DOTFILES" status --short agents/ 2> /dev/null)" ]; then
+    status changed "Claude config" "tracked Claude config changed"
+    actions+=("Review and commit: git -C $DOTFILES diff agents/")
+  else
+    status ok "Claude config" "unchanged"
+  fi
+  step catalog
+  if capture claude-catalog; then
+    since=$(sed -nE 's/^wrote .*, since (.*): \+([0-9]+) -([0-9]+)$/\1 \2 \3/p' <<< "$out")
+    read -r since_date added removed <<< "${since:-none 0 0}"
+    if [ "$added$removed" != 00 ]; then
+      status changed catalog "catalog rebuilt, +$added -$removed since $since_date"
+    else
+      status ok catalog "catalog rebuilt"
+    fi
+  else
+    status fail catalog "claude-catalog failed; agents/catalog/curated.toml may name something no longer installed"
+  fi
+  while read -r lint; do
+    status notice catalog "$lint"
+  done < <(sed -n 's/^  lint: /lint: /p' <<< "$out")
   # mise's MCP server (setup/misc.sh registers it). A down user-scope entry
   # with another command (the retired mcp-cache-hints wrapper, a moved
   # binary) is re-registered; no entry (removed on purpose) or a local or
   # project one shadowing it is left alone. "tools fetch failed" with the
   # right command is anthropics/claude-code#88128 back, which re-registering
   # can't fix: a proxy covered it until 7e7db8a.
+  step "mise MCP"
   if mise_bin="$(command -v mise)"; then
     mise_get() { claude mcp get mise 2> /dev/null | sed 's/^ *//' || true; }
     mise_mcp="$(mise_get)"
+    printf '%s\n' "$mise_mcp" >> "$log"
     if [ -n "$mise_mcp" ] && ! grep -qx 'Status: ✔ Connected' <<< "$mise_mcp"; then
       if grep -q '^Scope: User config' <<< "$mise_mcp" \
         && ! { grep -qxF "Command: $mise_bin" <<< "$mise_mcp" && grep -qx 'Args: mcp' <<< "$mise_mcp"; }; then
-        echo "Re-registering mise's MCP server with Claude Code…"
+        echo "Re-registering mise's MCP server with Claude Code…" >> "$log"
         claude mcp remove mise -s user > /dev/null 2>&1 \
           && claude mcp add --scope user mise -- "$mise_bin" mcp > /dev/null || true
         mise_mcp="$(mise_get)"
       fi
       if grep -qx 'Status: ✔ Connected' <<< "$mise_mcp"; then
-        :
+        status changed "mise MCP" "re-registered"
       elif grep -q 'tools fetch failed' <<< "$mise_mcp"; then
-        warning "mise's MCP server lists no tools: anthropics/claude-code#88128 is back — the proxy is in git history (7e7db8a)"
+        status notice "mise MCP" "lists no tools: anthropics/claude-code#88128 is back; the proxy is in git history (7e7db8a)"
       else
-        warning "mise's MCP server isn't connected — see: claude mcp get mise; re-register: claude mcp remove mise -s user; claude mcp add --scope user mise -- $mise_bin mcp"
+        status fail "mise MCP" "not connected; see: claude mcp get mise; re-register: claude mcp remove mise -s user; claude mcp add --scope user mise -- $mise_bin mcp"
       fi
     fi
   fi
-  echo
 fi
 
-# Raycast
-header "Updating Raycast and its extensions…"
-open raycast://extensions/raycast/raycast/check-for-updates
-open raycast://extensions/raycast/raycast/check-for-extension-updates
-echo
+# Raycast (open gives no evidence of what the check found)
+step Raycast
+if open raycast://extensions/raycast/raycast/check-for-updates \
+  && open raycast://extensions/raycast/raycast/check-for-extension-updates; then
+  status ok Raycast "asked to check for updates"
+else
+  status fail Raycast "couldn't open Raycast; run: open raycast://extensions/raycast/raycast/check-for-updates"
+fi
 
 # Coding agents (Amp is installed by hand — see agents/README.md — so it may
 # not be here; Claude Code updates itself)
 if command -v amp > /dev/null; then
-  header "Updating coding agent tools…"
-  amp update
-  echo
+  step Amp
+  if ! capture amp update; then
+    status fail Amp "run: amp update"
+    show
+  elif ! grep -qiE 'already|up to date|latest version' <<< "$out" && grep -qE '[0-9]+\.[0-9]+' <<< "$out"; then
+    status changed Amp "$(tail -1 <<< "$out")"
+  else
+    status ok Amp "up to date"
+  fi
 fi
+
+# Summary. Empty arrays are unbound under set -u in bash 3.2, hence the guards.
+step summary
+summary() {
+  local title=$1 level=$2 line
+  shift 2
+  [ $# -eq 0 ] && return
+  echo "$title"
+  for line in "$@"; do
+    printf '  %s%s%s %s\n' "$(tput setaf "$(style "$level" | cut -d' ' -f2)")" "$(style "$level" | cut -d' ' -f1)" "$(tput sgr0)" "$line"
+  done
+}
+{
+  echo
+  echo "Done in $((SECONDS / 60))m $((SECONDS % 60))s"
+  if [ ${#changed[@]} -eq 0 ] && [ ${#notices[@]} -eq 0 ] && [ ${#failed[@]} -eq 0 ] && [ ${#actions[@]} -eq 0 ]; then
+    echo "Everything up to date."
+  else
+    [ ${#changed[@]} -eq 0 ] || summary Changed changed "${changed[@]}"
+    [ ${#notices[@]} -eq 0 ] || summary Notices notice "${notices[@]}"
+    [ ${#failed[@]} -eq 0 ] || summary Failed fail "${failed[@]}"
+    [ ${#actions[@]} -eq 0 ] || summary "Action needed" prompt "${actions[@]}"
+  fi
+  echo "Log: ${log#"$DOTFILES"/}"
+  echo
+} | tee -a "$log"
 
 # Sign-off: Deadpool with his katanas (bin/nyan)
 nyan

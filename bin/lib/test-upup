@@ -1,0 +1,115 @@
+#!/bin/bash
+#
+# Self-check for upup's report against stubbed tools.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-upup`
+#
+# ---
+# Never upgrades anything: every external command upup calls is a stub on
+# PATH, DOTFILES is a throwaway git repo and CLAUDE_CONFIG_DIR a fixture.
+#
+# License: MIT
+
+set -euo pipefail
+
+script="$(cd "$(dirname "$0")/.." && pwd -P)/upup"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+export DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state"
+unset DOTFILES_MAC_PASSWORD_OP
+mkdir -p "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
+printf 'skill one src claude-code\nskill two src claude-code\n' > "$DOTFILES/agents/claude-skills.txt"
+git -C "$DOTFILES" init -q
+git -C "$DOTFILES" add -A
+git -C "$DOTFILES" -c user.name=t -c user.email=t@t commit -qm init
+printf '{"plugins":{"alpha@m":[],"beta@m":[]}}' > "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
+
+# Each stub reads a flag file in $STATE to pick the "something changed" branch
+stub() {
+  printf '#!/bin/bash\n%s\n' "$2" > "$tmp/bin/$1"
+  chmod +x "$tmp/bin/$1"
+}
+stub sudo '[ "$1" = -v ] && exit 0; exec "$@"'
+stub dotfiles '[ -e "$STATE/pull" ] && git -C "$DOTFILES" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "Pulled change"; echo pulled'
+stub softwareupdate 'echo "No new software available."'
+stub brew 'case $1 in
+  outdated) [ -e "$STATE/brew" ] && echo gh ;;
+  upgrade) echo "==> Upgrading gh" ;;
+  cleanup) echo "==> This operation has freed approximately 29.5MB of disk space." ;;
+  doctor) echo "Your system is ready to brew." ;;
+esac
+exit 0'
+stub mise 'case $1 in
+  ls) if [ -e "$STATE/mise-done" ]; then v=24.1.1; else v=24.1.0; fi
+    echo "{\"node\":[{\"version\":\"$v\",\"installed\":true}],\"github:microsoft/aspire\":[{\"version\":\"13.6.2\",\"installed\":true}]}" ;;
+  upgrade) if [ -e "$STATE/mise" ]; then
+      touch "$STATE/mise-done"
+      echo "mise WARN  newer github:microsoft/aspire release 13.6.3 (released 2026-10-23, eligible 2026-10-24 14:17 EDT) ignored by minimum_release_age (24h); latest eligible release is 13.6.2"
+    fi ;;
+  *) exit 1 ;;
+esac'
+stub uv '[ -e "$STATE/uv-fails" ] && { echo "error: network down"; exit 1; }; echo "Nothing to upgrade"'
+stub scrapling 'echo "Chromium already installed"'
+stub install-iosevka-code 'echo "Iosevka Code is up to date"'
+stub install-snippetslab-skill 'exit 0'
+stub claude 'case "$1 $2" in
+  "plugin update") if [ -e "$STATE/plugin" ] && [ "$4" = alpha@m ]; then
+      echo "✔ Plugin \"alpha@m\" updated from 1.0.0 to 1.1.0 for scope user. Restart to apply changes."
+    else echo "$4 is already at the latest version"; fi ;;
+  "mcp get") echo "  Status: ✔ Connected" ;;
+esac'
+stub claude-config 'exit 0'
+stub claude-catalog 'echo "wrote x/CATALOG.md, CATALOG-lite.md, catalog.html, since 2026-10-20: +0 -0"'
+stub open 'exit 0'
+stub amp 'echo "Amp is already up to date"'
+stub nyan 'exit 0'
+stub tput 'exit 0'
+export PATH="$tmp/bin:$PATH"
+
+check_true() {
+  local name=$1
+  shift
+  "$@" || {
+    echo "FAIL: $name" >&2
+    echo "$screen" >&2
+    exit 1
+  }
+  echo "ok: $name"
+}
+has() { grep -Eq -- "$1" <<< "$screen"; }
+lacks() { ! grep -Eq -- "$1" <<< "$screen"; }
+run() { screen=$("$script" < /dev/null 2>&1 | sed $'s/\x1b\\[[0-9;]*m//g'); }
+
+run
+check_true "up to date: Homebrew is ok" has '^✔ Homebrew +up to date$'
+check_true "up to date: cleanup reports what it freed" has '^✔ brew cleanup +freed 29.5MB$'
+check_true "up to date: plugins counted" has '^✔ plugins +2 plugins up to date$'
+check_true "up to date: skills counted" has '^✔ agent skills +2 tracked skills reinstalled for their agents$'
+check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
+check_true "up to date: one-line summary" has '^Everything up to date\.$'
+check_true "up to date: log path printed" has '^Log: logs/upup-[0-9]{8}-[0-9]{6}\.log$'
+check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/upup-*.log
+
+rm -rf "$DOTFILES/logs"
+touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin"
+run
+check_true "changes: dotfiles pulled" has '^↻ dotfiles +pulled 1 commits$'
+check_true "changes: brew upgrade output shown" has '^==> Upgrading gh$'
+check_true "changes: Homebrew upgraded" has '^↻ Homebrew +1 upgraded: gh$'
+check_true "changes: mise version change" has '^↻ mise +1 upgraded: node 24.1.0→24.1.1$'
+check_true "changes: mise held release is a notice" has '^● mise +aspire 13.6.3 held until 2026-10-24 14:17 EDT by minimum_release_age$'
+check_true "changes: uv failure names the command" has '^✖ uv +run: uv tool upgrade --all$'
+check_true "changes: uv failure output shown" has '^    error: network down$'
+check_true "changes: plugin update listed" has '^↻ plugins +1 plugins updated: alpha@m 1.0.0 → 1.1.0$'
+check_true "changes: steps after the failure still run" has '^✔ Raycast +asked to check for updates$'
+for section in Changed Notices Failed "Action needed"; do
+  check_true "changes: summary has $section" has "^$section\$"
+done
+check_true "changes: summary lists the failure" has '^  ✖ uv  run: uv tool upgrade --all$'
+check_true "changes: restart action" has '^  › Restart Claude Code to apply plugin updates$'
+check_true "changes: new terminal action" has '^  › Open a new terminal: dotfiles changed$'
+check_true "changes: not everything up to date" lacks 'Everything up to date'
+check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/upup-*.log

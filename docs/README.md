@@ -158,7 +158,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `claude-desktop-account` `claude-desktop-account list` `claude-desktop-account switch {{name}}` | Switch the Claude Desktop app between saved claude.ai accounts without an email code, keeping every account's Claude Code sessions in the Code tab (bare: an fzf picker over the saved accounts; `usage` for 5-hour and weekly headroom per account; `show {{name}}` for one; `save`, `switch` and `add` quit and relaunch the app; `sync` needs it quit, or `--force`; `rename`, `remove`; `--help` for the full page) |
 | `vscode-settings` | Render VS Code's `settings.json` from its template with a font preset (`--choose`, `--preset warp`, `--check`); refuses to overwrite edits VS Code made (see [vscode](../vscode/README.md#fonts-and-the-settings-template)) |
 | `sync-all` | Run `obsidian-vault install`, then `install-color-themes` |
-| `upup` | Run macOS, Homebrew, mise, dotfiles and other software updates |
+| `upup` | Run macOS, Homebrew, mise, dotfiles and other software updates; one status line per step, a summary of changes, notices, failures and actions, full output in `logs/upup-<timestamp>.log` |
 | `impeccable` `impeccable telemetry status` | Run the installed Impeccable plugin's engine launcher from a terminal (the plugin never puts it on PATH); `impeccable help` lists its verbs |
 | `flush-dns` | Flush the DNS cache |
 | `shutdownmac` | Shut down macOS system |
