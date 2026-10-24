@@ -62,7 +62,8 @@ layout (`workspace.json`) is never copied either way.
    and choose iCloud Drive → **Notes**.
 5. When asked about the vault's community plugins, choose **Trust author and
    enable plugins** — they come from this repo (Hider, File Explorer Note Count,
-   Auto h1 heading, Simple gallery, Typezen). Or browse in restricted mode and
+   Auto h1 heading, Simple gallery, Typezen; Calendar is copied too but left
+   disabled). Or browse in restricted mode and
    enable them later in Settings → Community plugins.
 6. Check it worked: the Squirrelsong theme is active, and **Cmd+Shift+D** (or
    **Cmd+P** → "Daily notes: Open today's daily note") creates a note in

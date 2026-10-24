@@ -30,7 +30,7 @@ Settings in the template that are there for a non-obvious reason (each has a com
 | `warp-terminal` | Iosevka Code 14 | ProFont IIx 13 |
 | `fira` | FiraCode Nerd Font Mono 14 | FiraCode |
 
-Each keeps FiraCode Nerd Font Mono as the fallback. Iosevka Code comes from `bin/install-iosevka-code` (see [fonts](../fonts/README.md)), ProFont and FiraCode from the Brewfile's font casks; the renderer warns when a preset's font isn't installed. `vscode-settings --preset warp` switches directly, `--check` compares without writing.
+Each preset except `fira` falls back to FiraCode Nerd Font Mono. Iosevka Code comes from `bin/install-iosevka-code` (see [fonts](../fonts/README.md)), ProFont and FiraCode from the Brewfile's font casks; the renderer warns when a preset's font isn't installed. `vscode-settings --preset warp` switches directly, `--check` compares without writing.
 
 Edit **`User/settings.json.j2`**, never `settings.json`, then run `vscode-settings`. When you change a setting in VS Code's UI (or an extension writes one), it lands only in the generated file. The renderer remembers a hash of what it last wrote, so the next render refuses to overwrite such a change: it shows the diff, you copy the change into the template and re-run, or pass `--force` to drop it. `pnpm check` runs the renderer's tests and Prettier-checks every preset's render.
 
