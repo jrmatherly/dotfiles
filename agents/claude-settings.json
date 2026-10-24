@@ -139,7 +139,7 @@
     "defaultMode": "auto",
     "additionalDirectories": []
   },
-  "model": "opus",
+  "model": "claude-fable-5-1[1m]",
   "worktree": {
     "baseRef": "fresh"
   },
