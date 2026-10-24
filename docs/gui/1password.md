@@ -28,9 +28,9 @@ Installed by `setup/Brewfile` (`cask "1password"`, `cask "1password-cli"`).
 
 ## Quick Access
 
-- **Cmd+C:** copy username; **Cmd+Shift+C:** copy password; **Option+Cmd+C:** copy one-time password
-- **Option+Enter:** open the website and fill; **Shift+Enter:** fill in the focused app
-- **→:** show all actions for the item; **Cmd+Shift+O:** open the item in the app
+- **Cmd+C:** copy username; **Cmd+Shift+C:** copy password
+- **Option+Enter:** open in the browser; **Shift+Enter:** autofill the focused app
+- **→:** show all actions for the item; **Cmd+O:** open the item in a new window; **Cmd+Shift+O:** open it in 1Password
 
 ## App
 
@@ -39,7 +39,7 @@ Installed by `setup/Brewfile` (`cask "1password"`, `cask "1password-cli"`).
 - **↑ / ↓:** previous / next row; **← / →:** left / right section
 - **Cmd+C / Cmd+Shift+C / Option+Cmd+C:** copy primary field / password / one-time password
 - **Cmd+Shift+F:** open and fill in the web browser; **Cmd+O:** open the item in a new window
-- **Cmd+N:** new item; **Cmd+E:** edit; **Cmd+S:** save; **Backspace:** archive; **Cmd+Backspace:** delete
+- **Cmd+E:** edit; **Cmd+S:** save; **Backspace:** archive; **Cmd+Backspace:** delete
 - **Cmd+R:** reveal concealed fields
 - **Cmd+Shift+D:** show / hide the sidebar; **Cmd++ / Cmd+- / Cmd+0:** zoom in / out / actual size
 

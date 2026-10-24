@@ -94,7 +94,6 @@ macOS 27 has no separate Apple Intelligence pane; the sidebar entry is **Siri**.
 
 - **Siri** − on (the pane offers **Turn Off Siri**; this Mac)
 - **Requests** − `"Siri" or "Hey Siri"` (this Mac)
-- **Requests** → **Keyboard shortcut** − `⌃S`
 - **Language** − `English (United States)` (this Mac)
 - **Automatic Visual Look Up** − `Off` (this Mac)
 
