@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+# Self-check for rea-mcp against a stubbed Homebrew and mise shim.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-rea-mcp`
+#
+# ---
+# Never starts REA: brew is a stub on PATH, the Ghidra keg and the JDK are
+# fixtures under a temp dir and the mise shim only prints what it was given.
+#
+# License: MIT
+
+set -euo pipefail
+
+script="$(cd "$(dirname "$0")/.." && pwd -P)/rea-mcp"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+export MISE_DATA_DIR="$tmp/mise" HOMEBREW="$tmp/brew"
+unset JAVA_HOME GHIDRA_INSTALL_DIR
+mkdir -p "$tmp/bin" "$MISE_DATA_DIR/shims" "$HOMEBREW/opt/ghidra/libexec" "$HOMEBREW/opt/ghidra/bin" \
+  "$HOMEBREW/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home/bin"
+jdk="$HOMEBREW/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home"
+touch "$jdk/bin/java" && chmod +x "$jdk/bin/java"
+printf '#!/bin/bash\nJAVA_HOME="${JAVA_HOME:-%s}" exec "%s/libexec/ghidraRun"  "$@"\n' "$jdk" "$HOMEBREW/opt/ghidra" > "$HOMEBREW/opt/ghidra/bin/ghidraRun"
+printf '#!/bin/bash\n[ "$1" = --prefix ] && [ -d "$HOMEBREW/opt/$2" ] && { echo "$HOMEBREW/opt/$2"; exit 0; }\nexit 1\n' > "$tmp/bin/brew"
+printf '#!/bin/bash\necho "shim: $*"\necho "GHIDRA_INSTALL_DIR=${GHIDRA_INSTALL_DIR:-}"\necho "JAVA_HOME=${JAVA_HOME:-}"\n' > "$MISE_DATA_DIR/shims/rea"
+chmod +x "$tmp/bin/brew" "$MISE_DATA_DIR/shims/rea"
+export PATH="$tmp/bin:$PATH"
+
+fail() {
+  echo "test-rea-mcp: $1" >&2
+  exit 1
+}
+
+out=$("$script" --print-env 2>&1)
+[ "$out" = "GHIDRA_INSTALL_DIR=$HOMEBREW/opt/ghidra/libexec
+JAVA_HOME=$jdk" ] || fail "resolves the wrapper's JDK: $out"
+
+out=$(JAVA_HOME=/preset "$script" --print-env 2>&1)
+grep -q 'JAVA_HOME=/preset has no bin/java' <<< "$out" || fail "warns about a preset JAVA_HOME without java: $out"
+grep -qx 'JAVA_HOME=' <<< "$out" || fail "drops the bad preset JAVA_HOME: $out"
+
+mkdir -p "$tmp/other/bin" && touch "$tmp/other/bin/java" && chmod +x "$tmp/other/bin/java"
+out=$(JAVA_HOME="$tmp/other" "$script" --print-env 2>&1)
+grep -qx "JAVA_HOME=$tmp/other" <<< "$out" || fail "a valid preset JAVA_HOME wins: $out"
+
+out=$("$script" extra --flag 2>&1)
+grep -qx 'shim: mcp extra --flag' <<< "$out" || fail "execs the shim with mcp and the arguments: $out"
+grep -qx "JAVA_HOME=$jdk" <<< "$out" || fail "the shim sees JAVA_HOME: $out"
+
+printf '#!/bin/bash\nexec run\n' > "$HOMEBREW/opt/ghidra/bin/ghidraRun"
+out=$("$script" --print-env 2>&1)
+grep -q 'no JAVA_HOME default' <<< "$out" || fail "warns when the wrapper has no default: $out"
+grep -qx 'JAVA_HOME=' <<< "$out" || fail "leaves JAVA_HOME unset without a default: $out"
+
+rm -r "$HOMEBREW/opt/ghidra"
+out=$("$script" 2>&1)
+grep -q 'ghidra not found' <<< "$out" || fail "warns when ghidra is missing: $out"
+grep -qx 'shim: mcp' <<< "$out" || fail "still starts REA without ghidra: $out"
+grep -qx 'GHIDRA_INSTALL_DIR=' <<< "$out" || fail "sets no GHIDRA_INSTALL_DIR without ghidra: $out"
+
+out=$(PATH=/usr/bin:/bin "$script" --print-env 2>&1) || fail "no brew on PATH and no /opt/homebrew/bin/brew must not exit non-zero: $out"
+
+echo "test-rea-mcp: ok"

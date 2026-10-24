@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Start REA's MCP server with the Homebrew JDK its Ghidra formula depends on, resolved at launch.
+# Start REA's MCP server with the JDK the installed Homebrew Ghidra uses, resolved at launch.
 #
 # - What Claude Code runs for the `rea` server (registered by setup/misc.sh):
 #
@@ -18,32 +18,40 @@ set -euo pipefail
 # Ghidra's JDK moves: the ghidra formula depended on openjdk@21, then 12.2 moved
 # it to openjdk@25 (2026-10-22). A JAVA_HOME pinned in the Claude Code
 # registration dangled until the next setup run, so nothing versioned is
-# registered. This resolves both paths from Homebrew every start (about 0.3 s),
-# the same JDK Homebrew's own ghidraRun wrapper uses, and like that wrapper a
-# JAVA_HOME already in the environment wins. Looked up by absolute path too,
-# since an app-launched Claude Code has no Homebrew on PATH.
+# registered. This reads both paths from the installed keg every start: the
+# JAVA_HOME default in Homebrew's own ghidraRun wrapper, which brew rewrites
+# with each Ghidra install, so it is the JDK the GUI uses and never one that a
+# `brew update` without `brew upgrade` only promises. A JAVA_HOME already in the
+# environment wins, as in that wrapper. Ghidra problems only cost the Ghidra
+# provider: the server still starts for Hopper and the built-in providers.
+# brew is looked up by absolute path too, since an app-launched Claude Code has
+# no Homebrew on PATH.
+warn() { echo "rea-mcp: $*" >&2; }
+
 brew="$(command -v brew || echo /opt/homebrew/bin/brew)"
-[ -x "$brew" ] || {
-  echo "rea-mcp: Homebrew not found" >&2
-  exit 127
-}
-ghidra="$("$brew" --prefix ghidra)/libexec"
-[ -d "$ghidra" ] || {
-  echo "rea-mcp: the ghidra formula isn't installed (brew install ghidra)" >&2
-  exit 127
-}
-if [ -z "${JAVA_HOME:-}" ]; then
-  jdk="$(HOMEBREW_NO_ENV_HINTS=1 "$brew" deps --1 ghidra | grep -m1 '^openjdk' || true)"
-  [ -n "$jdk" ] || {
-    echo "rea-mcp: the ghidra formula lists no openjdk dependency" >&2
-    exit 1
-  }
-  JAVA_HOME="$("$brew" --prefix "$jdk")/libexec/openjdk.jdk/Contents/Home"
+ghidra=""
+if [ -x "$brew" ]; then
+  ghidra="$("$brew" --prefix ghidra 2> /dev/null || true)"
 fi
-export GHIDRA_INSTALL_DIR="$ghidra" JAVA_HOME
+if [ -d "$ghidra/libexec" ]; then
+  export GHIDRA_INSTALL_DIR="$ghidra/libexec"
+  if [ -z "${JAVA_HOME:-}" ]; then
+    # Homebrew's wrapper: JAVA_HOME="${JAVA_HOME:-/opt/homebrew/opt/openjdk@N/libexec/openjdk.jdk/Contents/Home}" exec …
+    JAVA_HOME="$(sed -n 's/^JAVA_HOME="${JAVA_HOME:-\([^}]*\)}".*/\1/p' "$ghidra/bin/ghidraRun" 2> /dev/null | head -1)"
+    [ -n "$JAVA_HOME" ] || warn "no JAVA_HOME default in $ghidra/bin/ghidraRun; the Ghidra provider will fail its Java check"
+  fi
+  if [ -n "${JAVA_HOME:-}" ] && [ ! -x "$JAVA_HOME/bin/java" ]; then
+    warn "JAVA_HOME=$JAVA_HOME has no bin/java; leaving it unset"
+    JAVA_HOME=""
+  fi
+  [ -n "${JAVA_HOME:-}" ] && export JAVA_HOME
+else
+  warn "Homebrew ghidra not found (brew install ghidra); starting REA without its Ghidra provider"
+fi
+
 if [ "${1:-}" = --print-env ]; then
-  echo "GHIDRA_INSTALL_DIR=$GHIDRA_INSTALL_DIR"
-  echo "JAVA_HOME=$JAVA_HOME"
+  echo "GHIDRA_INSTALL_DIR=${GHIDRA_INSTALL_DIR:-}"
+  echo "JAVA_HOME=${JAVA_HOME:-}"
   exit 0
 fi
 exec "${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims/rea" mcp "$@"

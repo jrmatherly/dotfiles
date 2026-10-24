@@ -63,6 +63,8 @@ bash bin/lib/test-claude-desktop-account > /dev/null
 bash bin/lib/test-hindsight-memory > /dev/null
 # bin/upup's report against stubbed tools (nothing is upgraded)
 bash bin/lib/test-upup > /dev/null
+# bin/rea-mcp against a stubbed brew, a fixture Ghidra keg and a fake mise shim (REA never starts)
+bash bin/lib/test-rea-mcp > /dev/null
 # VS Code settings are rendered from a minijinja template (bin/vscode-settings):
 # test the renderer, and Prettier-check every preset's render inside
 # vscode/User so its .prettierrc.yaml applies (the .j2 itself isn't parseable)

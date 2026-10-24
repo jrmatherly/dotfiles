@@ -317,7 +317,7 @@ fi
 # JAVA_HOME from Homebrew at every launch (the ghidra formula's openjdk@N, the
 # JDK Homebrew's own ghidraRun wrapper uses) and execs the mise shim. The
 # registration therefore holds no versioned path: a JAVA_HOME pinned here
-# dangled when Ghidra 12.2 moved from openjdk@21 to @25 (2026-10-24). Hopper's
+# dangled when Ghidra 12.2 moved from openjdk@21 to @25 (2026-10-22). Hopper's
 # cask path is REA's default launcher. The skill is an entry in
 # agents/claude-skills.txt. https://github.com/morluto/rea
 rea_shim="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims/rea"
