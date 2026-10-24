@@ -14,7 +14,7 @@
 
 - Never hand-edit `plugins/jstack/`; change `jstack/patches/*.patch`, `jstack/substitutions.tsv` or `scripts/sync-jstack`, then regenerate with `scripts/sync-jstack` (skills README, "jstack: generated from upstream").
 - Patch `NN` is diffed against upstream + substitutions + every lower-numbered patch, with the exact `sed` header rewrite from the README's "Change or refresh a patch" block.
-- `check-jstack`'s forbidden regex must stay clean: no `poteto`, `pstack`, `Cursor`, `~/.cursor`, `Grok`, `deslop`, `create-skill`, `claude-opus-5-5-(max|xhigh|high|medium)` in the generated tree.
+- `check-jstack`'s forbidden regex must stay clean: no `poteto`, `pstack`, `Cursor`, `~/.cursor`, `Grok`, `deslop`, `create-skill`, `claude-opus-5-5-(max|xhigh|high|medium)` in the generated tree. Added during execution: `Task spawn`, `grok` (any case), `composer-`, `/visualize`, and every backticked `/name` must resolve to a jstack skill, a Claude Code built-in or a named plugin command.
 - Comments explain only a non-obvious why; shortcuts are marked `shortcut: <limit>, <when to upgrade>`.
 - Skills repo commits: short imperative subject, body with the why, trailer `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`. Dotfiles commits need `pnpm check` green first.
 - Irreversible GitHub actions (repo delete, force-push) happen only in Task 1 and only after Jason's explicit word in that task.
