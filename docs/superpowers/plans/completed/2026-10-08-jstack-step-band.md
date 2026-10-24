@@ -8,7 +8,7 @@
 
 **Tech Stack:** Claude Code 2.1.295 (`claude plugin validate`, `claude plugin test`), TypeScript with JSX against the global `h`, `tsc` 6.0.3 from mise (`npm-typescript`, on PATH), bun 1.4.2 (already required by `sync-jstack`), bash 3.2 for `check-jstack`.
 
-**Spec:** `docs/superpowers/specs/2026-10-08-claude-code-mods-assessment.md`. Its "Design notes for the prototype rows" is the sketch, "Configuring, implementing, testing: the recommended way" items 2, 5, 6, 8, 9, 10, 14, 15 and 16 are the rules, and "Review corrections" settles that band props live under `e.props`. The companion plan `2026-10-08-claude-code-mods-adoption.md` runs first (its Task 3 restores the task tools). This plan was revised on 2026-10-08 after an adversarial review that built the edit tree and ran the tests; the "Decisions for review" section records what changed.
+**Spec:** `docs/superpowers/specs/completed/2026-10-08-claude-code-mods-assessment.md`. Its "Design notes for the prototype rows" is the sketch, "Configuring, implementing, testing: the recommended way" items 2, 5, 6, 8, 9, 10, 14, 15 and 16 are the rules, and "Review corrections" settles that band props live under `e.props`. The companion plan `2026-10-08-claude-code-mods-adoption.md` runs first (its Task 3 restores the task tools). This plan was revised on 2026-10-08 after an adversarial review that built the edit tree and ran the tests; the "Decisions for review" section records what changed.
 
 ## Global constraints
 

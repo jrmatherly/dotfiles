@@ -195,7 +195,7 @@ What still has no measurement. The ledger's own overhead per turn (build it and 
 
 ## Sources
 
-- Baseline spec. `docs/superpowers/specs/2026-10-08-claude-code-mods-assessment.md`, lines 159 to 266.
+- Baseline spec. `docs/superpowers/specs/completed/2026-10-08-claude-code-mods-assessment.md`, lines 159 to 266.
 - Probe. `2026-10-09-mods-probe/probe-measurements.md` (probe source beside it as `register.ts`; the raw log was session-local), items 1 to 19 (two runs, the second with a worktree-isolated subagent); probe source `2026-10-09-mods-probe/register.ts`.
 - Explorer reports, kept locally in the gitignored `private/mods-second-pass/`. `explorer-docs.md` (capability catalog, settled questions 1 to 11, Non-obvious things), `explorer-local.md` (inventory, usage, pain points 1 to 16), `explorer-skills.md` (candidate rows 1 to 17, the two minors, Boundaries), `explorer-web.md` (mods table, mechanism per candidate, issues table).
 - Docs. `~/.claude-code-docs/cache/claude-code__plugins__mods__*.md` and `changelog.md`, as cited through explorer-docs.

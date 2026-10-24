@@ -8,7 +8,7 @@
 
 **Tech Stack:** bash 3.2 (macOS `/bin/bash`), shellcheck, bun, tsc, `claude plugin validate|test`, GitHub Actions, gitleaks 8.x, git-filter-repo already applied.
 
-**Spec:** `docs/superpowers/specs/2026-10-23-skills-public-and-upstream-assessment.md`
+**Spec:** `docs/superpowers/specs/completed/2026-10-23-skills-public-and-upstream-assessment.md`
 
 ## Global Constraints
 

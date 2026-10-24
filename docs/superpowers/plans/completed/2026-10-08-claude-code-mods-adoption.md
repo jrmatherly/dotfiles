@@ -8,7 +8,7 @@
 
 **Tech Stack:** Claude Code 2.1.295, `/bin/bash` 3.2.57 (the shebang every script here uses; no `mapfile`, no associative arrays), jq 1.8, prettier 3 with prettier-plugin-sh, shellcheck, `bin/claude-config`, `claude plugin`.
 
-**Spec:** `docs/superpowers/specs/2026-10-08-claude-code-mods-assessment.md`. Its "Review corrections" section holds the checks that shaped this plan: the `bashEditDiff` field on PostToolUse Bash payloads (hooks.md lines 1635 to 1653, probed live on 2026-10-08), the task tools absent on Fable without the env var (tools-reference.md "Task tool availability", probed live), hookify has no rule files, security-guidance's seven Bash entries are `if`-gated to commits and pushes and its model reviews have never run here, Warp's hooks exit at once outside Warp.
+**Spec:** `docs/superpowers/specs/completed/2026-10-08-claude-code-mods-assessment.md`. Its "Review corrections" section holds the checks that shaped this plan: the `bashEditDiff` field on PostToolUse Bash payloads (hooks.md lines 1635 to 1653, probed live on 2026-10-08), the task tools absent on Fable without the env var (tools-reference.md "Task tool availability", probed live), hookify has no rule files, security-guidance's seven Bash entries are `if`-gated to commits and pushes and its model reviews have never run here, Warp's hooks exit at once outside Warp.
 
 ## Global Constraints
 
