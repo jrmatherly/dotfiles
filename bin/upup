@@ -131,14 +131,17 @@ if command -v claude > /dev/null; then
     install-snippetslab-skill || warning "SnippetsLab skill not refreshed — run it later: install-snippetslab-skill"
   fi
   # Plugins get no upgrade elsewhere: refresh every marketplace, then each
-  # installed plugin (the CLI takes one name). Only real updates are printed;
-  # Claude Code applies them on its next start
+  # installed plugin (the CLI takes one name; every scope in the registry, not
+  # just user scope as claude-config's save does). Only real updates are
+  # printed; Claude Code applies them on its next start. `-y` accepts a
+  # marketplace-declared install command unseen (required off a terminal);
+  # the tracked marketplaces are ones we vetted, see agents/claude-plugins.txt
   header "Updating Claude Code marketplaces and plugins…"
-  claude plugin marketplace update > /dev/null \
+  claude plugin marketplace update > /dev/null < /dev/null \
     || warning "updating marketplaces failed — see why with: claude plugin marketplace update"
   while read -r id; do
-    if out=$(claude plugin update "$id" 2>&1 < /dev/null); then
-      grep -F 'updated from' <<< "$out" || true
+    if out=$(claude plugin update -y "$id" 2>&1 < /dev/null); then
+      grep -E 'updated|downgraded from' <<< "$out" || true
     else
       warning "updating $id failed — see why with: claude plugin update $id"
     fi

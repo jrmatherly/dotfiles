@@ -18,6 +18,10 @@ set -euo pipefail
 # The plugin never puts its launcher on PATH: the skill and hooks call it by
 # path under the plugin cache, whose directory carries the plugin version and
 # moves on every update, so a symlink would go stale. Ask the registry instead.
+command -v jq > /dev/null || {
+  echo "impeccable: needs jq (brew install jq)" >&2
+  exit 127
+}
 registry="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json"
 root=$(jq -r '.plugins["impeccable@impeccable"] | (if type == "array" then .[0] else . end) | .installPath // empty' "$registry" 2> /dev/null || true)
 launcher="$root/skills/impeccable/scripts/impeccable"
