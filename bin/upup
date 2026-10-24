@@ -223,8 +223,8 @@ if command -v rustup > /dev/null; then
   # Homebrew's rustup is keg-only, so cargo and rustc are its proxies in
   # /opt/homebrew/opt/rustup/bin, which only shells started after that PATH
   # entry landed can see (zsh/path.zsh, tilde/.zprofile). Hindsight's daemon
-  # preflight needs cargo on PATH, so a stale shell can't cold-start it
-  command -v cargo > /dev/null \
+  # preflight runs `cargo --version`, so a stale shell can't cold-start it
+  cargo --version > /dev/null 2>&1 \
     || status notice Rust "cargo not on this shell's PATH (rustup's proxies live in /opt/homebrew/opt/rustup/bin); open a new terminal"
 fi
 

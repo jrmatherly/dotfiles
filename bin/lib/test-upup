@@ -83,8 +83,8 @@ stub nyan 'exit 0'
 stub hindsight-memory '[ -e "$STATE/hindsight-fails" ] && { echo "installer failed"; exit 1; }; [ -e "$STATE/hindsight-newer" ] && echo "newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION"
 if [ -e "$STATE/hindsight-warns" ]; then echo "│  ✓ runtime staged at ~/.hindsight/coding-agents"; echo "│  ▲ macOS needs a current Rust toolchain to build the daemon'"'"'s dependencies (litellm"; echo "│    publishes no macOS wheel). Install from https://rustup.rs"; fi
 echo "runtime re-staged"'
-# cargo is only looked up, never run; the "no cargo" scenario deletes this stub
-stub cargo 'echo "cargo 1.99.1"'
+# A failing stub, not a missing one: CI's macOS runner has a real cargo on PATH
+stub cargo '[ -e "$STATE/no-cargo" ] && exit 1; echo "cargo 1.99.1"'
 export PATH="$tmp/bin:$PATH"
 export HINDSIGHT_CONFIG="$STATE/coding-agent.json"
 echo '{}' > "$HINDSIGHT_CONFIG"
@@ -154,8 +154,7 @@ check_true "changes: not everything up to date" lacks 'Everything up to date'
 check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
-touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust"
-rm "$tmp/bin/cargo"
+touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust" "$STATE/no-cargo"
 run
 check_true "update: Rust names the channel and versions" has '^↻ Rust +stable 1\.99\.0→1\.99\.1$'
 check_true "update: cargo missing from PATH is a notice" has "^● Rust +cargo not on this shell's PATH \(rustup's proxies live in /opt/homebrew/opt/rustup/bin\); open a new terminal$"
