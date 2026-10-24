@@ -68,7 +68,7 @@
 - Environment overrides, used by the tests and documented in the header: `HINDSIGHT_CONFIG` (the config file; the plugin honours the same variable), `HINDSIGHT_MEMORY_INSTALLER` (the command run in place of `npx -y @vectorize-io/hindsight-coding-agents@$CODING_AGENTS_VERSION`), `HINDSIGHT_MEMORY_EMBED` (in place of `uvx hindsight-embed@$EMBED_VERSION`), `HINDSIGHT_MEMORY_NPM` (in place of `npm`). Each is split on whitespace into an array before use, so a stub path with spaces is not supported and the header says so.
 - Consumes: nothing from other tasks.
 
-- [ ] **Step 1: Write the failing self-check**
+- [x] **Step 1: Write the failing self-check**
 
 `bin/lib/test-hindsight-memory` follows `bin/lib/test-claude-desktop-account`: `set -euo pipefail`, `script="$(cd "$(dirname "$0")/.." && pwd -P)/hindsight-memory"`, `tmp=$(mktemp -d)`, `export HOME=$(cd "$tmp" && pwd -P)` (the `pwd -P` matters, `mktemp` returns `/var/…` and the real path is `/private/var/…`), `hm() { "$script" "$@"; }`, `check name expected actual` and `check_true name cmd…` copied from that file. Stubs are scripts in `$HOME/bin`: `installer` appends `"$*"` to `$HOME/installer.log` and, on `install`, writes `{"serverMode":"daemon"}` to `$HINDSIGHT_CONFIG` unless `$HOME/installer-fails` exists, in which case it exits 1; `embed` appends `"$*"` to `$HOME/embed.log`; `npm` prints `0.8.2`, or `0.9.0` when `$HOME/npm-newer` exists. Export `HINDSIGHT_CONFIG="$HOME/.hindsight/coding-agent.json"` and the three overrides pointing at the stubs. `cfg=$HINDSIGHT_CONFIG`.
 
@@ -116,25 +116,25 @@ check_true "init exits 1 when the installer fails and leaves no config" bash -c 
 
 `hm` must be exported or the `bash -c` checks must call `"$script"` directly; pick the latter.
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `bash bin/lib/test-hindsight-memory`
 Expected: the first `check_true` fails because `bin/hindsight-memory` does not exist.
 
-- [ ] **Step 3: Implement `bin/hindsight-memory`**
+- [x] **Step 3: Implement `bin/hindsight-memory`**
 
 Header comment in the `help` format with one example per subcommand and the four override variables. Then, in order: the two version constants; `cfg=${HINDSIGHT_CONFIG:-$HOME/.hindsight/coding-agent.json}`; `installer=(${HINDSIGHT_MEMORY_INSTALLER:-npx -y @vectorize-io/hindsight-coding-agents@$CODING_AGENTS_VERSION})`, `embed=(${HINDSIGHT_MEMORY_EMBED:-uvx hindsight-embed@$EMBED_VERSION})`, `npm_cmd=(${HINDSIGHT_MEMORY_NPM:-npm})` (unquoted on purpose, with a `# shellcheck disable=SC2206` and the reason); `defaults()` printing the JSON above; `write_cfg()` taking a jq filter, running `jq "$filter" "$cfg" > "$cfg.tmp" && mv "$cfg.tmp" "$cfg"`; `ensure_config()` which runs `"${installer[@]}" install claude-code codex --server daemon` when `$cfg` is missing and returns 1 if that fails or still left no file, then `jq -s '.[0] * .[1]' <(defaults) "$cfg"` written the same way, so the file's keys win; `persist_provider()` running `"${embed[@]}" profile create coding-agent --merge --port 9077 --env HINDSIGHT_API_LLM_PROVIDER=claude-code`; `norm_path()` which strips one trailing `/` and, when the path is `$HOME` or starts with `$HOME/`, prints `"~${p#"$HOME"}"`; `paths_list|add|remove`, `set_flag key value`, `status()` (the `embed -p coding-agent daemon status`, a `jq` summary of `serverMode`, `disabled`, `optInOnly`, `optInPaths`, `codebaseSurvey`, then `model calls today: N` from `grep -c "^$(date +%F).*scope=" ~/.hindsight/profiles/coding-agent.log`, 0 when the file is absent, then the last 10 lines of `~/.hindsight/coding-agents-logs/plugin.log` when present), `upgrade()` which runs the installer unconditionally, then `persist_provider` and the merge, then compares `"${npm_cmd[@]}" view @vectorize-io/hindsight-coding-agents version` with the constant and prints the notice when they differ, `uninstall()`. Output helpers inline with `tput`, as the other scripts do. `init` and `upgrade` need `jq`; print `jq is required` and exit 1 without it.
 
-- [ ] **Step 4: Run the self-check and the one-file gate**
+- [x] **Step 4: Run the self-check and the one-file gate**
 
 Run: `bash bin/lib/test-hindsight-memory && bash -n bin/hindsight-memory && shellcheck --severity=warning bin/hindsight-memory && prettier --check bin/hindsight-memory && help hindsight-memory`
 Expected: every check prints `ok:`, no lint output, the header renders.
 
-- [ ] **Step 5: Wire the test into the gate and document the command**
+- [x] **Step 5: Wire the test into the gate and document the command**
 
 Add `bash bin/lib/test-hindsight-memory > /dev/null` under the `test-claude-desktop-account` line in `bin/lib/check` with a one-line comment. Add the script to the `bin/` list in `README.md` in the same style as `claude-config`, and a `bin/CLAUDE.md` bullet stating the additive merge rule, the two version constants, the override variables and that the config is never tracked.
 
-- [ ] **Step 6: Gate and commit**
+- [x] **Step 6: Gate and commit**
 
 Run: `pnpm check`
 Expected: exit 0.
@@ -154,19 +154,19 @@ git commit -m "Add hindsight-memory to manage the coding-agent memory config"
 **Interfaces:**
 - Produces: `HINDSIGHT_API_LLM_PROVIDER=claude-code` in every zsh, interactive or not. The daemon profile written by Task 1 carries the same value for sessions that never ran zsh.
 
-- [ ] **Step 1: Add the export with its why**
+- [x] **Step 1: Add the export with its why**
 
 One `export HINDSIGHT_API_LLM_PROVIDER=claude-code` line in `tilde/.zshenv` with a comment: the Hindsight daemon picks the first API key it finds when this is unset, a running daemon is adopted rather than restarted, so the first session of the day would decide billing; `zsh/env.zsh` is not used because only interactive shells read it.
 
-- [ ] **Step 2: Document what is stored and what leaves the machine**
+- [x] **Step 2: Document what is stored and what leaves the machine**
 
 In `docs/privacy.md` add a Hindsight entry: the Stop hook stores each turn's user text, assistant text and one line per tool call (the tool name and the first line of its main input, for Bash the command), never tool results, in a local Postgres under `~/.pg0`; extraction calls go to Anthropic through the `claude` CLI on the subscription; the `sensitive_data` redact rule matches 45 known key shapes and not passwords or opaque tokens, and never rescans; the codebase survey is off by default because it reads the repo with `claude -p`; the docs name no vendor telemetry; the uv cache holds 1.5 GB per `hindsight-embed` version.
 
-- [ ] **Step 3: Name it in the verification rule**
+- [x] **Step 3: Name it in the verification rule**
 
 In `tilde/.claude/rules/verify-first.md`, extend the line that lists memory and earlier messages as leads, not evidence, with "recalled Hindsight memory and its knowledge pages".
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run: `zsh -n tilde/.zshenv && zsh -c 'echo $HINDSIGHT_API_LLM_PROVIDER' && pnpm check`
 Expected: `claude-code` from a non-interactive zsh, gate exit 0.
@@ -187,25 +187,25 @@ git commit -m "Pin Hindsight's extraction provider to the Claude subscription"
 **Interfaces:**
 - Consumes: `hindsight-memory init` from Task 1. `setup/misc.sh` names the repo root as `$DOTFILES_DIR`.
 
-- [ ] **Step 1: Add the setup block**
+- [x] **Step 1: Add the setup block**
 
 Guarded by `command_exists uv && command_exists node && command_exists jq && [ -x "$claude_bin" ]`. It runs `"$DOTFILES_DIR/bin/hindsight-memory" init 2>&1 | indent || warning "Hindsight memory setup failed — run it later: hindsight-memory init"`. A comment block above it names what the installer writes (three hooks in `~/.claude/settings.json`, three in `~/.codex/hooks.json` plus `[mcp_servers]` in `~/.codex/config.toml`, a user-scope `hindsight` MCP server, the `hindsight-coding-agent` skill), that each touched file is backed up as `<file>.hindsight-backup`, that `claude-config save` drops `hooks` and never reads `~/.claude.json`, and that `~/.codex/config.toml` is a seeded copy so the appended section survives (`setup/symlinks.sh`, the `codex-config` test).
 
-- [ ] **Step 2: Document it**
+- [x] **Step 2: Document it**
 
 `setup/README.md` gets a bullet in the misc list in the style of the Scrapling one: the pinned package, the opt-in default, `hindsight-memory paths|on|off|survey|status|uninstall`, the provider, the daemon profile and port, the backups. `README.md` names Hindsight memory where it lists the coding-agent setup. `CLAUDE.md` adds "Hindsight memory" to the setup-order list after Scrapling and one Architecture bullet pointing at the spec.
 
-- [ ] **Step 3: Run the new block on this machine**
+- [x] **Step 3: Run the new block on this machine**
 
 Run: `bin/hindsight-memory init`
 Expected: the installer's summary with `claude-code` and `codex` wired, `~/.hindsight/coding-agent.json` holding the defaults with `serverMode` `daemon`, `jq '.hooks | keys' ~/.claude/settings.json` listing the existing events with hindsight entries under `SessionStart`, `UserPromptSubmit` and `Stop`, `claude mcp get hindsight` succeeding, `grep -c hindsight ~/.codex/hooks.json` at least 3, and `~/.hindsight/profiles/coding-agent.toml` (or the profile file `profile show -p coding-agent -o json` names) carrying the provider. This edits `~/.claude/settings.json`, `~/.codex/hooks.json` and `~/.codex/config.toml`.
 
-- [ ] **Step 4: Confirm the tracked snapshots are unchanged**
+- [x] **Step 4: Confirm the tracked snapshots are unchanged**
 
 Run: `bin/claude-config save && git status --short agents/ && bash setup/tests/codex-config.sh`
 Expected: no diff under `agents/`, the Codex copy test passes.
 
-- [ ] **Step 5: Gate and commit**
+- [x] **Step 5: Gate and commit**
 
 Run: `pnpm check`
 Expected: exit 0.
@@ -225,16 +225,16 @@ git commit -m "Install Hindsight coding-agent memory from setup"
 **Interfaces:**
 - Consumes: `hindsight-memory upgrade` from Task 1, and `HINDSIGHT_CONFIG` to find the config.
 
-- [ ] **Step 1: Write the failing assertions**
+- [x] **Step 1: Write the failing assertions**
 
 `bin/lib/test-upup` stubs tools by name in `$tmp/bin` and never sets `HOME`, so: `stub hindsight-memory '[ -e "$STATE/hindsight-fails" ] && { echo "installer failed"; exit 1; }; [ -e "$STATE/hindsight-newer" ] && echo "newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION"; echo "runtime re-staged"'`, and `export HINDSIGHT_CONFIG="$STATE/coding-agent.json"` with `echo '{}' > "$HINDSIGHT_CONFIG"`. The clean first run must stay free of `↻●✖` lines, so assert there `has '^✔ Hindsight memory +runtime re-staged, hooks re-wired$'`. In the changes run, where the uv failure already lives, touch `$STATE/hindsight-newer` and assert `has '^● Hindsight memory +newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION in bin/hindsight-memory$'`. Add a third scenario or reuse the second with `$STATE/hindsight-fails` to assert `has '^✖ Hindsight memory +run: hindsight-memory upgrade$'` and `has '^    installer failed$'`. A fourth assertion removes `$HINDSIGHT_CONFIG` and asserts the report `lacks 'Hindsight memory'`.
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `bash bin/lib/test-upup`
 Expected: the new assertions fail, the existing ones still pass.
 
-- [ ] **Step 3: Add the step**
+- [x] **Step 3: Add the step**
 
 ```bash
 if [ -f "${HINDSIGHT_CONFIG:-$HOME/.hindsight/coding-agent.json}" ]; then
@@ -254,7 +254,7 @@ fi
 
 Use whatever name `capture` gives the captured output file in `bin/upup` (read `capture()` first) in place of `$capture_file`. The step re-runs the pinned installer, which is the vendor's documented update and re-wires hook entry points a release adds; a newer release is only reported, never installed, because the pin is a reviewed commit.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run: `bash bin/lib/test-upup && pnpm check`
 Expected: all assertions pass, gate exit 0. Add the step to the `upup` bullets in `README.md` and `bin/CLAUDE.md`, including that the version pin is bumped by hand.
@@ -271,16 +271,16 @@ git commit -m "Upgrade Hindsight coding-agent memory in upup"
 - Modify: `agents/README.md` (rewrite the hindsight bullet)
 - Modify: `agents/catalog/curated.toml` (add `hindsight-docs` and `hindsight-architect` to the "Look up documentation" group's items)
 
-- [ ] **Step 1: Uninstall the two memory skills here and clear the prototype's default profile**
+- [x] **Step 1: Uninstall the two memory skills here and clear the prototype's default profile**
 
 Run: `npx -y skills remove hindsight-local hindsight-self-hosted -g -y && bin/claude-config save && git diff --stat agents/claude-skills.txt && ls ~/.claude/skills | grep hindsight`
 Expected: two lines removed and nothing else changed; only `hindsight-docs` and `hindsight-architect` left. If a dangling symlink remains in `~/.claude/skills`, delete it and re-run `save`. Then `uvx hindsight-embed@1.1.0 daemon status` must say the default-profile daemon on 8888 is not running (stop it if it is). `~/.local/bin/hindsight` stays, `hindsight-embed memory …` forwards to it.
 
-- [ ] **Step 2: Rewrite the docs bullet**
+- [x] **Step 2: Rewrite the docs bullet**
 
 The `agents/README.md` bullet now says two hindsight skills are tracked (docs and architect), that coding memory comes from the hook package installed by `setup/misc.sh` with the companion `hindsight-coding-agent` skill it writes itself, and why the model-invoked memory skills were dropped (two "use to remember" skills the model would pick between, `hindsight-local` writing to the default profile on 8888 and bank `default`, `hindsight-self-hosted` to a server and bank the user types in, neither the per-repo bank the hooks use).
 
-- [ ] **Step 3: Verify the catalog and gate**
+- [x] **Step 3: Verify the catalog and gate**
 
 Run: `claude-catalog && pnpm check`
 Expected: catalog build exit 0 with no lint line and the two skills in the documentation group, gate exit 0.
