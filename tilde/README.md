@@ -28,6 +28,7 @@ An existing file in `~` is never replaced silently: the script asks to skip, ove
 | `.gitmessage` | The template git shows when you write a commit message |
 | `.ripgreprc`, `.ackrc`, `.curlrc` | Defaults for `rg`, `ack` and `curl` |
 | `.tlrc.toml` | The `tldr` client behind `help` |
+| `.bunfig.toml` | Bun install defaults (exact versions, 7-day release age) |
 | `.config/` | Amp, bat, btop, cmux, fastfetch, gh, Ghostty, hunk and mise |
 | `.claude/` | Claude Code's global rules and status line script |
 | `.codex/`, `.ssh/` | Codex's `config.toml` and the SSH `config` |

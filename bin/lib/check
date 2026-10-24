@@ -21,6 +21,7 @@ bash_syntax_files=(
 
 zsh_syntax_files=(
   tilde/.zshenv
+  tilde/.zprofile
   tilde/.zshrc
   zsh/*.zsh
 )

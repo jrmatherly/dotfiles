@@ -9,8 +9,8 @@ background: false
 
 Audit these docs: $ARGUMENTS
 
-If no path was given, audit `README.md`, `setup/README.md`, `agents/README.md`, `tilde/README.md`, every other `*/README.md` outside `node_modules/`, `obsidian/` and `ql-plugins/`, and `docs/**/*.md` except `docs/superpowers/` (implementation plans, not documentation).
+If no path was given, audit `README.md`, `setup/README.md`, `agents/README.md`, `tilde/README.md`, every other `*/README.md` outside `node_modules/`, `obsidian/.obsidian/plugins/` and `ql-plugins/`, and `docs/**/*.md` except `docs/superpowers/` (implementation plans, not documentation).
 
 Recently changed files, to check first:
 
-!`git log --since=30.days --name-only --format= | sort -u | head -50 || true`
+!`git log --since=30.days --name-only --format= | awk 'NF && !seen[$0]++' | head -50 || true`

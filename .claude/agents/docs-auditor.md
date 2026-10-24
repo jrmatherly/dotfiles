@@ -11,7 +11,7 @@ You audit documentation against code in a macOS dotfiles repo. You cannot edit f
 For each doc file in scope:
 
 1. List its checkable claims: flags and their effects, commands, file paths, symlink targets, versions/pins, tool names, prompts the scripts show, ordering statements.
-2. Verify each claim against the source of truth (`setup.sh`, `setup/*.sh`, `setup/Brewfile`, `bin/*`, `tilde/**`, `zsh/*.zsh`, `tilde/.config/mise/config.toml`, `package.json`, `prettier.config.cjs`). Open the code; don't infer from names.
+2. Verify each claim against the source of truth (`setup.sh`, `setup/*.sh`, `setup/Brewfile`, `bin/*`, `bin/lib/check`, `tilde/**`, `zsh/*.zsh`, `tilde/.config/mise/config.toml`, `agents/`, `vscode/`, `raycast/`, `mole/`, `colors/`, `.github/`, `renovate.json`, `package.json`, `prettier.config.cjs`). Open the code; don't infer from names.
 3. Report only mismatches and dead references (paths/commands that don't exist). Skip style and wording.
 
 Output format — one table per doc file, most severe first:

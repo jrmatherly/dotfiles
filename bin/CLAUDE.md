@@ -19,6 +19,7 @@ User CLI scripts, all on `PATH`. `zsh/path.zsh` prepends both `$DOTFILES/bin` an
   - `get-tldr-md`: the header → tldr renderer used by `help`
   - `starship-git-simple`: the prompt segment
   - `test-claude-desktop-account`: fixture self-check for `claude-desktop-account`, run by `check`
+  - `test-upup`: fixture self-check for `upup`'s report against stubbed tools, run by `check`
 - Setup entrypoints exposed as commands:
   - `brewpick`: Brewfile installer; `--all`, or an fzf checklist
   - `set-defaults`: runs `setup/macos.sh`
