@@ -63,6 +63,9 @@ stub claude 'case "$1 $2" in
       echo "✔ Plugin \"alpha@m\" updated from 1.0.0 to 1.1.0 for scope user. Restart to apply changes."
     else echo "$4 is already at the latest version"; fi ;;
   "mcp get") echo "  Status: ✔ Connected" ;;
+  "--version ") if [ -e "$STATE/claude-done" ]; then echo "2.1.311 (Claude Code)"; else echo "2.1.310 (Claude Code)"; fi ;;
+  "update ") [ -e "$STATE/claude-fails" ] && { echo "Error: update failed"; exit 1; }
+    [ -e "$STATE/claude" ] && touch "$STATE/claude-done"; echo "Checking for updates to latest version..." ;;
 esac'
 stub claude-config '[ "$1" = save ] && [ -e "$STATE/config" ] && echo "# saved" >> "$DOTFILES/agents/claude-skills.txt"; exit 0'
 stub claude-catalog 'echo "wrote /tmp/cat/CATALOG.md, CATALOG-lite.md, catalog.html, since 2026-10-20: +0 -0"'
@@ -97,6 +100,7 @@ check_true "up to date: cleanup reports what it freed" has '^✔ brew cleanup +f
 check_true "up to date: healthy brew doctor gets a line" has '^✔ brew doctor +ready to brew$'
 check_true "up to date: config left dirty before the run is unchanged" has '^✔ Claude config +unchanged$'
 check_true "up to date: plugins counted" has '^✔ plugins +2 plugins up to date$'
+check_true "up to date: Claude Code version" has '^✔ Claude Code +2\.1\.310 up to date$'
 check_true "up to date: skills counted" has '^✔ agent skills +2 tracked skills reinstalled for their agents$'
 check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
 check_true "up to date: one-line summary" has '^Everything up to date\.$'
@@ -105,7 +109,7 @@ check_true "up to date: summary links the catalog" has '^Catalog: file:///tmp/ca
 check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs"
-touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config"
+touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails"
 run
 check_true "changes: names the packages before upgrading" has '^    upgrading 1 package: gh…$'
 check_true "changes: a further edit to dirty config is a change" has '^↻ Claude config +tracked Claude config changed$'
@@ -117,6 +121,8 @@ check_true "changes: mise version change" has '^↻ mise +1 upgraded: node 24.1.
 check_true "changes: mise held release is a notice" has '^● mise +aspire 13.6.3 held until 2026-10-24 14:17 EDT by minimum_release_age$'
 check_true "changes: uv failure names the command" has '^✖ uv +run: uv tool upgrade --all$'
 check_true "changes: uv failure output shown" has '^    error: network down$'
+check_true "changes: Claude Code failure names the command" has '^✖ Claude Code +run: claude update$'
+check_true "changes: Claude Code failure output shown" has '^    Error: update failed$'
 check_true "changes: plugin update listed" has '^↻ plugins +1 plugin updated: alpha@m 1.0.0 → 1.1.0$'
 check_true "changes: steps after the failure still run" has '^✔ Raycast +asked to check for updates$'
 for section in Changed Notices Failed "Action needed"; do
@@ -127,6 +133,12 @@ check_true "changes: restart action" has '^  › Restart Claude Code to apply pl
 check_true "changes: new terminal action" has '^  › Open a new terminal: dotfiles changed$'
 check_true "changes: not everything up to date" lacks 'Everything up to date'
 check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/upup-*.log
+
+rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
+touch "$STATE/claude"
+run
+check_true "update: Claude Code updated" has '^↻ Claude Code +2\.1\.310 → 2\.1\.311$'
+check_true "update: Claude Code restart action" has '^  › Restart Claude Code to run 2\.1\.311$'
 
 rm -rf "$DOTFILES/logs"
 rc=0

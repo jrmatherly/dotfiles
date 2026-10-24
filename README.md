@@ -220,6 +220,7 @@ upup
 - upgrades Homebrew formulae and casks (VS Code included) without asking for confirmation, since it prints the list first, then cleans up
 - upgrades mise tools (Node/Python patch releases, CodeGraph, the npm CLIs, the Aspire CLI and flate) and uv tools (Serena and Scrapling, re-running `scrapling install` so its Chromium matches)
 - reinstalls the Iosevka Code font if its upstream zip changed
+- updates Claude Code itself (`claude update`) and reports its version, before the steps below so they run on the new binary
 - reinstalls the tracked agent skills for the agents each is listed for (`claude-config restore skills --update`), which is how an installed skill picks up upstream changes
 - refreshes the Claude Code marketplaces and updates every installed plugin (`claude plugin marketplace update`, then `claude plugin update` per plugin; Claude Code applies them on its next start; `-y` accepts a marketplace-declared install command without showing it, since the tracked marketplaces are vetted ones)
 - records the Claude Code plugins, base settings and user skills in the repo (`claude-config save`, review with `git diff`) and rebuilds the catalog (`claude-catalog`), then checks mise's MCP server: if its user-scope entry isn't `✔ Connected` and runs a different command from what setup writes (a moved binary, an old wrapper), it's re-registered; otherwise it warns, naming anthropics/claude-code#88128 when the server lists no tools. A missing registration is left alone
