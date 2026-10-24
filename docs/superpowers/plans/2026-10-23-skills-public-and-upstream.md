@@ -31,23 +31,7 @@
 
 ### Task 1: Settle the dangling declarations commits on GitHub
 
-**Files:**
-- None in either repo. GitHub state only.
-
-**Interfaces:**
-- Produces: a public repo where `curl -o /dev/null -w '%{http_code}' https://raw.githubusercontent.com/jrmatherly/skills/fadacbd78981/jstack/types/claude-code.d.ts` returns 404.
-
-- [ ] **Step 1: Ask Jason which path, with the trade-off in one line each**
-
-Path A, recreate: `gh repo view jrmatherly/skills --json description,homepageUrl,hasIssuesEnabled,hasWikiEnabled,deleteBranchOnMerge`, (measured today: description and homepage empty, issues on, wiki off, delete-branch-on-merge off, no rulesets, no branch protection, 0 forks). The `gh` token lacks `delete_repo`, so first `env -u GITHUB_TOKEN gh auth refresh -h github.com -s delete_repo` (the keyring account; a `GITHUB_TOKEN` in the environment would shadow it). Then `env -u GITHUB_TOKEN gh repo delete jrmatherly/skills --yes`, `gh repo create jrmatherly/skills --public`, `git -C ~/dev/skills push -u origin main` (the installed plugins record commit `1f4a8db`, which this history keeps), then `claude plugin marketplace update jrmatherly-skills` and `claude plugin update jstack@jrmatherly-skills` and `resume@jrmatherly-skills`. Path B, support: write the request text (repo, the three SHAs `f609b8c`, `2a4a54a`, `ab43cbb` and every pre-rewrite SHA from `curl https://api.github.com/repos/jrmatherly/skills/events`, the file path, the reason) for Jason to submit at https://support.github.com/request/remove-data.
-
-- [ ] **Step 2: Run the chosen path**
-
-Only after the word `recreate` or `support` from Jason in this task.
-
-- [ ] **Step 3: Verify**
-
-Run the `curl` from Interfaces. Expected: `404` (Path A immediately; Path B after GitHub confirms). Record the result in the handoff.
+**Done 2026-10-23.** Jason chose delete-and-recreate and did both on github.com. `main` was pushed to the new repo (`c08b1a8`), `curl -o /dev/null -w '%{http_code}' https://raw.githubusercontent.com/jrmatherly/skills/fadacbd78981/jstack/types/claude-code.d.ts` returns 404 (also for `03657cff7f39` and `f609b8c`), `gh api repos/jrmatherly/skills/commits/fadacbd78981` answers "No commit found", and both plugins were reinstalled at `c08b1a8d751b`. The new repo has no rulesets, so Task 3 Step 4 creates one.
 
 ### Task 2: Cache the engine-written declarations for `check-jstack`
 
@@ -250,7 +234,7 @@ Move patch NN and every patch numbered above it aside (sync applies every patch 
 
 - [ ] **Step NN.2: Re-apply the old patch's intent to the edit tree**
 
-`git -C <edit> init && git -C <edit> apply --reject <old NN patch>`; for each `.rej`, re-make the change by hand in the new text, then delete the `.rej` files and `.git`. Decisions fixed here, per patch: 10, `j-agent` keeps today's `${CLAUDE_PLUGIN_ROOT}/skills/j-mode/SKILL.md` path and drops upstream's `~/.cursor/plugins/` search entirely (its tie-break reads `plugin.json` `version`, which the fork omits on purpose), and the two hunks upstream made redundant (frontmatter `name:`, `mode:`/`reminder:`) are dropped. 20, Cursor "fast mode" per subagent maps to nothing (omit), effort maps to the `Agent` tool's `effort`; `/visualize` in `ketchup` becomes a Mermaid block in the reply; `create-formal-verification-skill/SKILL.md` line 35 links `../statechart/SKILL.md`, which Task 7 deletes and `check-jstack` would flag as a broken link, so rewrite that paragraph to read the TLC output directly and add the file to this patch; `worktree-audit.sh`'s transcript lookup re-anchors on the new `--base` code; playbooks keep upstream's `/loop 1h` wording. 30, every `claude-opus-5-5-xhigh` and `-max` slug becomes the role lookup the fork already uses; code-role defaults stay `sonnet` as in today's patch (no behavior change for a machine without a rule line); `grok-*` and `gpt-*` panel seats become `inherit` as today, with `codex` still offered; `setup-jstack` writes roles as `<model> <effort>` while a model-only line stays valid (so Task 10's second answer is implementable), and the fork's sentence "There is no per-call reasoning setting" goes, since the `Agent` tool now takes `effort`. 40, keep only the hunks upstream did not fix. 50, re-anchor the seven `:6` hunks. 60, re-anchor on the new `setup-jstack` steps including step 8 (formal verification offer: keep, it is prose). 70, keep the fork's "learnings go to `jstack/patches/70-reflect.patch`" rule and drop the now-duplicate "never edit `plugins/cache`" sentence upstream added.
+`git -C <edit> init && git -C <edit> apply --reject <old NN patch>`; for each `.rej`, re-make the change by hand in the new text, then delete the `.rej` files and `.git`. Decisions fixed here, per patch: 10, `j-agent` keeps today's `${CLAUDE_PLUGIN_ROOT}/skills/j-mode/SKILL.md` path and drops upstream's `~/.cursor/plugins/` search entirely (its tie-break reads `plugin.json` `version`, which the fork omits on purpose), and the two hunks upstream made redundant (frontmatter `name:`, `mode:`/`reminder:`) are dropped. 20, Cursor "fast mode" per subagent maps to nothing (omit), effort maps to the `Agent` tool's `effort`; `/visualize` in `ketchup` becomes a Mermaid block in the reply; `create-formal-verification-skill/SKILL.md` line 35 links `../statechart/SKILL.md`, which Task 7 deletes and `check-jstack` would flag as a broken link, so rewrite that paragraph to read the TLC output directly and add the file to this patch; `worktree-audit.sh`'s transcript lookup re-anchors on the new `--base` code; playbooks keep upstream's `/loop 1h` wording. 30, adopt upstream's role grammar and budget mechanics (Jason's decision, 2026-10-23): every real model line is `<model> <effort>` and the budget ladder stays upstream's (`unlimited` max, `large` xhigh, `medium` high, `small` medium), with `inherit` and `codex` unchanged; j-mode passes `effort` from the line on every Agent call. Slugs map per the adapter doc: `claude-opus-5-5-<effort>` is `opus <effort>`, `grok-*` and `gpt-*` seats become `inherit`, `-fast` is dropped. The fork's own defaults (`sonnet` for code, `opus` for prose, fable seats) keep their current models and take the budget's effort. The fork sentence "There is no per-call reasoning setting" goes. The per-role step of `setup-jstack` offers the five effort values with `medium` preselected on every role. 40, keep only the hunks upstream did not fix. 50, re-anchor the seven `:6` hunks. 60, re-anchor on the new `setup-jstack` steps including step 8 (formal verification offer: keep, it is prose). 70, keep the fork's "learnings go to `jstack/patches/70-reflect.patch`" rule and drop the now-duplicate "never edit `plugins/cache`" sentence upstream added.
 
 - [ ] **Step NN.3: Regenerate the patch with the README's exact diff and sed pipeline, then check it**
 
@@ -297,13 +281,15 @@ git push origin main
 
 **Files:**
 - Modify (through its symlink): `~/dev/dotfiles/tilde/.claude/rules/jstack-models.md`
-- Modify: `~/dev/dotfiles/CLAUDE.md` and `tilde/.claude/rules/index.md` only if the rule's line format changes
+- Modify: `~/dev/dotfiles/CLAUDE.md` and `tilde/.claude/rules/index.md` (the rule's line format changes to `<model> <effort>`; update the one-line descriptions of `jstack-models.md`)
 
-- [ ] **Step 1: Ask Jason once: adopt `<model> <effort>` role lines (recommended, the `Agent` tool takes `effort`) or keep model-only lines**
+- [ ] **Step 1: Decision recorded 2026-10-23: upstream grammar, effort `medium` by default, picked per role**
+
+Run `/jstack:setup-jstack` with the budget whose effort is `medium` (`small` on upstream's ladder; the label is upstream's) and answer the per-role question, which preselects `medium`; Jason adjusts roles there. The result is every line as `<model> <effort>`, models as today (fable for judgment and panel leads, opus for code, sonnet for explorers).
 
 - [ ] **Step 2: Update the plugin and re-run setup**
 
-Run: `claude plugin marketplace update jrmatherly-skills && claude plugin update jstack@jrmatherly-skills`, then in a new session `/jstack:setup-jstack` with the answer from Step 1.
+Run: `claude plugin marketplace update jrmatherly-skills && claude plugin update jstack@jrmatherly-skills`, then in a new session `/jstack:setup-jstack` as Step 1 says.
 Expected: `~/.claude/rules/jstack-models.md` rewritten through the symlink; `git -C ~/dev/dotfiles diff tilde/.claude/rules/jstack-models.md` shows the new lines.
 
 - [ ] **Step 3: Gate and commit in dotfiles**
