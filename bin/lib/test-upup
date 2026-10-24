@@ -65,7 +65,7 @@ stub claude 'case "$1 $2" in
   "mcp get") echo "  Status: ✔ Connected" ;;
 esac'
 stub claude-config '[ "$1" = save ] && [ -e "$STATE/config" ] && echo "# saved" >> "$DOTFILES/agents/claude-skills.txt"; exit 0'
-stub claude-catalog 'echo "wrote x/CATALOG.md, CATALOG-lite.md, catalog.html, since 2026-10-20: +0 -0"'
+stub claude-catalog 'echo "wrote /tmp/cat/CATALOG.md, CATALOG-lite.md, catalog.html, since 2026-10-20: +0 -0"'
 stub open 'exit 0'
 stub amp 'echo "Amp is already up to date"'
 stub nyan 'exit 0'
@@ -101,6 +101,7 @@ check_true "up to date: skills counted" has '^✔ agent skills +2 tracked skills
 check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
 check_true "up to date: one-line summary" has '^Everything up to date\.$'
 check_true "up to date: log path printed" has '^Log: logs/upup-[0-9]{8}-[0-9]{6}\.log$'
+check_true "up to date: summary links the catalog" has '^Catalog: file:///tmp/cat/catalog\.html$'
 check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs"

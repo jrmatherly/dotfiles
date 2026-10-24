@@ -213,7 +213,7 @@ If this file exists, it will be automatically included after the configurations 
 upup
 ```
 
-[`upup`](bin/upup) is the routine update command, and it works from any directory. It prints one status line per step (green ✔ up to date, cyan ↻ changed with what changed, yellow ● a notice such as a release held back, red ✖ a failed step with the command to rerun) and ends with a summary: what changed, notices, failures, actions you still have to take (restart Claude Code after plugin updates, review the tracked config, open a new terminal) and the log path. Each run's full tool output goes to `logs/upup-<timestamp>.log` (git-ignored); only a step that changed something or failed shows its output on screen. It:
+[`upup`](bin/upup) is the routine update command, and it works from any directory. It prints one status line per step (green ✔ up to date, cyan ↻ changed with what changed, yellow ● a notice such as a release held back, red ✖ a failed step with the command to rerun) and ends with a summary: what changed, notices, failures, actions you still have to take (restart Claude Code after plugin updates, review the tracked config, open a new terminal), a clickable `file://` link to the rebuilt catalog and the log path. Each run's full tool output goes to `logs/upup-<timestamp>.log` (git-ignored); only a step that changed something or failed shows its output on screen. It:
 
 - pulls the latest dotfiles (`git pull` in the clone)
 - installs macOS software updates (a macOS update asks for your login password: see [below](#macos-update-password-from-1password-optional))

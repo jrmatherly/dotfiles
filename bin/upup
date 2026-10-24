@@ -313,6 +313,7 @@ if command -v claude > /dev/null; then
   fi
   step catalog
   if capture claude-catalog; then
+    catalog_dir=$(sed -nE 's#^wrote (.*)/CATALOG\.md,.*#\1#p' <<< "$out")
     since=$(sed -nE 's/^wrote .*, since (.*): \+([0-9]+) -([0-9]+)$/\1 \2 \3/p' <<< "$out")
     read -r since_date added removed <<< "${since:-none 0 0}"
     if [ "$added$removed" != 00 ]; then
@@ -404,6 +405,8 @@ else
   [ ${#failed[@]} -eq 0 ] || summary Failed fail "${failed[@]}"
   [ ${#actions[@]} -eq 0 ] || summary "Action needed" prompt "${actions[@]}"
 fi
+# A file:// URL is what terminals turn into a clickable link
+[ -z "${catalog_dir:-}" ] || say "Catalog: file://$catalog_dir/catalog.html"
 say "Log: ${log#"$DOTFILES"/}"
 say ""
 
