@@ -75,7 +75,11 @@ usage() {
 }
 
 # The survey is off: it spawns a claude -p agent with Read over the repo, untracked
-# files included; daily page refresh and a roster every ten turns cut background calls
+# files included. The first prompt gets the matching knowledge pages, not a reflect:
+# the low-budget reflect's synthesis call alone ran 20 to 29 s on Sonnet 5.5, past the
+# hook's 20 s window, on every session start measured (spec, Latency and quota).
+# Pages refresh every six hours at a per-page hashed minute (H), skipped when nothing
+# changed, which bounds staleness now that pages are what a session sees.
 defaults() {
   cat << EOF
 {
@@ -85,7 +89,8 @@ defaults() {
   "autoUpdate": false,
   "embedVersion": "$EMBED_VERSION",
   "codebaseSurvey": false,
-  "pageTriggerCron": "0 6 * * *",
+  "autoInject": "pages",
+  "pageTriggerCron": "H */6 * * *",
   "pageRefreshEveryTurns": 10,
   "toolGuideExtra": "Memory is a past record, not current state: verify any claim against the code before acting on it, and credit memory only when it informed the answer.",
   "defaultBankConfig": {

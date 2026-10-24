@@ -28,7 +28,8 @@
     "autoUpdate": false,
     "embedVersion": "1.1.0",
     "codebaseSurvey": false,
-    "pageTriggerCron": "0 6 * * *",
+    "autoInject": "pages",
+    "pageTriggerCron": "H */6 * * *",
     "pageRefreshEveryTurns": 10,
     "defaultBankConfig": {
       "memory_defense": {
@@ -39,7 +40,7 @@
   }
   ```
 
-  `embedVersion` must equal `EMBED_VERSION`. The survey is off because it runs `claude -p` with Read over the whole repo (untracked `.env` included) on the subscription; `hindsight-memory survey on` is the one-line way to enable it per machine. Daily page refresh and a page roster every ten turns cut the background model calls.
+  `embedVersion` must equal `EMBED_VERSION`. The survey is off because it runs `claude -p` with Read over the whole repo (untracked `.env` included) on the subscription; `hindsight-memory survey on` is the one-line way to enable it per machine. Pages on the first prompt instead of a reflect (the reflect ran past the 20 s hook window on every measured start), a six-hourly staggered page refresh and a page roster every ten turns cut the background model calls.
 
 - `pnpm check` is the gate before every commit. Commits go straight to `main` under the repo's standing approval, one per task.
 - Docs change in the same commit as the behaviour they describe (`README.md`, `setup/README.md`, `agents/README.md`, `docs/README.md`, `docs/privacy.md`, `bin/CLAUDE.md`, `CLAUDE.md`, `tilde/.claude/rules/verify-first.md`).

@@ -80,7 +80,11 @@ stub claude-catalog 'echo "wrote /tmp/cat/CATALOG.md, CATALOG-lite.md, catalog.h
 stub open 'exit 0'
 stub amp 'echo "Amp is already up to date"'
 stub nyan 'exit 0'
-stub hindsight-memory '[ -e "$STATE/hindsight-fails" ] && { echo "installer failed"; exit 1; }; [ -e "$STATE/hindsight-newer" ] && echo "newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION"; echo "runtime re-staged"'
+stub hindsight-memory '[ -e "$STATE/hindsight-fails" ] && { echo "installer failed"; exit 1; }; [ -e "$STATE/hindsight-newer" ] && echo "newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION"
+if [ -e "$STATE/hindsight-warns" ]; then echo "│  ✓ runtime staged at ~/.hindsight/coding-agents"; echo "│  ▲ macOS needs a current Rust toolchain to build the daemon'"'"'s dependencies (litellm"; echo "│    publishes no macOS wheel). Install from https://rustup.rs"; fi
+echo "runtime re-staged"'
+# cargo is only looked up, never run; the "no cargo" scenario deletes this stub
+stub cargo 'echo "cargo 1.99.1"'
 export PATH="$tmp/bin:$PATH"
 export HINDSIGHT_CONFIG="$STATE/coding-agent.json"
 echo '{}' > "$HINDSIGHT_CONFIG"
@@ -122,9 +126,10 @@ check_true "up to date: summary links the catalog" has '^Catalog: file:///tmp/ca
 check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs"
-touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer"
+touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns"
 run
 check_true "changes: newer Hindsight release is a notice" has '^● Hindsight memory +newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION in bin/hindsight-memory$'
+check_true "changes: the installer's ▲ warning is a notice, first line only" has '^● Hindsight memory +installer: macOS needs a current Rust toolchain to build the daemon.s dependencies \(litellm; see the log$'
 check_true "changes: names the packages before upgrading" has '^    upgrading 1 package: gh…$'
 check_true "changes: a further edit to dirty config is a change" has '^↻ Claude config +tracked Claude config changed$'
 check_true "changes: dotfiles pulled" has '^↻ dotfiles +pulled 1 commit$'
@@ -150,8 +155,10 @@ check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$D
 
 rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
 touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust"
+rm "$tmp/bin/cargo"
 run
 check_true "update: Rust names the channel and versions" has '^↻ Rust +stable 1\.99\.0→1\.99\.1$'
+check_true "update: cargo missing from PATH is a notice" has "^● Rust +cargo not on this shell's PATH \(rustup's proxies live in /opt/homebrew/opt/rustup/bin\); open a new terminal$"
 check_true "update: uv names the upgraded tool and the one whose dependencies moved" has '^↻ uv +serena-agent v0\.1\.4 -> v0\.1\.5, scrapling dependencies$'
 check_true "update: uv output shown" has '^    Modified scrapling environment$'
 check_true "update: no unrecognized uv output" lacks 'unrecognized output'

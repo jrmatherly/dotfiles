@@ -220,6 +220,12 @@ if command -v rustup > /dev/null; then
   else
     status notice Rust "unrecognized output, see the log"
   fi
+  # Homebrew's rustup is keg-only, so cargo and rustc are its proxies in
+  # /opt/homebrew/opt/rustup/bin, which only shells started after that PATH
+  # entry landed can see (zsh/path.zsh, tilde/.zprofile). Hindsight's daemon
+  # preflight needs cargo on PATH, so a stale shell can't cold-start it
+  command -v cargo > /dev/null \
+    || status notice Rust "cargo not on this shell's PATH (rustup's proxies live in /opt/homebrew/opt/rustup/bin); open a new terminal"
 fi
 
 # uv tools (Serena, Scrapling)
@@ -305,6 +311,10 @@ if command -v claude > /dev/null; then
       else
         status ok "Hindsight memory" "runtime re-staged, hooks re-wired"
       fi
+      # The installer's own warnings (▲ lines: no uv, no cargo, no LLM) don't
+      # fail it, but each one means the daemon can't cold-start from this shell
+      warned=$(sed -n 's/^│  ▲ //p' <<< "$out")
+      [ -z "$warned" ] || status notice "Hindsight memory" "installer: ${warned%%$'\n'*}; see the log"
     else
       status fail "Hindsight memory" "run: hindsight-memory upgrade"
       show

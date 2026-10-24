@@ -78,7 +78,7 @@ check_true() {
 check_true "init runs the installer once with both harnesses" hm init
 check "installer args" "install claude-code codex --server daemon" "$(cat "$HOME/installer.log")"
 check "init writes the default paths" '["~/dev"]' "$(jq -c .optInPaths "$cfg")"
-check "init writes the other defaults" "daemon true false 1.1.0 false 0 6 * * * 10 redact" "$(jq -r '[.serverMode, .optInOnly, .autoUpdate, .embedVersion, .codebaseSurvey, .pageTriggerCron, .pageRefreshEveryTurns, .defaultBankConfig.memory_defense.rules[0].action] | join(" ")' "$cfg")"
+check "init writes the other defaults" "daemon true false 1.1.0 false pages H */6 * * * 10 redact" "$(jq -r '[.serverMode, .optInOnly, .autoUpdate, .embedVersion, .codebaseSurvey, .autoInject, .pageTriggerCron, .pageRefreshEveryTurns, .defaultBankConfig.memory_defense.rules[0].action] | join(" ")' "$cfg")"
 check "init writes the tool guide line" true "$(jq '.toolGuideExtra | startswith("Memory is a past record")' "$cfg")"
 jq '.optInPaths = ["~/work"]' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
 check_true "init again keeps the edited list and skips the installer" hm init
