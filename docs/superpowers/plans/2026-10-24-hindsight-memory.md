@@ -301,11 +301,11 @@ git commit -m "Keep one Hindsight memory path and file its docs skills in the ca
 
 Open a fresh Claude Code session in `~/dev/dotfiles`. Expected: the 🧠 banner names bank `coding-agent::dotfiles`, `~/.hindsight/coding-agents-logs/plugin.log` shows `seed_started`, `~/.hindsight/profiles/coding-agent.log` shows `Claude Code: Using Claude Agent SDK`, and within two minutes `hindsight_sync_status` reports `"synced": true`. Ask "what is this repo's gate before a commit" and expect an answer that credits Hindsight memory after the seed has run.
 
-- [ ] **Step 2: Codex in the same repo** (deferred: Codex is not in use on this machine)
+- [x] **Step 2: Codex in the same repo** (struck by the owner on 2026-10-24: Codex is not in use on this machine, the test will not be run)
 
 Run `codex` in `~/dev/dotfiles`, one prompt. Expected: `diag.jsonl` gains a line with `"harness": "codex"` and `reflect_ok` or an `inject_*` event, and `npx -y @vectorize-io/hindsight-coding-agents@0.8.2 stats` lists both harnesses.
 
-- [ ] **Step 3: A repo outside the list** (deferred by the owner on 2026-10-24)
+- [x] **Step 3: A repo outside the list** (2026-10-24 16:57: the owner opened Claude Code in `~/Downloads/test-repo`; no 🧠 banner, and the session read `~/.hindsight/coding-agent.json` and reported the directory outside the `~/dev` opt-in. The jstack band still showed `Memory · on`, which is the daemon answering, not an opt-in; that is the button's documented meaning)
 
 Clone any small public repo to `/tmp/outside` and open Claude Code there. Expected: the banner reports memory inert, and `uvx hindsight-embed@1.1.0 -p coding-agent bank list` (which starts the daemon if it is down) shows no bank for it.
 
