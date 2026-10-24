@@ -88,13 +88,15 @@ Leave **Display** → **Reduce Transparency** off. On this Mac it's off, and the
 - **Menu Bar Only**: set all to `Don't Show in Menu Bar`
   - **Clock Options…** − **Style** `Digital`, **Show date** `When Space Allows`, **Show the day of the week** `On`, **Show AM/PM** `On` (this Mac)
 
-### Apple Intelligence & Siri
+### Siri
 
-- Turn on **Apple Intelligence**
-- **Siri Requests** → **Siri** − `On`
-- **Siri Requests** → **Listen for** − `Off`
-- **Siri Requests** → **Keyboard shortcut** − `⌃S`
-- **Siri Requests** → **Language** − `English (United States)`
+macOS 27 has no separate Apple Intelligence pane; the sidebar entry is **Siri**.
+
+- **Siri** − on (the pane offers **Turn Off Siri**; this Mac)
+- **Requests** − `"Siri" or "Hey Siri"` (this Mac)
+- **Requests** → **Keyboard shortcut** − `⌃S`
+- **Language** − `English (United States)` (this Mac)
+- **Automatic Visual Look Up** − `Off` (this Mac)
 
 ### Spotlight
 
