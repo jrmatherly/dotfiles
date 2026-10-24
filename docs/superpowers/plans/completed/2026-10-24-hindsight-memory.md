@@ -8,7 +8,7 @@
 
 **Tech Stack:** bash 3.2, jq, the `skills` CLI, uv and node through mise, `@vectorize-io/hindsight-coding-agents` 0.8.2, `hindsight-embed` and `hindsight-api` 1.1.0.
 
-**Spec:** `docs/superpowers/specs/2026-10-24-hindsight-memory.md`
+**Spec:** `docs/superpowers/specs/completed/2026-10-24-hindsight-memory.md`
 
 ## Global Constraints
 
@@ -295,7 +295,7 @@ git commit -m "Keep one Hindsight memory path and file its docs skills in the ca
 
 **Files:**
 - Modify: `.remember/remember.md` through the `remember` skill at the end.
-- Modify: `docs/superpowers/specs/2026-10-24-hindsight-memory.md` (the measured numbers go in Risks).
+- Modify: `docs/superpowers/specs/completed/2026-10-24-hindsight-memory.md` (the measured numbers go in Risks).
 
 - [x] **Step 1: Claude Code in an opted-in repo** (2026-10-24: banner names `coding-agent::dotfiles`; `session_start` with 5 pages; the sync and the credited answer were seen in the day's sessions)
 
@@ -313,7 +313,7 @@ Clone any small public repo to `/tmp/outside` and open Claude Code there. Expect
 
 Start Claude Code from the Claude Desktop app's Code tab in `~/dev/dotfiles`. Expected: the same banner, a `reflect_ok` or fallback event in `diag.jsonl`, and the provider line in `profiles/coding-agent.log`, which together prove PATH held `node`, `uv` and `claude`.
 
-- [ ] **Step 5: Daemon down and kill switch** (deferred by the owner on 2026-10-24)
+- [x] **Step 5: Daemon down and kill switch** (2026-10-24 21:04Z, headless `claude -p` sessions in this repo: with the daemon stopped the reply still came, `diag.jsonl` logged `inject_pages_failed` and `pages_failed` with ECONNREFUSED and the hooks spawned the daemon again (`daemon_start_spawned`, then `daemon_started`); after `hindsight-memory off` a session wrote no diag line; after `hindsight-memory on` the next session injected 5 pages and the daemon was running)
 
 Run `uvx hindsight-embed@1.1.0 -p coding-agent daemon stop`, open a session, send one prompt. Expected: the reply starts within a few seconds and `diag.jsonl` records `reflect_failed` or an `inject_*_failed`. Then `hindsight-memory off`, a new session. Expected: no banner, no new `diag.jsonl` line. `hindsight-memory on` afterwards.
 

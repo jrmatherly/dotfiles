@@ -299,7 +299,7 @@ fi
 
 # Hindsight — per-repo long-term memory for Claude Code and Codex via the vendor
 # installer (what it writes: setup/README.md and the spec,
-# docs/superpowers/specs/2026-10-24-hindsight-memory.md). Tracked snapshots stay
+# docs/superpowers/specs/completed/2026-10-24-hindsight-memory.md). Tracked snapshots stay
 # clean: `claude-config save` drops `hooks`, and the [mcp_servers] block lands in
 # the seeded copy ~/.codex/config.toml. It registers its MCP server with
 # `claude mcp add`, hence the PATH prefix. `bin/upup` upgrades it.

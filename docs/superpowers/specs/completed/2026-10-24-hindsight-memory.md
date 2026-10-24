@@ -1,6 +1,6 @@
 # Hindsight memory for the coding assistants
 
-Findings and the recommended design for giving Claude Code and Codex long-term, per-repo memory through [Hindsight](https://github.com/vectorize-io/hindsight), run locally on this Mac. The plan that implements it is `docs/superpowers/plans/2026-10-24-hindsight-memory.md`.
+Findings and the recommended design for giving Claude Code and Codex long-term, per-repo memory through [Hindsight](https://github.com/vectorize-io/hindsight), run locally on this Mac. The plan that implements it is `docs/superpowers/plans/completed/2026-10-24-hindsight-memory.md`.
 
 ## Decisions taken on 2026-10-24
 
