@@ -53,7 +53,12 @@ stub mise 'case $1 in
     fi ;;
   *) exit 1 ;;
 esac'
-stub uv '[ -e "$STATE/uv-fails" ] && { echo "error: network down"; exit 1; }; echo "Nothing to upgrade"'
+stub uv 'if [ -e "$STATE/uv" ]; then
+  echo "Updated serena-agent v0.1.4 -> v0.1.5"; echo " - serena-agent==0.1.4"; echo " + serena-agent==0.1.5"
+  echo "Installed 3 executables: index-project, serena, serena-mcp-server"
+  echo "Modified scrapling environment"; echo " - sse-starlette==3.5.0"; echo " + sse-starlette==3.5.1"
+elif [ -e "$STATE/uv-fails" ]; then echo "error: network down"; exit 1
+else echo "Nothing to upgrade"; fi'
 stub scrapling 'echo "Chromium already installed"'
 stub install-iosevka-code 'echo "Iosevka Code is up to date"'
 stub install-snippetslab-skill 'exit 0'
@@ -140,14 +145,18 @@ check_true "changes: not everything up to date" lacks 'Everything up to date'
 check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
-touch "$STATE/claude" "$STATE/hindsight-fails"
+touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv"
 run
+check_true "update: uv names the upgraded tool and the one whose dependencies moved" has '^↻ uv +serena-agent v0\.1\.4 -> v0\.1\.5, scrapling dependencies$'
+check_true "update: uv output shown" has '^    Modified scrapling environment$'
+check_true "update: no unrecognized uv output" lacks 'unrecognized output'
 check_true "update: Claude Code updated" has '^↻ Claude Code +2\.1\.310 → 2\.1\.311$'
 check_true "update: Claude Code restart action" has '^  › Restart Claude Code to run 2\.1\.311$'
 check_true "update: Hindsight failure names the command" has '^✖ Hindsight memory +run: hindsight-memory upgrade$'
 check_true "update: Hindsight failure output shown" has '^    installer failed$'
 
-rm -rf "$DOTFILES/logs" "$HINDSIGHT_CONFIG"
+# Back to the uv failure: the terminal run below needs a failed step
+rm -rf "$DOTFILES/logs" "$HINDSIGHT_CONFIG" "$STATE/uv"
 run
 check_true "no Hindsight config: step skipped" lacks 'Hindsight memory'
 
