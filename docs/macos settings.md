@@ -131,26 +131,26 @@ Raycast handles ⌘Space on this Mac, and `set-defaults` turns off the Spotlight
 - **Window title bar double-click action** − `Fill` (set-defaults)
 - **Minimize windows into application icon** − `On` (set-defaults)
 - **Automatically hide and show the Dock** − `On` (set-defaults; reveal delay and slide animation stay at macOS defaults unless you opt in to custom values when prompted)
-- **Animate opening applications** − `Off` (set by hand; set-defaults separately turns off Dock icon bouncing)
+- **Animate opening applications** − `On` (this Mac; set-defaults separately turns off Dock icon bouncing)
 - **Show indicators for open applications** − `On` (set-defaults)
 - **Show suggested and recent apps in Dock** − `Off` (set-defaults)
 - **Desktop & Stage Manager** → **Show items** − `On Desktop`
-- **Desktop & Stage Manager** → **Click wallpaper to show desktop** − `Only in Stage Manager`
+- **Desktop & Stage Manager** → **Click wallpaper to show desktop** − `Always` (this Mac)
 - **Desktop & Stage Manager** → **Stage Manager** − `Off`
-- **Desktop & Stage Manager** → **Show recent apps in Stage Manager** − `Off`
-- **Widgets** → **Show Widgets** − `On Desktop`
-- **Widgets** → **iPhone Widgets** − `Off`
+- **Desktop & Stage Manager** → **Show recent apps in Stage Manager** − `On` (this Mac)
+- **Widgets** → **Show Widgets** − `On Desktop` and `In Stage Manager` (this Mac)
+- **Widgets** → **Dim widgets on desktop** − `Automatically`
 - **Default web browser** − `Comet` (this Mac)
 - **Windows** → **Prefer tabs when opening documents** − `In Full Screen`
-- **Windows** → **Ask to keep changes when closing documents** − `On`
-- **Windows** → **Close windows when quitting an application** − `Off`
+- **Windows** → **Ask to keep changes when closing documents** − `Off` (this Mac)
+- **Windows** → **Close windows when quitting an application** − `On` (this Mac)
 - **Windows** → **Drag windows to left or right edge of screen to tile** − `On`
-- **Windows** → **Drag windows to menu bar to fill screen** − `Off`
+- **Windows** → **Drag windows to menu bar to fill screen** − `On` (this Mac)
 - **Windows** → **Hold ⌥ key while dragging windows to tile** − `On`
 - **Windows** → **Tiled windows have margins** − `Off` (this Mac)
 - **Mission Control** → **Automatically rearrange Spaces based on most recent use** − `On`
-- **Mission Control** → **When switching to an application, switch to a Space with open windows for the application** − `Off`
-- **Mission Control** → **Group windows by application** − `On` (set-defaults)
+- **Mission Control** → **When switching to an application, switch to a Space with open windows for the application** − `On` (this Mac)
+- **Mission Control** → **Group windows by application** − `On` (set-defaults; off on this Mac until the next `set-defaults` run, since the script wrote a misspelled key before 2026-10-24)
 - **Mission Control** → **Displays have separate Spaces** − `On` (window tiling needs this)
 - **Shortcuts…** → **Mission Control** − `⌃↑`
 - **Shortcuts…** → **Application windows** − `⌃↓`
@@ -232,7 +232,7 @@ No mouse is paired with this Mac. If you connect one:
 - **Swipe between full-screen applications** − `Swipe Left or Right with Three Fingers` (set-defaults)
 - **Notification Center** − `On` (this Mac: swipe left from the right edge with two fingers)
 - **Mission Control** − `Swipe Up with Three Fingers` (this Mac)
-- **App Exposé** − `Swipe Down with Three Fingers`
+- **App Exposé** − `Off` (this Mac)
 - **Apps** − `On` (pinch with thumb and three fingers; this replaced Launchpad, which macOS 27 removed)
 - **Show Desktop** − `On`
 

@@ -333,8 +333,9 @@ defaults write com.apple.dock show-process-indicators -bool true
 # Show only currently running applications in the Dock
 #defaults write com.apple.dock static-only -bool true
 
-# Group windows by application in Mission Control
-defaults write com.apple.dock expose-group-by-app -bool true
+# Group windows by application in Mission Control (the Dock reads
+# expose-group-apps; an earlier expose-group-by-app spelling did nothing)
+defaults write com.apple.dock expose-group-apps -bool true
 
 # Disable icon bouncing
 defaults write com.apple.dock no-bouncing -bool true

@@ -21,7 +21,7 @@ Installed by `setup/Brewfile` (`cask "1password"`, `cask "1password-cli"`).
 
 ## Global shortcuts
 
-- **Option+Cmd+\:** Quick Access (Cmd+Shift+Space on macOS 26 and earlier)
+- **Cmd+Shift+Space:** Quick Access (as set in Settings → General on this Mac)
 - **Cmd+Shift+L:** lock 1Password
 - **Cmd+Backslash:** autofill
 - Change them in **Settings → General**
@@ -35,11 +35,13 @@ Installed by `setup/Brewfile` (`cask "1password"`, `cask "1password-cli"`).
 ## App
 
 - **Cmd+/:** show all keyboard shortcuts
-- **Cmd+F:** search items; **Esc:** clear search
-- **Cmd+C / Cmd+Shift+C / Option+Cmd+C:** copy username / password / one-time password
-- **Cmd+Shift+F:** open the website and fill credentials
-- **Cmd+N:** new item; **Cmd+E:** edit; **Cmd+S:** save
-- **Cmd+R:** reveal / conceal secure fields (hold **Option** to reveal all temporarily)
+- **Cmd+F:** find; **Cmd+1:** all accounts; **Cmd+2…9:** switch accounts and collections; **Cmd+[ / Cmd+]:** back / forward
+- **↑ / ↓:** previous / next row; **← / →:** left / right section
+- **Cmd+C / Cmd+Shift+C / Option+Cmd+C:** copy primary field / password / one-time password
+- **Cmd+Shift+F:** open and fill in the web browser; **Cmd+O:** open the item in a new window
+- **Cmd+N:** new item; **Cmd+E:** edit; **Cmd+S:** save; **Backspace:** archive; **Cmd+Backspace:** delete
+- **Cmd+R:** reveal concealed fields
+- **Cmd+Shift+D:** show / hide the sidebar; **Cmd++ / Cmd+- / Cmd+0:** zoom in / out / actual size
 
 ## Sources
 
