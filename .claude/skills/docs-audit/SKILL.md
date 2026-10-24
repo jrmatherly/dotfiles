@@ -13,4 +13,4 @@ If no path was given, audit `README.md`, `setup/README.md`, `agents/README.md`, 
 
 Recently changed files, to check first:
 
-!`git log --since=30.days --name-only --format= | awk 'NF && !seen[$0]++' | head -50 || true`
+!`git log --since=14.days --name-only --format= | grep . | sort -u | head -80 || true`
