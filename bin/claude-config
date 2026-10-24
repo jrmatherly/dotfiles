@@ -50,7 +50,7 @@ skill_lock="$HOME/.agents/.skill-lock.json"
 # go, and the saved file is committed
 settings_filter='del(.enabledPlugins, .extraKnownMarketplaces, .hooks,
     .apiKeyHelper, .awsCredentialExport, .awsAuthRefresh, .otelHeadersHelper)
-  | if .env then .env |= with_entries(select(.key | test("^(CLAUDE_CODE_|DISABLE_|MAX_|AZURE_MCP_COLLECT_TELEMETRY$|HINDSIGHT_API_LLM_PROVIDER$)")))
+  | if .env then .env |= with_entries(select(.key | test("^(CLAUDE_CODE_|DISABLE_|MAX_|AZURE_MCP_COLLECT_TELEMETRY$|HINDSIGHT_API_(LLM_PROVIDER|[A-Z_]*LLM_MODEL)$)")))
       | if .env == {} then del(.env) else . end
     else . end'
 # $HOME → ~ only where it starts a path (after start, space, ( = : or a

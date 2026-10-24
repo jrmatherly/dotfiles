@@ -17,3 +17,8 @@ fi
 # restarted, so the first session of the day would otherwise decide billing.
 # Set here rather than in zsh/env.zsh because only interactive shells read that.
 export HINDSIGHT_API_LLM_PROVIDER=claude-code
+# The models too: the provider's default (claude-sonnet-4-5-20250929) retires on
+# 2026-11-30. Why this split: docs/superpowers/specs/2026-10-24-hindsight-memory.md.
+export HINDSIGHT_API_LLM_MODEL=claude-sonnet-5-5
+export HINDSIGHT_API_RETAIN_LLM_MODEL=claude-haiku-5-5
+export HINDSIGHT_API_CONSOLIDATION_LLM_MODEL=claude-haiku-5-5

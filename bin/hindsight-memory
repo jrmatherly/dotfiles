@@ -87,6 +87,7 @@ defaults() {
   "codebaseSurvey": false,
   "pageTriggerCron": "0 6 * * *",
   "pageRefreshEveryTurns": 10,
+  "toolGuideExtra": "Memory is a past record, not current state: verify any claim against the code before acting on it, and credit memory only when it informed the answer.",
   "defaultBankConfig": {
     "memory_defense": {
       "enabled": true,
