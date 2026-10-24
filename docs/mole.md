@@ -1,6 +1,6 @@
 # Mole (`mo`)
 
-Mole is a Mac cleaner and maintenance tool from the Brewfile (`brew "mole"`). This page says what each command does on a Mac set up from this repo, which of them to use, and how its config is tracked. It was checked against Mole 1.62.0. Source citations are relative to the install, `$(brew --prefix mole)/libexec`.
+Mole is a Mac cleaner and maintenance tool from the Brewfile (`brew "mole"`). This page says what each command does on a Mac set up from this repo, which of them to use, and how its config is tracked. It was checked against Mole 1.63.0. Source citations are relative to the install, `$(brew --prefix mole)/libexec`.
 
 ## Summary
 
@@ -131,7 +131,7 @@ The defaults left out cover Gradle, Ollama, Surge, R, JetBrains and tealdeer.
 - tealdeer isn't used here (`tlrc` is).
 - Add `~/.gradle/caches/*` and `~/.gradle/daemon/*` to a `.local` if a Mac builds with Gradle. The Brewfile's Java and Gradle VS Code extensions can create `~/.gradle`.
 
-To keep Trash, add `~/.Trash` to a `.local`. Mole 1.62 dropped the `MOLE_SKIP_TRASH_CLEANUP` switch (`lib/clean/user.sh`).
+To keep Trash, add `~/.Trash` to a `.local`. Mole dropped the `MOLE_SKIP_TRASH_CLEANUP` switch in 1.62; 1.63 checks the whitelist for `~/.Trash` instead (`lib/clean/user.sh`).
 
 ### Optimize whitelist
 

@@ -21,7 +21,7 @@ Installed by `setup/Brewfile` (`cask "1password"`, `cask "1password-cli"`).
 
 ## Global shortcuts
 
-- **Cmd+Shift+Space:** Quick Access
+- **Option+Cmd+\:** Quick Access (Cmd+Shift+Space on macOS 26 and earlier)
 - **Cmd+Shift+L:** lock 1Password
 - **Cmd+Backslash:** autofill
 - Change them in **Settings → General**
