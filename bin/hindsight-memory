@@ -22,7 +22,7 @@
 #
 # `hindsight-memory survey {{on|off}}`
 #
-# - Show the daemon, the config, today's model calls and the plugin log:
+# - Show the daemon, the config, the last 24 h of model calls per bank and model, and the plugin log:
 #
 # `hindsight-memory status`
 #
@@ -197,10 +197,11 @@ set_flag() {
   write_cfg '.[$k] = $v' --arg k "$1" --argjson v "$2"
 }
 
+# Model calls come from the daemon's own request log (every call, with its
+# model), not the profile log, which names a scope only for calls over 10 s
 cmd_status() {
-  local log=$HOME/.hindsight/profiles/coding-agent.log
   local plugin_log=$HOME/.hindsight/coding-agents-logs/plugin.log
-  local calls=0
+  local api banks bank since
   if [ ! -f "$cfg" ] && [ -f "$aside" ]; then
     echo "uninstalled (config kept at $aside; run: hindsight-memory init)"
     return
@@ -208,8 +209,19 @@ cmd_status() {
   "${embed[@]}" -p coding-agent daemon status || true
   need_config
   jq '{serverMode, disabled, optInOnly, optInPaths, codebaseSurvey}' "$cfg"
-  [ -f "$log" ] && calls=$(grep -c "^$(date +%F).*scope=" "$log" || true)
-  echo "model calls today: $calls"
+  api="http://127.0.0.1:$(jq -r '.apiPort // 9077' "$cfg")"
+  if banks=$(curl -sf --max-time 3 "$api/v1/default/banks" | jq -r '.banks[].bank_id'); then
+    since=$(date -u -v-24H +%FT%TZ)
+    echo "model calls, last 24 h, per bank (from $api):"
+    for bank in $banks; do
+      # 500 is the endpoint's page cap; the model split covers that many, the total is exact
+      curl -sf --max-time 5 "$api/v1/default/banks/$bank/llm-requests?call_type=llm&start_date=$since&limit=500" \
+        | jq -r --arg b "$bank" '.items as $i | "  \($b): \(.total) calls" + ($i | group_by(.model) | map(" · \(.[0].model) ×\(length)") | join("")) + (if .total > ($i | length) then " (model split: first \($i | length))" else "" end)' \
+        || echo "  $bank: request log unavailable"
+    done
+  else
+    echo "model calls: daemon not reachable at $api"
+  fi
   if [ -f "$plugin_log" ]; then
     echo "plugin.log:"
     tail -10 "$plugin_log"

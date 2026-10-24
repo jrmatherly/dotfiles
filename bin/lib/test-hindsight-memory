@@ -116,7 +116,10 @@ check_true "on clears it" hm on
 check "disabled false" false "$(jq .disabled "$cfg")"
 check_true "survey on writes codebaseSurvey" hm survey on
 check "survey true" true "$(jq .codebaseSurvey "$cfg")"
+# apiPort 1 keeps the self-check off a daemon that may be running on this machine
+jq '.apiPort = 1' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
 check_true "status prints the config summary" bash -c '"$0" status | grep -q "optInPaths"' "$script"
+check_true "status says when the daemon is unreachable" bash -c '"$0" status | grep -q "daemon not reachable at http://127.0.0.1:1$"' "$script"
 check_true "uninstall calls the vendor uninstall and stops the daemon" hm uninstall
 check "uninstall args" "uninstall all" "$(tail -1 "$HOME/installer.log")"
 check "daemon stopped" "-p coding-agent daemon stop" "$(tail -1 "$HOME/embed.log")"
