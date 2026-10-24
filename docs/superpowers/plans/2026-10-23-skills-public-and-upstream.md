@@ -24,8 +24,8 @@
 - A machine that has never run `/plugin-authoring` and has no cache: `check-jstack` must fail with the run-it-once instruction, not a bash error (Task 2 test `no copy anywhere`).
 - `/tmp` wiped by `tmp_cleaner` after 3 idle days with a cache present: the check passes from the cache with no warning when versions match (Task 2 test `tmp gone, cache matches`).
 - Cache holds only an older version after `claude update`: the check passes and prints the drift warning naming both versions (Task 2 test `cache older than claude`).
-- A CI run with no Claude credentials: `claude plugin validate` and `claude plugin test` exit 0 (Task 3 verifies on the first workflow run).
-- A pre-push from a branch with no `origin/main` yet (fresh clone, first push): the hook must scan `HEAD` rather than crash on a missing ref (Task 4 test).
+- A CI run with no Claude credentials: `claude plugin validate` and `claude plugin test` exit 0 (no committed test; Task 3 Step 3 watches the first workflow run, and Linux behavior is unverified until then).
+- A pre-push from a branch with no `origin/main` yet (fresh clone, first push): the hook must scan `HEAD` rather than crash on a missing ref (Task 4 Step 1 hand check).
 
 ---
 
@@ -39,7 +39,7 @@
 
 - [ ] **Step 1: Ask Jason which path, with the trade-off in one line each**
 
-Path A, recreate: `gh repo view jrmatherly/skills --json description,homepageUrl,hasIssuesEnabled,hasWikiEnabled,deleteBranchOnMerge`, and `gh api repos/jrmatherly/skills/rulesets` to save the ruleset JSON under `/private/tmp/claude-501/.../scratchpad/repo-settings/`; then `gh repo delete jrmatherly/skills --yes`, `gh repo create jrmatherly/skills --public --description "<saved>"`, `git -C ~/dev/skills push -u origin main`, re-create the ruleset from the saved JSON with `gh api --method POST repos/jrmatherly/skills/rulesets --input <file>`, then `claude plugin marketplace update jrmatherly-skills` and `claude plugin update jstack@jrmatherly-skills` and `resume@jrmatherly-skills`. Path B, support: write the request text (repo, the three SHAs `f609b8c`, `2a4a54a`, `ab43cbb` and every pre-rewrite SHA from `curl https://api.github.com/repos/jrmatherly/skills/events`, the file path, the reason) for Jason to submit at https://support.github.com/request/remove-data.
+Path A, recreate: `gh repo view jrmatherly/skills --json description,homepageUrl,hasIssuesEnabled,hasWikiEnabled,deleteBranchOnMerge`, (measured today: description and homepage empty, issues on, wiki off, delete-branch-on-merge off, no rulesets, no branch protection, 0 forks). The `gh` token lacks `delete_repo`, so first `env -u GITHUB_TOKEN gh auth refresh -h github.com -s delete_repo` (the keyring account; a `GITHUB_TOKEN` in the environment would shadow it). Then `env -u GITHUB_TOKEN gh repo delete jrmatherly/skills --yes`, `gh repo create jrmatherly/skills --public`, `git -C ~/dev/skills push -u origin main` (the installed plugins record commit `1f4a8db`, which this history keeps), then `claude plugin marketplace update jrmatherly-skills` and `claude plugin update jstack@jrmatherly-skills` and `resume@jrmatherly-skills`. Path B, support: write the request text (repo, the three SHAs `f609b8c`, `2a4a54a`, `ab43cbb` and every pre-rewrite SHA from `curl https://api.github.com/repos/jrmatherly/skills/events`, the file path, the reason) for Jason to submit at https://support.github.com/request/remove-data.
 
 - [ ] **Step 2: Run the chosen path**
 
@@ -63,7 +63,7 @@ Run the `curl` from Interfaces. Expected: `404` (Path A immediately; Path B afte
 
 - [ ] **Step 1: Write the failing test `jstack/tests/check-jstack-types.sh`**
 
-A bash script that builds a fixture: a stub `claude` on `PATH` printing `9.9.9 (Claude Code)` for `--version` and exiting 0 for `plugin validate` and `plugin test`; a stub `tsc` that exits 0; `HOME` and `JSTACK_TYPES_TMP` pointing at temp dirs; a minimal plugin dir with `.claude-plugin/plugin.json`, `hooks/`, `types/`, `tests/` and a `LICENSE` holding `Copyright (c) 2026 Lauren Tan`, plus `skills/` and `agents/` empty. Cases, each asserting on `check-jstack`'s exit code and stderr with `grep -q`:
+A bash script that builds a fixture: a stub `claude` on `PATH` printing `9.9.9 (Claude Code)` for `--version` and exiting 0 for `plugin validate` and `plugin test`; a stub `tsc` that exits 0; `HOME` and `JSTACK_TYPES_TMP` pointing at temp dirs; a minimal plugin dir with `.claude-plugin/plugin.json`, `hooks/`, `types/`, `tests/` and a `LICENSE` holding `Copyright (c) 2026 Lauren Tan`, plus `skills/` and `agents/` empty (Step 3 makes the skills loop safe for that). Cases, each asserting on `check-jstack`'s exit code and stderr with `grep -q`:
 
 ```bash
 case "no copy anywhere":        rc=1, stderr has "run /plugin-authoring once"
@@ -79,11 +79,11 @@ Each fixture declarations file is one line, `// Written by Claude Code <version>
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `bash jstack/tests/check-jstack-types.sh`
-Expected: FAIL on `tmp gone, cache matches` (no cache logic yet) and on `--no-types` (unknown flag).
+Expected: `no copy anywhere` and `override missing` already pass (their messages exist); FAIL on `tmp copy present` (no `declarations from` line, no cache file), `tmp gone, cache matches`, `cache older than claude`, and `--no-types` (taken as the directory argument, exit 2), and two `bad` lines from the empty `skills/` glob.
 
 - [ ] **Step 3: Implement the resolver and the flag in `scripts/check-jstack`**
 
-Parse `--no-types` before `dir=`. Replace the `types=` line with a function `resolve_types` that walks the order in Interfaces, copies a found `/tmp` file into the cache dir (`mkdir -p` first), and echoes the chosen path; print `check-jstack: declarations from <path>` to stderr. Keep the existing two failure messages. Under `--no-types`, skip the whole tsc block and the lookup.
+Parse `--no-types` before `dir=`. Add `[ -e "$f" ] || continue` as the first line of the `for f in "$dir"/skills/*/SKILL.md` loop, since bash 3.2 has no nullglob and an empty `skills/` otherwise yields the literal pattern. Replace the `types=` line with a function `resolve_types` that walks the order in Interfaces, copies a found `/tmp` file into the cache dir (`mkdir -p` first), and echoes the chosen path; print `check-jstack: declarations from <path>` to stderr. Keep the existing two failure messages. Under `--no-types`, skip the whole tsc block and the lookup.
 
 - [ ] **Step 4: Run the test and the real check**
 
@@ -113,7 +113,7 @@ git commit -m "Cache the engine's declarations so check-jstack survives tmp_clea
 
 - [ ] **Step 1: Write the workflow**
 
-Triggers `pull_request` and `push` to `main`, `permissions: contents: read`, actions pinned by SHA with a `# vN` comment (copy the pins from `~/dev/dotfiles/.github/workflows/check.yml` for checkout; look up `oven-sh/setup-bun` and `actions/setup-node` current SHAs with `gh api repos/<owner>/<repo>/git/ref/tags/<tag>`). Steps of job `check`: checkout with `persist-credentials: false`; setup-node 24; `npm install -g @anthropic-ai/claude-code`; setup-bun; `sudo apt-get install -y shellcheck`; `shellcheck --severity=warning scripts/*`; `scripts/check-resume`; `scripts/check-jstack --no-types`; `(cd plugins/jstack/skills/j-mode/scripts && bun install --frozen-lockfile --production --ignore-scripts && bun test orch watch-pr)`. Job `gitleaks`: checkout with `fetch-depth: 0`, then `uses: gitleaks/gitleaks-action@<v3 SHA>` with `env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}` and no license line.
+Triggers `pull_request` and `push` to `main`, `permissions: contents: read`, actions pinned by SHA with a `# vN` comment (copy the pins from `~/dev/dotfiles/.github/workflows/check.yml` for checkout; look up `oven-sh/setup-bun` and `actions/setup-node` current SHAs with `gh api repos/<owner>/<repo>/git/ref/tags/<tag>`). Steps of job `check`: checkout with `persist-credentials: false`; setup-node 24; `npm install -g @anthropic-ai/claude-code`; setup-bun; `sudo apt-get install -y shellcheck`; `shellcheck --severity=warning scripts/*`; `scripts/check-resume`; `scripts/check-jstack --no-types`; `(cd plugins/jstack/skills/j-mode/scripts && bun install --frozen-lockfile --production --ignore-scripts && bun test orch watch-pr)` (Task 7 adds `check-plan.test.ts` to this line once the file exists in the tree). Copy the dotfiles workflow's `concurrency` block with `cancel-in-progress` on pull requests. Job `gitleaks`: checkout with `fetch-depth: 0`, then `uses: gitleaks/gitleaks-action@<v3 SHA>` with `env: GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}` and no license line.
 
 - [ ] **Step 2: Run the workflow's commands locally where possible**
 
@@ -130,9 +130,9 @@ gh run watch --exit-status "$(gh run list --branch main --limit 1 --json databas
 ```
 Expected: both jobs succeed. If `check-resume` fails on ruby or `claude plugin validate` fails without a login, fix the step rather than removing it, and record what was wrong.
 
-- [ ] **Step 4: Make `check` a required status in the repo ruleset**
+- [ ] **Step 4: Make `check` a required status through a new ruleset**
 
-Run: `gh api repos/jrmatherly/skills/rulesets` to find the ruleset id, then add `check` to its `required_status_checks` with `gh api --method PUT repos/jrmatherly/skills/rulesets/<id> --input <json>`. Expected: the next push shows the status required in the PR UI. Skip with a note if Task 1 Path A has not run yet and the ruleset is being recreated there.
+The repo has no ruleset today (`gh api repos/jrmatherly/skills/rulesets` returns `[]`). Create one: `gh api --method POST repos/jrmatherly/skills/rulesets --input <json>` with `target: branch`, `enforcement: active`, `conditions.ref_name.include: ["~DEFAULT_BRANCH"]`, and one rule `{ "type": "required_status_checks", "parameters": { "strict_required_status_checks_policy": false, "required_status_checks": [{ "context": "check" }] } }`. Expected: `gh api repos/jrmatherly/skills/rulesets` lists it, and the next push to `main` shows the required status. If Task 1 Path A runs later, repeat this step on the new repo.
 
 ### Task 4: gitleaks pre-push hook
 
@@ -164,7 +164,7 @@ git push origin main   # the hook runs here; expected: no findings
 - Regenerate: `~/dev/skills/plugins/jstack/`
 
 **Interfaces:**
-- Produces: `openBoard($, file)` first `await $.fs.read(file)` inside the existing `try`; on a thrown read it toasts exactly `Ponytail has not built the board yet; it writes it after the first turn` and returns without running `open`.
+- Produces: `openBoard($, file)` first checks `await $.fs.exists(file)` (the engine's `fs.exists: (path) => Promise<boolean>`, declarations line 3357; cheaper than reading the 170 KB page); when false it toasts exactly `Ponytail has not built the board yet; it writes it after the first turn` and returns without running `open`.
 
 - [ ] **Step 1: Add the failing test to the edit tree's `tests/meter-band.test.tsx`**
 
@@ -179,7 +179,7 @@ test('Board without a board page toasts instead of opening', async ($, on) => {
   expect(toasts).toEqual(['Ponytail has not built the board yet; it writes it after the first turn'])
 })
 ```
-And give the existing Board test a `files['/home/u/.config/ponytail/band/board.html'] = '<html>'` entry through a new `World` field `board?: boolean` so it still opens.
+Add `on('fs.exists', ($, e) => ({ value: e.path in files }))` to `world()` next to its `fs.read` stub, and give the existing Board test a `files['/home/u/.config/ponytail/band/board.html'] = '<html>'` entry through a new `World` field `board?: boolean` so it still opens.
 
 - [ ] **Step 2: Run `claude plugin test` on the edit tree's mod copy to see it fail**
 
@@ -209,7 +209,8 @@ Expected: only `2.0.0` listed.
 
 **Files:**
 - Modify: `~/dev/skills/jstack/upstream` (`commit=e73df471cd4bd918367e99f3dd9c51bd53ddf5f0`)
-- Modify: `~/dev/skills/scripts/sync-jstack` (after `rm -rf "$stage/skills/make-bot-ui"`: also remove `skills/poteto-help`, `skills/ketchup-video`, `skills/statechart` with a one-line why each; change the bun test line to `bun test orch watch-pr check-plan.test.ts`)
+- Modify: `~/dev/skills/scripts/sync-jstack` (after `rm -rf "$stage/skills/make-bot-ui"`: also remove `skills/poteto-help`, `skills/ketchup-video`, `skills/statechart` with a one-line why each; change the bun test line to `bun test orch watch-pr check-plan.test.ts`; `check-plan.test.ts` needs only `bun:test`, `node:*` and `node` on PATH, so the `--production` install suffices)
+- Modify: `~/dev/skills/.github/workflows/check.yml` (same bun test line)
 - Modify: `~/dev/skills/README.md` ("jstack: generated from upstream": list the four dropped skills and why; Attribution: `0.15.32`)
 
 **Interfaces:**
@@ -227,7 +228,7 @@ Expected: `0`. Then `JSTACK_NO_CHECK=1 scripts/sync-jstack --out /tmp/.../trial`
 - [ ] **Step 3: Commit the pin move alone (the generated tree is not regenerated yet; say so in the body)**
 
 ```bash
-git add jstack/upstream scripts/sync-jstack README.md
+git add jstack/upstream scripts/sync-jstack README.md .github/workflows/check.yml
 git commit -m "Pin pstack 0.15.32 and drop three Cursor-bound skills"
 ```
 
@@ -245,11 +246,11 @@ For each patch NN, in order, one loop iteration:
 
 - [ ] **Step NN.1: Build the base for this patch**
 
-Move patches numbered above NN aside, run `JSTACK_NO_CHECK=1 scripts/sync-jstack --out "$base"` (applies the lower, already-rebuilt patches), copy to `"${base%-base}-edit"`, restore the moved patches.
+Move patch NN and every patch numbered above it aside (sync applies every patch present and dies on the first failure), run `JSTACK_NO_CHECK=1 scripts/sync-jstack --out "$base"` (applies the lower, already-rebuilt patches), copy to `"${base%-base}-edit"`, restore the moved patches.
 
 - [ ] **Step NN.2: Re-apply the old patch's intent to the edit tree**
 
-`git -C <edit> init && git -C <edit> apply --reject <old NN patch>`; for each `.rej`, re-make the change by hand in the new text, then delete the `.rej` files and `.git`. Decisions fixed here, per patch: 10, `j-agent` reads the skill from the path the parent passes, falling back to `~/.claude/plugins/`, and the two hunks upstream made redundant (frontmatter `name:`, `mode:`/`reminder:`) are dropped. 20, Cursor "fast mode" per subagent maps to nothing (omit), effort maps to the `Agent` tool's `effort`; `/visualize` in `ketchup` becomes a Mermaid block in the reply; `worktree-audit.sh`'s transcript lookup re-anchors on the new `--base` code; playbooks keep upstream's `/loop 1h` wording. 30, every `claude-opus-5-5-xhigh` and `-max` slug becomes the role lookup the fork already uses, `grok-*` and `gpt-*` seats become `inherit`, and `setup-jstack` writes roles as `<model> <effort>` (Task 10 decides whether Jason adopts that in his rule). 40, keep only the hunks upstream did not fix. 50, re-anchor the seven `:6` hunks. 60, re-anchor on the new `setup-jstack` steps including step 8 (formal verification offer: keep, it is prose). 70, keep the fork's "learnings go to `jstack/patches/70-reflect.patch`" rule and drop the now-duplicate "never edit `plugins/cache`" sentence upstream added.
+`git -C <edit> init && git -C <edit> apply --reject <old NN patch>`; for each `.rej`, re-make the change by hand in the new text, then delete the `.rej` files and `.git`. Decisions fixed here, per patch: 10, `j-agent` keeps today's `${CLAUDE_PLUGIN_ROOT}/skills/j-mode/SKILL.md` path and drops upstream's `~/.cursor/plugins/` search entirely (its tie-break reads `plugin.json` `version`, which the fork omits on purpose), and the two hunks upstream made redundant (frontmatter `name:`, `mode:`/`reminder:`) are dropped. 20, Cursor "fast mode" per subagent maps to nothing (omit), effort maps to the `Agent` tool's `effort`; `/visualize` in `ketchup` becomes a Mermaid block in the reply; `create-formal-verification-skill/SKILL.md` line 35 links `../statechart/SKILL.md`, which Task 7 deletes and `check-jstack` would flag as a broken link, so rewrite that paragraph to read the TLC output directly and add the file to this patch; `worktree-audit.sh`'s transcript lookup re-anchors on the new `--base` code; playbooks keep upstream's `/loop 1h` wording. 30, every `claude-opus-5-5-xhigh` and `-max` slug becomes the role lookup the fork already uses; code-role defaults stay `sonnet` as in today's patch (no behavior change for a machine without a rule line); `grok-*` and `gpt-*` panel seats become `inherit` as today, with `codex` still offered; `setup-jstack` writes roles as `<model> <effort>` while a model-only line stays valid (so Task 10's second answer is implementable), and the fork's sentence "There is no per-call reasoning setting" goes, since the `Agent` tool now takes `effort`. 40, keep only the hunks upstream did not fix. 50, re-anchor the seven `:6` hunks. 60, re-anchor on the new `setup-jstack` steps including step 8 (formal verification offer: keep, it is prose). 70, keep the fork's "learnings go to `jstack/patches/70-reflect.patch`" rule and drop the now-duplicate "never edit `plugins/cache`" sentence upstream added.
 
 - [ ] **Step NN.3: Regenerate the patch with the README's exact diff and sed pipeline, then check it**
 
@@ -308,7 +309,7 @@ Expected: `~/.claude/rules/jstack-models.md` rewritten through the symlink; `git
 - [ ] **Step 3: Gate and commit in dotfiles**
 
 ```bash
-cd ~/dev/dotfiles && pnpm check && git add tilde/.claude/rules/jstack-models.md CLAUDE.md tilde/.claude/rules/index.md && git commit -m "Refresh the jstack model rule for pstack 0.15.32" && git push origin main
+cd ~/dev/dotfiles && (pnpm check || { pnpm format && pnpm check; }) && git add tilde/.claude/rules/jstack-models.md CLAUDE.md tilde/.claude/rules/index.md && git commit -m "Refresh the jstack model rule for pstack 0.15.32" && git push origin main
 ```
 
 ### Task 11: Close out
