@@ -19,22 +19,28 @@ mkdir -p "$DOTFILES/logs"
 log="$DOTFILES/logs/upup-$(date +%Y%m%d-%H%M%S).log"
 changed=() notices=() failed=() actions=()
 
-# level → glyph and tput color
+# Colors only on a terminal tput knows (with TERM unset it prints an error per call)
+c_ok="" c_changed="" c_notice="" c_fail="" c_prompt="" c_reset=""
+if [ -t 1 ] && tput setaf 1 > /dev/null 2>&1; then
+  c_ok=$(tput setaf 2) c_changed=$(tput setaf 6) c_notice=$(tput setaf 3)
+  c_fail=$(tput setaf 1) c_prompt=$(tput setaf 5) c_reset=$(tput sgr0 2> /dev/null || true)
+fi
+
+# style <level>: sets $glyph and $color
 style() {
   case $1 in
-    ok) echo "✔ 2" ;;
-    changed) echo "↻ 6" ;;
-    notice) echo "● 3" ;;
-    fail) echo "✖ 1" ;;
-    prompt) echo "› 5" ;;
+    ok) glyph=✔ color=$c_ok ;;
+    changed) glyph=↻ color=$c_changed ;;
+    notice) glyph=● color=$c_notice ;;
+    fail) glyph=✖ color=$c_fail ;;
+    prompt) glyph=› color=$c_prompt ;;
   esac
 }
 
 # status <level> <step> <detail>: print the line, log it, collect it for the summary
 status() {
-  local glyph color
-  read -r glyph color <<< "$(style "$1")"
-  printf '%s%s%s %-18s %s\n' "$(tput setaf "$color")" "$glyph" "$(tput sgr0)" "$2" "$3"
+  style "$1"
+  printf '%s%s%s %-18s %s\n' "$color" "$glyph" "$c_reset" "$2" "$3"
   printf '%s %s  %s\n' "$glyph" "$2" "$3" >> "$log"
   case $1 in
     changed) changed+=("$2  $3") ;;
@@ -131,12 +137,14 @@ elif [ -z "$outdated_packages" ]; then
   status ok Homebrew "up to date"
 else
   printf '%s\n' "$outdated_packages" >> "$log"
+  outdated_count=$(wc -l <<< "$outdated_packages" | tr -d ' ')
+  echo "    upgrading $(plural "$outdated_count" package): $(list <<< "$outdated_packages")…"
   # --yes: Homebrew asks before upgrading by default; the list is in the status
   # line. Of its output only the closing "name old -> new" table and the
   # caveats reach the screen
   if capture brew upgrade --greedy --yes; then
     versions=$(sed -n '/^==> Upgraded /,$p' <<< "$out" | sed -nE 's/^([^ ]+) +([^ ]+) +-> +(.*)$/\1 \2→\3/p')
-    status changed Homebrew "$(wc -l <<< "$outdated_packages" | tr -d ' ') upgraded: $(list <<< "${versions:-$outdated_packages}")"
+    status changed Homebrew "$outdated_count upgraded: $(list <<< "${versions:-$outdated_packages}")"
     sed -n '/^==> Caveats$/,/^==> Upgraded /{/^==> /d; s/^/    /p;}' <<< "$out"
   else
     status fail Homebrew "upgrade failed; run: brew upgrade --greedy"
@@ -152,7 +160,9 @@ else
   show
 fi
 step "brew doctor"
-if ! capture brew doctor && ! grep -q 'Your system is ready to brew' <<< "$out"; then
+if capture brew doctor || grep -q 'Your system is ready to brew' <<< "$out"; then
+  status ok "brew doctor" "ready to brew"
+else
   status notice "brew doctor" "$(grep -m1 '^Warning:' <<< "$out" || head -1 <<< "$out")"
 fi
 
@@ -271,8 +281,8 @@ if command -v claude > /dev/null; then
   while read -r id; do
     plugin_count=$((plugin_count + 1))
     if capture claude plugin update -y "$id" < /dev/null; then
-      plugin_updates+=$(grep -E 'updated|downgraded from' <<< "$out" \
-        | sed -E 's/^.*Plugin "?([^" ]+)"? (updated|downgraded) from ([^ ]+) to ([^ ]*[^ .]).*$/\1 \3 → \4/; s/^✔ *//' \
+      plugin_updates+=$(grep -E 'Plugin "?[^" ]+"? (updated|downgraded) from ' <<< "$out" \
+        | sed -E 's/^.*Plugin "?([^" ]+)"? (updated|downgraded) from ([^ ]+) to ([^ ]*[^ .]).*$/\1 \3 → \4/' \
         || true)$'\n'
     else
       status fail plugins "updating $id failed; run: claude plugin update $id"
@@ -288,10 +298,14 @@ if command -v claude > /dev/null; then
   fi
 
   step "Claude config"
+  # Compared before and after, so changes left uncommitted from an earlier run
+  # don't count, while a further edit to an already-dirty file does
+  agents_state() { git -C "$DOTFILES" status --porcelain agents/ && git -C "$DOTFILES" diff HEAD -- agents/; } 2> /dev/null
+  agents_before=$(agents_state || true)
   if ! capture claude-config save; then
-    status fail "Claude config" "claude-config save failed; the tracked lists were left as they were"
+    status fail "Claude config" "claude-config save failed; the tracked lists were left as they were; run: claude-config save"
     show
-  elif [ -n "$(git -C "$DOTFILES" status --short agents/ 2> /dev/null)" ]; then
+  elif [ "$(agents_state || true)" != "$agents_before" ]; then
     status changed "Claude config" "tracked Claude config changed"
     actions+=("Review and commit: git -C $DOTFILES diff agents/")
   else
@@ -307,7 +321,7 @@ if command -v claude > /dev/null; then
       status ok catalog "catalog rebuilt"
     fi
   else
-    status fail catalog "claude-catalog failed; agents/catalog/curated.toml may name something no longer installed"
+    status fail catalog "claude-catalog failed; agents/catalog/curated.toml may name something no longer installed; run: claude-catalog"
   fi
   while read -r lint; do
     status notice catalog "$lint"
@@ -367,29 +381,31 @@ fi
 
 # Summary. Empty arrays are unbound under set -u in bash 3.2, hence the guards.
 step summary
+# say <text>: a plain line to the screen and the log
+say() { printf '%s\n' "$1" | tee -a "$log"; }
+# summary <title> <level> <line…>: colored on screen, plain in the log
 summary() {
-  local title=$1 level=$2 line
+  local title=$1 line
+  style "$2"
   shift 2
-  [ $# -eq 0 ] && return
-  echo "$title"
+  say "$title"
   for line in "$@"; do
-    printf '  %s%s%s %s\n' "$(tput setaf "$(style "$level" | cut -d' ' -f2)")" "$(style "$level" | cut -d' ' -f1)" "$(tput sgr0)" "$line"
+    printf '  %s%s%s %s\n' "$color" "$glyph" "$c_reset" "$line"
+    printf '  %s %s\n' "$glyph" "$line" >> "$log"
   done
 }
-{
-  echo
-  echo "Done in $((SECONDS / 60))m $((SECONDS % 60))s"
-  if [ ${#changed[@]} -eq 0 ] && [ ${#notices[@]} -eq 0 ] && [ ${#failed[@]} -eq 0 ] && [ ${#actions[@]} -eq 0 ]; then
-    echo "Everything up to date."
-  else
-    [ ${#changed[@]} -eq 0 ] || summary Changed changed "${changed[@]}"
-    [ ${#notices[@]} -eq 0 ] || summary Notices notice "${notices[@]}"
-    [ ${#failed[@]} -eq 0 ] || summary Failed fail "${failed[@]}"
-    [ ${#actions[@]} -eq 0 ] || summary "Action needed" prompt "${actions[@]}"
-  fi
-  echo "Log: ${log#"$DOTFILES"/}"
-  echo
-} | tee -a "$log"
+say ""
+say "Done in $((SECONDS / 60))m $((SECONDS % 60))s"
+if [ ${#changed[@]} -eq 0 ] && [ ${#notices[@]} -eq 0 ] && [ ${#failed[@]} -eq 0 ] && [ ${#actions[@]} -eq 0 ]; then
+  say "Everything up to date."
+else
+  [ ${#changed[@]} -eq 0 ] || summary Changed changed "${changed[@]}"
+  [ ${#notices[@]} -eq 0 ] || summary Notices notice "${notices[@]}"
+  [ ${#failed[@]} -eq 0 ] || summary Failed fail "${failed[@]}"
+  [ ${#actions[@]} -eq 0 ] || summary "Action needed" prompt "${actions[@]}"
+fi
+say "Log: ${log#"$DOTFILES"/}"
+say ""
 
 # Sign-off: Deadpool with his katanas (bin/nyan)
 nyan

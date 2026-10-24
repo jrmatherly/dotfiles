@@ -25,6 +25,8 @@ printf 'skill one src claude-code\nskill two src claude-code\n' > "$DOTFILES/age
 git -C "$DOTFILES" init -q
 git -C "$DOTFILES" add -A
 git -C "$DOTFILES" -c user.name=t -c user.email=t@t commit -qm init
+# Left uncommitted by an earlier run: not a change this run made
+echo "# uncommitted" >> "$DOTFILES/agents/claude-skills.txt"
 printf '{"plugins":{"alpha@m":[],"beta@m":[]}}' > "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
 
 # Each stub reads a flag file in $STATE to pick the "something changed" branch
@@ -57,16 +59,16 @@ stub install-iosevka-code 'echo "Iosevka Code is up to date"'
 stub install-snippetslab-skill 'exit 0'
 stub claude 'case "$1 $2" in
   "plugin update") if [ -e "$STATE/plugin" ] && [ "$4" = alpha@m ]; then
+      echo "Marketplace cache updated"
       echo "✔ Plugin \"alpha@m\" updated from 1.0.0 to 1.1.0 for scope user. Restart to apply changes."
     else echo "$4 is already at the latest version"; fi ;;
   "mcp get") echo "  Status: ✔ Connected" ;;
 esac'
-stub claude-config 'exit 0'
+stub claude-config '[ "$1" = save ] && [ -e "$STATE/config" ] && echo "# saved" >> "$DOTFILES/agents/claude-skills.txt"; exit 0'
 stub claude-catalog 'echo "wrote x/CATALOG.md, CATALOG-lite.md, catalog.html, since 2026-10-20: +0 -0"'
 stub open 'exit 0'
 stub amp 'echo "Amp is already up to date"'
 stub nyan 'exit 0'
-stub tput 'exit 0'
 export PATH="$tmp/bin:$PATH"
 
 check_true() {
@@ -81,12 +83,19 @@ check_true() {
 }
 has() { grep -Eq -- "$1" <<< "$screen"; }
 lacks() { ! has "$1"; }
-lacks() { ! grep -Eq -- "$1" <<< "$screen"; }
-run() { screen=$("$script" < /dev/null 2>&1 | sed $'s/\x1b\\[[0-9;]*m//g'); }
+log_lacks() { ! grep -q -- "$1" "$DOTFILES"/logs/upup-*.log; }
+run() {
+  local rc=0
+  screen=$("$script" < /dev/null 2>&1) || rc=$?
+  check_true "upup exited $rc" [ "$rc" -eq 0 ]
+  check_true "no colors off a terminal" lacks $'\x1b'
+}
 
 run
 check_true "up to date: Homebrew is ok" has '^✔ Homebrew +up to date$'
 check_true "up to date: cleanup reports what it freed" has '^✔ brew cleanup +freed 29.5MB$'
+check_true "up to date: healthy brew doctor gets a line" has '^✔ brew doctor +ready to brew$'
+check_true "up to date: config left dirty before the run is unchanged" has '^✔ Claude config +unchanged$'
 check_true "up to date: plugins counted" has '^✔ plugins +2 plugins up to date$'
 check_true "up to date: skills counted" has '^✔ agent skills +2 tracked skills reinstalled for their agents$'
 check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
@@ -95,8 +104,10 @@ check_true "up to date: log path printed" has '^Log: logs/upup-[0-9]{8}-[0-9]{6}
 check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs"
-touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin"
+touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config"
 run
+check_true "changes: names the packages before upgrading" has '^    upgrading 1 package: gh…$'
+check_true "changes: a further edit to dirty config is a change" has '^↻ Claude config +tracked Claude config changed$'
 check_true "changes: dotfiles pulled" has '^↻ dotfiles +pulled 1 commit$'
 check_true "changes: brew upgrade noise stays off screen" lacks '^==> Upgrading gh$'
 check_true "changes: brew caveats shown" has '^    zsh completions installed$'
@@ -115,3 +126,11 @@ check_true "changes: restart action" has '^  › Restart Claude Code to apply pl
 check_true "changes: new terminal action" has '^  › Open a new terminal: dotfiles changed$'
 check_true "changes: not everything up to date" lacks 'Everything up to date'
 check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/upup-*.log
+
+rm -rf "$DOTFILES/logs"
+rc=0
+screen=$(TERM=xterm-256color script -q /dev/null "$script" < /dev/null | tr -d '\r') || rc=$?
+check_true "terminal: upup exited $rc" [ "$rc" -eq 0 ]
+check_true "terminal: status lines colored" has $'\x1b\\[[0-9;]*m✔'
+check_true "terminal: summary colored" has $'^  \x1b\\[[0-9;]*m✖'
+check_true "terminal: log has no color codes" log_lacks $'\x1b'
