@@ -24,7 +24,7 @@ mkdir -p "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
 printf 'skill one src claude-code\nskill two src claude-code\n' > "$DOTFILES/agents/claude-skills.txt"
 git -C "$DOTFILES" init -q
 git -C "$DOTFILES" add -A
-git -C "$DOTFILES" -c user.name=t -c user.email=t@t commit -qm init
+git -C "$DOTFILES" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm init
 # Left uncommitted by an earlier run: not a change this run made
 echo "# uncommitted" >> "$DOTFILES/agents/claude-skills.txt"
 printf '{"plugins":{"alpha@m":[],"beta@m":[]}}' > "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
@@ -35,7 +35,7 @@ stub() {
   chmod +x "$tmp/bin/$1"
 }
 stub sudo '[ "$1" = -v ] && exit 0; exec "$@"'
-stub dotfiles '[ -e "$STATE/pull" ] && git -C "$DOTFILES" -c user.name=t -c user.email=t@t commit -q --allow-empty -m "Pulled change"; echo pulled'
+stub dotfiles '[ -e "$STATE/pull" ] && git -C "$DOTFILES" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m "Pulled change"; echo pulled'
 stub softwareupdate 'echo "No new software available."'
 stub brew 'case $1 in
   outdated) [ -e "$STATE/brew" ] && echo gh ;;
