@@ -37,7 +37,7 @@ The docs recommend `serena-hooks remind/activate/auto-approve/cleanup` in `~/.cl
 
 In `~/.serena/serena_config.yml` (machine state Serena rewrites itself, so it's not tracked). `[]` is the shipped template value (trust arrived in v1.6.0) — it's deliberate, not a gap. Trust only unlocks a project's own `activation_command` (a shell command run in the repo on every activation) and `ls_specific_settings`. With `--project-from-cwd` auto-activating, trusting `~/dev/**` would let any cloned repo run code when Claude Code opens there. No repo here sets either field.
 
-If one ever needs it, add that repo's **exact absolute root** (e.g. `/Users/you/dev/repo`): `~` isn't expanded, and `<root>/**` doesn't match the root itself ([oraios/serena#2001](https://github.com/oraios/serena/issues/2001)). Never `**`. Takes effect on the next Claude Code restart.
+If one ever needs it, add that repo's **exact absolute root** (e.g. `/Users/you/dev/repo`): `~` isn't expanded (checked against Serena 2.1.0's `GlobMatcher`), and `<root>/**` doesn't match the root itself ([oraios/serena#2001](https://github.com/oraios/serena/issues/2001)). Never `**`. Takes effect on the next Claude Code restart.
 
 ## Verify after any change
 

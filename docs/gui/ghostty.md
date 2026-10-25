@@ -18,7 +18,7 @@
 - **`cursor-style = bar`, no blink:** plus `shell-integration-features = no-cursor` so zsh doesn't change the cursor shape
 - **`window-save-state = always`:** windows, tabs and splits are restored on relaunch
 - **`copy-on-select = clipboard`:** selecting text copies it to the system clipboard; `clipboard-trim-trailing-spaces` strips trailing whitespace
-- **`macos-auto-secure-input = false`:** stops Secure Input from switching on at password prompts, because it interferes with accessibility features such as Touch ID
+- **`macos-auto-secure-input = false`:** stops Secure Input from switching on at password prompts; Ghostty's docs note it can interfere with accessibility software (anything using the accessibility APIs), since Secure Input blocks other apps from reading keyboard events
 
 ## Custom keybinds (repo)
 

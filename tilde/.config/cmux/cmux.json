@@ -159,7 +159,7 @@
       "toggleFullScreen": "cmd+ctrl+f",
       "toggleReactGrab": "cmd+shift+g",
       "toggleSidebar": "cmd+b",
-      "toggleSplitZoom": "cmd+shift+\r",
+      "toggleSplitZoom": "cmd+shift+enter",
       "toggleTerminalCopyMode": "cmd+shift+m",
       "toggleUnread": "cmd+opt+u",
       "triggerFlash": "cmd+shift+h",

@@ -12,7 +12,7 @@
 Warp shows its own prompt by default. To use Starship:
 
 - **Settings > Appearance > Input > Input type:** set to **Shell (PS1)**
-- Warp lists Starship as working on zsh, with caveats. The repo's `.starship.toml` avoids the settings Warp documents as problems: it has no `[custom]` `disabled = false` block and no schema line, and it already sets `command_timeout`
+- Warp lists Starship as working on zsh, with caveats. Its zsh notes are optional (`[line_break]` `disabled = true` for a one-line prompt, or a `PROMPT` newline in `.zshrc`), and the repo's `.starship.toml` needs neither
 - The prompt's `$line_break` (two-line prompt) works on zsh, so you don't need to disable it
 
 ## Essentials
