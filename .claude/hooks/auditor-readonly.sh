@@ -56,10 +56,14 @@ check_denied() {
   done
 }
 
-# An escaped quote would throw the quote stripper below out of step
 case $command in
-  *'$('* | *'`'* | *'&>'* | *'<('* | *'>('* | *"\\'"* | *'\"'*) deny "$command" ;;
+  *'$('* | *'`'* | *'&>'* | *'<('* | *'>('* | *"\\'"*) deny "$command" ;;
 esac
+# Outside single quotes a backslash escapes the next character (\--pre, \"),
+# which hides a flag from the patterns and throws the quote stripper out of step.
+# A \' is denied above: the strip below takes it for the end of a quoted span
+nosq=$(sed -E "s/'[^']*'//g" <<< "$command")
+[[ $nosq == *\\* ]] && deny "$command"
 # Quoted text is data, so a quoted `>` or `|` neither redirects nor splits
 stripped=$(sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g" <<< "$command")
 case $stripped in
