@@ -177,6 +177,7 @@ brew "cue" # CUE data validation language
 brew "findutils" # GNU find/xargs (macOS ships outdated BSD versions)
 brew "gnu-sed" # GNU sed (macOS ships outdated BSD version)
 brew "grep" # GNU grep (macOS ships outdated BSD version)
+brew "luarocks" # Lua package manager (brings `lua`)
 brew "moreutils" # Extra useful Unix utilities (sponge, vidir, etc.)
 brew "perl"
 brew "php"
