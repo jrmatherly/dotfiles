@@ -9,7 +9,8 @@
       "Bash(zsh -n *)",
       "Bash(.claude/hooks/test-lint-edited.sh *)",
       "Bash(.claude/hooks/test-lint-bash-edits.sh *)",
-      "Bash(.claude/hooks/test-commit-gate.sh *)"
+      "Bash(.claude/hooks/test-commit-gate.sh *)",
+      "Bash(.claude/hooks/test-auditor-readonly.sh *)"
     ],
     "ask": [
       "Bash(./setup.sh *)",
@@ -49,6 +50,19 @@
             "timeout": 180,
             "onFailure": "block",
             "statusMessage": "Running pnpm check before the commit"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/auditor-readonly.sh",
+            "args": [],
+            "timeout": 10,
+            "onFailure": "block",
+            "statusMessage": "Checking the auditor's command is read-only"
           }
         ]
       }
