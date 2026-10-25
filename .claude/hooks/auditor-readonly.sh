@@ -3,6 +3,8 @@
 # Claude Code PreToolUse hook (Bash): inside the docs-auditor subagent, block
 # (exit 2) any command that is not on its read-only allowlist. Other agents
 # and the main session pass through untouched.
+# The allowlist runs on quote-stripped segments; the deny patterns run on those
+# and on dequoted ones (quote characters deleted), so `'-X'` cannot hide a flag.
 # Accepted gap: quoted text is stripped before matching, so a `sed -n` script
 # using its w, W or e commands gets through. This guards the repo's own
 # subagent against mistakes; it is not a security boundary.
@@ -38,7 +40,21 @@ denied=(
   '^git .*[[:space:]](-O|--open-files-in-pager|--output|--ext-diff|--textconv)'
   '^bat .*--pager'
   '^rg.*[[:space:]]--pre'
+  '^curl .*https?://[^[:space:]]+[[:space:]]+[^[:space:]]'
 )
+
+# Drop the tolerated redirects, split on command separators, trim, skip empties.
+# The redirects go first, so the `&` in 2>&1 is not taken for a background operator
+segments() {
+  sed -E 's#2>&1##g; s#2> ?/dev/null##g; s#> ?/dev/null##g; s/(&&|\|\||;|\||&)/\n/g' <<< "$1" \
+    | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; /^$/d'
+}
+check_denied() {
+  local re
+  for re in "${denied[@]}"; do
+    [[ $1 =~ $re ]] && deny "$1"
+  done
+}
 
 # An escaped quote would throw the quote stripper below out of step
 case $command in
@@ -49,21 +65,17 @@ stripped=$(sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g" <<< "$command")
 case $stripped in
   *[\(\)\{\}]*) deny "$command" ;;
 esac
-# Before the split, so the `&` in 2>&1 is not taken for a background operator
-stripped=$(sed -E 's#2>&1##g; s#2> ?/dev/null##g; s#> ?/dev/null##g' <<< "$stripped")
-[[ $stripped == *'>'* ]] && deny "$command"
+[[ $(segments "$stripped") == *'>'* ]] && deny "$command"
 
 while IFS= read -r seg; do
-  seg=${seg#"${seg%%[![:space:]]*}"}
-  seg=${seg%"${seg##*[![:space:]]}"}
-  [ -n "$seg" ] || continue
   ok=
   for re in "${allowed[@]}"; do
     [[ $seg =~ $re ]] && ok=1 && break
   done
   [ -n "$ok" ] || deny "$seg"
-  for re in "${denied[@]}"; do
-    [[ $seg =~ $re ]] && deny "$seg"
-  done
-done < <(sed -E 's/(&&|\|\||;|\||&)/\n/g' <<< "$stripped")
+  check_denied "$seg"
+done < <(segments "$stripped")
+while IFS= read -r seg; do
+  check_denied "$seg"
+done < <(segments "$(tr -d "'\"" <<< "$command")")
 exit 0

@@ -69,6 +69,10 @@ deny 'sort --output=x y'
 deny 'find . -fls /tmp/x'
 deny "bat --pager 'rm x' f"
 deny 'rg --pre rm x'
+deny "gh api '-X' DELETE repos/a/b"
+deny "sort '-o' x y"
+deny 'git log -"O"/tmp/p'
+deny "curl -sf http://127.0.0.1:9077/x '-o' /tmp/f"
 # another agent, or the main session, is never touched
 run 'brew install foo' general-purpose
 [ "$rc" -eq 0 ] || fail "non-auditor agent was gated"
