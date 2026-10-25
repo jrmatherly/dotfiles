@@ -40,8 +40,9 @@ denied=(
   '^rg.*[[:space:]]--pre'
 )
 
+# An escaped quote would throw the quote stripper below out of step
 case $command in
-  *'$('* | *'`'* | *'&>'* | *'<('* | *'>('* | *\\*) deny "$command" ;;
+  *'$('* | *'`'* | *'&>'* | *'<('* | *'>('* | *"\\'"* | *'\"'*) deny "$command" ;;
 esac
 # Quoted text is data, so a quoted `>` or `|` neither redirects nor splits
 stripped=$(sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g" <<< "$command")

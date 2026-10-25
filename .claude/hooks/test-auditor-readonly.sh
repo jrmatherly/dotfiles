@@ -52,7 +52,9 @@ deny 'claude plugin install foo'
 deny "echo 'x' > out"
 deny 'sort -o x y'
 deny 'cat <(rm x)'
-deny 'cat x \> y'
+allow "grep 'a\.b' README.md"
+deny "echo \\\"x; rm f"
+deny "grep 'it\\'s' f"
 deny 'ls & rm x'
 deny '(rm x)'
 deny '{ rm x; }'
