@@ -89,6 +89,15 @@ deny "grep 'a"
 allow "grep 'a\$' f"
 deny "grep \"it's\" f"
 deny "echo \$'x' f"
+deny "'rm' ls"
+deny '"rm" -rf x'
+deny $'ls # "\nrm x # "'
+deny $'cat <<EOF\nx\nEOF'
+deny $'grep \'a\nb\' f'
+deny 'ls # x'
+deny 'cat <<EOF'
+deny $'grep \'a\nls\' f'
+allow "grep '#' README.md"
 # another agent, or the main session, is never touched
 run 'brew install foo' general-purpose
 [ "$rc" -eq 0 ] || fail "non-auditor agent was gated"

@@ -3,9 +3,9 @@
 # Claude Code PreToolUse hook (Bash): inside the docs-auditor subagent, block
 # (exit 2) any command that is not on its read-only allowlist. Other agents
 # and the main session pass through untouched.
-# One quote-aware scan yields the text with quoted spans removed (the allowlist
-# and deny patterns run on its segments) and the text with only the quote
-# characters removed (deny patterns and the curl URL check run on its segments).
+# One quote-aware scan yields the text with quoted spans removed and the text
+# with only the quote characters removed; the segments of both must match the
+# allowlist and no deny pattern, and the dequoted ones also face the curl URL check.
 # Accepted gap: quoted text is stripped before matching, so a `sed -n` script
 # using its w, W or e commands gets through. This guards the repo's own
 # subagent against mistakes; it is not a security boundary. Fail closed on
@@ -52,6 +52,13 @@ segments() {
   sed -E 's#2>&1##g; s#2> ?/dev/null##g; s#> ?/dev/null##g; s/(&&|\|\||;|\||&)/\n/g' <<< "$1" \
     | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; /^$/d'
 }
+check_allowed() {
+  local re
+  for re in "${allowed[@]}"; do
+    [[ $1 =~ $re ]] && return 0
+  done
+  deny "$1"
+}
 check_denied() {
   local re
   for re in "${denied[@]}"; do
@@ -62,8 +69,9 @@ check_denied() {
 # Bash's own quote rules, left to right: sets stripped (quoted spans dropped)
 # and dequoted (quote characters dropped, separators inside spans made spaces,
 # so a quoted `;` cannot split a flag off its command). Outside single quotes
-# a backslash or `$` would rewrite the words the patterns see, so it is denied,
-# and so is an unclosed quote
+# a backslash or `$` would rewrite the words the patterns see, and a `#` or
+# `<<` would hide the rest of a line or the next lines (a comment, a heredoc),
+# so these are denied, as are a quoted newline and an unclosed quote
 scan() {
   local c i q=
   stripped='' dequoted=''
@@ -73,12 +81,13 @@ scan() {
       q=
     elif [ -n "$q" ]; then
       [ "$q" = '"' ] && [[ $c == [\\$] ]] && deny "$command"
-      [[ $c == [\;\|\&$'\n'] ]] && c=' '
+      [ "$c" = $'\n' ] && deny "$command"
+      [[ $c == [\;\|\&] ]] && c=' '
       dequoted+=$c
     elif [[ $c == [\'\"] ]]; then
       q=$c
     else
-      [[ $c == [\\$] ]] && deny "$command"
+      [[ $c == '\' || $c == '$' || $c == '#' || ${command:i:2} == '<<' ]] && deny "$command"
       stripped+=$c
       dequoted+=$c
     fi
@@ -97,14 +106,11 @@ esac
 [[ $(segments "$stripped") == *'>'* ]] && deny "$command"
 
 while IFS= read -r seg; do
-  ok=
-  for re in "${allowed[@]}"; do
-    [[ $seg =~ $re ]] && ok=1 && break
-  done
-  [ -n "$ok" ] || deny "$seg"
+  check_allowed "$seg"
   check_denied "$seg"
 done < <(segments "$stripped")
 while IFS= read -r seg; do
+  check_allowed "$seg"
   check_denied "$seg"
   [[ $seg == 'curl '* && ! $seg =~ $curl ]] && deny "$seg"
 done < <(segments "$dequoted")
