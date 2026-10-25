@@ -15,27 +15,49 @@ command=$(jq -r '.tool_input.command // empty' <<< "$input")
 cwd=$(jq -r '.cwd // empty' <<< "$input")
 cwd=${cwd:-${CLAUDE_PROJECT_DIR:-$(pwd -P)}}
 
+# Resolve $1 against $2 into dir, as cd and git -C would (no quotes, so no
+# spaces; a leading ~ is the one expansion a bare word gets)
+enter() {
+  case $1 in
+    /*) dir=$1 ;;
+    [~] | [~]/*) dir=$HOME${1:1} ;;
+    *) dir=$2/$1 ;;
+  esac
+}
+
 # A segment is a commit when its command word (after NAME=value prefixes) is
-# git and a later word is `commit`; quoted text is not parsed
+# git and a later word is `commit`; quoted text is not parsed. dir follows
+# each `cd <dir>` segment before it and the commit's own `git -C <dir>`
 is_commit() {
-  local seg w first
+  local seg w first prev gitdir
+  dir=$cwd
   while IFS= read -r seg; do
     first=""
+    prev=""
+    gitdir=$dir
     for w in $seg; do
       if [ -z "$first" ]; then
         [[ $w =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] && continue
         first=${w##*/}
-        [ "$first" = git ] || break
+        [ "$first" = git ] || [ "$first" = cd ] || break
+      elif [ "$first" = cd ]; then
+        enter "$w" "$dir"
+        break
+      elif [ "$prev" = -C ]; then
+        enter "$w" "$gitdir"
+        gitdir=$dir
       elif [ "$w" = commit ]; then
+        dir=$gitdir
         return 0
       fi
+      prev=$w
     done
   done < <(sed -E 's/(&&|\|\||;|\|)/\n/g' <<< "$1")
   return 1
 }
 
 is_commit "$command" || exit 0
-root=$(git -C "$cwd" rev-parse --show-toplevel 2> /dev/null) || exit 0
+root=$(git -C "$dir" rev-parse --show-toplevel 2> /dev/null) || exit 0
 # Gate only repos that ship this very hook (this repo or a worktree of it),
 # so a commit in a foreign repo never runs that repo's check script
 [ -e "$root/bin/lib/check" ] && cmp -s "$0" "$root/.claude/hooks/commit-gate.sh" || exit 0
