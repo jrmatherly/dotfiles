@@ -77,6 +77,18 @@ deny 'rg \--pre=sh x .'
 deny 'find . -e\xec rm {} +'
 deny 'find . -e\xec rm +'
 deny 'grep "a\.b" f'
+deny "gh api ';' '-X' DELETE repos/a/b"
+deny "echo \"it's\" ; rm x ; echo 'y'"
+deny "curl -sf http://127.0.0.1'.evil.com'/x"
+deny "curl -sf http://127.0.0.1'@evil.com'/x"
+deny 'gh api -X${IFS}DELETE repos/a/b'
+deny 'gh api $IFS-X DELETE repos/a/b'
+deny 'ls $HOME'
+deny 'grep "a$" f'
+deny "grep 'a"
+allow "grep 'a\$' f"
+deny "grep \"it's\" f"
+deny "echo \$'x' f"
 # another agent, or the main session, is never touched
 run 'brew install foo' general-purpose
 [ "$rc" -eq 0 ] || fail "non-auditor agent was gated"
