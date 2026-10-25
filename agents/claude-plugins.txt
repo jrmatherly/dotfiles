@@ -36,6 +36,7 @@ plugin jstack@jrmatherly-skills
 plugin langfuse-observability@claude-plugins-official
 plugin langfuse@claude-plugins-official
 plugin logfire@claude-plugins-official
+plugin lua-lsp@claude-plugins-official
 plugin mcp-server-dev@claude-plugins-official
 plugin microsoft-docs@claude-plugins-official
 plugin modern-web-guidance@claude-plugins-official
