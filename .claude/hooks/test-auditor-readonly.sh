@@ -51,6 +51,22 @@ deny 'sudo ls'
 deny 'claude plugin install foo'
 deny "echo 'x' > out"
 deny 'sort -o x y'
+deny 'cat <(rm x)'
+deny 'cat x \> y'
+deny 'ls & rm x'
+deny '(rm x)'
+deny '{ rm x; }'
+deny "awk '{print > \"f\"}' x"
+deny 'curl -sf http://127.0.0.1:9077/health -o /tmp/x'
+deny 'curl -sf http://127.0.0.1:9077/health -d @x'
+deny 'git log -O/tmp/p'
+deny 'git diff --output=/tmp/x'
+deny 'gh api -XDELETE repos/a/b'
+deny 'gh api --method=DELETE repos/a/b'
+deny 'sort --output=x y'
+deny 'find . -fls /tmp/x'
+deny "bat --pager 'rm x' f"
+deny 'rg --pre rm x'
 # another agent, or the main session, is never touched
 run 'brew install foo' general-purpose
 [ "$rc" -eq 0 ] || fail "non-auditor agent was gated"
