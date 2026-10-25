@@ -9,7 +9,7 @@ cd "$root"
 hook=.claude/hooks/lint-edited.sh
 tmp=hooktest-$$
 mkdir -p "$tmp" private
-trap 'rm -rf "$root/$tmp" "$root/private/hooktest-$$.sh"' EXIT
+trap 'rm -rf "$root/$tmp" "$root/private/hooktest-$$.sh" "$root/tilde/.claude/hooktest-$$.sh"' EXIT
 
 fail() {
   echo "FAIL: $1" >&2
@@ -80,5 +80,13 @@ run "$root/$lib"
 rc=$?
 rm -f "$lib"
 [ "$rc" -eq 0 ] || fail "bin/lib: expected exit 0, got $rc"
+
+# 11. tilde/.claude/*.sh is shellchecked like the gate does
+printf '#!/bin/bash\ncat $(ls)\n' > "tilde/.claude/hooktest-$$.sh"
+set +e
+run "$root/tilde/.claude/hooktest-$$.sh"
+rc=$?
+set -e
+[ "$rc" -eq 2 ] || fail "tilde/.claude script: expected exit 2, got $rc"
 
 echo "lint-edited: all checks passed"

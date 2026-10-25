@@ -16,6 +16,7 @@ shell_scripts=(
   .claude/hooks/*.sh
   .claude/skills/*/*.sh
   raycast/*/*.sh
+  tilde/.claude/*.sh
 )
 
 bash_syntax_files=(
@@ -68,6 +69,9 @@ bash bin/lib/test-hindsight-memory > /dev/null
 bash bin/lib/test-upup > /dev/null
 # bin/rea-mcp against a stubbed brew, a fixture Ghidra keg and a fake mise shim (REA never starts)
 bash bin/lib/test-rea-mcp > /dev/null
+# the Claude Code edit hooks against sample payloads
+bash .claude/hooks/test-lint-edited.sh > /dev/null
+bash .claude/hooks/test-lint-bash-edits.sh > /dev/null
 # VS Code settings are rendered from a minijinja template (bin/vscode-settings):
 # test the renderer, and Prettier-check every preset's render inside
 # vscode/User so its .prettierrc.yaml applies (the .j2 itself isn't parseable)
