@@ -7,5 +7,5 @@
 - **Cmd+Option+I:** open/close Web Inspector; **Cmd+Option+Shift+I:** connect Web Inspector (Develop menu)
 - **Cmd+Shift+D:** switch to the previous docking configuration
 - **Cmd+Option+C:** JavaScript console; **Cmd+Option+U:** page source; **Cmd+Option+A:** page resources
-- **Cmd+Shift+C:** start element selection
-- **Develop → Enter Responsive Design Mode** and **Develop → Empty Caches** have no working shortcut on Safari 27.0.1 (Ctrl+Cmd+R and Cmd+Option+E do nothing); use the menu
+- **Ctrl+Cmd+R:** responsive design mode (greyed out on the Start Page and blank tabs; open a web page first); **Cmd+Shift+C:** start element selection; **Cmd+Option+Shift+T:** start timeline recording
+- **Cmd+Option+E:** empty caches (no confirmation or visible change)
