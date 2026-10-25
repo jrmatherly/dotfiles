@@ -36,7 +36,9 @@ is_commit() {
 
 is_commit "$command" || exit 0
 root=$(git -C "$cwd" rev-parse --show-toplevel 2> /dev/null) || exit 0
-[ -e "$root/bin/lib/check" ] || exit 0
+# Gate only repos that ship this very hook (this repo or a worktree of it),
+# so a commit in a foreign repo never runs that repo's check script
+[ -e "$root/bin/lib/check" ] && cmp -s "$0" "$root/.claude/hooks/commit-gate.sh" || exit 0
 
 if ! out=$(cd "$root" && pnpm check 2>&1); then
   {

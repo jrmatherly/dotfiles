@@ -9,18 +9,19 @@ tmp=$(mktemp -d "${TMPDIR:-/tmp}/commit-gate.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
 proj=$tmp/proj
 STATE=$tmp/state
-mkdir -p "$proj/bin/lib" "$STATE" "$tmp/bin"
+mkdir -p "$proj/bin/lib" "$proj/.claude/hooks" "$STATE" "$tmp/bin"
 
 fail() {
   echo "FAIL: $1" >&2
   exit 1
 }
 
-# The gate's "this is the repo" marker, committed so the tree starts clean
+# The gate's "this is the repo" markers, committed so the tree starts clean
 : > "$proj/bin/lib/check"
 chmod +x "$proj/bin/lib/check"
+cp "$hook" "$proj/.claude/hooks/commit-gate.sh"
 git -C "$proj" init -q
-git -C "$proj" add bin/lib/check
+git -C "$proj" add bin/lib/check .claude/hooks/commit-gate.sh
 git -C "$proj" -c user.name=test -c user.email=test@example.com \
   -c commit.gpgsign=false -c core.hooksPath=/dev/null commit -qm init
 
@@ -78,5 +79,11 @@ rm "$proj/bin/lib/check"
 rm -f "$STATE/check-ran"
 run 'git commit -m "x"'
 [ "$rc" -eq 0 ] && [ ! -e "$STATE/check-ran" ] || fail "foreign repo was gated"
+# 8. a repo with bin/lib/check but without this hook is not gated
+: > "$proj/bin/lib/check"
+rm "$proj/.claude/hooks/commit-gate.sh"
+rm -f "$STATE/check-ran"
+run 'git commit -m "x"'
+[ "$rc" -eq 0 ] && [ ! -e "$STATE/check-ran" ] || fail "repo without the hook was gated"
 
 echo "commit-gate: all checks passed"
