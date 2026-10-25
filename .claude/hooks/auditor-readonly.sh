@@ -62,7 +62,7 @@ check_allowed() {
   for re in "${allowed[@]}"; do
     [[ $1 =~ $re ]] && return 0
   done
-  deny 'not in the allowlist' "$1"
+  deny 'not in the allowlist' "$command"
 }
 check_denied() {
   local re

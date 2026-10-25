@@ -9,7 +9,7 @@
 # ---
 # Checks the telemetry pairing (setup.sh exports a subset of zsh/env.zsh's),
 # that Prettier ignores every zsh file, that every bin/ script has a header
-# comment on line 2, and that every third-party Brewfile formula is trusted.
+# comment on line 2, and that every third-party Brewfile formula or cask is trusted.
 #
 # License: MIT
 

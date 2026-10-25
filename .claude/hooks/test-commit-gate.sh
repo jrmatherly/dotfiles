@@ -55,7 +55,7 @@ run 'git commit -m "x"'
 [ "$rc" -eq 2 ] || fail "failing check: expected exit 2, got $rc"
 # 3. every commit spelling gates
 echo 0 > "$STATE/check-rc"
-for c in 'git -C . commit --amend' 'git -c commit.gpgsign=false commit' '/usr/bin/git commit' 'GIT_EDITOR=true git commit' 'git add x && git commit -m y'; do
+for c in 'git -C . commit --amend' 'git -c commit.gpgsign=false commit' '/usr/bin/git commit' 'GIT_EDITOR=true git commit' 'git add x && git commit -m y' 'echo x && git commit'; do
   rm -f "$STATE/check-ran"
   run "$c"
   [ -e "$STATE/check-ran" ] || fail "not gated: $c"
