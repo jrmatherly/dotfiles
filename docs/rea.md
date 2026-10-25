@@ -44,7 +44,7 @@ Built-in providers that need no engine work today: native macOS inspection (Mach
 ## When something changes
 
 - After `upup` upgrades REA, re-run the MCP inspector command in [agents/README.md](../agents/README.md) and compare the tool list with the permission rules: a new tool arrives with no rule.
-- After a Ghidra upgrade, nothing to do for the JDK. `rea-mcp --print-env` shows the new `openjdk@N`. If REA starts accepting the installed Ghidra line, the `unsupported_version` row in `rea doctor` disappears.
+- After a Ghidra upgrade, nothing to do for the JDK. `rea-mcp --print-env` shows the new `openjdk@N`. If REA starts accepting the installed Ghidra line, the `ghidra-version` row in `rea doctor` stops reporting `config_drift` (today: "12.2; accepted releases are 12.1.x").
 - If the dotfiles clone moves, re-run `./setup.sh --skip-brew` (or `setup/misc.sh`): the registration holds the launcher's absolute path and `register_mcp` warns about the old one.
 - Hopper: licence it in the app; REA notices on the next `doctor`.
 
