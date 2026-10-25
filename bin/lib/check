@@ -3,6 +3,9 @@
 # Validate shell syntax, ShellCheck supported scripts, and formatting.
 
 set -euo pipefail
+# The self-checks grep for UTF-8 glyphs with bracket expressions, which match
+# single bytes under the C locale that Claude Code's Bash tool runs in
+export LC_ALL=en_US.UTF-8
 
 shell_scripts=(
   setup.sh

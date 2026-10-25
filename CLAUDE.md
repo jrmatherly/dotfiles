@@ -19,7 +19,7 @@ Personal macOS dotfiles for Apple Silicon (Homebrew at `/opt/homebrew`, Homebrew
 
 ## Build & Development Commands
 
-There is no build. `pnpm check` is the gate. Its tests are fixture self-checks: the catalog generator's (run via `mise exec python --` when mise exists since `tomllib` needs 3.11+), the codex-config seeding test, the Claude Desktop account switcher's and the VS Code renderer's.
+There is no build. `pnpm check` is the gate. Its tests are the fixture self-checks listed below, and it exports `LC_ALL=en_US.UTF-8` because they grep for UTF-8 glyphs.
 
 - `pnpm check` (`bin/lib/check`) runs:
   - `bash -n` on `setup.sh`, `setup/*.sh`, `setup/tests/*.sh`, `vscode/*.sh`, `bin/lib/test-*`, `.claude/hooks/*.sh`, `.claude/skills/*/*.sh`, `raycast/*/*.sh`, `tilde/.bash_profile`, and `bin/*` scripts with a bash/sh shebang
