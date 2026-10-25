@@ -3,7 +3,7 @@ name: validate-setup
 description: Snapshot the machine state setup.sh manages before and after running it, and diff the two, to verify a setup change.
 argument-hint: 'before|after'
 disable-model-invocation: true
-allowed-tools: Bash(.claude/skills/validate-setup/snapshot.sh *) Bash(mkdir -p private/setup-snapshots) Bash(diff *) Bash(pnpm check *) Bash(ls -t private/setup-logs/*) Bash(grep * private/setup-logs/*)
+allowed-tools: Bash(.claude/skills/validate-setup/snapshot.sh *) Bash(mkdir -p private/setup-snapshots) Bash(diff *) Bash(pnpm check *) Bash(ls -t private/setup-logs/*) Bash(grep * private/setup-logs/*) Edit(/private/setup-snapshots/**)
 ---
 
 Phase: $ARGUMENTS

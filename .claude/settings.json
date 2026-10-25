@@ -7,6 +7,7 @@
       "Bash(shellcheck *)",
       "Bash(bash -n *)",
       "Bash(zsh -n *)",
+      "Bash(bash vscode/test-vscode-settings.sh)",
       "Bash(.claude/hooks/test-lint-edited.sh *)",
       "Bash(.claude/hooks/test-lint-bash-edits.sh *)",
       "Bash(.claude/hooks/test-commit-gate.sh *)",
@@ -69,7 +70,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Edit|Write|mcp__serena__(replace_content|replace_in_files|replace_symbol_body|insert_after_symbol|insert_before_symbol|rename_symbol|safe_delete_symbol)",
+        "matcher": "^(Edit|Write|mcp__serena__(replace_content|replace_in_files|replace_symbol_body|insert_after_symbol|insert_before_symbol|rename_symbol|safe_delete_symbol))$",
         "hooks": [
           {
             "type": "command",

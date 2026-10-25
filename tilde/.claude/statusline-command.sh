@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code status line — three-row layout
-# See: docs/superpowers/specs/2026-05-09-statusline-enhancement-design.md
+# Documented in agents/README.md (symlinked by setup/symlinks.sh)
 # Constraints (verified May 2026):
 #   - No TTY: $COLUMNS is unset, tput cols returns 80, /dev/tty unavailable
 #   - Leading whitespace stripped from each row by Claude Code renderer
