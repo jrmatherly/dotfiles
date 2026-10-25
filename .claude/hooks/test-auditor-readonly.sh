@@ -98,6 +98,16 @@ deny 'ls # x'
 deny 'cat <<EOF'
 deny $'grep \'a\nls\' f'
 allow "grep '#' README.md"
+deny 'sort -uoout in'
+deny 'sed -n -Ei.bak 1p f'
+deny 'git grep -iOrm foo'
+deny 'gh api -iXDELETE repos/a/b'
+deny 'sed -n --in-place 1p f'
+deny 'git remote -v add evil https://x'
+deny 'uniq a b'
+allow 'git remote -v'
+allow 'sort x | uniq -c'
+allow 'uniq -c x'
 # another agent, or the main session, is never touched
 run 'brew install foo' general-purpose
 [ "$rc" -eq 0 ] || fail "non-auditor agent was gated"

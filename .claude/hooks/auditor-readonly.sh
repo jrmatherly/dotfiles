@@ -19,8 +19,9 @@ input=$(cat)
 [ "$(jq -r '.agent_type // empty' <<< "$input")" = docs-auditor ] || exit 0
 command=$(jq -r '.tool_input.command // empty' <<< "$input")
 
+# deny <rule> <text>: the rule tells the auditor what to change
 deny() {
-  echo "auditor-readonly: not allowed: $1" >&2
+  echo "auditor-readonly: not allowed ($1): $2" >&2
   exit 2
 }
 
@@ -33,15 +34,19 @@ allowed=(
   '^claude (--version|mcp get|plugin list)([[:space:]]|$)'
   '^uv tool list([[:space:]]|$)'
   "$curl"
-  '^git (-C [^[:space:]]+ )?(log|show|diff|status|grep|rev-parse|ls-files|check-ignore|remote -v)([[:space:]]|$)'
+  '^git (-C [^[:space:]]+ )?((log|show|diff|status|grep|rev-parse|ls-files|check-ignore)([[:space:]]|$)|remote -v$)'
   '^gh (run (list|view)|api)([[:space:]]|$)'
 )
+# A segment matching one of these is denied although its prefix is allowed.
+# Short flags may be bundled (sort -uo, sed -Ei, git grep -iO), hence the
+# letters allowed between the dash and the flag; uniq's second file is its output
 denied=(
   '^find .*(-delete|-exec|-ok|-fprint|-fls)'
-  '^sed -n.*[[:space:]]-i'
-  '^sort.*[[:space:]](-o|--output|--compress-program)'
-  '^gh api.*[[:space:]](-X|-f|-F|--method|--field|--raw-field|--input)'
-  '^git .*[[:space:]](-O|--open-files-in-pager|--output|--ext-diff|--textconv)'
+  '^sed -n.*[[:space:]](-[[:alnum:]]*i|--in-place)'
+  '^sort.*[[:space:]](-[[:alnum:]]*o|--output|--compress-program)'
+  '^gh api.*[[:space:]](-[[:alnum:]]*[XfF]|--method|--field|--raw-field|--input)'
+  '^git .*[[:space:]](-[[:alnum:]]*O|--open-files-in-pager|--output|--ext-diff|--textconv)'
+  '^uniq([[:space:]]+-[^[:space:]]+)*[[:space:]]+[^-[:space:]][^[:space:]]*[[:space:]]+[^-[:space:]]'
   '^bat .*--pager'
   '^rg.*[[:space:]]--pre'
 )
@@ -57,12 +62,12 @@ check_allowed() {
   for re in "${allowed[@]}"; do
     [[ $1 =~ $re ]] && return 0
   done
-  deny "$1"
+  deny 'not in the allowlist' "$1"
 }
 check_denied() {
   local re
   for re in "${denied[@]}"; do
-    [[ $1 =~ $re ]] && deny "$1"
+    [[ $1 =~ $re ]] && deny 'denied flag or argument' "$1"
   done
 }
 
@@ -80,30 +85,32 @@ scan() {
     if [ -n "$q" ] && [ "$c" = "$q" ]; then
       q=
     elif [ -n "$q" ]; then
-      [ "$q" = '"' ] && [[ $c == [\\$] ]] && deny "$command"
-      [ "$c" = $'\n' ] && deny "$command"
+      [ "$q" = '"' ] && [[ $c == [\\$] ]] && deny 'backslash or $ outside single quotes' "$command"
+      [ "$c" = $'\n' ] && deny 'quoted newline' "$command"
       [[ $c == [\;\|\&] ]] && c=' '
       dequoted+=$c
     elif [[ $c == [\'\"] ]]; then
       q=$c
     else
-      [[ $c == '\' || $c == '$' || $c == '#' || ${command:i:2} == '<<' ]] && deny "$command"
+      [[ $c == '\' || $c == '$' ]] && deny 'backslash or $ outside single quotes' "$command"
+      [[ $c == '#' || ${command:i:2} == '<<' ]] && deny 'comment or heredoc' "$command"
       stripped+=$c
       dequoted+=$c
     fi
   done
-  [ -z "$q" ] || deny "$command"
+  [ -z "$q" ] || deny 'unclosed quote' "$command"
 }
 
 case $command in
-  *'$('* | *'`'* | *'&>'* | *'<('* | *'>('*) deny "$command" ;;
-  *\'*\"* | *\"*\'*) deny "$command" ;;
+  *'$('* | *'`'* | *'<('* | *'>('*) deny 'command or process substitution' "$command" ;;
+  *'&>'*) deny 'redirect' "$command" ;;
+  *\'*\"* | *\"*\'*) deny 'mixed quotes' "$command" ;;
 esac
 scan
 case $stripped in
-  *[\(\)\{\}]*) deny "$command" ;;
+  *[\(\)\{\}]*) deny 'braces or parentheses' "$command" ;;
 esac
-[[ $(segments "$stripped") == *'>'* ]] && deny "$command"
+[[ $(segments "$stripped") == *'>'* ]] && deny 'redirect' "$command"
 
 while IFS= read -r seg; do
   check_allowed "$seg"
@@ -112,6 +119,6 @@ done < <(segments "$stripped")
 while IFS= read -r seg; do
   check_allowed "$seg"
   check_denied "$seg"
-  [[ $seg == 'curl '* && ! $seg =~ $curl ]] && deny "$seg"
+  [[ $seg == 'curl '* && ! $seg =~ $curl ]] && deny 'curl URL' "$seg"
 done < <(segments "$dequoted")
 exit 0
