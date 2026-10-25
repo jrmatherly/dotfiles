@@ -72,6 +72,8 @@ bash bin/lib/test-rea-mcp > /dev/null
 # the Claude Code edit hooks against sample payloads
 bash .claude/hooks/test-lint-edited.sh > /dev/null
 bash .claude/hooks/test-lint-bash-edits.sh > /dev/null
+# Tree invariants CLAUDE.md promises (telemetry pairing, zsh ignored by prettier, bin/ headers, Brewfile trust)
+bash bin/lib/test-conventions > /dev/null
 # VS Code settings are rendered from a minijinja template (bin/vscode-settings):
 # test the renderer, and Prettier-check every preset's render inside
 # vscode/User so its .prettierrc.yaml applies (the .j2 itself isn't parseable)

@@ -27,6 +27,7 @@ There is no build. `pnpm check` is the gate. Its tests are the fixture self-chec
   - `shellcheck --severity=warning` on the same bash scripts except `tilde/.bash_profile`, which only gets `bash -n` (`.shellcheckrc` also enables `check-unassigned-uppercase`)
   - `python3 agents/catalog/test_build_catalog.py` (status/cleanup rules of the Claude Code catalog generator)
   - `setup/tests/codex-config.sh` (`~/.codex/config.toml` is seeded as a copy, never linked), `bin/lib/test-upup` (the update report against stubbed tools), `bin/lib/test-rea-mcp` (the REA launcher against a stubbed brew, a fixture Ghidra keg and a fake mise shim), `bin/lib/test-hindsight-memory` (the Hindsight wrapper under a temp `HOME`, the vendor installer stubbed), `bin/lib/test-claude-desktop-account` (the account switcher against a fixture Desktop folder, with `pgrep`/`osascript`/`pkill`/`open`/`fzf`/`security`/`curl` stubbed on PATH) and the two Claude Code edit-hook self-checks (`.claude/hooks/test-lint-edited.sh`, `.claude/hooks/test-lint-bash-edits.sh`, against sample payloads)
+  - `bin/lib/test-conventions` (tree invariants: every `setup.sh` telemetry export is also in `zsh/env.zsh`, Prettier ignores every zsh file, every `bin/` script has a header comment on line 2, every third-party Brewfile formula or cask carries `trusted: true`)
   - `brew bundle list` on `setup/Brewfile` with `manual` lines stripped (parse check, skipped without `brew`)
   - `vscode/test-vscode-settings.sh` (the renderer's tests) and a Prettier check of every VS Code preset's render (skipped without `minijinja-cli`)
   - `prettier --check` over js/cjs/ts/md/json/sh, `.github/**/*.yml` and `bin/*` (not all YAML: app-written configs like `tilde/.config/gh/config.yml` aren't Prettier-clean)
@@ -104,7 +105,7 @@ ql-plugins/ icons/                         vendored binaries, don't edit
 
 ## Detected Patterns
 
-- **Paired lists kept in sync**: telemetry opt-outs live in both `setup.sh` and `zsh/env.zsh` (see `.claude/rules/telemetry-sync.md`).
+- **Paired lists kept in sync**: telemetry opt-outs live in both `setup.sh` and `zsh/env.zsh` (see `.claude/rules/telemetry-sync.md`; checked by `bin/lib/test-conventions`).
 - **Docs mirror behavior**: every change to setup behavior, the Brewfile or mise tools has a matching edit in `README.md`, `setup/README.md` or a per-directory README in the same commit, and in `CLAUDE.md` itself when architecture, setup order or conventions change (the auto-memory plugin is off for this repo: no `.claude/auto-memory/config.json`).
 - **Interactive and idempotent setup**: scripts detect existing state (symlink already correct, tool already installed, Homebrew not yet on PATH) and skip or prompt rather than fail. Re-running `setup.sh` is the normal way to apply changes.
 - **Guard optional tools**: shell config checks `command -v` / `command_exists` before sourcing Homebrew plugins or activating tools, so a fresh Mac without them still starts cleanly.

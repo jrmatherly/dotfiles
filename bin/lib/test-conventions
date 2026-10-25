@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+# Tree invariants the docs promise; run by pnpm check.
+#
+# - Run it (pnpm check does too); exits 1 naming the first broken invariant:
+#
+# `test-conventions`
+#
+# ---
+# Checks the telemetry pairing (setup.sh exports a subset of zsh/env.zsh's),
+# that Prettier ignores every zsh file, that every bin/ script has a header
+# comment on line 2, and that every third-party Brewfile formula is trusted.
+#
+# License: MIT
+
+set -euo pipefail
+
+cd "$(dirname "$0")/../.."
+
+fail() {
+  echo "FAIL: $1" >&2
+  exit 1
+}
+
+while IFS= read -r name; do
+  grep -q "^export $name=" zsh/env.zsh || fail "telemetry: $name missing from zsh/env.zsh"
+done < <(sed -nE 's/^export ([A-Z_]*(TELEMETRY|OPTOUT|DO_NOT_TRACK)[A-Z_]*)=.*/\1/p' setup.sh)
+
+for file in tilde/.zshenv tilde/.zprofile tilde/.zshrc zsh/*.zsh; do
+  node_modules/.bin/prettier --file-info "$file" | jq -e .ignored > /dev/null \
+    || fail "zsh prettier-ignored: $file"
+done
+
+for file in bin/*; do
+  [[ -f $file && $file != bin/CLAUDE.md ]] || continue
+  sed -n 2p "$file" | grep -qE '^(#|//)' || fail "bin headers: $file"
+done
+
+while IFS=: read -r line text; do
+  [[ $text == *', trusted: true'* ]] || fail "Brewfile trust: line $line"
+done < <(grep -nE '^(brew|cask) "[^"]+/[^"]+/[^"]+"' setup/Brewfile)
+
+echo "conventions: all checks passed"

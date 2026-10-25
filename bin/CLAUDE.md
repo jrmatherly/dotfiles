@@ -21,6 +21,7 @@ User CLI scripts, all on `PATH`. `zsh/path.zsh` prepends both `$DOTFILES/bin` an
   - `test-claude-desktop-account`: fixture self-check for `claude-desktop-account`, run by `check`
   - `test-upup`: fixture self-check for `upup`'s report against stubbed tools, run by `check`
   - `test-rea-mcp`: fixture self-check for `rea-mcp` (a stubbed `brew`, a fixture Ghidra keg with a Homebrew-style `ghidraRun` wrapper, a fake mise shim that echoes its environment), run by `check`
+  - `test-conventions`: tree invariants the docs promise (telemetry pairing between `setup.sh` and `zsh/env.zsh`, every zsh file Prettier-ignored, a header comment on line 2 of every `bin/` script, `trusted: true` on every third-party Brewfile formula or cask), run by `check`
   - `test-hindsight-memory`: fixture self-check for `hindsight-memory` under a temp `HOME` with the vendor installer, `hindsight-embed` and `npm` stubbed (`MISE_STATE_DIR` keeps the real mise trust records, since a shim run under a fake `HOME` refuses the global config), run by `check`
 - Setup entrypoints exposed as commands:
   - `brewpick`: Brewfile installer; `--all`, or an fzf checklist
