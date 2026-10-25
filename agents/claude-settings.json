@@ -110,7 +110,11 @@
       "mcp__snippetslab__list_filters",
       "mcp__snippetslab__search_snippets"
     ],
-    "deny": [],
+    "deny": [
+      "Bash(npm i -g *)",
+      "Bash(npm install --global *)",
+      "Bash(npm install -g *)"
+    ],
     "ask": [
       "mcp__plugin_supabase_supabase__apply_migration",
       "mcp__plugin_supabase_supabase__create_branch",
