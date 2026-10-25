@@ -8,7 +8,7 @@
 
 ## Settings and keybindings
 
-- `User/settings.json` holds the day-to-day preferences: the editor and terminal fonts, the SpaceBox color theme, formatter and linter config, etc. It's **generated and gitignored**: `bin/vscode-settings` renders it from the tracked template `User/settings.json.j2` with [minijinja-cli](https://github.com/mitsuhiko/minijinja) (Brewfile), filling in the font preset and `$HOME` (for `notes.notesLocation`). See [Fonts and the settings template](#fonts-and-the-settings-template).
+- `User/settings.json` holds the day-to-day preferences: the editor and terminal fonts, the SpaceBox color theme, formatter and linter config, etc. It's **generated and gitignored**: `bin/vscode-settings` renders it from the tracked template `User/settings.json.j2` with [minijinja-cli](https://github.com/mitsuhiko/minijinja) (Brewfile), filling in the font preset, `$HOME` (for `notes.notesLocation`) and the repo path (for `dev.containers.dockerPath`, which points at `bin/docker-devcontainer`: a `docker` wrapper that sets `BUILDX_BAKE_ENTITLEMENTS_FS=0` so Compose-based dev containers build on buildx 0.37.2+, at the cost of the file-read check that buildx added; delete the wrapper and the setting once a Compose release carries docker/compose#14325). See [Fonts and the settings template](#fonts-and-the-settings-template).
 - `User/keybindings.json` is intentionally empty (`[]`), so VS Code uses its stock shortcuts — see `help gui/visual-studio-code`. Add bindings there if you want to customize.
 - `.vscode/settings.json` at the repo root is a different file: workspace settings that apply only while this repo is open (the Brewfile as Ruby, ShellCheck skipping the zsh completion functions, spell-check words). `vscode/User` applies to every project.
 

@@ -1,0 +1,29 @@
+#!/bin/bash
+#
+# Run docker for VS Code Dev Containers with the buildx bake file check off.
+#
+# - What `dev.containers.dockerPath` points at (vscode/User/settings.json.j2):
+#
+# `docker-devcontainer compose version`
+#
+# ---
+# License: MIT
+
+set -euo pipefail
+
+# Buildx 0.37.2 (GHSA-gwr2-q96m-6682) enforces the fs.read entitlement under
+# `--progress rawjson`, which Compose always uses. The Dev Containers CLI
+# writes its merged Dockerfile under $TMPDIR, outside the build context, and
+# Compose grants no read for `build.dockerfile`, so every Compose-based dev
+# container fails to build in about a second (docker/compose#14285,
+# devcontainers/cli#1320). Compose PR 14325 adds the grant but is unreleased
+# as of Compose 5.6.1 (2026-10-24). Remove this wrapper once a Compose
+# release carries it. The setting is application-scoped, so it can't live in
+# a workspace .vscode/settings.json. Scoped to Dev Containers on purpose: with
+# the check off, a compose file in a repo you have trusted (Dev Containers
+# needs Workspace Trust first) can read host files outside the build context.
+export BUILDX_BAKE_ENTITLEMENTS_FS=0
+
+# An app-launched VS Code may have no Homebrew on PATH.
+docker=$(command -v docker || echo /opt/homebrew/bin/docker)
+exec "$docker" "$@"

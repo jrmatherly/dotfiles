@@ -26,6 +26,7 @@ check "renders the chosen preset" "grep -q 'ProFont IIx Nerd Font Mono' '$target
 check "records the render hash" "[ -s '$VSCODE_SETTINGS_DIR/.settings.rendered' ]"
 check "saves the choice" "grep -qx 'VSCODE_FONT_PRESET=warp' '$VSCODE_SETTINGS_ENV'"
 check "fills in HOME" "grep -q '\"notes.notesLocation\": \"$HOME/' '$target'"
+check "fills in the repo path" "grep -q '\"dev.containers.dockerPath\": \"$DOTFILES_DIR/bin/docker-devcontainer\"' '$target'"
 check "keeps VS Code's own \${version}" "grep -q '\${version}' '$target'"
 
 "$cmd" > /dev/null 2>&1
@@ -65,7 +66,7 @@ check "undefined template variable: nothing written" "grep -q 'IosevkaCode Nerd 
 printf '{ "a": {{ ENV.PATH }} }\n' > "$work/repo/vscode/User/settings.json.j2"
 VSCODE_SETTINGS_TEMPLATE="$work/repo/vscode/User/settings.json.j2" "$cmd" --preset iosevka --force > /dev/null 2>&1
 status=$?
-check "template can't read the environment (only home is passed)" "[ $status -eq 1 ]"
+check "template can't read the environment (only home and dotfiles are passed)" "[ $status -eq 1 ]"
 
 # Font check: a font fc-list knows must not warn; an unknown one must
 installed=$(fc-list : family | head -1 | cut -d, -f1)

@@ -536,6 +536,10 @@
     "--ignore=DL3059"
   ],
   "docker.extension.enableComposeLanguageServer": false,
+  // Dev Containers: a docker wrapper that turns off buildx's bake file-read
+  // check until Compose ships PR 14325 (bin/docker-devcontainer has the why).
+  // Application-scoped, so a workspace .vscode/settings.json can't set it.
+  "dev.containers.dockerPath": {{ dotfiles ~ "/bin/docker-devcontainer" }},
   /**
    * mise
    * https://marketplace.visualstudio.com/items?itemName=hverlin.mise-vscode
