@@ -151,7 +151,7 @@ Raycast handles ⌘Space on this Mac, and `set-defaults` turns off the Spotlight
 - **Windows** → **Tiled windows have margins** − `Off` (this Mac)
 - **Mission Control** → **Automatically rearrange Spaces based on most recent use** − `On`
 - **Mission Control** → **When switching to an application, switch to a Space with open windows for the application** − `On` (this Mac)
-- **Mission Control** → **Group windows by application** − `On` (set-defaults; off on this Mac until the next `set-defaults` run, since the script wrote a misspelled key before 2026-10-24)
+- **Mission Control** → **Group windows by application** − `On` (set-defaults)
 - **Mission Control** → **Displays have separate Spaces** − `On` (window tiling needs this)
 - **Shortcuts…** → **Mission Control** − `⌃↑`
 - **Shortcuts…** → **Application windows** − `⌃↓`
