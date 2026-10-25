@@ -34,10 +34,17 @@ exit "\$(cat "$STATE/check-rc" 2> /dev/null || echo 0)"
 EOF
 chmod +x "$tmp/bin/pnpm"
 
-# Feed the hook a PreToolUse payload; sets out (stdout) and rc
+# A second repo with bin/lib/check but no hook copy, as a -C target
+other=$tmp/other
+mkdir -p "$other/bin/lib"
+: > "$other/bin/lib/check"
+git -C "$other" init -q
+
+# Feed the hook a PreToolUse payload with cwd $2 (default: the project);
+# sets out (stdout) and rc
 run() {
   local payload
-  payload=$(jq -cn --arg c "$1" --arg d "$proj" '{tool_name:"Bash",tool_input:{command:$c},cwd:$d}')
+  payload=$(jq -cn --arg c "$1" --arg d "${2:-$proj}" '{tool_name:"Bash",tool_input:{command:$c},cwd:$d}')
   rc=0
   out=$(CLAUDE_PROJECT_DIR=$proj PATH="$tmp/bin:$PATH" "$hook" <<< "$payload" 2> /dev/null) || rc=$?
 }
@@ -74,12 +81,22 @@ run 'git commit -m "x"'
 touch_path setup/README.md
 run 'git commit -m "x"'
 [ "$rc" -eq 0 ] && [ -z "$out" ] || fail "warning printed with README changed"
-# 7. a commit in a repo without bin/lib/check is not gated
+# 7. from outside, a leading cd (absolute or relative) or git -C targets the repo
+for c in "cd $proj && git commit -m x" 'cd proj; git commit -m x' "git -C $proj commit -m x"; do
+  rm -f "$STATE/check-ran"
+  run "$c" "$tmp"
+  [ -e "$STATE/check-ran" ] || fail "not gated from outside: $c"
+done
+# 8. git -C into a repo without the hook copy is not gated, even from this repo
+rm -f "$STATE/check-ran"
+run "git -C $other commit -m x"
+[ "$rc" -eq 0 ] && [ ! -e "$STATE/check-ran" ] || fail "-C into a repo without the hook was gated"
+# 9. a commit in a repo without bin/lib/check is not gated
 rm "$proj/bin/lib/check"
 rm -f "$STATE/check-ran"
 run 'git commit -m "x"'
 [ "$rc" -eq 0 ] && [ ! -e "$STATE/check-ran" ] || fail "foreign repo was gated"
-# 8. a repo with bin/lib/check but without this hook is not gated
+# 10. a repo with bin/lib/check but without this hook is not gated
 : > "$proj/bin/lib/check"
 rm "$proj/.claude/hooks/commit-gate.sh"
 rm -f "$STATE/check-ran"
