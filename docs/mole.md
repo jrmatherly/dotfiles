@@ -1,6 +1,6 @@
 # Mole (`mo`)
 
-Mole is a Mac cleaner and maintenance tool from the Brewfile (`brew "mole"`). This page says what each command does on a Mac set up from this repo, which of them to use, and how its config is tracked. It was checked against Mole 1.63.0. Source citations are relative to the install, `$(brew --prefix mole)/libexec`.
+Mole is a Mac cleaner and maintenance tool from the Brewfile (`brew "mole"`). This page says what each command does on a Mac set up from this repo, which of them to use, and how its config is tracked. It was checked against Mole 1.64.0. Source citations are relative to the install, `$(brew --prefix mole)/libexec`.
 
 ## Summary
 

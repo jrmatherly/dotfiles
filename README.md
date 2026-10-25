@@ -236,7 +236,7 @@ It doesn't re-apply the dotfiles. When a pull brings new symlinks, tools or conf
 "$DOTFILES/setup.sh" --skip-brew # drop --skip-brew to also install new Brewfile entries
 ```
 
-`setup.sh` installs what's missing but doesn't upgrade what's already there; that's `upup`'s job.
+`setup.sh` installs what's missing but doesn't upgrade what's already there, except PowerShell (`dotnet tool update`), the dependencies `brew bundle` upgrades on its own and the Iosevka Code font; the rest is `upup`'s job.
 
 The repo's own pins get update PRs from [Renovate](https://docs.renovatebot.com/) (config in [`renovate.json`](renovate.json)): `package.json` and its `packageManager` pnpm, the single-version tools in the global mise config, and the action pins and `setup-python` version in `.github/workflows/`. It waits 7 days after a release, like `pnpm-workspace.yaml`'s `minimumReleaseAge`, opens or refreshes the daily `@ampcode/plugin` snapshots only early on Monday (New York time), and keeps mise's `npm:typescript` on major 6. It skips mise's `node` and `python`: its mise manager reads only the first entry of a version list, so it would rewrite the default and leave the rest. Those, like `.nvmrc`'s `lts/*`, stay manual. The `check` workflow ([`.github/workflows/check.yml`](.github/workflows/check.yml)) runs `pnpm check` on macOS for every PR, its PRs included, and every push to `main`. Its Dependency Dashboard issue lists held and pending updates; tick a PR's rebase box there to re-run the check on a PR opened before a workflow change. The Brewfile, VS Code extensions and mise's `latest` entries stay with `upup`.
 
