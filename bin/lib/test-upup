@@ -18,7 +18,8 @@ script="$(cd "$(dirname "$0")/.." && pwd -P)/upup"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-export DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state"
+# HOMEBREW_PREFIX points nowhere so upup's by-path rustup falls back to the stub
+export DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
 unset DOTFILES_MAC_PASSWORD_OP
 mkdir -p "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
 printf 'skill one src claude-code\nskill two src claude-code\n' > "$DOTFILES/agents/claude-skills.txt"
@@ -50,6 +51,7 @@ stub mise 'case $1 in
   upgrade) if [ -e "$STATE/mise" ]; then
       touch "$STATE/mise-done"
       echo "mise WARN  newer github:microsoft/aspire release 13.6.3 (released 2026-10-23, eligible 2026-10-24 14:17 EDT) ignored by minimum_release_age (24h); latest eligible release is 13.6.2"
+      echo "mise WARN  failed to reinstall pipx tools: ~/.local/share/mise/shims/uv exited with non-zero status: exit code 2"
     fi ;;
   *) exit 1 ;;
 esac'
@@ -147,6 +149,7 @@ check_true "changes: brew caveats shown" has '^    zsh completions installed$'
 check_true "changes: Homebrew upgraded with versions" has '^↻ Homebrew +1 upgraded: gh 2.103.1→2.103.2$'
 check_true "changes: mise version change" has '^↻ mise +1 upgraded: node 24.1.0→24.1.1$'
 check_true "changes: mise held release is a notice" has '^● mise +aspire 13.6.3 held until 2026-10-24 14:17 EDT by minimum_release_age$'
+check_true "changes: mise reinstall failure is a notice" has '^● mise +failed to reinstall pipx tools; a version no config pins goes with: mise prune$'
 check_true "changes: uv failure names the command" has '^✖ uv +run: uv tool upgrade --all$'
 check_true "changes: uv failure output shown" has '^    error: network down$'
 check_true "changes: Claude Code failure names the command" has '^✖ Claude Code +run: claude update$'

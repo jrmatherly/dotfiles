@@ -234,9 +234,13 @@ def merge(items, cur):
 def lint(items, by_name, cur):
     problems = []
     sources = {i["source"] for i in items}
+    mcp_curated = set(cur.get("mcp", {}))
     for g in cur.get("group", []):
         for n in g.get("items", []) + as_list(g.get("pick")):
-            if n not in by_name:
+            if n in by_name:
+                continue
+            # A curated MCP server is registered per machine: reported below, never fatal
+            if n not in mcp_curated:
                 problems.append(f"group '{g['title']}' names unknown item: {n}")
         for pl in g.get("plugins", []):
             if pl not in sources:

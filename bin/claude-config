@@ -215,7 +215,7 @@ save_skills() {
 }
 
 restore_skills() {
-  local kind name source agents agent missing npx=(npx)
+  local kind name source agents agent missing before npx=(npx)
   command -v mise > /dev/null && npx=(mise exec node -- npx)
   while read -r kind name source agents; do
     [ "$kind" = skill ] || continue
@@ -234,7 +234,12 @@ restore_skills() {
       esac
     done
     [ ${#missing[@]} -gt 0 ] || continue
+    # run keeps going after a failure; a skill the source no longer ships is
+    # the usual cause, and the fix is on the lock side
+    before=$failed failed=0
     DO_NOT_TRACK=1 DISABLE_TELEMETRY=1 run "${npx[@]}" -y skills add "$source" -g -s "$name" -a "${missing[@]}" -y
+    [ "$failed" = 0 ] || echo "claude-config: if $source no longer ships $name, drop it: npx -y skills remove -g -s $name -y, then claude-config save" >&2
+    [ "$before" = 0 ] || failed=1
   done < <(grep -Ev '^\s*(#|$)' "$skills_list")
 }
 

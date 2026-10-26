@@ -51,5 +51,8 @@ with tempfile.TemporaryDirectory() as d:
 probs = b.lint([], {}, {"mcp": {"ghost": {"desc": "x"}}, "notes": {"gone": {}}})
 assert probs == ["curated entry for unknown item: gone", "mcp server not registered on this machine: ghost"], probs
 assert not any(p.startswith(("group", "curated")) for p in probs[1:])
+# a group that names that server only gets the per-machine note, not a fatal group error
+probs = b.lint([], {}, {"mcp": {"ghost": {"desc": "x"}}, "group": [{"title": "G", "items": ["ghost", "nope"]}]})
+assert probs == ["group 'G' names unknown item: nope", "mcp server not registered on this machine: ghost"], probs
 
 print("ok")

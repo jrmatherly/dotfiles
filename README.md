@@ -220,7 +220,7 @@ upup
 - pulls the latest dotfiles (`git pull` in the clone)
 - installs macOS software updates (a macOS update asks for your login password: see [below](#macos-update-password-from-1password-optional))
 - upgrades Homebrew formulae and casks (VS Code included) without asking for confirmation, since it prints the list first, then cleans up
-- upgrades mise tools (Node/Python patch releases, CodeGraph, the npm CLIs, the Aspire CLI and flate), the stable Rust toolchain (`rustup update`, with a notice when `cargo --version` fails in that shell, since Homebrew's keg-only rustup keeps its proxies in `/opt/homebrew/opt/rustup/bin`) and uv tools (Serena and Scrapling, re-running `scrapling install` so its Chromium matches)
+- upgrades mise tools (Node/Python patch releases, CodeGraph, the npm CLIs, the Aspire CLI and flate), the stable Rust toolchain (Homebrew's `rustup update` called by path, with a notice when `cargo --version` fails in that shell, since the keg-only rustup keeps its proxies in `/opt/homebrew/opt/rustup/bin`, and a notice when a mise rust toolchain no config pins shadows it; a tool mise could not reinstall is a notice too, with `mise prune` as the remedy) and uv tools (Serena and Scrapling, re-running `scrapling install` so its Chromium matches)
 - reinstalls the Iosevka Code font if its upstream zip changed
 - updates Claude Code itself (`claude update`) and reports its version, before the steps below so they run on the new binary
 - reinstalls the tracked agent skills for the agents each is listed for (`claude-config restore skills --update`), which is how an installed skill picks up upstream changes

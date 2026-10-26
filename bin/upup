@@ -195,6 +195,11 @@ fi
 while read -r tool version until; do
   status notice mise "${tool##*[:/]} $version held until $until by minimum_release_age"
 done < <(sed -nE 's/.*WARN +newer ([^ ]+) release ([^ ]+) \(released [^,]*, eligible ([^)]*)\) ignored by minimum_release_age.*/\1 \2 \3/p' <<< "$out")
+# mise upgrade reports a tool it could not reinstall (a pipx tool no config
+# pins, a backend bug) as a WARN and still exits 0
+while read -r mise_warn; do
+  status notice mise "$mise_warn; a version no config pins goes with: mise prune"
+done < <(sed -nE 's/.*WARN +(failed to [^:]*):.*/\1/p' <<< "$out" | sort -u)
 # Relink the global TypeScript for typescript-language-server (see
 # setup/misc.sh): the link target names the exact version mise installed.
 if ts_dir="$(mise where npm:typescript 2> /dev/null)"; then
@@ -204,10 +209,18 @@ fi
 
 # Rust toolchain (rustup itself is a Homebrew formula, upgraded above). Per
 # toolchain: "<channel>-<triple> updated - rustc NEW (…) (from rustc OLD (…))" or "… unchanged - …"
-if command -v rustup > /dev/null; then
+# Homebrew's keg-only rustup is called by path: mise's shims sit earlier on
+# an activated PATH, and a rust toolchain installed in mise but pinned by no
+# config leaves a `rustup` shim that only errors
+rustup_bin="${HOMEBREW_PREFIX:-/opt/homebrew}/opt/rustup/bin/rustup"
+[ -x "$rustup_bin" ] || rustup_bin=$(command -v rustup || true)
+if [ -n "$rustup_bin" ]; then
   step Rust
   rust_updated=""
-  if ! capture rustup update --no-self-update; then
+  case $(command -v rustup || true) in
+    */mise/shims/rustup) status notice Rust "a mise rust toolchain no config pins shadows Homebrew's rustup (mise ls rust); run: mise prune, then mise reshim" ;;
+  esac
+  if ! capture "$rustup_bin" update --no-self-update; then
     status fail Rust "run: rustup update"
     show
   elif
