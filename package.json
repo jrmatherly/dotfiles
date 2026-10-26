@@ -18,7 +18,7 @@
     "avif": "^0.6.0"
   },
   "devDependencies": {
-    "@ampcode/plugin": "0.0.0-20261016001627-gab25fd2",
+    "@ampcode/plugin": "0.0.0-20261019001835-g91990d5",
     "prettier": "^3.9.9",
     "prettier-plugin-sh": "^0.20.0"
   }

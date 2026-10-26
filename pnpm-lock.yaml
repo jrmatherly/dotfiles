@@ -171,8 +171,8 @@ importers:
         version: 0.6.0
     devDependencies:
       '@ampcode/plugin':
-        specifier: 0.0.0-20261016001627-gab25fd2
-        version: 0.0.0-20261016001627-gab25fd2
+        specifier: 0.0.0-20261019001835-g91990d5
+        version: 0.0.0-20261019001835-g91990d5
       prettier:
         specifier: ^3.9.9
         version: 3.9.10
@@ -182,8 +182,8 @@ importers:
 
 packages:
 
-  '@ampcode/plugin@0.0.0-20261016001627-gab25fd2':
-    resolution: {integrity: sha512-EM6a6D1GUtL5vKecBoX2d/2YkS1j1Jjuv8nbuaFA8wie0fSSEsD91N7meFiKV05cIKhg83bOILz47fF8l09b/g==}
+  '@ampcode/plugin@0.0.0-20261019001835-g91990d5':
+    resolution: {integrity: sha512-lYKMnOMhuezIOkglMRebELn4YdCQv0u4acgol0kFWhcM3sP2coH1Qyb+dDm0N7p8XBcruBvgHXPvhWopR8ZO1Q==}
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -490,7 +490,7 @@ packages:
 
 snapshots:
 
-  '@ampcode/plugin@0.0.0-20261016001627-gab25fd2': {}
+  '@ampcode/plugin@0.0.0-20261019001835-g91990d5': {}
 
   '@emnapi/runtime@1.11.3':
     dependencies:
