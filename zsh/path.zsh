@@ -41,6 +41,11 @@ prepend "$homebrew_path/sbin"
 # tilde/.zprofile for shims and zsh/init.zsh for full shell activation).
 # See https://mise.jdx.dev
 
+# LLM Router (formerly Claude Code Router): its installer appends a PATH
+# block to ~/.zshrc; this entry replaces it (prepend skips a dir that isn't
+# there yet, so a pre-rebrand install under ~/.claude-code-router stays off PATH)
+prepend "$HOME/.llm-router/bin"
+
 # Custom dotfiles binaries
 prepend "$DOTFILES/bin/lib"
 prepend "$DOTFILES/bin"
