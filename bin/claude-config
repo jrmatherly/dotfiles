@@ -47,10 +47,15 @@ skill_lock="$HOME/.agents/.skill-lock.json"
 # NotchBar's and CodeGraph's installers add their hooks), credential helpers,
 # and env vars except Claude Code's own switches, the one opt-out its plugin
 # hooks read and Hindsight's provider pick — env is where API keys and tokens
-# go, and the saved file is committed
+# go, and the saved file is committed. Of Claude Code's switches, the two the
+# LLM Router writes with its gateway profile are left out too: the router adds
+# them whenever a provider exists but never removes them from a settings file
+# that holds anything else (checked at 4.3.1), and restore never deletes a
+# key, so a tracked copy would put a gateway profile on a Mac with no router
 settings_filter='del(.enabledPlugins, .extraKnownMarketplaces, .hooks,
     .apiKeyHelper, .awsCredentialExport, .awsAuthRefresh, .otelHeadersHelper)
-  | if .env then .env |= with_entries(select(.key | test("^(CLAUDE_CODE_|DISABLE_|MAX_|AZURE_MCP_COLLECT_TELEMETRY$|HINDSIGHT_API_(LLM_PROVIDER|[A-Z_]*LLM_MODEL)$)")))
+  | if .env then .env |= with_entries(select((.key | test("^(CLAUDE_CODE_|DISABLE_|MAX_|AZURE_MCP_COLLECT_TELEMETRY$|HINDSIGHT_API_(LLM_PROVIDER|[A-Z_]*LLM_MODEL)$)"))
+      and (.key | IN("CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY", "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT") | not)))
       | if .env == {} then del(.env) else . end
     else . end'
 # $HOME → ~ only where it starts a path (after start, space, ( = : or a
