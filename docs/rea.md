@@ -29,7 +29,7 @@
 
 The launcher exists because Homebrew's `ghidra` formula depends on a versioned, keg-only `openjdk@N` that moves between Ghidra releases (`openjdk@21` for 12.1, `openjdk@25` for 12.2), and REA needs `JAVA_HOME` spelled out: its own fallback through `java` on PATH finds no JVM here, since Homebrew's OpenJDK is keg-only. A `JAVA_HOME` pinned in the registration dangled after the 12.2 upgrade while `claude mcp get rea` still said Connected. `bin/rea-mcp` reads both from the installed keg at every start (`brew --prefix ghidra`, then the `JAVA_HOME` default in that keg's `bin/ghidraRun` wrapper, about 0.3 s), so it uses the same JDK Homebrew's own `ghidraRun` uses and never one a `brew update` without `brew upgrade` only promises. A preset `JAVA_HOME` wins like that wrapper does, one without `bin/java` is dropped with a warning on stderr (Claude Code's MCP log shows it), `brew` is found at `/opt/homebrew/bin/brew` when Claude Code was launched from an app without the shell's PATH, and without Homebrew Ghidra the server still starts for Hopper and the built-in providers. Then it execs the mise `rea` shim with `mcp`.
 
-`rea setup` is not used. It writes an `npx -y rea-agents@<exact version>` registration that goes stale, and `npx` here resolves through npm's `min-release-age`.
+`rea setup`'s client registration is not used (only its `--skill` install is). It writes an `npx -y rea-agents@<exact version>` registration that goes stale, and `npx` here resolves through npm's `min-release-age`.
 
 ## Engines on this Mac
 

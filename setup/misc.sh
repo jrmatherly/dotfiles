@@ -324,11 +324,17 @@ fi
 # which drifts from the installed server and makes `rea doctor` call it stale).
 # https://github.com/morluto/rea
 rea_shim="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims/rea"
-if [ -x "$rea_shim" ] && [ -x "$claude_bin" ] && command_exists brew && [ -d "$(brew --prefix ghidra)/libexec" ]; then
-  register_mcp rea REA -- "$DOTFILES_DIR/bin/rea-mcp"
+if [ -x "$rea_shim" ]; then
+  # The skills CLI linked ~/.claude/skills/<name> into ~/.agents/skills; rea setup
+  # refuses to replace a link, so an older install's link goes first
+  rea_link="$HOME/.claude/skills/reverse-engineer-anything"
+  [ -L "$rea_link" ] && rm "$rea_link"
   mkdir -p "$HOME/.agents/skills" "$HOME/.claude/skills"
   "$rea_shim" setup --skill-client shared --skill-client claude_code --skill --yes --format json > /dev/null \
     || warning "REA skill install failed — run it later: rea setup --skill-client shared --skill-client claude_code --skill --yes"
+fi
+if [ -x "$rea_shim" ] && [ -x "$claude_bin" ] && command_exists brew && [ -d "$(brew --prefix ghidra)/libexec" ]; then
+  register_mcp rea REA -- "$DOTFILES_DIR/bin/rea-mcp"
 else
   echo "rea shim or the ghidra formula not found — skipping REA's MCP server" | indent
 fi

@@ -41,4 +41,5 @@ source $DOTFILES/zsh/init.zsh
 export GPG_TTY=$(tty)
 
 # LLM Router's desktop app appends a PATH block here on launch unless this file
-# already mentions $HOME/.llm-router/bin; zsh/path.zsh adds the real entry.
+# already mentions $HOME/.llm-router/bin (its string check as of the 2026-10
+# rebrand release); zsh/path.zsh adds the real entry.

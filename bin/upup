@@ -305,6 +305,8 @@ if command -v claude > /dev/null; then
   # run after the mise upgrade above rewrites both copies when they differ
   if command -v rea > /dev/null; then
     step "REA skill"
+    # rea setup refuses to replace the symlink the skills CLI used to leave here
+    [ -L "$HOME/.claude/skills/reverse-engineer-anything" ] && rm "$HOME/.claude/skills/reverse-engineer-anything"
     if capture rea setup --skill-client shared --skill-client claude_code --skill --yes --format json; then
       if [ "$(jq '.appliedActions | length' <<< "$out" 2> /dev/null || echo 0)" -gt 0 ]; then
         status changed "REA skill" "reinstalled for rea-agents $(rea --version 2> /dev/null || true)"
@@ -313,6 +315,8 @@ if command -v claude > /dev/null; then
       fi
     else
       status fail "REA skill" "run: rea setup --skill-client shared --skill-client claude_code --skill --yes"
+      # The JSON payload is the whole doctor report; only the skill remediation helps here
+      out=$(jq -r '.doctor.identity.skill.remediation // .message // empty' <<< "$out" 2> /dev/null || printf '%s' "$out")
       show
     fi
   fi

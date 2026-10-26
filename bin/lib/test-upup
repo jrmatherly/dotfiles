@@ -78,7 +78,9 @@ esac'
 stub claude-config '[ "$1" = save ] && [ -e "$STATE/config" ] && echo "# saved" >> "$DOTFILES/agents/claude-skills.txt"; exit 0'
 stub rea 'case $1 in
   --version) echo 6.8.0 ;;
-  setup) if [ -e "$STATE/rea" ]; then echo "{\"appliedActions\":[{\"id\":\"install_skill\"}]}"; else echo "{\"appliedActions\":[]}"; fi ;;
+  setup) case "$*" in *"--skill --yes --format json"*) ;; *) echo "bad args: $*" >&2; exit 2 ;; esac
+    if [ -e "$STATE/rea-fails" ]; then echo "{\"status\":\"needs_human\",\"doctor\":{\"identity\":{\"skill\":{\"remediation\":\"Skill directory is a symbolic link.\"}}}}"; exit 1; fi
+    if [ -e "$STATE/rea" ]; then echo "{\"appliedActions\":[{\"id\":\"install_skill\"}]}"; else echo "{\"appliedActions\":[]}"; fi ;;
 esac'
 stub claude-catalog 'echo "wrote /tmp/cat/CATALOG.md, CATALOG-lite.md, catalog.html, since 2026-10-20: +0 -0"'
 stub open 'exit 0'
@@ -167,8 +169,11 @@ check_true "warned: installer warning is the step's only line" lacks '^✔ Hinds
 check_true "warned: installer warning still a notice" has '^● Hindsight memory +installer: '
 
 rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
-touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust" "$STATE/no-cargo"
+touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust" "$STATE/no-cargo" "$STATE/rea-fails"
 run
+check_true "update: REA skill failure names the command" has '^✖ REA skill +run: rea setup --skill-client shared --skill-client claude_code --skill --yes$'
+check_true "update: REA skill failure shows only the remediation" has '^    Skill directory is a symbolic link\.$'
+check_true "update: REA skill failure hides the doctor payload" lacks 'needs_human'
 check_true "update: Rust names the channel and versions" has '^↻ Rust +stable 1\.99\.0→1\.99\.1$'
 check_true "update: a failing cargo is a notice" has "^● Rust +cargo --version failed: rustup's proxies live in /opt/homebrew/opt/rustup/bin, so open a new terminal, or run: rustup default stable$"
 check_true "update: uv names the upgraded tool and the one whose dependencies moved" has '^↻ uv +serena-agent v0\.1\.4 -> v0\.1\.5, scrapling dependencies$'
