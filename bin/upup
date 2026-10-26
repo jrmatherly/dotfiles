@@ -218,7 +218,7 @@ if [ -n "$rustup_bin" ]; then
   step Rust
   rust_updated=""
   case $(command -v rustup || true) in
-    */mise/shims/rustup) status notice Rust "a mise rust toolchain no config pins shadows Homebrew's rustup (mise ls rust); run: mise prune, then mise reshim" ;;
+    */mise/shims/rustup) status notice Rust "mise's leftover rust install shadows Homebrew's rustup; run: rm -rf ~/.local/share/mise/installs/rust && mise reshim (setup.sh does this), not mise prune, which runs that rustup and hangs" ;;
   esac
   if ! capture "$rustup_bin" update --no-self-update; then
     status fail Rust "run: rustup update"

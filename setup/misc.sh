@@ -168,10 +168,19 @@ if [ -x "$rustup" ]; then
     info "🦀 Installing the stable Rust toolchain with rustup…"
     "$rustup" default stable 2>&1 | indent || warning "rustup default stable failed — run it later"
   fi
-  # A rust installed through mise but not declared leaves a cargo shim that answers
-  # "No version is set", and the shims precede rustup's bin on a GUI-launched PATH
-  if mise ls --installed rust 2> /dev/null | grep -q .; then
-    warning "mise has a rust install whose cargo shim shadows rustup — run: mise uninstall --all rust && mise reshim"
+  # Rust lived in mise before 2026-10-24. A leftover install keeps rustup and
+  # cargo shims ahead of this keg on an activated PATH, and its own rustup in
+  # ~/.cargo/bin loops back through the shims (`mise uninstall` and `mise
+  # prune` run that rustup, so they hang). Forgetting the install is only
+  # mise bookkeeping; the proxies and toolchain are the owner's call.
+  mise_rust="${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/rust"
+  if [ -d "$mise_rust" ]; then
+    info "🦀 Forgetting mise's rust install so its shims stop shadowing rustup…"
+    rm -rf "$mise_rust"
+    mise reshim 2>&1 | indent || warning "mise reshim failed — run it later"
+  fi
+  if [ -x "$HOME/.cargo/bin/rustup" ] && ! cmp -s "$HOME/.cargo/bin/rustup" "$rustup"; then
+    warning "\$HOME/.cargo/bin/rustup is not Homebrew's rustup (mise's, probably) — run: rm -rf \$HOME/.cargo/bin \$HOME/.rustup && $rustup default stable"
   fi
 fi
 
