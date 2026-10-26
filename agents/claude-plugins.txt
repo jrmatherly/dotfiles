@@ -61,6 +61,7 @@ plugin skills@cole-medin
 plugin supabase@claude-plugins-official disabled
 plugin superdesign@claude-plugins-official
 plugin superpowers@claude-plugins-official
+plugin swift-lsp@claude-plugins-official
 plugin typescript-lsp@claude-plugins-official
 plugin ui-ux-pro-max@ui-ux-pro-max-skill
 plugin voltagent-biz@voltagent-subagents
