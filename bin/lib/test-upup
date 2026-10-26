@@ -76,6 +76,10 @@ stub claude 'case "$1 $2" in
     [ -e "$STATE/claude" ] && touch "$STATE/claude-done"; echo "Checking for updates to latest version..." ;;
 esac'
 stub claude-config '[ "$1" = save ] && [ -e "$STATE/config" ] && echo "# saved" >> "$DOTFILES/agents/claude-skills.txt"; exit 0'
+stub rea 'case $1 in
+  --version) echo 6.8.0 ;;
+  setup) if [ -e "$STATE/rea" ]; then echo "{\"appliedActions\":[{\"id\":\"install_skill\"}]}"; else echo "{\"appliedActions\":[]}"; fi ;;
+esac'
 stub claude-catalog 'echo "wrote /tmp/cat/CATALOG.md, CATALOG-lite.md, catalog.html, since 2026-10-20: +0 -0"'
 stub open 'exit 0'
 stub amp 'echo "Amp is already up to date"'
@@ -117,6 +121,7 @@ check_true "up to date: config left dirty before the run is unchanged" has '^✔
 check_true "up to date: plugins counted" has '^✔ plugins +2 plugins up to date$'
 check_true "up to date: Claude Code version" has '^✔ Claude Code +2\.1\.310 up to date$'
 check_true "up to date: skills counted" has '^✔ agent skills +2 tracked skills reinstalled for their agents$'
+check_true "up to date: REA skill matches" has '^✔ REA skill +matches rea-agents 6\.8\.0$'
 check_true "up to date: Hindsight memory re-staged" has '^✔ Hindsight memory +runtime re-staged, hooks re-wired$'
 check_true "up to date: Rust is ok" has '^✔ Rust +up to date$'
 check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
@@ -126,8 +131,9 @@ check_true "up to date: summary links the catalog" has '^Catalog: file:///tmp/ca
 check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs"
-touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns"
+touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea"
 run
+check_true "changes: REA skill reinstalled" has '^↻ REA skill +reinstalled for rea-agents 6\.8\.0$'
 check_true "changes: newer Hindsight release is a notice" has '^● Hindsight memory +newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION in bin/hindsight-memory$'
 check_true "changes: the installer's ▲ warning is a notice, first line only" has '^● Hindsight memory +installer: macOS needs a current Rust toolchain to build the daemon.s dependencies \(litellm; see the log$'
 check_true "changes: a warned or newer Hindsight step is not also ok" lacks '^✔ Hindsight memory'

@@ -301,6 +301,21 @@ if command -v claude > /dev/null; then
     status fail "agent skills" "run: claude-config restore skills --update"
     show
   fi
+  # REA ships its own skill, paired with the installed server; a `setup --skill`
+  # run after the mise upgrade above rewrites both copies when they differ
+  if command -v rea > /dev/null; then
+    step "REA skill"
+    if capture rea setup --skill-client shared --skill-client claude_code --skill --yes --format json; then
+      if [ "$(jq '.appliedActions | length' <<< "$out" 2> /dev/null || echo 0)" -gt 0 ]; then
+        status changed "REA skill" "reinstalled for rea-agents $(rea --version 2> /dev/null || true)"
+      else
+        status ok "REA skill" "matches rea-agents $(rea --version 2> /dev/null || true)"
+      fi
+    else
+      status fail "REA skill" "run: rea setup --skill-client shared --skill-client claude_code --skill --yes"
+      show
+    fi
+  fi
   # Re-running the pinned installer is the vendor's update and re-wires hooks a
   # release adds; a newer release is only reported, since the pin is a reviewed commit
   if [ -f "${HINDSIGHT_CONFIG:-$HOME/.hindsight/coding-agent.json}" ]; then

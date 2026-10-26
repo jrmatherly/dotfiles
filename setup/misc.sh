@@ -318,11 +318,17 @@ fi
 # JDK Homebrew's own ghidraRun wrapper uses) and execs the mise shim. The
 # registration therefore holds no versioned path: a JAVA_HOME pinned here
 # dangled when Ghidra 12.2 moved from openjdk@21 to @25 (2026-10-22). Hopper's
-# cask path is REA's default launcher. The skill is an entry in
-# agents/claude-skills.txt. https://github.com/morluto/rea
+# cask path is REA's default launcher. The reverse-engineer-anything skill is
+# REA's own bundled copy, installed by `rea setup --skill` into ~/.agents/skills
+# and ~/.claude/skills (not the skills CLI's copy from the repo's main branch,
+# which drifts from the installed server and makes `rea doctor` call it stale).
+# https://github.com/morluto/rea
 rea_shim="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims/rea"
 if [ -x "$rea_shim" ] && [ -x "$claude_bin" ] && command_exists brew && [ -d "$(brew --prefix ghidra)/libexec" ]; then
   register_mcp rea REA -- "$DOTFILES_DIR/bin/rea-mcp"
+  mkdir -p "$HOME/.agents/skills" "$HOME/.claude/skills"
+  "$rea_shim" setup --skill-client shared --skill-client claude_code --skill --yes --format json > /dev/null \
+    || warning "REA skill install failed — run it later: rea setup --skill-client shared --skill-client claude_code --skill --yes"
 else
   echo "rea shim or the ghidra formula not found — skipping REA's MCP server" | indent
 fi

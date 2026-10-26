@@ -6,7 +6,7 @@
 
 - Installed as the mise npm tool `npm:rea-agents` (`tilde/.config/mise/config.toml`, `latest` with a 6 h release-age floor because REA ships several releases a day). `upup` upgrades it with the other mise tools.
 - Registered with Claude Code at user scope as the `rea` MCP server by `setup/misc.sh`. The registered command is `bin/rea-mcp`, a launcher that resolves `GHIDRA_INSTALL_DIR` and `JAVA_HOME` from Homebrew at every start and execs `rea mcp`, so no versioned path is stored and a Ghidra upgrade that moves its JDK cannot strand the registration.
-- The `reverse-engineer-anything` skill (REA's own workflow instructions) is tracked in `agents/claude-skills.txt` and installed by `claude-config restore`.
+- The `reverse-engineer-anything` skill (REA's own workflow instructions) is the copy bundled with the installed `rea-agents`, written by `rea setup --skill` into `~/.agents/skills` and `~/.claude/skills` by `setup/misc.sh` and refreshed by `upup` after each REA upgrade, so it always describes the server that is running.
 - Permission rules for its 229 MCP tools (6.8.0) are in `agents/claude-settings.json`: static-analysis tools run without a prompt, tools that drive a live app, browser or process or write files ask first (details in [agents/README.md](../agents/README.md)).
 - Engines: Hopper (Brewfile cask, free demo until licensed) works. Ghidra (Brewfile formula, 12.2) is installed and its JDK resolves, but REA 6.8.0 still refuses Ghidra 12.2 (re-measured 2026-10-26) and the Homebrew build has no native decompiler, so the Ghidra provider is unusable until upstream lifts those limits.
 
