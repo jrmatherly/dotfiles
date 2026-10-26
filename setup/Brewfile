@@ -7,6 +7,7 @@
 
 # Dotfiles framework
 tap "modem-dev/tap" # hunk (git pager)
+tap "jrmatherly/tap" # claude-multipass
 
 # Cloud / infra
 tap "azure/azd"
@@ -41,6 +42,7 @@ brew "gh" # GitHub CLI, config tracked in tilde/.config/gh
 brew "git" # Version control
 brew "gnupg" # Optional: only needed if you sign commits with GPG instead of SSH
 brew "modem-dev/tap/hunk", trusted: true # Git pager used by tilde/.gitconfig, lazygit and gh
+brew "jrmatherly/tap/claude-multipass", trusted: true # Switch Claude Desktop between claude.ai accounts (github.com/jrmatherly/claude-multipass; Raycast scripts in its share dir)
 brew "lazygit" # Full Git management app (zsh `lg` alias)
 brew "mise" # Polyglot runtime version manager — required: setup/misc.sh installs runtimes with it, tilde/.zprofile and zsh/init.zsh activate it
 brew "pinentry-mac" # Securely enter your GPG passphrase (only needed with GPG signing)

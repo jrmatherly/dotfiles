@@ -9,7 +9,7 @@
 | `help` | Show this page (`docs/README.md`) |
 | `help {{command}}` | For a script in `bin/` (e.g. `help br`), show a tldr-style page generated from the script's header comment; for any other command, show its [tldr-pages](https://tldr.sh/) entry |
 | `help gui/{{app}}` | Show keyboard shortcuts for a GUI app (see [GUI app shortcuts](#gui-app-shortcuts)) |
-| `help "macos settings"` `help "macos tips & tricks"` `help mole` `help claude-desktop-account` `help claude-config` `help claude-catalog` `help rea` `help jstack` | Show the other pages in `docs/` |
+| `help "macos settings"` `help "macos tips & tricks"` `help mole` `help claude-config` `help claude-catalog` `help rea` `help jstack` | Show the other pages in `docs/` |
 | `alias` | List all active aliases |
 
 ## Enhanced CLI tools
@@ -155,7 +155,6 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `obsidian-vault install` `obsidian-vault capture` | Install the repo's Obsidian settings/templates into the vault, or bring vault changes back (see [obsidian](../obsidian/README.md)) |
 | `install-iosevka-code` | Install VS Code's Iosevka Code font, or update it when the upstream zip changed (see [fonts](../fonts/README.md)) |
 | `install-snippetslab-skill` | Write SnippetsLab's agent skill (`lab skill show`) to `~/.agents/skills/snippetslab` and link it into `~/.claude/skills`; run by setup and `upup` |
-| `claude-desktop-account` `claude-desktop-account list` `claude-desktop-account switch {{name}}` | Switch the Claude Desktop app between saved claude.ai accounts without an email code, keeping every account's Claude Code sessions in the Code tab (bare: an fzf picker over the saved accounts; `usage` for 5-hour and weekly headroom per account; `show {{name}}` for one; `save`, `switch` and `add` quit and relaunch the app; `sync` needs it quit, or `--force`; `rename`, `remove`; `--help` for the full page) |
 | `hindsight-memory status` `hindsight-memory paths add {{~/dev/project}}` `hindsight-memory off` | Opt-in per-repo Hindsight memory for Claude Code and Codex: show the daemon and config, add or remove a repo prefix memory is active in, or switch every hook off (`on` again); `init` and `upgrade` are run by setup and `upup` (see [setup](../setup/README.md)) |
 | `vscode-settings` | Render VS Code's `settings.json` from its template with a font preset (`--choose`, `--preset warp`, `--check`); refuses to overwrite edits VS Code made (see [vscode](../vscode/README.md#fonts-and-the-settings-template)) |
 | `sync-all` | Run `obsidian-vault install`, then `install-color-themes` |

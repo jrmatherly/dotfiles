@@ -45,13 +45,7 @@ Raycast handles window management here (the repo's Rectangle config is optional 
 
 ## Claude account script commands
 
-Three script commands in `raycast/claude-desktop-account/` call `bin/claude-desktop-account`:
-
-- **Claude Account** shows the signed-in saved account in Root Search (`not saved` or `signed out` otherwise), refreshed every minute
-- **Claude Account Usage** adds its 5-hour and weekly usage, refreshed every five minutes. Opt-in: it decrypts the saved token through the Keychain (see `claude-desktop-account --help`, Cautions). Its first run shows a macOS Keychain dialog for "Claude Safe Storage": click **Always Allow** once, or it returns every five minutes. Disable the command in Raycast if you don't want that
-- **Switch Claude Account** takes an account name, asks for confirmation, then switches Claude Desktop to it (the app quits and relaunches)
-
-Add them once: Raycast → **Settings → Script Commands** (scroll the extension list in the sidebar) **→ Add Script Directory**, then pick `<repo>/raycast/claude-desktop-account`. The commands then appear in Root Search and metadata edits are picked up without a restart. Do not use **Developer → Import Extension**: that imports a packaged extension, not a script directory. Save each account first with `claude-desktop-account save {{name}}`.
+[claude-multipass](https://github.com/jrmatherly/claude-multipass) (installed from the Brewfile) ships three script commands, **Claude Account**, **Claude Account Usage** (opt-in: it decrypts the saved token through the Keychain; click **Always Allow** once on the "Claude Safe Storage" dialog) and **Switch Claude Account**. Add them once: Raycast → **Settings → Script Commands → Add Script Directory**, then pick `$(brew --prefix)/share/claude-multipass/raycast`. Do not use **Developer → Import Extension**: that imports a packaged extension, not a script directory. Its docs: `$(brew --prefix)/share/doc/claude-multipass`.
 
 ## Sources
 

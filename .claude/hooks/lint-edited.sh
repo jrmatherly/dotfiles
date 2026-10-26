@@ -57,12 +57,12 @@ esac
 
 # bash -n + shellcheck: exactly bin/lib/check's script list — setup.sh,
 # setup/*.sh, setup/tests/*.sh, vscode/*.sh, bin/lib/test-*, .claude/hooks/*.sh,
-# .claude/skills/*/*.sh, raycast/*/*.sh, tilde/.claude/*.sh, and top-level
+# .claude/skills/*/*.sh, tilde/.claude/*.sh, and top-level
 # bin/ scripts with a bash/sh shebang except bin/license. Sourced snippets
 # (e.g. colors/*.sh) and the other bin/lib/ helpers aren't gated, so they
 # aren't linted here either.
 gated=false
-if [[ $rel == setup.sh || $rel =~ ^setup/(tests/)?[^/]+\.sh$ || $rel =~ ^vscode/[^/]+\.sh$ || $rel =~ ^bin/lib/test-[^/]+$ || $rel =~ ^\.claude/hooks/[^/]+\.sh$ || $rel =~ ^\.claude/skills/[^/]+/[^/]+\.sh$ || $rel =~ ^raycast/[^/]+/[^/]+\.sh$ || $rel =~ ^tilde/\.claude/[^/]+\.sh$ ]]; then
+if [[ $rel == setup.sh || $rel =~ ^setup/(tests/)?[^/]+\.sh$ || $rel =~ ^vscode/[^/]+\.sh$ || $rel =~ ^bin/lib/test-[^/]+$ || $rel =~ ^\.claude/hooks/[^/]+\.sh$ || $rel =~ ^\.claude/skills/[^/]+/[^/]+\.sh$ || $rel =~ ^tilde/\.claude/[^/]+\.sh$ ]]; then
   gated=true
 elif [[ $rel =~ ^bin/[^/]+$ && $rel != bin/license ]] \
   && head -n 1 "$rel" | grep -Eq '^#!(/bin/(ba)?sh|/usr/bin/env (ba)?sh)$'; then
