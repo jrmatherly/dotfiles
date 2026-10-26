@@ -7,8 +7,8 @@
 - Installed as the mise npm tool `npm:rea-agents` (`tilde/.config/mise/config.toml`, `latest` with a 6 h release-age floor because REA ships several releases a day). `upup` upgrades it with the other mise tools.
 - Registered with Claude Code at user scope as the `rea` MCP server by `setup/misc.sh`. The registered command is `bin/rea-mcp`, a launcher that resolves `GHIDRA_INSTALL_DIR` and `JAVA_HOME` from Homebrew at every start and execs `rea mcp`, so no versioned path is stored and a Ghidra upgrade that moves its JDK cannot strand the registration.
 - The `reverse-engineer-anything` skill (REA's own workflow instructions) is tracked in `agents/claude-skills.txt` and installed by `claude-config restore`.
-- Permission rules for its 207 MCP tools are in `agents/claude-settings.json`: static-analysis tools run without a prompt, tools that drive a live app, browser or process or write files ask first (details in [agents/README.md](../agents/README.md)).
-- Engines: Hopper (Brewfile cask, free demo until licensed) works. Ghidra (Brewfile formula, 12.2) is installed and its JDK resolves, but REA 6.7.0 refuses Ghidra 12.2 and the Homebrew build has no native decompiler, so the Ghidra provider is unusable until upstream lifts those limits.
+- Permission rules for its 229 MCP tools (6.8.0) are in `agents/claude-settings.json`: static-analysis tools run without a prompt, tools that drive a live app, browser or process or write files ask first (details in [agents/README.md](../agents/README.md)).
+- Engines: Hopper (Brewfile cask, free demo until licensed) works. Ghidra (Brewfile formula, 12.2) is installed and its JDK resolves, but REA 6.8.0 still refuses Ghidra 12.2 (re-measured 2026-10-26) and the Homebrew build has no native decompiler, so the Ghidra provider is unusable until upstream lifts those limits.
 
 ## Commands
 
@@ -20,7 +20,7 @@
 | `rea capabilities --json` | Every provider, its operations and their side effects (the source of the permission rules) |
 | `rea analyze {{path}} [--provider hopper\|ghidra]` | Overview of an app or binary |
 | `rea decompile {{path}} ...` | One function as pseudo-code |
-| `rea --help`, `rea {{command}} --help` | The full command list (155 commands in 6.7.0) and each command's options |
+| `rea --help`, `rea {{command}} --help` | The full command list (175 commands in 6.8.0) and each command's options |
 | `claude mcp get rea` | What Claude Code has registered; "Connected" means the server process starts, not that an engine works |
 
 ## How Claude Code reaches it
@@ -36,7 +36,7 @@ The launcher exists because Homebrew's `ghidra` formula depends on a versioned, 
 | Engine | Install | State (2026-10-24) |
 | --- | --- | --- |
 | Hopper Disassembler | Brewfile cask `hopper-disassembler`; REA finds it at its default path | Works as the free demo until licensed in the app |
-| Ghidra | Brewfile formula `ghidra` (12.2, pulls `openjdk@25`) | JDK check passes through the launcher. REA 6.7.0 accepts only Ghidra 12.1.x ([morluto/rea#6921](https://github.com/morluto/rea/issues/6921)) and the Homebrew build ships no native decompiler for darwin/arm64 ([#7018](https://github.com/morluto/rea/issues/7018)), so `rea analyze --provider ghidra` fails with `unsupported_version` |
+| Ghidra | Brewfile formula `ghidra` (12.2, pulls `openjdk@25`) | JDK check passes through the launcher. REA 6.8.0 accepts only Ghidra 12.1.x, verified build 12.1.4 ([morluto/rea#6921](https://github.com/morluto/rea/issues/6921)) and the Homebrew build ships no native decompiler for darwin/arm64 ([#7018](https://github.com/morluto/rea/issues/7018)), so `rea analyze --provider ghidra` fails with `unsupported_version` |
 | IDA, JADX, Kuna, Frida, GDB, Rizin/Cutter, sigrok, adb | Not installed, or not configured | `rea doctor` lists each with the variable that would enable it (`REA_JADX_MCP_JAR`, `REA_KUNA_COMMAND`, `REA_IDA_MCP_CONFIG`) |
 
 Built-in providers that need no engine work today: native macOS inspection (Mach-O, plists, signatures, Swift demangling, AX-driven UI capture), the artifact graph (app bundles, DMGs mounted read-only, PKGs, ASAR), .NET metadata, SQLite, JavaScript and Electron static analysis, and web bundle capture through Playwright.
