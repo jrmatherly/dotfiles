@@ -64,6 +64,8 @@ fi
 prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}" "bin/*" ".github/**/*.yml"
 # setup/symlinks.sh: ~/.codex/config.toml is seeded as a copy, never linked
 bash setup/tests/codex-config.sh > /dev/null
+# setup/symlinks.sh: a backup never overwrites (or nests into) an earlier one
+bash setup/tests/symlinks-backup.sh > /dev/null
 # bin/hindsight-memory against a fixture HOME with the installer, hindsight-embed and npm stubbed
 bash bin/lib/test-hindsight-memory > /dev/null
 # bin/claude-config save against fixture dirs, under each bash (never the real ~/.claude or agents/)

@@ -40,7 +40,7 @@
 **Interfaces:**
 - Produces: `backup_path <dst>` in `setup/symlinks.sh`, printing `<dst>.backup` when free, else `<dst>.backup.<YYYYmmdd-HHMMSS>`, and `<dst>.backup.<stamp>.<n>` if that exists too. `handle_existing_file` moves to `$(backup_path "$dst")`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `setup/tests/symlinks-backup.sh` extracts `indent tildify info user success skipped fail warn backup_path handle_existing_file symlink_file` with the `sed -nE` idiom from `setup/tests/codex-config.sh:10`, sets `HOME=$(mktemp -d)`, and checks:
 
@@ -58,21 +58,21 @@ check "directory backup not nested" "[ ! -e '$HOME/d.backup/d' ]"
 
 End with `exit $fails` like `codex-config.sh`.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash setup/tests/symlinks-backup.sh`
 Expected: `FAIL first backup kept` (the file now holds `third`) and `FAIL directory backup not nested`.
 
-- [ ] **Step 3: Add `backup_path` and use it**
+- [x] **Step 3: Add `backup_path` and use it**
 
 Place `backup_path()` above `handle_existing_file`; replace `mv "$dst" "${dst}.backup"` and the success line with the computed path.
 
-- [ ] **Step 4: Run the test and the gate**
+- [x] **Step 4: Run the test and the gate**
 
 Run: `bash setup/tests/symlinks-backup.sh && pnpm check`
 Expected: all `ok`, gate exit 0 (after adding `bash setup/tests/symlinks-backup.sh > /dev/null` to `bin/lib/check`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add setup/symlinks.sh setup/tests/symlinks-backup.sh bin/lib/check setup/README.md CLAUDE.md
