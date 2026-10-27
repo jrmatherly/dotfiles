@@ -3,13 +3,13 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "Dotfiles Bootstrap Runtime",
-    "output": ".archify/architecture-dotfiles-runtime-20261001-131111/review-2/dotfiles-runtime.html",
+    "output": ".archify/architecture-dotfiles-runtime-20261027-125211/dotfiles-runtime.html",
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:jrmatherly/dotfiles.git",
       "provider": "github",
       "link_mode": "local-only",
-      "revision": "e42bbb01e98a015f4851398a0dc3a952876804cf"
+      "revision": "bb5641f7034472b1e67170f6891d6f17c652f049"
     }
   },
   "components": [
@@ -32,15 +32,15 @@
       "id": "setup",
       "type": "backend",
       "label": "setup.sh",
-      "sublabel": "orchestrator · sudo kept alive",
+      "sublabel": "orchestrator · sudo per step",
       "pos": [270, 220],
       "size": [170, 64],
       "sources": [
         {
           "path": "setup.sh",
-          "line": 149,
-          "end_line": 193,
-          "label": "sudo + step order"
+          "line": 152,
+          "end_line": 219,
+          "label": "sudo held per step + step order"
         }
       ]
     },
@@ -55,14 +55,14 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 141,
-          "end_line": 145,
+          "line": 144,
+          "end_line": 147,
           "label": "Touch ID sudo"
         },
         {
           "path": "setup/zsh.sh",
-          "line": 45,
-          "end_line": 53,
+          "line": 49,
+          "end_line": 57,
           "label": "register zsh + chsh"
         }
       ]
@@ -77,8 +77,8 @@
       "sources": [
         {
           "path": "setup/brew.sh",
-          "line": 23,
-          "end_line": 43
+          "line": 29,
+          "end_line": 50
         }
       ]
     },
@@ -92,20 +92,20 @@
       "sources": [
         {
           "path": "setup/misc.sh",
-          "line": 96,
-          "end_line": 194,
+          "line": 137,
+          "end_line": 294,
           "label": "mise, Claude Code, CodeGraph, MCP"
         },
         {
           "path": "setup/misc.sh",
-          "line": 214,
-          "end_line": 229,
+          "line": 462,
+          "end_line": 477,
           "label": "Aspire dev-cert trust"
         },
         {
           "path": "setup/misc.sh",
-          "line": 274,
-          "end_line": 275,
+          "line": 524,
+          "end_line": 525,
           "label": "claude-config restore"
         }
       ]
@@ -120,8 +120,8 @@
       "sources": [
         {
           "path": "setup/symlinks.sh",
-          "line": 161,
-          "end_line": 225
+          "line": 187,
+          "end_line": 251
         }
       ]
     },
@@ -135,8 +135,8 @@
       "sources": [
         {
           "path": "setup/brew.sh",
-          "line": 23,
-          "end_line": 28
+          "line": 29,
+          "end_line": 35
         }
       ]
     },
@@ -150,12 +150,12 @@
       "sources": [
         {
           "path": "setup/misc.sh",
-          "line": 111,
-          "end_line": 118
+          "line": 145,
+          "end_line": 152
         },
         {
           "path": "setup/misc.sh",
-          "line": 185
+          "line": 290
         }
       ]
     },
@@ -169,12 +169,12 @@
       "sources": [
         {
           "path": "setup/misc.sh",
-          "line": 138
+          "line": 212
         },
         {
           "path": "bin/claude-config",
-          "line": 127,
-          "end_line": 131,
+          "line": 155,
+          "end_line": 166,
           "label": "marketplaces + plugins"
         }
       ]
@@ -189,8 +189,8 @@
       "sources": [
         {
           "path": "setup/symlinks.sh",
-          "line": 173,
-          "end_line": 224
+          "line": 199,
+          "end_line": 250
         }
       ]
     },
@@ -224,8 +224,8 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 62,
-          "end_line": 73,
+          "line": 65,
+          "end_line": 76,
           "label": "re-run under script(1)"
         }
       ]
@@ -279,7 +279,7 @@
       "id": "step-misc",
       "from": "setup",
       "to": "misc",
-      "label": "3 · misc",
+      "label": "3 · misc · no sudo",
       "variant": "emphasis"
     },
     {
@@ -348,6 +348,7 @@
       "title": "Trust boundaries",
       "items": [
         "setup.sh and zsh.sh write root-owned files (pam sudo_local, /etc/shells)",
+        "sudo is dropped (sudo -k) for misc.sh, so its curl | bash and npm installs run without it",
         "Everything else runs as you; symlink_file never overwrites silently",
         "Third-party code arrives via curl | bash (Homebrew, Claude Code) and package registries",
         "misc.sh trusts the Aspire HTTPS dev cert in your login keychain (macOS may ask)"
