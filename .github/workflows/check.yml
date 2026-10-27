@@ -16,8 +16,11 @@ concurrency:
 jobs:
   check:
     # The scripts target macOS: /bin/bash 3.2, zsh, and Homebrew for the
-    # Brewfile parse step that bin/lib/check skips without brew
-    runs-on: macos-latest
+    # Brewfile parse step that bin/lib/check skips without brew. Pinned
+    # (macos-latest moves without notice); Renovate's github-actions manager
+    # proposes the next image as a PR
+    runs-on: macos-26
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -33,7 +36,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.15'
-      - run: brew install shellcheck minijinja-cli
+      - run: brew install actionlint shellcheck minijinja-cli
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
           HOMEBREW_NO_INSTALL_CLEANUP: 1

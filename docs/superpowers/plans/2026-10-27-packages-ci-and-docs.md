@@ -62,9 +62,9 @@ Decision recorded here: delete without replacement. `syntax-highlight` (already 
 - Modify: `renovate.json` (enable the `github-runners` manager if not already covered; check the Dependency Dashboard after the push)
 - Modify: `CLAUDE.md` (the `pnpm check` list gains actionlint; the Renovate bullet names the actions, pnpm and runner managers, F4)
 
-- [ ] **Step 1: Edit**, run `actionlint .github/workflows/check.yml` locally (it is in the Brewfile), then `pnpm check`.
-- [ ] **Step 2: Push and watch the first run** on the pinned image: `gh run watch` must end green; if the image lacks zsh or Homebrew, revert the pin in a follow-up commit and say so.
-- [ ] **Step 3: Commit**: `git commit -m "Pin the CI runner, bound the job and lint the workflow"`.
+- [x] **Step 1: Edit**, run `actionlint .github/workflows/check.yml` locally (it is in the Brewfile), then `pnpm check`.
+- [ ] **Step 2: Push and watch the first run** on the pinned image: `gh run watch` must end green; if the image lacks zsh or Homebrew, revert the pin in a follow-up commit and say so. skip: checked by the coordinator after the final push; the Renovate Dependency Dashboard check (it should list `macos-26` under github-actions) needs the owner in the GitHub web UI
+- [x] **Step 3: Commit**: `git commit -m "Pin the CI runner, bound the job and lint the workflow"`.
 
 ### Task 4: Ignore rules and stale entries (E7, A14)
 
