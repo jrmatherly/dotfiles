@@ -92,9 +92,9 @@ Decision recorded here: delete without replacement. `syntax-highlight` (already 
 
 Defaults recorded here: VS Code `"telemetry.telemetryLevel": "off"` is added (no feature cost). `JFROG_CLI_REPORT_USAGE=false` is added after confirming the default with `jf options | grep -i usage` or the JFrog docs. Claude Code's `DISABLE_TELEMETRY` is not set (it also disables feature flags and Remote Control per the vendor docs); `DISABLE_ERROR_REPORTING=1` is set. Codex's `approval_policy = "never"` stays, with one comment line in the config explaining the sandbox boundary.
 
-- [ ] **Step 1: Confirm each default**: the VS Code setting name in VS Code's Default Settings (`Cmd+Shift+P`, "Open Default Settings (JSON)"); `jf options`; Claude Code's `~/.claude-code-docs/cache/claude-code__data-usage.md`.
-- [ ] **Step 2: Edit the files**; for each env opt-out, add it to both `setup.sh` and `zsh/env.zsh` and the `docs/privacy.md` list (`bin/lib/test-conventions` checks the pairing), and to `agents/claude-settings.json` `env` only if a hook reads it.
-- [ ] **Step 3: `bin/vscode-settings --check`**, `/docs-audit docs/privacy.md`, `pnpm check`, commit: `git commit -m "Opt out of VS Code, JFrog and Claude Code error telemetry"`.
+- [x] **Step 1: Confirm each default**: the VS Code setting name in VS Code's Default Settings (`Cmd+Shift+P`, "Open Default Settings (JSON)"); `jf options`; Claude Code's `~/.claude-code-docs/cache/claude-code__data-usage.md`.
+- [x] **Step 2: Edit the files**; for each env opt-out, add it to both `setup.sh` and `zsh/env.zsh` and the `docs/privacy.md` list (`bin/lib/test-conventions` checks the pairing), and to `agents/claude-settings.json` `env` only if a hook reads it.
+- [x] **Step 3: `bin/vscode-settings --check`**, `/docs-audit docs/privacy.md`, `pnpm check`, commit: `git commit -m "Opt out of VS Code, JFrog and Claude Code error telemetry"`.
 
 ### Task 7: Doc mismatches (F1, F2, F3) and the mise comment (E9)
 
