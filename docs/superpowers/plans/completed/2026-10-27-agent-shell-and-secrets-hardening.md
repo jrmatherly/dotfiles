@@ -364,7 +364,7 @@ Expected: `FAIL: claude-settings allow: Bash(curl:*)`.
 
 In `agents/claude-settings.json` remove the three allow entries, add `Bash(curl *)` and `Bash(gh api *)` to `ask`, add the seven deny rules. In `.claude/settings.json` add the three project deny rules. Check each rule shape against the permissions doc (`~/.claude-code-docs/cache/claude-code__permissions.md`, "Read and Edit rules" and "Wildcard patterns") before saving. Keep both files `jq .`-clean and the lists sorted.
 
-- [ ] **Step 4: Apply to the live settings** (skip: needs the owner)
+- [x] **Step 4: Apply to the live settings** (done by the owner; `git diff --stat agents/` empty after save)
 
 Remove `Bash(curl:*)`, `Bash(gh api:*)` and `WebFetch` from `~/.claude/settings.json` through `/permissions` in an interactive `claude`, then run `bin/claude-config restore settings` and `bin/claude-config save`.
 Run: `git diff --stat agents/`
@@ -387,7 +387,7 @@ git commit -m "Ask before curl and gh api, deny credential paths and VS Code sta
 No default change. `IdentitiesOnly yes` under `Host *` with the 1Password agent means every host needs its own `IdentityFile` in `config.local`, or ssh offers nothing. The current layout pins only github.com. Record the choice in `tilde/README.md`'s SSH paragraph either way.
 
 - [x] **Step 1: Decide**: keep (default) or pin per host.
-- [ ] **Step 2: If pinning**: add `IdentitiesOnly yes` under `Host *` and an `IdentityFile` per host in `~/.ssh/config.local`; verify with `ssh -G <host> | grep -E 'identitiesonly|identityfile'` for each host you use. (skip: keeping the current layout)
+- [x] **Step 2: If pinning**: add `IdentitiesOnly yes` under `Host *` and an `IdentityFile` per host in `~/.ssh/config.local`; verify with `ssh -G <host> | grep -E 'identitiesonly|identityfile'` for each host you use. (not applicable: kept the current layout)
 - [x] **Step 3: Commit** the README line (and the config, if changed): `git commit -m "Document the SSH identity policy"`.
 
 ---
