@@ -290,13 +290,13 @@ git commit -m "Release sudo before the installers that do not need it"
 
 These are checks the owner runs; each decides one block.
 
-- [ ] (skip: needs the owner) **Step 1: TextEdit.** Run the three `defaults write com.apple.TextEdit …` lines, quit and reopen TextEdit, `File > New`. Plain text with no ruler means honoured (keep); a rich-text document means dead (delete the block and the `TextEdit plain text` line in `setup/README.md`).
-- [ ] (skip: needs the owner) **Step 2: Preview.** `defaults write com.apple.Preview ApplePersistenceIgnoreState YES`, open two PDFs, quit, reopen one. Only that one open means honoured.
-- [ ] (skip: needs the owner) **Step 3: QuickTime.** Write the key, open a video. Auto-play means honoured.
-- [ ] (skip: needs the owner) **Step 4: helpviewer (`:108`).** Open any app's Help window; a floating window that stays above others means honoured.
-- [ ] (skip: needs the owner) **Step 5: Quick Look text selection (`:239`).** Quick Look a text file, try to select text. No selection means dead; delete the line.
-- [ ] (skip: needs the owner) **Step 6: Messages (`:542-548`).** Type `"hi"` in Messages; straight quotes mean honoured, curly means dead; delete the dead keys.
-- [ ] (skip: needs the owner) **Step 7: Commit** the deletions and README edits: `git commit -m "Drop macOS defaults the sandboxed apps ignore"`.
+- [x] **Step 1: TextEdit.** Run the three `defaults write com.apple.TextEdit …` lines, quit and reopen TextEdit, `File > New`. Plain text with no ruler means honoured (keep); a rich-text document means dead (delete the block and the `TextEdit plain text` line in `setup/README.md`). Honoured on macOS 27.0.1: a new document offered Format > Make Rich Text. Kept.
+- [x] **Step 2: Preview.** `defaults write com.apple.Preview ApplePersistenceIgnoreState YES`, open two PDFs, quit, reopen one. Only that one open means honoured. Honoured: only the double-clicked PDF reopened. Kept.
+- [x] **Step 3: QuickTime.** Write the key, open a video. Auto-play means honoured. Dead: key reads 1 but the .mp4 opened paused. Deleted.
+- [x] **Step 4: helpviewer (`:108`).** Open any app's Help window; a floating window that stays above others means honoured. Help windows go behind other windows (Mac User Guide). Kept; unproven that the key causes it, but nothing lost by keeping it.
+- [x] **Step 5: Quick Look text selection (`:239`).** Quick Look a text file, try to select text. No selection means dead; delete the line. Dead: with the clipboard cleared, selecting and copying worked with the key deleted and with it set. Deleted.
+- [x] **Step 6: Messages (`:542-548`).** Type `"hi"` in Messages; straight quotes mean honoured, curly means dead; delete the dead keys. Dead, all three: typed \"hi\" became curly, :) became an emoji, and Check Spelling While Typing stays ticked while the keys read 0. Block deleted, and Messages dropped from the kill list.
+- [x] **Step 7: Commit** the deletions and README edits: `git commit -m "Drop macOS defaults the sandboxed apps ignore"`. Committed with the README and rule edits.
 
 ### Task 11: Validate the whole program on this Mac (B14 included)
 

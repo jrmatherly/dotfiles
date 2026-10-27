@@ -124,7 +124,7 @@ Applied unconditionally:
 - Energy (`pmset`): lid wake on, disk sleep 10 min, no wake for network access, hibernation mode 3.
 - Crash-reporter dialog off; Terminal.app uses UTF-8 and Secure Keyboard Entry.
 
-Safari isn't configured — it's sandboxed, so its preferences can't be set from a script; use Safari → Settings. At the end the script force-quits Finder, Dock, Messages, Activity Monitor, Notification Center, SystemUIServer and Terminal (so run it from another terminal app), and key repeat needs a logout to take effect.
+Safari isn't configured — it's sandboxed, so its preferences can't be set from a script; use Safari → Settings. At the end the script force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal (so run it from another terminal app), and key repeat needs a logout to take effect.
 
 ## dash
 
