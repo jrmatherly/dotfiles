@@ -386,9 +386,9 @@ git commit -m "Ask before curl and gh api, deny credential paths and VS Code sta
 
 No default change. `IdentitiesOnly yes` under `Host *` with the 1Password agent means every host needs its own `IdentityFile` in `config.local`, or ssh offers nothing. The current layout pins only github.com. Record the choice in `tilde/README.md`'s SSH paragraph either way.
 
-- [ ] **Step 1: Decide**: keep (default) or pin per host.
-- [ ] **Step 2: If pinning**: add `IdentitiesOnly yes` under `Host *` and an `IdentityFile` per host in `~/.ssh/config.local`; verify with `ssh -G <host> | grep -E 'identitiesonly|identityfile'` for each host you use.
-- [ ] **Step 3: Commit** the README line (and the config, if changed): `git commit -m "Document the SSH identity policy"`.
+- [x] **Step 1: Decide**: keep (default) or pin per host.
+- [ ] **Step 2: If pinning**: add `IdentitiesOnly yes` under `Host *` and an `IdentityFile` per host in `~/.ssh/config.local`; verify with `ssh -G <host> | grep -E 'identitiesonly|identityfile'` for each host you use. (skip: keeping the current layout)
+- [x] **Step 3: Commit** the README line (and the config, if changed): `git commit -m "Document the SSH identity policy"`.
 
 ---
 
