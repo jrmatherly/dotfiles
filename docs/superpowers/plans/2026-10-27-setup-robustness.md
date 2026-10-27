@@ -145,16 +145,16 @@ git commit -m "Guard tput in the setup scripts"
 - Modify: `setup/misc.sh:42-49`
 - Modify: `setup/README.md` (`misc` section, the CLT bullet)
 
-- [ ] **Step 1: Rewrite the block**
+- [x] **Step 1: Rewrite the block**
 
 When `xcode-select -p` fails: if `[ ! -t 0 ]`, print `Xcode Command Line Tools missing; run: xcode-select --install` through `indent` and skip. Else run `xcode-select --install > /dev/null 2>&1 || true`, then wait at most 30 minutes (`for i in $(seq 1 360); do xcode-select -p && break; sleep 5; done`), and if still missing, `warning "Xcode Command Line Tools not installed — later steps may fail; run: xcode-select --install"` and continue.
 
-- [ ] **Step 2: Prove the headless branch**
+- [x] **Step 2: Prove the headless branch**
 
 Run: `bash -c 'if [ ! -t 0 ]; then echo headless-skip; fi' < /dev/null`
 Expected: `headless-skip`. (The install dialog itself cannot be exercised on this machine; CLT is installed.)
 
-- [ ] **Step 3: Run the gate and commit**
+- [x] **Step 3: Run the gate and commit**
 
 Run: `pnpm check`
 

@@ -38,7 +38,7 @@ Registers Homebrew's Zsh (installed by the Brewfile) in `/etc/shells` and makes 
 
 ## misc
 
-- Installs the Xcode Command Line Tools if missing and makes the scripts in `bin/` executable.
+- Installs the Xcode Command Line Tools if missing and makes the scripts in `bin/` executable. It waits at most 30 minutes for the install dialog, then warns and carries on (a cancelled dialog no longer hangs the run); without a terminal it skips the install and prints `xcode-select --install` to run later.
 - Installs the [Iosevka Code](https://github.com/amnweb/Iosevka-Code) Nerd Font (VS Code's font, no Homebrew cask) into `~/Library/Fonts` with [`bin/install-iosevka-code`](../bin/install-iosevka-code). Unlike the rest of setup it also updates: if the upstream release zip changed since the last install, it's reinstalled (see [fonts](../fonts/README.md)). A failed download warns and setup carries on.
 - Renders VS Code's `settings.json` from `vscode/User/settings.json.j2` with [`bin/vscode-settings`](../bin/vscode-settings) (minijinja-cli from the Brewfile), offering the font preset menu (`iosevka`, `warp`, `warp-terminal`, `fira`) when run from a terminal and keeping the saved choice otherwise. It never overwrites changes VS Code made since the last render: that's a warning with the diff, and `vscode-settings --force` drops them. Without minijinja-cli (`--skip-brew` on a fresh Mac) it's skipped with a warning. See [vscode/README.md](../vscode/README.md#fonts-and-the-settings-template).
 - If the GitHub CLI isn't authenticated, offers to run `gh auth login`. gh keeps the token in the macOS keychain; `~/.config/gh/hosts.yml` is gitignored anyway, since gh falls back to storing the token there in plain text when no keychain is available.

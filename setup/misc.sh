@@ -39,17 +39,22 @@ sudo echo "Sudo activated!"
 echo
 
 # Install Xcode Command Line Tools and accept its license
-if ! xcode-select -p &> /dev/null; then
-  xcode-select --install &> /dev/null
-
-  # Wait until the Xcode Command Line Tools are installed
-  until xcode-select -p &> /dev/null; do
+if xcode-select -p 2> /dev/null; then
+  :
+elif [ ! -t 0 ]; then
+  # Headless: the install dialog needs someone to click it, so don't wait
+  echo "Xcode Command Line Tools missing; run: xcode-select --install" | indent
+else
+  xcode-select --install > /dev/null 2>&1 || true
+  # At most 30 minutes: a cancelled dialog would otherwise hang the run
+  for _ in $(seq 1 360); do
+    if xcode-select -p &> /dev/null; then break; fi
     sleep 5
   done
+  if ! xcode-select -p 2> /dev/null; then
+    warning "Xcode Command Line Tools not installed; later steps may fail; run: xcode-select --install"
+  fi
 fi
-
-# Verify Xcode Command Line Tools successful installation
-xcode-select -p
 
 # Make custom binary scripts executable
 info 'Changing access permissions for binary scripts…'
