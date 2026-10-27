@@ -376,9 +376,9 @@ install_extras() {
 
   install_mole_config
 
-  # Lazygit: config lives in the repo and is passed via the `lg` alias
-  # (`--use-config-dir`); `state.yml` is machine-local and gitignored, so
-  # there's nothing to link here.
+  # Lazygit: config lives in the repo and zsh/env.zsh points LG_CONFIG_FILE at
+  # it; `state.yml` stays in lazygit's own config dir, so there's nothing to
+  # link here.
 
   # GPG — create ~/.gnupg ourselves: `symlink_file`'s `mkdir -p` would leave it
   # 755, and gpg warns "unsafe permissions on homedir" unless it's 700
