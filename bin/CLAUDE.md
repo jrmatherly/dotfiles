@@ -23,6 +23,7 @@ User CLI scripts, all on `PATH`. `zsh/path.zsh` prepends both `$DOTFILES/bin` an
   - `test-conventions`: tree invariants the docs promise (telemetry pairing between `setup.sh` and `zsh/env.zsh`, every zsh file Prettier-ignored, a header comment on line 2 of every `bin/` script, `trusted: true` on every third-party Brewfile formula or cask), run by `check`
   - `test-hindsight-memory`: fixture self-check for `hindsight-memory` under a temp `HOME` with the vendor installer, `hindsight-embed` and `npm` stubbed (`MISE_STATE_DIR` keeps the real mise trust records, since a shim run under a fake `HOME` refuses the global config), run by `check`
   - `test-claude-config`: fixture self-check for `claude-config save` (temp `HOME`, `CLAUDE_CONFIG_DIR` and `CLAUDE_CONFIG_SAVE_DIR`; `MISE_STATE_DIR` kept for a jq shim), run once per bash (`/bin/bash` and `/opt/homebrew/bin/bash`), run by `check`
+  - `test-bin`: self-check for small `bin/` scripts (`serve` answers on port 8099 with `SERVE_NO_OPEN=1`; a scratch repo with `main`, a merged `domain-fix` and an unmerged `wip` for the `git-*` scripts) under a temp `HOME` (`MISE_STATE_DIR` kept for the python3 shim), run by `check`
 - Setup entrypoints exposed as commands:
   - `brewpick`: Brewfile installer; `--all`, or an fzf checklist
   - `set-defaults`: runs `setup/macos.sh`

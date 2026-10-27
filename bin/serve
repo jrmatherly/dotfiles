@@ -11,10 +11,10 @@
 # `serve {{port}}`
 #
 # ---
-# See more: https://www.devdungeon.com/content/one-line-http-servers#python3
+# See more: https://docs.python.org/3/library/http.server.html
 #
 # License: MIT
 
 port="${1:-8080}"
-open "http://localhost:${port}/"
-ruby -run -e httpd . -p "$port"
+[ -n "${SERVE_NO_OPEN:-}" ] || open "http://localhost:${port}/"
+exec python3 -m http.server "$port"

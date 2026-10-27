@@ -1,0 +1,60 @@
+#!/bin/bash
+#
+# Self-check for small bin/ scripts (serve) in a scratch HOME and git repo.
+#
+# - Run it (pnpm check does too); exits 1 when an assertion fails:
+#
+# `test-bin`
+#
+# ---
+# Never touches the real HOME: HOME is a temp dir, and the git checks run in
+# $tmp/repo (main, a merged domain-fix and an unmerged wip).
+#
+# License: MIT
+
+set -u
+
+root="$(cd "$(dirname "$0")/.." && pwd -P)"
+root="${root%/bin}"
+tmp=$(mktemp -d)
+port=8099
+trap 'pkill -f "http.server $port" 2> /dev/null; rm -rf "$tmp"' EXIT
+# python3 can be a mise shim, which refuses the global config under a fake HOME
+# unless mise's trust records stay in the real state dir
+export MISE_STATE_DIR="${MISE_STATE_DIR:-$HOME/.local/state/mise}"
+export HOME="$tmp/home" GIT_CONFIG_NOSYSTEM=1
+export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
+mkdir -p "$HOME"
+fails=0
+
+check() {
+  if eval "$2"; then echo "ok   $1"; else
+    echo "FAIL $1"
+    fails=$((fails + 1))
+  fi
+}
+
+(
+  cd "$tmp" && git init -q -b main repo && cd repo || exit 1
+  mkdir sub && echo a > top.txt && echo b > sub/inner.txt
+  git add . && git commit -qm one
+  git branch domain-fix
+  echo c >> top.txt && git commit -qam two
+  git checkout -qb wip && echo d >> top.txt && git commit -qam three
+  git checkout -q main
+)
+
+(cd "$tmp" && SERVE_NO_OPEN=1 exec "$root/bin/serve" "$port" > /dev/null 2>&1 &)
+code=000
+for _ in $(seq 50); do
+  code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/" 2> /dev/null)
+  [ "$code" = 200 ] && break
+  sleep 0.1
+done
+check "serve answers" "[ '$code' = 200 ]"
+pkill -f "http.server $port" 2> /dev/null
+
+[ "$fails" -eq 0 ] || {
+  echo "$fails failed" >&2
+  exit 1
+}

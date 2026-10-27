@@ -112,7 +112,7 @@ git commit -m "Keep upup's self-check out of the real home"
 **Interfaces:**
 - Produces: `bin/lib/test-bin` with `check "<name>" "<shell test>"` from `codex-config.sh`, a scratch `HOME`, and a scratch git repo at `$tmp/repo` with `main` plus a merged branch `domain-fix` and an unmerged `wip` (Tasks 5 and 6 use it).
 
-- [ ] **Step 1: Write the failing check**
+- [x] **Step 1: Write the failing check**
 
 ```bash
 (cd "$tmp" && SERVE_NO_OPEN=1 "$root/bin/serve" 8099 > /dev/null 2>&1 &) ; sleep 1
@@ -120,16 +120,16 @@ check "serve answers" "[ \"\$(curl -s -o /dev/null -w '%{http_code}' http://127.
 pkill -f 'http.server 8099' || true
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-bin`
 Expected: `FAIL serve answers` (ruby's `LoadError: cannot load such file -- webrick`).
 
-- [ ] **Step 3: Switch to Python's server**
+- [x] **Step 3: Switch to Python's server**
 
 `bin/serve`: `[ -n "${SERVE_NO_OPEN:-}" ] || open "http://localhost:${port}/"`, then `exec python3 -m http.server "$port"`. Update the header's "See more" link to Python's `http.server` docs.
 
-- [ ] **Step 4: Run the test and the gate, then commit**
+- [x] **Step 4: Run the test and the gate, then commit**
 
 Run: `bash bin/lib/test-bin && pnpm check`
 
