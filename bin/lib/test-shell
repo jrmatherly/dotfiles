@@ -91,4 +91,9 @@ fi
 ! user_zsh 'alias ld' > /dev/null || fail "ld alias shadows the linker"
 [ "$(user_zsh 'whence -w where')" = "where: builtin" ] || fail "where is not the builtin"
 
+# The completion dump is fresh on its own day, below day 100 too (`date +%j` is 027, not 27)
+touch -t 202601271200 "$tmp/dump"
+[ "$(user_zsh "today=027; zcompdump_is_stale $tmp/dump && echo stale || echo fresh")" = fresh ] || fail "compinit cache miss on a day below 100"
+[ "$(user_zsh "today=028; zcompdump_is_stale $tmp/dump && echo stale || echo fresh")" = stale ] || fail "compinit cache never goes stale"
+
 echo "shell: all checks passed"

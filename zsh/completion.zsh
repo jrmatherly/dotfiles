@@ -18,8 +18,12 @@ fi
 autoload -Uz compinit
 
 # Based on https://carlosbecker.com/posts/speeding-up-zsh/
-typeset -i updated_at=$(date +'%j' -r ~/.zcompdump 2>/dev/null || stat -f '%Sm' -t '%j' ~/.zcompdump 2>/dev/null)
-if [ $(date +'%j') != $updated_at ]; then
+# Days compare as numbers: a string compare of "027" against 27 rebuilt the dump
+# every day from January 1 to April 9. `today` lets bin/lib/test-shell pin the day.
+zcompdump_is_stale() {
+  (( ${today:-$(date +%j)} != $(stat -f '%Sm' -t '%j' "$1" 2>/dev/null || echo 0) ))
+}
+if zcompdump_is_stale ~/.zcompdump; then
   compinit -i
 else
   compinit -C -i

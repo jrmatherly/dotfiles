@@ -33,7 +33,7 @@
 - Modify: `zsh/completion.zsh:20-26`
 - Modify: `bin/lib/test-shell`
 
-- [ ] **Step 1: Add the failing assertion**
+- [x] **Step 1: Add the failing assertion**
 
 The decision logic becomes a function `zcompdump_is_stale <dumpfile>` so the test can call it with a fake day. Test:
 
@@ -44,13 +44,13 @@ user_zsh "source $root/zsh/completion.zsh; today=027; zcompdump_is_stale $tmp/du
 
 (The function reads `${today:-$(date +%j)}` so the test can pin the day; `stat -f %Sm -t %j` gives the file's day.)
 
-- [ ] **Step 2: Run it and watch it fail** (today's string compare says stale).
+- [x] **Step 2: Run it and watch it fail** (today's string compare says stale).
 
-- [ ] **Step 3: Rewrite the check** as an arithmetic compare: `(( ${today:-$(date +%j)} != $(stat -f '%Sm' -t '%j' "$1") ))`, drop the invalid `date +'%j' -r` attempt.
+- [x] **Step 3: Rewrite the check** as an arithmetic compare: `(( ${today:-$(date +%j)} != $(stat -f '%Sm' -t '%j' "$1") ))`, drop the invalid `date +'%j' -r` attempt.
 
-- [ ] **Step 4: Measure**: `for i in 1 2 3 4 5; do /usr/bin/time -p zsh -i -c exit; done 2>&1 | grep real` at trunk and head on a day below 100 (or with `today` pinned); expect roughly 300 ms less on those days.
+- [x] **Step 4: Measure**: `for i in 1 2 3 4 5; do /usr/bin/time -p zsh -i -c exit; done 2>&1 | grep real` at trunk and head on a day below 100 (or with `today` pinned); expect roughly 300 ms less on those days.
 
-- [ ] **Step 5: `pnpm check`, commit**: `git commit -m "Compare completion dump days as numbers"`.
+- [x] **Step 5: `pnpm check`, commit**: `git commit -m "Compare completion dump days as numbers"`.
 
 ### Task 2: One `brew --prefix` per shell (D2)
 
