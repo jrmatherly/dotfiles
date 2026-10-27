@@ -53,6 +53,11 @@ check "missing link created" "[ \"\$(readlink '$HOME/.config/b')\" = '$DOTFILES_
 ln -s "$DOTFILES_DIR/tilde/.config/old" "$HOME/.config/c"
 link_config_dir c > /dev/null 2>&1
 check "repo link relinked" "[ \"\$(readlink '$HOME/.config/c')\" = '$DOTFILES_DIR/tilde/.config/c' ]"
+ln -s "$DOTFILES_DIR" "$HOME/alias"
+mkdir -p "$DOTFILES_DIR/tilde/.config/e"
+ln -s "$HOME/alias/tilde/.config/e" "$HOME/.config/e"
+link_config_dir e > /dev/null 2>&1
+check "link through an alias of the repo relinked" "[ \"\$(readlink '$HOME/.config/e')\" = '$DOTFILES_DIR/tilde/.config/e' ]"
 link_config_dir d > /dev/null 2>&1
 check "real directory left untouched" "[ -d '$HOME/.config/d' ] && [ ! -L '$HOME/.config/d' ]"
 

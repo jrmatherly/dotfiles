@@ -42,7 +42,8 @@ command_exists() {
 link_config_dir() {
   local dst="$HOME/.config/$1"
   mkdir -p "$HOME/.config"
-  if [ ! -e "$dst" ] && [ ! -L "$dst" ] || [[ -L "$dst" && "$(readlink "$dst")" == "$DOTFILES_DIR"/* ]]; then
+  # -ef also accepts a link that reaches the repo another way (e.g. ~/dotfiles)
+  if [ ! -e "$dst" ] && [ ! -L "$dst" ] || [[ -L "$dst" && ("$(readlink "$dst")" == "$DOTFILES_DIR"/* || "$dst" -ef "$DOTFILES_DIR/tilde/.config/$1") ]]; then
     ln -sfn "$DOTFILES_DIR/tilde/.config/$1" "$dst"
   elif [ -L "$dst" ]; then
     warning "~/.config/$1 links elsewhere; leaving it; symlinks.sh will ask"
