@@ -60,4 +60,9 @@ assert not any(p.startswith(("group", "curated")) for p in probs[1:])
 probs = b.lint([], {}, {"mcp": {"ghost": {"desc": "x"}}, "group": [{"title": "G", "items": ["ghost", "nope"]}]})
 assert probs == ["group 'G' names unknown item: nope", "mcp server not registered on this machine: ghost"], probs
 
+# an empty CLAUDE_CONFIG_DIR means unset, like the shell's ${VAR:-}, not the cwd
+import importlib
+os.environ["CLAUDE_CONFIG_DIR"] = ""
+assert importlib.reload(b).CLAUDE == Path.home() / ".claude", b.CLAUDE
+
 print("ok")

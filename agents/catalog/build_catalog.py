@@ -15,7 +15,7 @@ from datetime import date
 from pathlib import Path
 
 HOME = Path.home()
-CLAUDE = Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude"))
+CLAUDE = Path(os.environ.get("CLAUDE_CONFIG_DIR") or HOME / ".claude")  # empty = unset, as in the shell
 HERE = Path(__file__).resolve().parent
 
 

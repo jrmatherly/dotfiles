@@ -10,8 +10,8 @@
 # Checks the telemetry pairing (setup.sh exports a subset of zsh/env.zsh's),
 # that Prettier ignores every zsh file, that every bin/ script's header renders
 # through help (a header comment on line 2 without tldr), that help cleans up its
-# temp pages and refuses a directory, and that every third-party Brewfile formula
-# or cask is trusted.
+# temp pages, refuses a directory and keeps docs/gui when run through a symlink,
+# and that every third-party Brewfile formula or cask is trusted.
 #
 # License: MIT
 
@@ -51,6 +51,26 @@ for file in bin/*; do
 done
 [ "$(ls -d "${TMPDIR:-/tmp}"/tldr-* 2> /dev/null | wc -l)" -le "$before" ] || fail "help leaves temp dirs"
 bin/help lib > /dev/null 2>&1 && fail "help lib should fail cleanly" || true
+
+# help reached through a symlink (~/dotfiles) while $DOTFILES names the real
+# path must render a docs page, never delete its folder. Run against a scratch
+# copy, so a regression only ever deletes the copy's docs/gui
+if command -v node > /dev/null; then
+  scratch=$(mktemp -d)
+  mkdir "$scratch/real"
+  cp -R bin docs "$scratch/real/"
+  mkdir "$scratch/real/tilde" && cp tilde/.tlrc.toml "$scratch/real/tilde/"
+  ln -s "$scratch/real" "$scratch/link"
+  page=$(ls docs/gui | head -1)
+  DOTFILES="$(cd "$scratch/real" && pwd -P)" "$scratch/link/bin/help" "gui/${page%.md}" > /dev/null 2>&1 || true
+  [ -f "$scratch/real/docs/gui/$page" ] || {
+    rm -rf "$scratch"
+    fail "help through a symlink deleted docs/gui"
+  }
+  rm -rf "$scratch"
+else
+  echo "test-conventions: node not found, skipping the help symlink check" >&2
+fi
 
 while IFS=: read -r line text; do
   [[ $text == *', trusted: true'* ]] || fail "Brewfile trust: line $line"

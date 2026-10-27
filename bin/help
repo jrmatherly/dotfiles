@@ -16,7 +16,7 @@
 
 cd "$(dirname "$0")/.." || exit
 
-DOTFILES_DIR="$(pwd)"
+DOTFILES_DIR="$(pwd -P)"
 config="$DOTFILES_DIR/tilde/.tlrc.toml"
 
 # The pages in docs/ are regular Markdown (headings, tables), which tlrc's
@@ -38,14 +38,19 @@ else
   md="$DOTFILES_DIR/docs/README.md"
 fi
 
-if [[ "$md" == "$DOTFILES_DIR/docs/"* ]]; then
-  render_markdown "$md"
-elif [ "$md" != "" ]; then
-  # A tldr page generated from a bin/ script's header comment, written into
-  # its own tldr-XXXX temp dir by get-tldr-md
-  tmpdir="$(dirname "$md")"
-  trap 'rm -rf "$tmpdir"' EXIT
+# get-tldr-md writes a script's page into its own mkdtemp dir, tldr-XXXXXX
+# directly under Node's os.tmpdir(). Only such a dir is ever deleted: a path
+# check against the repo breaks when help and get-tldr-md resolve it
+# differently (~/dotfiles symlink vs $DOTFILES), and the wrong branch would
+# rm -rf a docs folder
+tmp_root="${TMPDIR:-/tmp}"
+tmp_root="${tmp_root%/}"
+page_dir="$(dirname "$md")"
+if [[ "$(dirname "$page_dir")" == "$tmp_root" && "${page_dir##*/}" == tldr-?????? && -f "$md" ]]; then
+  trap 'rm -rf "$page_dir"' EXIT
   tldr --config "$config" --render "$md"
+elif [ "$md" != "" ]; then
+  render_markdown "$md"
 else
   tldr --config "$config" "$@"
 fi
