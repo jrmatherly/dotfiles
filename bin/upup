@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Get macOS software updates, update Homebrew (incl. VS Code), mise and uv tools, the Iosevka Code font, dotfiles, Raycast, Claude Code and Amp; update agent skills, regenerate the SnippetsLab skill, record Claude Code plugins/settings/skills and rebuild their catalog.
+# Get macOS software updates, update Homebrew (incl. VS Code), mise (pruning versions nothing uses) and uv tools, the Iosevka Code font, dotfiles, Raycast, Claude Code and Amp; update agent skills, regenerate the SnippetsLab skill, record Claude Code plugins/settings/skills and rebuild their catalog.
 #
 # > Reads like a report: one status line per step and a summary at the end. Full tool output goes to `logs/upup-<timestamp>.log` in the dotfiles repo, and to the screen only when a step changed something or failed.
 # > A macOS update asks for your login password. Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` to a 1Password secret reference (`op://vault/item/password`) to supply it with a fingerprint instead.
@@ -121,7 +121,13 @@ if grep -q 'Label:' <<< "$macos_updates"; then
   if { [ -n "$mac_password" ] \
     && printf '%s\n' "$mac_password" | sudo softwareupdate -ia --verbose --user "$USER" --stdinpass 2>&1 | tee -a "$log"; } \
     || sudo softwareupdate -ia --verbose 2>&1 | tee -a "$log"; then
-    status changed macOS "$(sed -n 's/^.*Label: //p' <<< "$macos_updates" | list)"
+    # Without --restart, an update whose Title line says "Action: restart" is
+    # only downloaded; it installs at the next restart. Restarting here would
+    # cut off the steps below, so the restart is left to the summary
+    installed=$(awk '/Label: /{ if (l != "") print l; sub(/.*Label: /, ""); l = $0 } /Action: restart/{ l = "" } END { if (l != "") print l }' <<< "$macos_updates" | list)
+    pending=$(awk '/Label: /{ sub(/.*Label: /, ""); l = $0 } /Action: restart/{ print l }' <<< "$macos_updates" | list)
+    status changed macOS "${installed:+$installed installed}${installed:+${pending:+; }}${pending:+$pending downloaded, installs on restart}"
+    [ -z "$pending" ] || actions+=("Restart the Mac to finish installing $pending")
   else
     status fail macOS "install failed; run: sudo softwareupdate -ia --verbose"
   fi
@@ -171,19 +177,43 @@ fi
 # release binaries) — stays within the versions pinned in
 # ~/.config/mise/config.toml (MISE_LOG_LEVEL=warn hides mise's hint about
 # newer releases outside those pins); mise itself updates with Homebrew above
+# Prune before upgrading: it deletes the versions the previous run replaced
+# and keeps the ones this run replaces, so each upgrade can be rolled back
+# until the next upup. mise keeps every version a tracked config (any project
+# mise has loaded, worktrees too) or a running process still uses
+mise_dir="${MISE_DATA_DIR:-$HOME/.local/share/mise}"
+step "mise prune"
+if [ -d "$mise_dir/installs/rust" ]; then
+  # Uninstalling that toolchain runs its rustup, which loops through mise's shims and hangs
+  status notice "mise prune" "skipped while a mise rust install shadows rustup; see the Rust step"
+elif ! prunable=$(mise ls --prunable --json 2>> "$log") || ! jq -e 'type == "object"' <<< "$prunable" > /dev/null 2>&1; then
+  status fail "mise prune" "couldn't list unused versions; run: mise ls --prunable"
+else
+  paths=$(jq -r '.[][]?.install_path' <<< "$prunable")
+  if [ -z "$paths" ]; then
+    status ok "mise prune" "nothing unused"
+  else
+    # An install dir already gone makes du fail; the rest still count
+    kb=$(tr '\n' '\0' <<< "$paths" | { xargs -0 du -sk 2> /dev/null || true; } | awk '{ s += $1 } END { print s + 0 }')
+    # timeout (coreutils) bounds a hang like the rust one above when it's installed
+    # --yes: with no terminal to confirm on, mise prune refuses to delete
+    prune=(mise prune --yes)
+    ! command -v timeout > /dev/null || prune=(timeout 600 "${prune[@]}")
+    if capture "${prune[@]}"; then
+      status changed "mise prune" "$(plural "$(wc -l <<< "$paths" | tr -d ' ')" version) removed, $(awk -v k="$kb" 'BEGIN { if (k >= 1048576) printf "%.1fGB", k / 1048576; else if (k >= 1024) printf "%.0fMB", k / 1024; else printf "%dKB", k }') freed: $(jq -r 'to_entries[] | (.key | sub(".*[:/]"; "")) + " " + ([.value[].version] | join(","))' <<< "$prunable" | list)"
+    else
+      status fail "mise prune" "run: mise prune --yes"
+      show
+    fi
+  fi
+fi
+
 step mise
-mise_before=$(mise ls --json 2>> "$log" || echo '{}')
 if capture env MISE_LOG_LEVEL=warn mise upgrade; then
-  mise_after=$(mise ls --json 2>> "$log" || echo '{}')
-  upgraded=$(jq -rn --argjson a "$mise_before" --argjson b "$mise_after" '
-    def installed($x; $t): [$x[$t][]? | select(.installed) | .version];
-    $b | keys[] as $t
-    | installed($a; $t) as $old | installed($b; $t) as $new
-    | ($new - $old) as $added | select($added | length > 0)
-    | ($old - $new) as $removed
-    | ($t | sub(".*[:/]"; "")) + " "
-      + (if $removed | length > 0 then ($removed | join(",")) + "→" else "" end)
-      + ($added | join(","))' || true)
+  # mise prints "Upgraded N tools:" then one "  <tool> <old> → <new>" line per
+  # version, so a tool upgraded in several pinned versions (python 3.13, 3.14)
+  # shows each pair
+  upgraded=$(sed -nE 's/^ +([^ ]+) ([^ ]+) → ([^ ]+)$/\1 \2→\3/p' <<< "$out" | sed -E 's/^[^ ]*[:/]//')
   if [ -n "$upgraded" ]; then
     status changed mise "$(wc -l <<< "$upgraded" | tr -d ' ') upgraded: $(list <<< "$upgraded")"
   else
@@ -199,13 +229,13 @@ done < <(sed -nE 's/.*WARN +newer ([^ ]+) release ([^ ]+) \(released [^,]*, elig
 # mise upgrade reports a tool it could not reinstall (a pipx tool no config
 # pins, a backend bug) as a WARN and still exits 0
 while read -r mise_warn; do
-  status notice mise "$mise_warn; a version no config pins goes with: mise prune (not while a mise rust install shadows rustup; see the Rust step)"
+  status notice mise "$mise_warn; the next upup's mise prune removes a version no config pins"
 done < <(sed -nE 's/.*WARN +(failed to [^:]*):.*/\1/p' <<< "$out" | sort -u)
 # Relink the global TypeScript for typescript-language-server (see
 # setup/misc.sh): the link target names the exact version mise installed.
 if ts_dir="$(mise where npm:typescript 2> /dev/null)"; then
-  mkdir -p "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules"
-  ln -sfn "$ts_dir/node_modules/typescript" "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules/typescript"
+  mkdir -p "$mise_dir/node_modules"
+  ln -sfn "$ts_dir/node_modules/typescript" "$mise_dir/node_modules/typescript"
 fi
 
 # Rust toolchain (rustup itself is a Homebrew formula, upgraded above). Per
@@ -219,7 +249,7 @@ if [ -n "$rustup_bin" ]; then
   step Rust
   rust_updated=""
   case $(command -v rustup || true) in
-    */mise/shims/rustup) status notice Rust "mise's leftover rust install shadows Homebrew's rustup; run: rm -rf ${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/rust && mise reshim (setup.sh does this), not mise prune, which runs that rustup and hangs" ;;
+    */mise/shims/rustup) status notice Rust "mise's leftover rust install shadows Homebrew's rustup; run: rm -rf $mise_dir/installs/rust && mise reshim (setup.sh does this), not mise prune, which runs that rustup and hangs" ;;
   esac
   if ! capture "$rustup_bin" update --no-self-update; then
     status fail Rust "run: rustup update"

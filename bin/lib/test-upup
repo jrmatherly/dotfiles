@@ -43,7 +43,9 @@ stub() {
 stub sudo '[ "$1" = -v ] && exit 0; exec "$@"'
 stub dotfiles '[ -e "$STATE/pull" ] && git -C "$DOTFILES" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m "Pulled change"; echo pulled'
 stub softwareupdate 'case $1 in
-  -l) if [ -e "$STATE/macos" ]; then echo "* Label: Safari 99.1"; else echo "No new software available."; fi ;;
+  -l) [ -e "$STATE/macos" ] || [ -e "$STATE/macos-os" ] || echo "No new software available."
+    [ ! -e "$STATE/macos" ] || printf "* Label: Safari 99.1\n\tTitle: Safari, Version: 99.1, Recommended: YES, \n"
+    [ ! -e "$STATE/macos-os" ] || printf "* Label: macOS 27.2-26B123\n\tTitle: macOS 27.2, Version: 27.2, Recommended: YES, Action: restart, \n" ;;
   *) [ -e "$STATE/macos-fails" ] && { echo "install failed"; exit 1; }; echo "Done." ;;
 esac'
 stub brew 'case $1 in
@@ -54,10 +56,13 @@ stub brew 'case $1 in
 esac
 exit 0'
 stub mise 'case $1 in
-  ls) if [ -e "$STATE/mise-done" ]; then v=24.1.1; else v=24.1.0; fi
-    echo "{\"node\":[{\"version\":\"$v\",\"installed\":true}],\"github:microsoft/aspire\":[{\"version\":\"13.6.2\",\"installed\":true}]}" ;;
+  ls) if [ -e "$STATE/prune" ]; then
+      echo "{\"node\":[{\"version\":\"24.0.0\",\"install_path\":\"$STATE/installs/node/24.0.0\"}],\"github:microsoft/aspire\":[{\"version\":\"13.6.0\",\"install_path\":\"$STATE/installs/aspire/13.6.0\"}]}"
+    else echo "{}"; fi ;;
+  prune) case "$*" in *--yes*) ;; *) echo "mise ERROR mise prune requires confirmation but there was nobody to ask"; exit 1 ;; esac
+    [ -e "$STATE/prune-fails" ] && { echo "mise ERROR uninstall failed"; exit 1; }; rm -rf "$STATE/installs" "$STATE/prune" ;;
   upgrade) if [ -e "$STATE/mise" ]; then
-      touch "$STATE/mise-done"
+      printf "Upgraded 2 tools:\n  node 24.1.0 → 24.1.1\n  github:microsoft/aspire 13.6.1 → 13.6.2\n"
       echo "mise WARN  newer github:microsoft/aspire release 13.6.3 (released 2026-10-23, eligible 2026-10-24 14:17 EDT) ignored by minimum_release_age (24h); latest eligible release is 13.6.2"
       echo "mise WARN  failed to reinstall pipx tools: ~/.local/share/mise/shims/uv exited with non-zero status: exit code 2"
     fi ;;
@@ -137,6 +142,7 @@ check_true "up to date: skills counted" has '^✔ agent skills +2 tracked skills
 check_true "up to date: REA skill matches" has '^✔ REA skill +matches rea-agents 6\.8\.0$'
 check_true "up to date: Hindsight memory re-staged" has '^✔ Hindsight memory +runtime re-staged, hooks re-wired$'
 check_true "up to date: Rust is ok" has '^✔ Rust +up to date$'
+check_true "up to date: nothing for mise prune" has '^✔ mise prune +nothing unused$'
 check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
 check_true "up to date: one-line summary" has '^Everything up to date\.$'
 check_true "up to date: log path printed" has '^Log: logs/upup-[0-9]{8}-[0-9]{6}\.log$'
@@ -144,7 +150,9 @@ check_true "up to date: summary links the catalog" has '^Catalog: file:///tmp/ca
 check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs"
-touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea"
+mkdir -p "$STATE/installs/node/24.0.0" "$STATE/installs/aspire/13.6.0"
+head -c 2048 /dev/zero > "$STATE/installs/node/24.0.0/bin"
+touch "$STATE/prune" "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea"
 mkdir -p "$CLAUDE_CONFIG_DIR/skills"
 ln -s /nonexistent "$CLAUDE_CONFIG_DIR/skills/reverse-engineer-anything"
 run
@@ -159,9 +167,11 @@ check_true "changes: dotfiles pulled" has '^↻ dotfiles +pulled 1 commit$'
 check_true "changes: brew upgrade noise stays off screen" lacks '^==> Upgrading gh$'
 check_true "changes: brew caveats shown" has '^    zsh completions installed$'
 check_true "changes: Homebrew upgraded with versions" has '^↻ Homebrew +1 upgraded: gh 2.103.1→2.103.2$'
-check_true "changes: mise version change" has '^↻ mise +1 upgraded: node 24.1.0→24.1.1$'
+check_true "changes: mise names each old→new pair" has '^↻ mise +2 upgraded: node 24\.1\.0→24\.1\.1, aspire 13\.6\.1→13\.6\.2$'
+check_true "changes: mise prune counts, sizes and names what it removed" has '^↻ mise prune +2 versions removed, [0-9]+KB freed: node 24\.0\.0, aspire 13\.6\.0$'
+check_true "changes: prune ran before the upgrade" grep -q 'mise prune.*mise ' <<< "$(grep -oE '^== mise( prune)? ==' "$DOTFILES"/logs/upup-*.log | tr '\n' ' ')"
 check_true "changes: mise held release is a notice" has '^● mise +aspire 13.6.3 held until 2026-10-24 14:17 EDT by minimum_release_age$'
-check_true "changes: mise reinstall failure is a notice" has '^● mise +failed to reinstall pipx tools; a version no config pins goes with: mise prune \(not while a mise rust install shadows rustup; see the Rust step\)$'
+check_true "changes: mise reinstall failure is a notice" has '^● mise +failed to reinstall pipx tools; the next upup.s mise prune removes a version no config pins$'
 check_true "changes: uv failure names the command" has '^✖ uv +run: uv tool upgrade --all$'
 check_true "changes: uv failure output shown" has '^    error: network down$'
 check_true "changes: Claude Code failure names the command" has '^✖ Claude Code +run: claude update$'
@@ -184,8 +194,11 @@ check_true "warned: installer warning is the step's only line" lacks '^✔ Hinds
 check_true "warned: installer warning still a notice" has '^● Hindsight memory +installer: '
 
 rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
-touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust" "$STATE/no-cargo" "$STATE/rea-fails"
+touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust" "$STATE/no-cargo" "$STATE/rea-fails" "$STATE/prune" "$STATE/prune-fails"
 run
+check_true "update: mise prune failure names the command" has '^✖ mise prune +run: mise prune --yes$'
+check_true "update: mise prune failure output shown" has '^    mise ERROR uninstall failed$'
+rm -f "$STATE/prune" "$STATE/prune-fails"
 check_true "update: REA skill failure names the command" has '^✖ REA skill +run: rea setup --skill-client shared --skill-client claude_code --skill --yes$'
 check_true "update: REA skill failure shows only the remediation" has '^    Skill directory is a symbolic link\.$'
 check_true "update: REA skill failure hides the doctor payload" lacks 'needs_human'
@@ -205,7 +218,15 @@ run
 check_true "macOS: failed install reports fail only" has '^✖ macOS'
 check_true "macOS: failed install does not also say changed" lacks '^↻ macOS'
 check_true "REA skill change seen despite stderr noise" has '^↻ REA skill'
-rm -f "$STATE/macos" "$STATE/macos-fails" "$STATE/rea"
+rm -rf "$DOTFILES/logs" "$STATE/macos-fails"
+touch "$STATE/macos-os" "$STATE/prune"
+mkdir -p "$HOME/.local/share/mise/installs/rust"
+run
+check_true "macOS: a restart update is downloaded, not installed" has '^↻ macOS +Safari 99\.1 installed; macOS 27\.2-26B123 downloaded, installs on restart$'
+check_true "macOS: restart is an action" has '^  › Restart the Mac to finish installing macOS 27\.2-26B123$'
+check_true "rust in mise: prune skipped as a notice" has '^● mise prune +skipped while a mise rust install shadows rustup; see the Rust step$'
+check_true "rust in mise: prune never ran" test -e "$STATE/prune"
+rm -rf "$STATE/macos" "$STATE/macos-os" "$STATE/rea" "$STATE/prune" "$HOME/.local/share/mise"
 
 # Back to the uv failure: the terminal run below needs a failed step
 rm -rf "$DOTFILES/logs" "$HINDSIGHT_CONFIG" "$STATE/uv"
