@@ -52,6 +52,16 @@ printf 'echo sourced-ok\n' > "$tmp/s.zsh"
 [ "$(agent_zsh ". $tmp/s.zsh")" = sourced-ok ] || fail "agent shell: . does not source"
 [ "$(user_zsh ". $tmp/s.zsh")" = sourced-ok ] || fail "user shell: . does not source"
 
+# Agent shells get mise's shims, not its install dirs, even ones inherited from
+# the parent: Claude Code's shell snapshot never re-runs full activation's
+# prompt hook, so an install dir would pin one version for the whole session
+if need mise; then
+  mise_dir="${MISE_DATA_DIR:-$HOME/.local/share/mise}"
+  out=$(PATH="$mise_dir/installs/node/22/bin:$PATH" agent_zsh 'print -l $path')
+  ! grep -q "^$mise_dir/installs/" <<< "$out" || fail "agent shell: mise install dirs on PATH"
+  grep -qx "$mise_dir/shims" <<< "$out" || fail "agent shell: mise shims not on PATH"
+fi
+
 # Agent shells keep the builtin cd (zoxide as z); user shells keep zoxide's cd
 # (`--cmd cd` defines cd and cdi, not z)
 if need zoxide; then

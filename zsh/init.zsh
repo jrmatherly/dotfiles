@@ -15,7 +15,18 @@ source_brew_plugin() {
 # env vars, etc.). Shims for non-interactive/GUI processes are activated
 # separately in tilde/.zprofile. See https://mise.jdx.dev/getting-started.html
 if command_exists mise; then
-  eval "$(mise activate zsh)"
+  if [[ -n $CLAUDECODE ]]; then
+    # Agent shells get shims only. Claude Code snapshots the shell once per
+    # session and never runs the prompt hook full activation relies on, so the
+    # install dirs it puts on PATH (every global node, in list order) held for
+    # the whole session: node was 22 in a repo pinned to 24. A shim resolves
+    # the version for the working directory on each call. Install dirs
+    # inherited from a parent shell go too, or they'd still win
+    path=(${path:#${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/*})
+    eval "$(mise activate zsh --shims)"
+  else
+    eval "$(mise activate zsh)"
+  fi
 fi
 
 # Activate Fish-like autosuggestions: https://github.com/zsh-users/zsh-autosuggestions/blob/master/INSTALL.md#homebrew
