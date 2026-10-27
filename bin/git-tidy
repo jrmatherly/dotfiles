@@ -16,7 +16,8 @@ RESET="$(tput sgr0)"
 header() { echo -e "\n$UNDERLINE$CYAN$1$RESET\n"; }
 
 branches() {
-  git branch --merged | grep -vE '^\*|master|main'
+  # Whole names only, so a branch like domain-fix isn't spared for containing "main"
+  git for-each-ref --merged HEAD --format='%(refname:short)' refs/heads | grep -vxE 'main|master'
 }
 
 # Remove unreachable objects (commits, trees, blobs, etc.) from the Git object database
@@ -29,6 +30,7 @@ header "Deleting stale remote-tracking branches…"
 git remote prune origin
 
 header "Deleting merged branches except for 'master' and 'main'…"
-branches | xargs -n 1 git branch -d
+# git refuses the current branch and one checked out in a worktree; report and go on
+branches | while read -r b; do git branch -d "$b" || true; done
 
 echo "Done."

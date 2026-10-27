@@ -213,7 +213,7 @@ git commit -m "Let git-find match top-level files"
 - Modify: `bin/git-tidy:18-20,31`
 - Modify: `bin/lib/test-bin`
 
-- [ ] **Step 1: Add the failing checks**
+- [x] **Step 1: Add the failing checks**
 
 ```bash
 (cd "$tmp/repo" && "$root/bin/git-tidy" > /dev/null 2>&1)
@@ -222,11 +222,11 @@ check "unmerged wip kept" "git -C '$tmp/repo' show-ref --verify -q refs/heads/wi
 check "main kept" "git -C '$tmp/repo' show-ref --verify -q refs/heads/main"
 ```
 
-- [ ] **Step 2: Run and watch `merged domain-fix deleted` fail** (its name contains `main`).
+- [x] **Step 2: Run and watch `merged domain-fix deleted` fail** (its name contains `main`).
 
-- [ ] **Step 3: Fix:** `branches()` becomes `git for-each-ref --merged HEAD --format='%(refname:short)' refs/heads | grep -vxE 'main|master'`; the delete loop becomes `while read -r b; do git branch -d "$b" || true; done` so a worktree-checked-out branch is reported and skipped.
+- [x] **Step 3: Fix:** `branches()` becomes `git for-each-ref --merged HEAD --format='%(refname:short)' refs/heads | grep -vxE 'main|master'`; the delete loop becomes `while read -r b; do git branch -d "$b" || true; done` so a worktree-checked-out branch is reported and skipped.
 
-- [ ] **Step 4: Run `bash bin/lib/test-bin && pnpm check`, then commit**
+- [x] **Step 4: Run `bash bin/lib/test-bin && pnpm check`, then commit**
 
 ```bash
 git add bin/git-tidy bin/lib/test-bin

@@ -13,7 +13,7 @@ User CLI scripts, all on `PATH`. `zsh/path.zsh` prepends both `$DOTFILES/bin` an
 ## Module Architecture
 
 - `bin/<name>`: an executable with no extension. Most are bash; a few use node, python3, perl or swift, depending on what the task needs.
-- `git-*` scripts (`git-find`, `git-pr`, `git-setup`, `git-tidy`) also work as git subcommands (`git tidy`).
+- `git-*` scripts (`git-find`, `git-pr`, `git-setup`, `git-tidy`) also work as git subcommands (`git tidy`). `git-tidy` deletes local branches merged into `HEAD` except `main` and `master` (whole names); `git branch -d` refuses the current branch and one checked out in a worktree, which is reported and skipped.
 - `bin/lib/` holds helpers that are also on PATH:
   - `check`: the `pnpm check` gate
   - `get-tldr-md`: the header → tldr renderer used by `help`
@@ -23,7 +23,7 @@ User CLI scripts, all on `PATH`. `zsh/path.zsh` prepends both `$DOTFILES/bin` an
   - `test-conventions`: tree invariants the docs promise (telemetry pairing between `setup.sh` and `zsh/env.zsh`, every zsh file Prettier-ignored, every `bin/` script's header rendered through `help` (only a header comment on line 2 when `tldr` is missing, as on the CI runner), `help` deleting its temp page and refusing a directory, `trusted: true` on every third-party Brewfile formula or cask), run by `check`
   - `test-hindsight-memory`: fixture self-check for `hindsight-memory` under a temp `HOME` with the vendor installer, `hindsight-embed` and `npm` stubbed (`MISE_STATE_DIR` keeps the real mise trust records, since a shim run under a fake `HOME` refuses the global config), run by `check`
   - `test-claude-config`: fixture self-check for `claude-config save` (temp `HOME`, `CLAUDE_CONFIG_DIR` and `CLAUDE_CONFIG_SAVE_DIR`; `MISE_STATE_DIR` kept for a jq shim), run once per bash (`/bin/bash` and `/opt/homebrew/bin/bash`), run by `check`
-  - `test-bin`: self-check for small `bin/` scripts (`serve` answers on port 8099 with `SERVE_NO_OPEN=1`; `git-find` matches top-level and nested files and prints a usage line without an argument, in a scratch repo with `main`, a merged `domain-fix` and an unmerged `wip`) under a temp `HOME` (`MISE_STATE_DIR` kept for the python3 shim), run by `check`
+  - `test-bin`: self-check for small `bin/` scripts (`serve` answers on port 8099 with `SERVE_NO_OPEN=1`; `git-find` matches top-level and nested files and prints a usage line without an argument, `git-tidy` deletes the merged `domain-fix` and keeps `main` and `wip`, in a scratch repo with `main`, a merged `domain-fix` and an unmerged `wip`) under a temp `HOME` (`MISE_STATE_DIR` kept for the python3 shim), run by `check`
 - Setup entrypoints exposed as commands:
   - `brewpick`: Brewfile installer; `--all`, or an fzf checklist
   - `set-defaults`: runs `setup/macos.sh`
