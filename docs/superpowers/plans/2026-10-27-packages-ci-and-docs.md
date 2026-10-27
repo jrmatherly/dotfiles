@@ -73,9 +73,9 @@ Decision recorded here: delete without replacement. `syntax-highlight` (already 
 - Modify: `.prettierignore:1` (keep `vscode/User/prompts/` with a one-line comment that VS Code writes prompt files into the linked dir, or delete it)
 - Modify: `setup/symlinks.sh:8` (`EXCLUDE_FILES` still names `Brewfile.lock.json`; drop it)
 
-- [ ] **Step 1: Verify**: `brew bundle --help | grep -ci lock` is 0 (no lockfile support), `git check-ignore -v .claude/settings.local.json` currently resolves to the global ignore only.
-- [ ] **Step 2: Edit, then `git check-ignore -v .claude/settings.local.json`** must name the repo's `.gitignore`.
-- [ ] **Step 3: `pnpm check`, commit**: `git commit -m "Refresh the ignore rules"`.
+- [x] **Step 1: Verify**: `brew bundle --help | grep -ci lock` is 0 (no lockfile support), `git check-ignore -v .claude/settings.local.json` currently resolves to the global ignore only.
+- [x] **Step 2: Edit, then `git check-ignore -v .claude/settings.local.json`** must name the repo's `.gitignore`.
+- [x] **Step 3: `pnpm check`, commit**: `git commit -m "Refresh the ignore rules"`.
 
 ### Task 5: Third-party terms in LICENSE (E8)
 

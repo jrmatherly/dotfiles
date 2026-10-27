@@ -5,7 +5,7 @@ set -euo pipefail
 DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 TILDE_DIR="$DOTFILES_DIR/tilde"
 
-EXCLUDE_FILES=(".DS_Store" "Brewfile.lock.json" "README.md" ".codex" ".ssh")
+EXCLUDE_FILES=(".DS_Store" "README.md" ".codex" ".ssh")
 
 indent() {
   sed 's/^/  /'

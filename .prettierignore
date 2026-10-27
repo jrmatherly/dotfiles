@@ -1,3 +1,4 @@
+# VS Code writes user prompt files into the linked vscode/User/prompts
 vscode/User/prompts/
 obsidian/
 bin/license
