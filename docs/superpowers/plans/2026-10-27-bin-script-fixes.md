@@ -240,7 +240,7 @@ git commit -m "Match whole branch names in git-tidy"
 - Modify: `bin/lib/test-upup` (stub `softwareupdate` with a `$STATE/macos` and `$STATE/macos-fails` case; make the `rea` stub print `warning: x` to stderr before its JSON)
 - Modify: `bin/CLAUDE.md:29` (the `mise prune` sentence)
 
-- [ ] **Step 1: Add the failing checks**
+- [x] **Step 1: Add the failing checks**
 
 ```bash
 touch "$STATE/macos" "$STATE/macos-fails"
@@ -251,11 +251,11 @@ touch "$STATE/rea"   # stub now writes "warning: x" to stderr first
 check_true "REA skill change seen despite stderr noise" has '^↻ REA skill'
 ```
 
-- [ ] **Step 2: Run and watch them fail.**
+- [x] **Step 2: Run and watch them fail.**
 
-- [ ] **Step 3: Fix:** in the macOS step record `changed` only after a successful install; in the mise-WARN notice say `a version no config pins goes with: mise prune (not while a mise rust install shadows rustup; see the Rust step)` and make the rustup notice reference `${MISE_DATA_DIR:-$HOME/.local/share/mise}`; for REA, call `rea setup … --format json 2>> "$log"` into `out` directly instead of through `capture`.
+- [x] **Step 3: Fix:** in the macOS step record `changed` only after a successful install; in the mise-WARN notice say `a version no config pins goes with: mise prune (not while a mise rust install shadows rustup; see the Rust step)` and make the rustup notice reference `${MISE_DATA_DIR:-$HOME/.local/share/mise}`; for REA, call `rea setup … --format json 2>> "$log"` into `out` directly instead of through `capture`.
 
-- [ ] **Step 4: Run `bash bin/lib/test-upup && pnpm check`, then commit**
+- [x] **Step 4: Run `bash bin/lib/test-upup && pnpm check`, then commit**
 
 ```bash
 git add bin/upup bin/lib/test-upup bin/CLAUDE.md

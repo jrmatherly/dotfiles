@@ -42,7 +42,10 @@ stub() {
 }
 stub sudo '[ "$1" = -v ] && exit 0; exec "$@"'
 stub dotfiles '[ -e "$STATE/pull" ] && git -C "$DOTFILES" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m "Pulled change"; echo pulled'
-stub softwareupdate 'echo "No new software available."'
+stub softwareupdate 'case $1 in
+  -l) if [ -e "$STATE/macos" ]; then echo "* Label: Safari 99.1"; else echo "No new software available."; fi ;;
+  *) [ -e "$STATE/macos-fails" ] && { echo "install failed"; exit 1; }; echo "Done." ;;
+esac'
 stub brew 'case $1 in
   outdated) [ -e "$STATE/brew" ] && echo gh ;;
   upgrade) echo "==> Upgrading gh"; echo "==> Caveats"; echo "==> gh"; echo "zsh completions installed"; echo "==> Upgraded 1 outdated package"; echo "gh       2.103.1  -> 2.103.2" ;;
@@ -85,7 +88,8 @@ esac'
 stub claude-config '[ "$1" = save ] && [ -e "$STATE/config" ] && echo "# saved" >> "$DOTFILES/agents/claude-skills.txt"; exit 0'
 stub rea 'case $1 in
   --version) echo 6.8.0 ;;
-  setup) case "$*" in *"--skill --yes --format json"*) ;; *) echo "bad args: $*" >&2; exit 2 ;; esac
+  setup) echo "warning: x" >&2
+    case "$*" in *"--skill --yes --format json"*) ;; *) echo "bad args: $*" >&2; exit 2 ;; esac
     if [ -e "$STATE/rea-fails" ]; then echo "{\"status\":\"needs_human\",\"doctor\":{\"identity\":{\"skill\":{\"remediation\":\"Skill directory is a symbolic link.\"}}}}"; exit 1; fi
     if [ -e "$STATE/rea" ]; then echo "{\"appliedActions\":[{\"id\":\"install_skill\"}]}"; else echo "{\"appliedActions\":[]}"; fi ;;
 esac'
@@ -157,7 +161,7 @@ check_true "changes: brew caveats shown" has '^    zsh completions installed$'
 check_true "changes: Homebrew upgraded with versions" has '^↻ Homebrew +1 upgraded: gh 2.103.1→2.103.2$'
 check_true "changes: mise version change" has '^↻ mise +1 upgraded: node 24.1.0→24.1.1$'
 check_true "changes: mise held release is a notice" has '^● mise +aspire 13.6.3 held until 2026-10-24 14:17 EDT by minimum_release_age$'
-check_true "changes: mise reinstall failure is a notice" has '^● mise +failed to reinstall pipx tools; a version no config pins goes with: mise prune$'
+check_true "changes: mise reinstall failure is a notice" has '^● mise +failed to reinstall pipx tools; a version no config pins goes with: mise prune \(not while a mise rust install shadows rustup; see the Rust step\)$'
 check_true "changes: uv failure names the command" has '^✖ uv +run: uv tool upgrade --all$'
 check_true "changes: uv failure output shown" has '^    error: network down$'
 check_true "changes: Claude Code failure names the command" has '^✖ Claude Code +run: claude update$'
@@ -194,6 +198,14 @@ check_true "update: Claude Code updated" has '^↻ Claude Code +2\.1\.310 → 2\
 check_true "update: Claude Code restart action" has '^  › Restart Claude Code to run 2\.1\.311$'
 check_true "update: Hindsight failure names the command" has '^✖ Hindsight memory +run: hindsight-memory upgrade$'
 check_true "update: Hindsight failure output shown" has '^    installer failed$'
+
+rm -rf "$DOTFILES/logs" "$STATE/rea-fails"
+touch "$STATE/macos" "$STATE/macos-fails" "$STATE/rea"
+run
+check_true "macOS: failed install reports fail only" has '^✖ macOS'
+check_true "macOS: failed install does not also say changed" lacks '^↻ macOS'
+check_true "REA skill change seen despite stderr noise" has '^↻ REA skill'
+rm -f "$STATE/macos" "$STATE/macos-fails" "$STATE/rea"
 
 # Back to the uv failure: the terminal run below needs a failed step
 rm -rf "$DOTFILES/logs" "$HINDSIGHT_CONFIG" "$STATE/uv"
