@@ -304,8 +304,8 @@ git commit -m "Uninstall only the harnesses hindsight-memory installed"
 
 Decision recorded here: `radio` is deleted (no `mpv` installed or listed; alternative is `brew "mpv"` plus a row). Change it before Step 1 if you want the alternative.
 
-- [ ] **Step 1: `git rm bin/radio`**; add the seven rows, each one line in the existing table style, with the flags `help <script>` shows.
-- [ ] **Step 2: `pnpm check`** (the Task 4 render check covers the headers), then commit: `git commit -m "Index the unlisted bin scripts and retire radio"`.
+- [x] **Step 1: `git rm bin/radio`**; add the seven rows, each one line in the existing table style, with the flags `help <script>` shows.
+- [x] **Step 2: `pnpm check`** (the Task 4 render check covers the headers), then commit: `git commit -m "Index the unlisted bin scripts and retire radio"`.
 
 ---
 

@@ -110,6 +110,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `ns` `nd` `nb` `nbw` `nt` `ntw` `ntc` `nf` | Run common package scripts through `nr` (`@antfu/ni`): `ns` → `start`, `nd` → `dev`, `nb` → `build`, `nbw` → `build --watch`, `nt` → `test`, `ntw` → `test --watch`, `ntc` → `typecheck`, `nf` → `format` |
 | `lint` `lintf` | Run the project linter (optionally with `--fix`) |
 | `release` `re` | Run the project release script |
+| `npmplease` | Delete `node_modules` and `package-lock.json`, then reinstall with `ni --prefer-offline`, when package installs keep failing |
 
 ## Files & utilities
 
@@ -143,6 +144,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `git-pr` `git-pr {{pr_id}}` | List open GitHub pull requests, or check one out (via `gh`) |
 | `git-tidy` | Delete merged branches and clean up |
 | `git-find {{file}}` | Find every commit that touched a file, across all branches |
+| `git-setup` `git-setup -m {{commit_message}} {{path/to/repository}}` | Create a git repository if there is none, stage every file and make an initial commit (default: the current directory) |
 
 ## Dotfiles & macOS maintenance
 
@@ -155,6 +157,8 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `obsidian-vault install` `obsidian-vault capture` | Install the repo's Obsidian settings/templates into the vault, or bring vault changes back (see [obsidian](../obsidian/README.md)) |
 | `install-iosevka-code` | Install VS Code's Iosevka Code font, or update it when the upstream zip changed (see [fonts](../fonts/README.md)) |
 | `install-snippetslab-skill` | Write SnippetsLab's agent skill (`lab skill show`) to `~/.agents/skills/snippetslab` and link it into `~/.claude/skills`; run by setup and `upup` |
+| `claude-config save` `claude-config restore` `claude-config restore {{plugins\|settings\|skills}} --dry-run` `claude-config restore skills --update` | Save or restore Claude Code's plugins, base settings and user skills (tracked in `agents/claude-*`); `restore` installs what this machine is missing |
+| `claude-catalog` `claude-catalog --open` `claude-catalog --out {{path/to/dir}}` | Build the catalog of installed Claude Code skills, commands, subagents and MCP servers in `~/.claude/catalog` (`--open` opens `catalog.html`) |
 | `hindsight-memory status` `hindsight-memory paths add {{~/dev/project}}` `hindsight-memory off` | Opt-in per-repo Hindsight memory for Claude Code and Codex: show the daemon and config, add or remove a repo prefix memory is active in, or switch every hook off (`on` again); `init` and `upgrade` are run by setup and `upup` (see [setup](../setup/README.md)) |
 | `vscode-settings` | Render VS Code's `settings.json` from its template with a font preset (`--choose`, `--preset warp`, `--check`); refuses to overwrite edits VS Code made (see [vscode](../vscode/README.md#fonts-and-the-settings-template)) |
 | `sync-all` | Run `obsidian-vault install`, then `install-color-themes` |
@@ -184,6 +188,9 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `docker-clean` | Remove stopped containers, unused networks, volumes, images and build cache |
 | `node-modules-size` `node-modules-clean` | Show the size of / delete all `node_modules` folders below the current directory |
 | `proofread {{file}}` | Check prose for duplicate words, passive voice and weasel words |
+| `ds-delete` | Delete every `.DS_Store` file below the current directory |
+| `dust` | List the size of the files and directories in the current directory |
+| `line {{line_number}} {{file}}` `line {{from,to}} {{file}}` | Print one line, or an inclusive range of lines, of a file |
 
 Run `ls $DOTFILES/bin` for the full list and `help {{command}}` for each one's usage.
 
