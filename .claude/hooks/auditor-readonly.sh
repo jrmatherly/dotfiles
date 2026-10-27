@@ -175,4 +175,10 @@ while IFS= read -r seg; do
   check_flags "$seg"
   [[ $seg == 'curl '* && ! $seg =~ $curl ]] && deny 'curl URL' "$seg"
 done < <(segments "$dequoted")
+
+# Every segment passed the allowlist, so approve the call: the forked auditor
+# runs non-interactive, and a call auto mode's classifier escalated to a
+# prompt was denied with nobody to ask (2026-10-27). Deny and ask rules still
+# apply over a hook's allow
+printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"auditor-readonly: every command is on the read-only allowlist"}}'
 exit 0

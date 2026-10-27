@@ -10,16 +10,17 @@ fail() {
   echo "FAIL: $1" >&2
   exit 1
 }
-# Feed the hook a PreToolUse payload from agent $2 (docs-auditor by default); sets rc
+# Feed the hook a PreToolUse payload from agent $2 (docs-auditor by default); sets rc and out
 run() {
   local payload
   payload=$(jq -cn --arg c "$1" --arg a "${2-docs-auditor}" '{tool_name:"Bash",tool_input:{command:$c},agent_type:$a}')
   rc=0
-  "$hook" <<< "$payload" 2> /dev/null || rc=$?
+  out=$("$hook" <<< "$payload" 2> /dev/null) || rc=$?
 }
 allow() {
   run "$1"
   [ "$rc" -eq 0 ] || fail "denied (rc=$rc): $1"
+  [ "$(jq -r '.hookSpecificOutput.permissionDecision' <<< "$out")" = allow ] || fail "not approved: $1"
 }
 deny() {
   run "$1"
@@ -27,6 +28,9 @@ deny() {
 }
 
 allow 'brew list --versions shellcheck'
+# Another agent's calls get no decision from this hook, so normal permissions apply
+run 'rm -rf x' general-purpose
+[ "$rc" -eq 0 ] && [ -z "$out" ] || fail "decided for another agent: rc=$rc out=$out"
 allow 'git log --oneline -5 && gh run list --limit 3'
 allow "jq '.a | keys' ~/.claude/settings.json"
 allow "grep -E 'a|b' README.md"
