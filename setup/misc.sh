@@ -128,10 +128,10 @@ if command_exists mise; then
   # it: a reshim while it's set deletes the shim of an already-installed
   # CodeGraph, breaking `codegraph` on PATH and Claude Code's MCP server.
   if [ "${DOTFILES_SKIP_CODEGRAPH:-false}" = true ]; then
-    MISE_DISABLE_TOOLS="npm:@colbymchenry/codegraph" mise install | indent
+    MISE_DISABLE_TOOLS="npm:@colbymchenry/codegraph" mise install | indent || warning "mise install had failures; re-run: mise install"
     mise reshim
   else
-    mise install | indent
+    mise install | indent || warning "mise install had failures; re-run: mise install"
   fi
   # typescript-language-server (a Terax preset, an `npm:` tool in the config)
   # finds TypeScript in a project's node_modules or by Node resolution from its
@@ -433,9 +433,9 @@ fi
 if command_exists dotnet; then
   info "💠 Installing PowerShell (.NET global tool)…"
   if dotnet tool list --global | grep -qi '^powershell[[:space:]]'; then
-    dotnet tool update --global PowerShell | indent
+    dotnet tool update --global PowerShell | indent || warning "PowerShell install failed; re-run: dotnet tool install --global PowerShell"
   else
-    dotnet tool install --global PowerShell | indent
+    dotnet tool install --global PowerShell | indent || warning "PowerShell install failed; re-run: dotnet tool install --global PowerShell"
   fi
 else
   echo "dotnet not found — skipping PowerShell (install the dotnet-sdk cask first)" | indent
@@ -488,7 +488,7 @@ npm config set min-release-age 7
 # format`, and `avif`, which bin/optimize-image expects at node_modules/.bin
 if command_exists pnpm; then
   info "📦 Installing this repo's dependencies…"
-  pnpm install --dir "$DOTFILES_DIR" | indent
+  pnpm install --dir "$DOTFILES_DIR" | indent || warning "pnpm install failed; re-run: pnpm install"
 else
   echo "pnpm not found — skipping repo dependencies (run 'pnpm install' later)" | indent
 fi

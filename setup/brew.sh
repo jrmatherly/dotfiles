@@ -17,6 +17,10 @@ indent() {
   sed 's/^/  /'
 }
 
+warn() {
+  echo "$(tput setaf 1)/!\\ $1 /!\\$(tput sgr0)"
+}
+
 # Check for Homebrew and install it if required
 if ! command -v brew &> /dev/null; then
   title "Installing Homebrew…"
@@ -25,7 +29,8 @@ if ! command -v brew &> /dev/null; then
 fi
 
 # Make sure we’re working with the latest version of Homebrew and its formulae
-brew update
+# A failed update (offline, a broken tap) shouldn't stop the install below
+brew update || warn "brew update failed; re-run: brew update"
 
 # Install fonts, tools, apps & vscode extensions. `brew bundle` upgrades
 # outdated dependencies by default, so no separate `brew upgrade` is needed

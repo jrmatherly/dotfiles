@@ -86,16 +86,16 @@ git commit -m "Never overwrite an earlier backup when linking"
 - Modify: `setup/brew.sh:28` (`brew update`)
 - Modify: `setup/README.md` (`brew` and `misc` sections: what is tolerated and the re-run command)
 
-- [ ] **Step 1: Add `|| warning` to each bare step**
+- [x] **Step 1: Add `|| warning` to each bare step**
 
 `mise install | indent || warning "mise install had failures — re-run: mise install"` (both branches; keep `mise reshim` after the `--skip-codegraph` branch), `brew update || warn "brew update failed — re-run: brew update"` (add a `warn` helper to `brew.sh` if it has none; `title` is the only helper there today), `dotnet tool update/install … | indent || warning "PowerShell install failed — re-run: dotnet tool install --global PowerShell"`, `pnpm install --dir "$DOTFILES_DIR" | indent || warning "pnpm install failed — re-run: pnpm install"`.
 
-- [ ] **Step 2: Prove the shape with a stub**
+- [x] **Step 2: Prove the shape with a stub**
 
 Run: `tmp=$(mktemp -d); printf '#!/bin/bash\nexit 1\n' > $tmp/mise; chmod +x $tmp/mise; PATH=$tmp:$PATH bash -c 'set -euo pipefail; warning(){ echo "WARN: $1"; }; indent(){ cat; }; mise install | indent || warning "mise install had failures"; echo continued'`
 Expected: `WARN: mise install had failures` then `continued`.
 
-- [ ] **Step 3: Run the gate and commit**
+- [x] **Step 3: Run the gate and commit**
 
 Run: `pnpm check`
 
