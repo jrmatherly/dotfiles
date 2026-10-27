@@ -52,4 +52,13 @@ printf 'echo sourced-ok\n' > "$tmp/s.zsh"
 [ "$(agent_zsh ". $tmp/s.zsh")" = sourced-ok ] || fail "agent shell: . does not source"
 [ "$(user_zsh ". $tmp/s.zsh")" = sourced-ok ] || fail "user shell: . does not source"
 
+# Agent shells keep the builtin cd (zoxide as z); user shells keep zoxide's cd
+# (`--cmd cd` defines cd and cdi, not z)
+if need zoxide; then
+  out=$(agent_zsh 'whence -w cd')
+  [ "$out" = "cd: builtin" ] || fail "agent shell: cd is $out"
+  agent_zsh 'whence -w z' | grep -q function || fail "agent shell: z is not defined"
+  [ "$(user_zsh 'whence -w cd')" = "cd: function" ] || fail "user shell: cd is not zoxide's"
+fi
+
 echo "shell: all checks passed"

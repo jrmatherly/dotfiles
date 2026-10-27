@@ -36,7 +36,12 @@ fi
 # Setup zoxide: https://github.com/ajeetdsouza/zoxide?tab=readme-ov-file#installation
 export _ZO_DATA_DIR=$HOME
 if command_exists zoxide; then
-  eval "$(zoxide init --cmd cd zsh)"
+  # Agent shells keep the builtin cd (a missed path must fail, not jump to a frecency match); z and zi still work
+  if [[ -n $CLAUDECODE ]]; then
+    eval "$(zoxide init zsh)"
+  else
+    eval "$(zoxide init --cmd cd zsh)"
+  fi
 fi
 
 # Starship prompt

@@ -83,7 +83,7 @@ Add `bin/lib/test-shell` to the `pnpm check` list in `CLAUDE.md` in the same com
 - Modify: `bin/lib/test-shell`
 - Modify: `CLAUDE.md` (the zsh load-order bullet's `CLAUDECODE` sentence)
 
-- [ ] **Step 1: Add the failing assertion**
+- [x] **Step 1: Add the failing assertion**
 
 ```bash
 if need zoxide; then
@@ -93,21 +93,21 @@ if need zoxide; then
 fi
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-shell`
 Expected: `FAIL: agent shell: cd jumped to /Users/jason/dev/dotfiles` (or another frecency match).
 
-- [ ] **Step 3: Gate the `--cmd cd` flag on `CLAUDECODE`**
+- [x] **Step 3: Gate the `--cmd cd` flag on `CLAUDECODE`**
 
 In `zsh/init.zsh` replace the single `eval "$(zoxide init --cmd cd zsh)"` with: agent shells (`[[ -n $CLAUDECODE ]]`) get `zoxide init zsh` (defines `z` and `zi` only), user shells keep `--cmd cd`. One comment line on why.
 
-- [ ] **Step 4: Run the self-check and the gate**
+- [x] **Step 4: Run the self-check and the gate**
 
 Run: `bash bin/lib/test-shell && pnpm check`
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add zsh/init.zsh bin/lib/test-shell CLAUDE.md

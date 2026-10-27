@@ -29,7 +29,7 @@
 | tldr | `man {{command}}` | Show simplified, example-driven help for a command (replaces `man`) |
 | prettyping | `ping {{host}}` | Ping a host with nicer, compact output (replaces `ping`) |
 | trash | `rm {{file}}` | Move files to the macOS Trash instead of permanently deleting them (replaces `rm`; falls back to `rm -iv` if `trash` isn't installed) |
-| zoxide | `cd {{part_of_dir_path}}` | Jump to a frequently or recently visited directory by part of its path (`cd` is replaced by `zoxide`, which ranks the directories you visit). More information: <https://github.com/ajeetdsouza/zoxide>. |
+| zoxide | `cd {{part_of_dir_path}}` | Jump to a frequently or recently visited directory by part of its path (`cd` is replaced by `zoxide`, which ranks the directories you visit; agent shells keep the builtin `cd` and get `z` instead). More information: <https://github.com/ajeetdsouza/zoxide>. |
 
 Each replacement only applies when the tool is installed. Run the original command with a leading backslash (e.g. `\cat`) or `command {{name}}`.
 
