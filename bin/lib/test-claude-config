@@ -72,6 +72,29 @@ echo '{"env": {' > "$CLAUDE_CONFIG_DIR/settings.json"
 cc save settings > /dev/null 2> "$tmp/err"
 check "corrupt settings warns" "grep -q 'not a valid JSON object, kept .*claude-settings.json' '$tmp/err'"
 
+# restore skills --update reinstalls only a skill whose GitHub folder SHA moved
+# (or that it can't check), from one gh call per repository
+mkdir -p "$tmp/bin" "$HOME/.agents" "$CLAUDE_CONFIG_DIR/skills"
+cat > "$tmp/bin/gh" << 'EOF'
+#!/bin/bash
+echo "$*" >> "$TEST_LOG.gh"
+echo '{"sha":"rootsha","tree":[{"path":"skills/a","type":"tree","sha":"aaa"},{"path":"skills/b","type":"tree","sha":"new"}]}'
+EOF
+printf '#!/bin/bash\necho "$*" >> "$TEST_LOG.npx"\n' > "$tmp/bin/npx"
+printf '#!/bin/bash\n[ "$1" = exec ] || exit 1\nwhile [ "$1" != -- ]; do shift; done\nshift\nexec "$@"\n' > "$tmp/bin/mise"
+chmod +x "$tmp/bin/"*
+printf '%s' '{"skills":{"a":{"sourceType":"github","source":"o/r","skillPath":"skills/a/SKILL.md","skillFolderHash":"aaa"},"b":{"sourceType":"github","source":"o/r","skillPath":"skills/b/SKILL.md","skillFolderHash":"old"},"c":{"sourceType":"well-known","source":"x.example"},"d":{"sourceType":"github","source":"o/r","skillPath":"SKILL.md","skillFolderHash":"rootsha"}}}' > "$HOME/.agents/.skill-lock.json"
+printf 'skill a o/r claude-code\nskill b o/r claude-code\nskill c https://x.example claude-code\nskill d o/r claude-code\n' > "$CLAUDE_CONFIG_SAVE_DIR/claude-skills.txt"
+for n in a b c d; do mkdir -p "$CLAUDE_CONFIG_DIR/skills/$n"; done
+export TEST_LOG="$tmp/log"
+PATH="$tmp/bin:$PATH" cc restore skills --update > "$tmp/out" 2>&1
+check "unchanged folder SHA skipped" "grep -qx 'skill same a' '$tmp/out' && ! grep -q -- '-s a ' '$TEST_LOG.npx'"
+check "moved folder SHA reinstalled" "grep -qx 'skill changed b' '$tmp/out' && grep -q -- '-s b -a claude-code' '$TEST_LOG.npx'"
+check "a source it can't check is reinstalled" "grep -qx 'skill unknown c' '$tmp/out' && grep -q -- '-s c -a claude-code' '$TEST_LOG.npx'"
+check "a skill at the repository root compares the root tree" "grep -qx 'skill same d' '$tmp/out'"
+check "one gh call per repository" "[ \"\$(wc -l < '$TEST_LOG.gh' | tr -d ' ')\" = 1 ]"
+check "the tree cache is removed" "! ls -d \"\${TMPDIR:-/tmp}\"/tmp.* 2> /dev/null | xargs -I{} test -e '{}/o_r'"
+
 [ "$fails" -eq 0 ] || {
   echo "$fails failed" >&2
   exit 1

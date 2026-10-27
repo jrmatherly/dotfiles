@@ -14,7 +14,7 @@
 #
 # `claude-config restore {{plugins|settings|skills}} --dry-run`
 #
-# - Reinstall every tracked skill for its listed agents, to pick up upstream changes (`upup` runs this):
+# - Reinstall each tracked skill whose GitHub folder changed since install, and any it can't check, for its listed agents (`upup` runs this):
 #
 # `claude-config restore skills --update`
 #
@@ -72,7 +72,8 @@ dry_run=false
 update=false
 failed=0
 # A jq that fails mid-write leaves its .tmp behind in the repo
-trap 'rm -f "$save_dir"/*.tmp' EXIT
+tree_cache=""
+trap 'rm -f "$save_dir"/*.tmp; [ -z "$tree_cache" ] || rm -rf "$tree_cache"' EXIT
 
 run() {
   if [ "$dry_run" = true ]; then
@@ -238,25 +239,54 @@ save_skills() {
   } > "$skills_list.tmp" && mv "$skills_list.tmp" "$skills_list"
 }
 
+# upstream <name>: prints same or changed by comparing the git tree SHA of the
+# skill's folder on GitHub with the one the skills CLI recorded at install
+# (skillFolderHash), or unknown when it can't check (no gh, a source that
+# isn't GitHub, an API error)
+upstream() {
+  local entry repo path hash dir tree sha
+  command -v gh > /dev/null \
+    && entry=$(jq -r --arg n "$1" '.skills[$n] | select(.sourceType == "github" and .skillFolderHash != null)
+      | "\(.source) \(.skillFolderHash) \(.skillPath)"' "$skill_lock" 2> /dev/null) \
+    && read -r repo hash path <<< "$entry" && [ -n "$path" ] || {
+    echo unknown
+    return
+  }
+  dir=$(dirname "$path")
+  # One tree listing per repository, shared by its skills
+  tree="$tree_cache/${repo//\//_}"
+  [ -s "$tree" ] || gh api "repos/$repo/git/trees/HEAD?recursive=1" > "$tree" 2> /dev/null || {
+    rm -f "$tree"
+    echo unknown
+    return
+  }
+  sha=$(jq -r --arg d "$dir" 'if $d == "." then .sha else (.tree[] | select(.path == $d and .type == "tree") | .sha) end' "$tree" 2> /dev/null)
+  if [ -z "$sha" ]; then echo unknown; elif [ "$sha" = "$hash" ]; then echo same; else echo changed; fi
+}
+
 restore_skills() {
-  local kind name source agents agent missing before npx=(npx)
+  local kind name source agents agent missing before state npx=(npx)
   command -v mise > /dev/null && npx=(mise exec node -- npx)
+  tree_cache=$(mktemp -d)
   while read -r kind name source agents; do
     [ "$kind" = skill ] || continue
-    # Only the agents that don't have it yet. --update takes them all: the
-    # CLI's own `skills update` reinstalls with no agent list, so a skill
-    # tracked for one agent would spread to the rest
+    # Only the agents that don't have it yet. --update takes them all when the
+    # skill changed upstream: the CLI's own `skills update` reinstalls with no
+    # agent list, so a skill tracked for one agent would spread to the rest
     missing=()
     for agent in ${agents//,/ }; do
-      if [ "$update" = true ]; then
-        missing+=("$agent")
-        continue
-      fi
       case $agent in
         claude-code) [ -e "$config/skills/$name" ] || missing+=("$agent") ;;
         codex) [ -e "$HOME/.agents/skills/$name" ] || missing+=("$agent") ;;
       esac
     done
+    # One line per skill for upup: skill <same|changed|unknown> <name>
+    if [ "$update" = true ]; then
+      state=$(upstream "$name")
+      echo "skill $state $name"
+      # shellcheck disable=SC2206 # agents is a comma list of plain names
+      [ "$state" = same ] || missing=(${agents//,/ })
+    fi
     [ ${#missing[@]} -gt 0 ] || continue
     # run keeps going after a failure; a skill the source no longer ships is
     # the usual cause, and the fix is on the lock side

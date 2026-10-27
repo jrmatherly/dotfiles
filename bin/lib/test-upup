@@ -46,11 +46,16 @@ stub softwareupdate 'case $1 in
   -l) [ -e "$STATE/macos" ] || [ -e "$STATE/macos-os" ] || echo "No new software available."
     [ ! -e "$STATE/macos" ] || printf "* Label: Safari 99.1\n\tTitle: Safari, Version: 99.1, Recommended: YES, \n"
     [ ! -e "$STATE/macos-os" ] || printf "* Label: macOS 27.2-26B123\n\tTitle: macOS 27.2, Version: 27.2, Recommended: YES, Action: restart, \n" ;;
-  *) [ -e "$STATE/macos-fails" ] && { echo "install failed"; exit 1; }; echo "Done." ;;
+  *) [ -e "$STATE/macos-fails" ] && { echo "install failed"; exit 1; }
+    case "$*" in *--stdinpass*) read -r pw; [ "$pw" = secret ] || { echo "wrong password"; exit 1; } ;; esac
+    echo "Downloaded: macOS 27.2" ;;
 esac'
 stub brew 'case $1 in
   outdated) [ -e "$STATE/brew" ] && echo gh ;;
-  upgrade) echo "==> Upgrading gh"; echo "==> Caveats"; echo "==> gh"; echo "zsh completions installed"; echo "==> Upgraded 1 outdated package"; echo "gh       2.103.1  -> 2.103.2" ;;
+  upgrade) echo "==> Upgrading gh"; echo "==> Caveats"; echo "zsh completions have been installed to:"; echo "  /opt/homebrew/share/zsh/site-functions"
+    echo "==> gh"; echo "Run gh auth login to use it."; echo "Second line"
+    echo "==> uv"; echo "The following uv executables are shadowed by commands in $HOME/.local/share/mise/shims:"; echo uv; echo uvx; echo "Running these by name will not invoke the version provided by Homebrew"
+    echo "==> Upgraded 1 outdated package"; echo "gh       2.103.1  -> 2.103.2" ;;
   cleanup) echo "==> This operation has freed approximately 29.5MB of disk space." ;;
   doctor) echo "Your system is ready to brew." ;;
 esac
@@ -79,7 +84,7 @@ elif [ -e "$STATE/uv-fails" ]; then echo "error: network down"; exit 1
 else echo "Nothing to upgrade"; fi'
 stub scrapling 'echo "Chromium already installed"'
 stub install-iosevka-code 'echo "Iosevka Code is up to date"'
-stub install-snippetslab-skill 'exit 0'
+stub install-snippetslab-skill '[ ! -e "$STATE/snippetslab" ] || { mkdir -p "$HOME/.agents/skills/snippetslab"; date +%s%N > "$HOME/.agents/skills/snippetslab/SKILL.md"; }'
 stub claude 'case "$1 $2" in
   "plugin update") if [ -e "$STATE/plugin" ] && [ "$4" = alpha@m ]; then
       echo "Marketplace cache updated"
@@ -90,7 +95,11 @@ stub claude 'case "$1 $2" in
   "update ") [ -e "$STATE/claude-fails" ] && { echo "Error: update failed"; exit 1; }
     [ -e "$STATE/claude" ] && touch "$STATE/claude-done"; echo "Checking for updates to latest version..." ;;
 esac'
-stub claude-config '[ "$1" = save ] && [ -e "$STATE/config" ] && echo "# saved" >> "$DOTFILES/agents/claude-skills.txt"; exit 0'
+stub claude-config 'case $1 in
+  save) [ -e "$STATE/config" ] && echo "# saved" >> "$DOTFILES/agents/claude-skills.txt" ;;
+  restore) if [ -e "$STATE/skills" ]; then printf "skill changed one\nskill same two\n"; else printf "skill same one\nskill unknown two\n"; fi ;;
+esac
+exit 0'
 stub rea 'case $1 in
   --version) echo 6.8.0 ;;
   setup) echo "warning: x" >&2
@@ -102,8 +111,10 @@ stub claude-catalog 'echo "wrote /tmp/cat/CATALOG.md, CATALOG-lite.md, catalog.h
 stub open 'exit 0'
 stub amp 'echo "Amp is already up to date"'
 stub nyan 'exit 0'
+stub op '[ "$1" = read ] && echo secret'
 stub hindsight-memory '[ -e "$STATE/hindsight-fails" ] && { echo "installer failed"; exit 1; }; [ -e "$STATE/hindsight-newer" ] && echo "newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION"
 if [ -e "$STATE/hindsight-warns" ]; then echo "│  ✓ runtime staged at ~/.hindsight/coding-agents"; echo "│  ▲ macOS needs a current Rust toolchain to build the daemon'"'"'s dependencies (litellm"; echo "│    publishes no macOS wheel). Install from https://rustup.rs"; fi
+[ ! -e "$STATE/hindsight-change" ] || { mkdir -p "$HOME/.codex"; date +%s%N > "$HOME/.codex/hooks.json"; }
 echo "runtime re-staged"'
 # A failing stub, not a missing one: CI's macOS runner has a real cargo on PATH
 stub cargo '[ -e "$STATE/no-cargo" ] && exit 1; echo "cargo 1.99.1"'
@@ -138,21 +149,23 @@ check_true "up to date: healthy brew doctor gets a line" has '^✔ brew doctor +
 check_true "up to date: config left dirty before the run is unchanged" has '^✔ Claude config +unchanged$'
 check_true "up to date: plugins counted" has '^✔ plugins +2 plugins up to date$'
 check_true "up to date: Claude Code version" has '^✔ Claude Code +2\.1\.310 up to date$'
-check_true "up to date: skills counted" has '^✔ agent skills +2 tracked skills reinstalled for their agents$'
+check_true "up to date: skills checked, the uncheckable one named" has '^✔ agent skills +1 unchanged, reinstalled without a check: two$'
 check_true "up to date: REA skill matches" has '^✔ REA skill +matches rea-agents 6\.8\.0$'
-check_true "up to date: Hindsight memory re-staged" has '^✔ Hindsight memory +runtime re-staged, hooks re-wired$'
+check_true "up to date: Hindsight unchanged" has '^✔ Hindsight memory +hooks and runtime unchanged$'
 check_true "up to date: Rust is ok" has '^✔ Rust +up to date$'
 check_true "up to date: nothing for mise prune" has '^✔ mise prune +nothing unused$'
 check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
 check_true "up to date: one-line summary" has '^Everything up to date\.$'
-check_true "up to date: log path printed" has '^Log: logs/upup-[0-9]{8}-[0-9]{6}\.log$'
+check_true "up to date: log is a file:// link" has "^Log: file://$DOTFILES/logs/upup-[0-9]{8}-[0-9]{6}\\.log\$"
+check_true "up to date: no step slow enough for a time" lacks '\([0-9]+s\)$'
+[ ! -x /Applications/SnippetsLab.app/Contents/Helpers/lab ] || check_true "up to date: SnippetsLab unchanged" has '^✔ SnippetsLab skill +unchanged$'
 check_true "up to date: summary links the catalog" has '^Catalog: file:///tmp/cat/catalog\.html$'
 check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs"
 mkdir -p "$STATE/installs/node/24.0.0" "$STATE/installs/aspire/13.6.0"
 head -c 2048 /dev/zero > "$STATE/installs/node/24.0.0/bin"
-touch "$STATE/prune" "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea"
+touch "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/prune" "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea"
 mkdir -p "$CLAUDE_CONFIG_DIR/skills"
 ln -s /nonexistent "$CLAUDE_CONFIG_DIR/skills/reverse-engineer-anything"
 run
@@ -161,13 +174,22 @@ check_true "changes: REA skill reinstalled" has '^↻ REA skill +reinstalled for
 check_true "changes: newer Hindsight release is a notice" has '^● Hindsight memory +newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION in bin/hindsight-memory$'
 check_true "changes: the installer's ▲ warning is a notice, first line only" has '^● Hindsight memory +installer: macOS needs a current Rust toolchain to build the daemon.s dependencies \(litellm; see the log$'
 check_true "changes: a warned or newer Hindsight step is not also ok" lacks '^✔ Hindsight memory'
-check_true "changes: names the packages before upgrading" has '^    upgrading 1 package: gh…$'
+check_true "changes: skills that changed upstream named" has '^↻ agent skills +1 skill updated: one; 1 unchanged$'
+check_true "changes: Hindsight hooks change seen" has '^↻ Hindsight memory +hooks or runtime updated$'
+[ ! -x /Applications/SnippetsLab.app/Contents/Helpers/lab ] || check_true "changes: SnippetsLab change seen" has '^↻ SnippetsLab skill +updated from SnippetsLab$'
+check_true "changes: no upgrading line off a terminal" lacks 'upgrading'
 check_true "changes: a further edit to dirty config is a change" has '^↻ Claude config +tracked Claude config changed$'
 check_true "changes: dotfiles pulled" has '^↻ dotfiles +pulled 1 commit$'
 check_true "changes: brew upgrade noise stays off screen" lacks '^==> Upgrading gh$'
-check_true "changes: brew caveats shown" has '^    zsh completions installed$'
-check_true "changes: Homebrew upgraded with versions" has '^↻ Homebrew +1 upgraded: gh 2.103.1→2.103.2$'
-check_true "changes: mise names each old→new pair" has '^↻ mise +2 upgraded: node 24\.1\.0→24\.1\.1, aspire 13\.6\.1→13\.6\.2$'
+check_true "changes: boilerplate caveat dropped" lacks 'completions'
+check_true "changes: a caveat shows its package and first line" has '^    gh: Run gh auth login to use it\. \(more in the log\)$'
+check_true "changes: a shadow caveat is one line" has '^    uv: uv, uvx shadowed by ~/\.local/share/mise/shims$'
+check_true "changes: full caveats kept in the log" grep -qx 'Second line' "$DOTFILES"/logs/upup-*.log
+check_true "changes: Homebrew line counts" has '^↻ Homebrew +1 package upgraded$'
+check_true "changes: Homebrew versions under the line" has '^    gh 2\.103\.1→2\.103\.2$'
+check_true "changes: summary keeps the short Homebrew line" has '^  ↻ Homebrew  1 package upgraded$'
+check_true "changes: mise line counts" has '^↻ mise +2 versions upgraded$'
+check_true "changes: mise names each old→new pair under the line" has '^    node 24\.1\.0→24\.1\.1, aspire 13\.6\.1→13\.6\.2$'
 check_true "changes: mise prune counts, sizes and names what it removed" has '^↻ mise prune +2 versions removed, [0-9]+KB freed: node 24\.0\.0, aspire 13\.6\.0$'
 check_true "changes: prune ran before the upgrade" grep -q 'mise prune.*mise ' <<< "$(grep -oE '^== mise( prune)? ==' "$DOTFILES"/logs/upup-*.log | tr '\n' ' ')"
 check_true "changes: mise held release is a notice" has '^● mise +aspire 13.6.3 held until 2026-10-24 14:17 EDT by minimum_release_age$'
@@ -188,7 +210,7 @@ check_true "changes: not everything up to date" lacks 'Everything up to date'
 check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/upup-*.log
 
 # A warning alone (no newer release) must still replace the ok line
-rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer"
+rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab"
 run
 check_true "warned: installer warning is the step's only line" lacks '^✔ Hindsight memory'
 check_true "warned: installer warning still a notice" has '^● Hindsight memory +installer: '
@@ -222,11 +244,26 @@ rm -rf "$DOTFILES/logs" "$STATE/macos-fails"
 touch "$STATE/macos-os" "$STATE/prune"
 mkdir -p "$HOME/.local/share/mise/installs/rust"
 run
-check_true "macOS: a restart update is downloaded, not installed" has '^↻ macOS +Safari 99\.1 installed; macOS 27\.2-26B123 downloaded, installs on restart$'
-check_true "macOS: restart is an action" has '^  › Restart the Mac to finish installing macOS 27\.2-26B123$'
+check_true "macOS: a restart update is downloaded, not installed" has '^↻ macOS +Safari 99\.1 installed; macOS 27\.2-26B123 downloaded, not installed yet$'
+check_true "macOS: the install is an action naming what installs it" has "^  › Install macOS 27\\.2-26B123: System Settings → General → Software Update → Restart Now, or run: sudo softwareupdate -ia --restart \\(a plain restart doesn't install it\\)\$"
+check_true "macOS: without a stored password the install streams, for its prompt" has '^Downloaded: macOS 27\.2$'
+check_true "macOS: no 1Password prompt without DOTFILES_MAC_PASSWORD_OP" lacks '1Password'
 check_true "rust in mise: prune skipped as a notice" has '^● mise prune +skipped while a mise rust install shadows rustup; see the Rust step$'
 check_true "rust in mise: prune never ran" test -e "$STATE/prune"
-rm -rf "$STATE/macos" "$STATE/macos-os" "$STATE/rea" "$STATE/prune" "$HOME/.local/share/mise"
+rm -rf "$DOTFILES/logs" "$STATE/macos"
+screen=$(DOTFILES_MAC_PASSWORD_OP=op://vault/item/password "$script" < /dev/null 2>&1) || true
+check_true "macOS: the 1Password fingerprint is announced" has '^› macOS +1Password: approve reading the Mac password for macOS 27\.2-26B123$'
+check_true "macOS: with the stored password the install stays in the log" lacks '^Downloaded:'
+check_true "macOS: the stored password was accepted" has '^↻ macOS +macOS 27\.2-26B123 downloaded, not installed yet$'
+rm -rf "$DOTFILES/logs" "$STATE/macos-os"
+touch "$STATE/macos"
+run
+check_true "macOS: an update needing no restart installs quietly" lacks '^Downloaded:'
+check_true "macOS: no install action for it" lacks 'Software Update → Restart Now'
+rm -rf "$DOTFILES/logs" "$STATE/macos" "$STATE/rea" "$STATE/prune" "$HOME/.local/share/mise"
+screen=$(UPUP_SLOW=0 "$script" < /dev/null 2>&1) || true
+check_true "slow: a step's line names its time" has '^✔ brew doctor +ready to brew \([0-9]+s\)$'
+check_true "slow: the summary leaves the time out" lacks '^  [↻●✖›] .*\([0-9]+s\)$'
 
 # Back to the uv failure: the terminal run below needs a failed step
 rm -rf "$DOTFILES/logs" "$HINDSIGHT_CONFIG" "$STATE/uv"
@@ -238,5 +275,6 @@ rc=0
 screen=$(TERM=xterm-256color script -q /dev/null "$script" < /dev/null | tr -d '\r') || rc=$?
 check_true "terminal: upup exited $rc" [ "$rc" -eq 0 ]
 check_true "terminal: status lines colored" has $'\x1b\\[[0-9;]*m✔'
+check_true "terminal: a running step shows a … line" has '… Homebrew'
 check_true "terminal: summary colored" has $'^  \x1b\\[[0-9;]*m✖'
 check_true "terminal: log has no color codes" log_lacks $'\x1b'
