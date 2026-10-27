@@ -25,7 +25,8 @@ enter() {
   esac
 }
 
-# A segment is a commit when its command word (after NAME=value prefixes) is
+# A segment is a commit when its command word (after NAME=value prefixes,
+# env, time, exec, command and the keywords that open a group or branch) is
 # git and a later word is `commit`; quoted text is not parsed. dir follows
 # each `cd <dir>` segment before it and the commit's own `git -C <dir>`
 is_commit() {
@@ -36,7 +37,13 @@ is_commit() {
     prev=""
     gitdir=$dir
     for w in $seg; do
+      # a subshell or brace group glues its bracket to the word
+      w=${w#[\({]}
+      w=${w%\)}
+      w=${w%\}}
       if [ -z "$first" ]; then
+        [ -n "$w" ] || continue
+        case $w in env | time | exec | command | then | do | else | elif | '!') continue ;; esac
         [[ $w =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] && continue
         first=${w##*/}
         [ "$first" = git ] || [ "$first" = cd ] || break
@@ -52,7 +59,7 @@ is_commit() {
       fi
       prev=$w
     done
-  done < <(sed -E 's/(&&|\|\||;|\|)/\n/g' <<< "$1")
+  done < <(sed -E 's/(&&|\|\||;|\||&)/\n/g' <<< "$1")
   return 1
 }
 

@@ -62,7 +62,8 @@ run 'git commit -m "x"'
 [ "$rc" -eq 2 ] || fail "failing check: expected exit 2, got $rc"
 # 3. every commit spelling gates
 echo 0 > "$STATE/check-rc"
-for c in 'git -C . commit --amend' 'git -c commit.gpgsign=false commit' '/usr/bin/git commit' 'GIT_EDITOR=true git commit' 'git add x && git commit -m y' 'echo x && git commit'; do
+for c in 'git -C . commit --amend' 'git -c commit.gpgsign=false commit' '/usr/bin/git commit' 'GIT_EDITOR=true git commit' 'git add x && git commit -m y' 'echo x && git commit' \
+  'env GIT_EDITOR=true git commit' 'time git commit' '(git commit)' '{ git commit -m x; }' 'if true; then git commit -m x; fi' 'sleep 0 & git commit -m x' $'git add x\ngit commit -m x'; do
   rm -f "$STATE/check-ran"
   run "$c"
   [ -e "$STATE/check-ran" ] || fail "not gated: $c"
@@ -82,7 +83,7 @@ touch_path setup/README.md
 run 'git commit -m "x"'
 [ "$rc" -eq 0 ] && [ -z "$out" ] || fail "warning printed with README changed"
 # 7. from outside, a leading cd (absolute or relative) or git -C targets the repo
-for c in "cd $proj && git commit -m x" 'cd proj; git commit -m x' "git -C $proj commit -m x"; do
+for c in "cd $proj && git commit -m x" 'cd proj; git commit -m x' "git -C $proj commit -m x" '(cd proj && git commit -m x)'; do
   rm -f "$STATE/check-ran"
   run "$c" "$tmp"
   [ -e "$STATE/check-ran" ] || fail "not gated from outside: $c"
