@@ -34,7 +34,6 @@
       "Bash(*/bin/upup*)"
     ],
     "deny": [
-      "Edit(/ql-plugins/**)",
       "Edit(/obsidian/.obsidian/plugins/**)",
       "Edit(/tilde/.config/gh/hosts.yml)",
       "Read(/vscode/User/History/**)",

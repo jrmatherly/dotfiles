@@ -386,9 +386,6 @@ install_extras() {
   chmod 700 "$HOME/.gnupg"
   symlink_file "$DOTFILES_DIR/gpg/gpg-agent.conf" "$HOME/.gnupg/gpg-agent.conf"
 
-  # Quick-Look plugins to enhance experience using file manager
-  symlink_file "$DOTFILES_DIR/ql-plugins" "$HOME/Library/QuickLook"
-
   # Firefox Developer Edition — only when a dev-edition profile exists
   # (an empty path would resolve to `/`, which we must never write to)
   ff_dev_profile_dir="$("$DOTFILES_DIR"/firefox/lib/get-firefox-dev-path)"

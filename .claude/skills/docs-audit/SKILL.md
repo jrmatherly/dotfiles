@@ -11,7 +11,7 @@ Audit these docs: $ARGUMENTS
 
 If no path was given, audit:
 
-- `README.md`, `setup/README.md`, `agents/README.md`, `tilde/README.md`, every other `*/README.md` outside `node_modules/`, `obsidian/.obsidian/plugins/` and `ql-plugins/`
+- `README.md`, `setup/README.md`, `agents/README.md`, `tilde/README.md`, every other `*/README.md` outside `node_modules/` and `obsidian/.obsidian/plugins/`
 - `docs/**/*.md` except `docs/superpowers/` (plans and specs argue from a point in time; they are not documentation of the current tree)
 - the agent instructions: every `CLAUDE.md`, `agents/instructions.md`, `.claude/rules/*.md`, `tilde/.claude/rules/*.md`, `.claude/skills/*/SKILL.md`, `.claude/agents/*.md` and `.serena/memories/*.md`
 

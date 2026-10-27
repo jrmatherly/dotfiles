@@ -49,10 +49,10 @@ Decisions recorded here, change them before Step 2: `microsoft/foundry/devpack` 
 
 Decision recorded here: delete without replacement. `syntax-highlight` (already a cask) covers text previews; a Markdown or archive Quick Look app is a separate `add-tool` request if wanted.
 
-- [ ] **Step 1: Confirm**: `file ql-plugins/*/Contents/MacOS/*` shows only `x86_64`; `qlmanage -m plugins | grep -ci 'betterzip\|qlmarkdown'` is 0.
-- [ ] **Step 2: `git rm -r ql-plugins`**, remove the references, `grep -rn ql-plugins --exclude-dir=node_modules .` must print only `docs/superpowers/` history.
-- [ ] **Step 3: On this Mac**: `rm ~/Library/QuickLook` if it is the symlink (check with `readlink`), then `qlmanage -r`.
-- [ ] **Step 4: `pnpm check`, commit**: `git commit -m "Remove the Intel-only Quick Look plugins"`.
+- [x] **Step 1: Confirm**: `file ql-plugins/*/Contents/MacOS/*` shows only `x86_64`; `qlmanage -m plugins | grep -ci 'betterzip\|qlmarkdown'` is 0.
+- [x] **Step 2: `git rm -r ql-plugins`**, remove the references, `grep -rn ql-plugins --exclude-dir=node_modules .` must print only `docs/superpowers/` history.
+- [ ] **Step 3: On this Mac**: `rm ~/Library/QuickLook` if it is the symlink (check with `readlink`), then `qlmanage -r`. skip: needs the owner (`~/Library/QuickLook` is still the symlink to the repo's `ql-plugins`, now dangling; run `rm ~/Library/QuickLook && qlmanage -r`)
+- [x] **Step 4: `pnpm check`, commit**: `git commit -m "Remove the Intel-only Quick Look plugins"`.
 
 ### Task 3: Pinned, bounded CI (E6)
 

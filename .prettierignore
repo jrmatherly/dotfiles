@@ -9,7 +9,6 @@ zsh/zsh-completions/
 tilde/.zshrc
 tilde/.zshenv
 tilde/.zprofile
-ql-plugins/
 # Remember plugin memory (ignored by its own .remember/.gitignore)
 .remember/
 
