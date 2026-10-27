@@ -8,7 +8,7 @@
 
 **Tech Stack:** zsh, `bin/lib/test-shell`, `/usr/bin/time`, `EPOCHREALTIME`.
 
-**Spec:** `docs/superpowers/specs/2026-10-27-repo-audit-assessment.md`, section D (D1 to D16; D8 is done by the hardening plan's Task 8).
+**Spec:** `docs/superpowers/specs/completed/2026-10-27-repo-audit-assessment.md`, section D (D1 to D16; D8 is done by the hardening plan's Task 8).
 
 ## Global Constraints
 

@@ -8,7 +8,7 @@
 
 **Tech Stack:** bash 3.2, jq, Node (`bin/lib/get-tldr-md`), tlrc (`tldr`), Python 3.11+ through mise for the catalog test.
 
-**Spec:** `docs/superpowers/specs/2026-10-27-repo-audit-assessment.md`, section C (C1 to C17) and A9.
+**Spec:** `docs/superpowers/specs/completed/2026-10-27-repo-audit-assessment.md`, section C (C1 to C17) and A9.
 
 ## Global Constraints
 

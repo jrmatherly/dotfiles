@@ -8,7 +8,7 @@
 
 **Tech Stack:** zsh (Homebrew), bash 3.2 for the self-checks, jq, Claude Code 2.1.310 permission rules.
 
-**Spec:** `docs/superpowers/specs/2026-10-27-repo-audit-assessment.md`, section A (A1 to A8, A10, A12, A13). A9 is in `2026-10-27-bin-script-fixes.md`; A11 in `2026-10-27-setup-robustness.md`; A14 and A15 in `2026-10-27-packages-ci-and-docs.md`.
+**Spec:** `docs/superpowers/specs/completed/2026-10-27-repo-audit-assessment.md`, section A (A1 to A8, A10, A12, A13). A9 is in `2026-10-27-bin-script-fixes.md`; A11 in `2026-10-27-setup-robustness.md`; A14 and A15 in `2026-10-27-packages-ci-and-docs.md`.
 
 ## Global Constraints
 

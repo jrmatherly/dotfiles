@@ -8,7 +8,7 @@
 
 **Tech Stack:** Homebrew bundle, GitHub Actions, Renovate, Prettier, the `docs-audit` skill.
 
-**Spec:** `docs/superpowers/specs/2026-10-27-repo-audit-assessment.md`, sections E and F, plus A14 and A15.
+**Spec:** `docs/superpowers/specs/completed/2026-10-27-repo-audit-assessment.md`, sections E and F, plus A14 and A15.
 
 ## Global Constraints
 

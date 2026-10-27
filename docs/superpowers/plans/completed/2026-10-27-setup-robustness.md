@@ -8,7 +8,7 @@
 
 **Tech Stack:** bash 3.2 (`/bin/bash`), shellcheck, the `setup/tests` harness pattern, `/validate-setup`.
 
-**Spec:** `docs/superpowers/specs/2026-10-27-repo-audit-assessment.md`, section B (B1 to B14) and A11.
+**Spec:** `docs/superpowers/specs/completed/2026-10-27-repo-audit-assessment.md`, section B (B1 to B14) and A11.
 
 ## Global Constraints
 
@@ -301,7 +301,7 @@ These are checks the owner runs; each decides one block.
 ### Task 11: Validate the whole program on this Mac (B14 included)
 
 - [x] **Step 1: `/validate-setup before`** (runs `pnpm check`, snapshots). `pnpm check` passed at `cc731ca`; 89-line snapshot.
-- [ ] **Step 2: Run `./setup.sh --skip-brew` in your own terminal**, answering `b` once to a prompt you can afford to back up twice (then re-run for the second backup) so Task 1 is exercised live. Ran twice (logs `20261027-130506`, `20261027-130733`), both clean. No prompt came up: every link was already correct, so all targets printed `[skipped]` and the backup branch never ran. Task 1 stays covered by `setup/tests/symlinks-backup.sh`; a live check needs a conflicting file (replace `~/.hushlogin` with a regular file, run `./setup/symlinks.sh` twice answering `b`).
+- [x] **Step 2: Run `./setup.sh --skip-brew` in your own terminal**, answering `b` once to a prompt you can afford to back up twice (then re-run for the second backup) so Task 1 is exercised live. Ran twice (logs `20261027-130506`, `20261027-130733`), both clean. No prompt came up: every link was already correct, so all targets printed `[skipped]` and the backup branch never ran. Task 1 stays covered by `setup/tests/symlinks-backup.sh`; a live check needs a conflicting file (replace `~/.hushlogin` with a regular file, run `./setup/symlinks.sh` twice answering `b`). Done that way: run 1 moved the plain file to `~/.hushlogin.backup` (`first`), run 2 to `~/.hushlogin.backup.20261027-135156` (`second`), the first backup intact and the link restored both times.
 - [x] **Step 3: `/validate-setup after`.** In the log, confirm `Sudo released` precedes the Claude Code and npm steps and `Sudo reactivated` precedes the symlinks step, no `/!\` line names an abort, and `npm config get min-release-age` prints `7` afterwards (B14; if it does not, the rewriter is something else, `ls -l ~/.npmrc` for the mtime and `grep -rl npmrc ~/Library/LaunchAgents` would be the next check). Snapshot diff empty (no-op run, expected). Both logs: `Sudo released` before misc.sh, `Sudo reactivated` before symlinks, `Sudo released` after; only `/!\` line is the `Activate sudo` banner; no error/fail lines; `min-release-age` is `7`. Only notice: no Firefox Developer Edition profile (not installed here).
 - [x] **Step 4:** Fix anything the diff or log shows, one commit per fix, then push. Nothing to fix.
 
