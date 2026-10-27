@@ -8,8 +8,10 @@
 #
 # ---
 # Checks the telemetry pairing (setup.sh exports a subset of zsh/env.zsh's),
-# that Prettier ignores every zsh file, that every bin/ script has a header
-# comment on line 2, and that every third-party Brewfile formula or cask is trusted.
+# that Prettier ignores every zsh file, that every bin/ script's header renders
+# through help (a header comment on line 2 without tldr), that help cleans up its
+# temp pages and refuses a directory, and that every third-party Brewfile formula
+# or cask is trusted.
 #
 # License: MIT
 
@@ -31,10 +33,24 @@ for file in tilde/.zshenv tilde/.zprofile tilde/.zshrc zsh/*.zsh; do
     || fail "zsh prettier-ignored: $file"
 done
 
-for file in bin/*; do
-  [[ -f $file && $file != bin/CLAUDE.md ]] || continue
-  sed -n 2p "$file" | grep -qE '^(#|//)' || fail "bin headers: $file"
-done
+# tlrc rejects a page with a wrapped line, so render every header through help;
+# without tldr (the CI runner), only check that a header comment starts on line 2
+if command -v tldr > /dev/null; then
+  for file in bin/*; do
+    [[ -f $file && $file != bin/CLAUDE.md ]] || continue
+    bin/help "${file#bin/}" > /dev/null 2>&1 || fail "help render: $file"
+  done
+else
+  echo "test-conventions: tldr not found, skipping the help render check" >&2
+  for file in bin/*; do
+    [[ -f $file && $file != bin/CLAUDE.md ]] || continue
+    sed -n 2p "$file" | grep -qE '^(#|//)' || fail "bin headers: $file"
+  done
+fi
+before=$(ls -d "${TMPDIR:-/tmp}"/tldr-* 2> /dev/null | wc -l)
+bin/help serve > /dev/null 2>&1
+[ "$(ls -d "${TMPDIR:-/tmp}"/tldr-* 2> /dev/null | wc -l)" -le "$before" ] || fail "help leaves temp dirs"
+bin/help lib > /dev/null 2>&1 && fail "help lib should fail cleanly" || true
 
 while IFS=: read -r line text; do
   [[ $text == *', trusted: true'* ]] || fail "Brewfile trust: line $line"

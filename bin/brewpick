@@ -1,7 +1,6 @@
 #!/bin/bash
 #
-# Install Homebrew formulae, casks, and VS Code extensions from the dotfiles
-# Brewfile — either all at once, or interactively via fzf.
+# Install Homebrew formulae, casks, and VS Code extensions from the dotfiles Brewfile, either all at once or interactively via fzf.
 #
 # - Install everything in setup/Brewfile:
 #

@@ -146,7 +146,7 @@ git commit -m "Serve with Python's http.server"
 - Modify: `bin/lib/get-tldr-md:57-70` (`fs.statSync(binFilePath).isFile()` before reading)
 - Modify: `bin/lib/test-conventions:34-37`
 
-- [ ] **Step 1: Replace the line-2 check with a render check**
+- [x] **Step 1: Replace the line-2 check with a render check**
 
 ```bash
 if command -v tldr > /dev/null; then
@@ -164,16 +164,16 @@ bin/help serve > /dev/null
 bin/help lib > /dev/null 2>&1 && fail "help lib should fail cleanly" || true
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-conventions`
 Expected: `FAIL: help render: bin/brewpick`.
 
-- [ ] **Step 3: Fix the two headers, the temp dir and the directory case**
+- [x] **Step 3: Fix the two headers, the temp dir and the directory case**
 
 In `bin/help`, keep the generated page's directory in a variable and `rm -rf` it after `tldr --render` (the page lives in `$(dirname "$md")`, created by `get-tldr-md` only for `bin/` scripts). In `get-tldr-md`, `isFile()` guard; on a directory print nothing and exit 1 so `help` falls through to a `No help for <name>` line.
 
-- [ ] **Step 4: Run the lint and the gate, then commit**
+- [x] **Step 4: Run the lint and the gate, then commit**
 
 Run: `bash bin/lib/test-conventions && pnpm check`
 

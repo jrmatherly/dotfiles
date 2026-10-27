@@ -30,7 +30,10 @@ render_markdown() {
 }
 
 if [[ "$1" != "" ]]; then
-  md="$("$DOTFILES_DIR"/bin/lib/get-tldr-md "$1")"
+  md="$("$DOTFILES_DIR"/bin/lib/get-tldr-md "$1")" || {
+    echo "No help for $1" >&2
+    exit 1
+  }
 else
   md="$DOTFILES_DIR/docs/README.md"
 fi
@@ -40,6 +43,10 @@ if [[ "$md" == "$DOTFILES_DIR/docs/"* ]]; then
 elif [ "$md" != "" ]; then
   # A tldr page generated from a bin/ script's header comment
   tldr --config "$config" --render "$md"
+  status=$?
+  # get-tldr-md writes each page into its own tldr-XXXX temp dir
+  rm -rf "$(dirname "$md")"
+  exit "$status"
 else
   tldr --config "$config" "$@"
 fi

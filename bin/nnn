@@ -7,8 +7,7 @@
 #
 # `nnn`
 #
-# - Change the global default Node.js version: move it first in the `node`
-#   list in tilde/.config/mise/config.toml (`mise use -g` replaces the list)
+# - Change the global default Node.js version: move it first in the `node` list in tilde/.config/mise/config.toml (`mise use -g` replaces the list)
 #
 # ---
 # License: MIT
