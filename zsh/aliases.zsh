@@ -152,18 +152,15 @@ take() {
   \mkdir -p "$1" && cd "$1"
 }
 
-# git clone also cds into the clone: the last argument when the clone created
-# it (a local source path already existed), else the URL's basename
+# git clone also cds into the clone: the last argument, or its basename when
+# that argument was the (already existing) source or a URL
 git() {
   if [[ $1 == clone ]]; then
-    local dest="${@: -1}" existed=
-    [[ -d $dest ]] && existed=1
+    local dest="${@: -1}"
+    [[ -d $dest ]] && dest="${${dest:t}%.git}"
     command git clone "${@:2}" || return
-    if [[ -z $existed && -d $dest ]]; then
-      cd "$dest"
-    elif [[ -d $(basename "$dest" .git) ]]; then
-      cd "$(basename "$dest" .git)"
-    fi
+    [[ -d $dest ]] || dest="${${dest:t}%.git}"
+    [[ -d $dest ]] && cd "$dest"
   else
     command git "$@"
   fi

@@ -85,19 +85,21 @@ done < <(grep -nE '^(brew|cask) "[^"]+/[^"]+/[^"]+"' setup/Brewfile)
 
 ! grep -qE '^(user-agent|referer)' tilde/.curlrc || fail "curlrc: spoofed user-agent or auto referer"
 
-# Network fetches ask, credential paths and force-adds are denied (A2, A8)
-for rule in 'Bash(curl:*)' 'Bash(gh api:*)' 'WebFetch'; do
-  jq -e --arg r "$rule" '.permissions.allow | index($r) == null' agents/claude-settings.json > /dev/null \
-    || fail "claude-settings allow: $rule"
-done
-for rule in 'Read(~/.ssh/**)' 'Read(~/.aws/**)' 'Read(~/.config/gh/hosts.yml)' 'Read(**/.env)' 'Read(**/.env.*)' 'Bash(git add -f*)' 'Bash(git add --force*)'; do
-  jq -e --arg r "$rule" '.permissions.deny | index($r) != null' agents/claude-settings.json > /dev/null \
-    || fail "claude-settings deny missing: $rule"
-done
+# Network fetches ask, credential paths and force-adds are denied.
+# rules <file> <list> <want: present|absent> <rule>...
+rules() {
+  local file=$1 list=$2 want=$3 r
+  shift 3
+  for r in "$@"; do
+    jq -e --arg r "$r" ".permissions.$list | index(\$r) $([ "$want" = present ] && echo '!=' || echo '==') null" "$file" > /dev/null \
+      || fail "$file $list: $r should be $want"
+  done
+}
+rules agents/claude-settings.json allow absent 'Bash(curl:*)' 'Bash(gh api:*)' 'WebFetch'
+rules agents/claude-settings.json deny present 'Read(~/.ssh/**)' 'Read(~/.aws/**)' 'Read(~/.config/gh/hosts.yml)' \
+  'Read(**/.env)' 'Read(**/.env.*)' 'Bash(git add -f*)' 'Bash(git add --force*)'
 # a single leading / anchors at the project root in project settings
-for rule in 'Read(/vscode/User/History/**)' 'Read(/vscode/User/workspaceStorage/**)' 'Read(/vscode/User/globalStorage/**)'; do
-  jq -e --arg r "$rule" '.permissions.deny | index($r) != null' .claude/settings.json > /dev/null \
-    || fail "project deny missing: $rule"
-done
+rules .claude/settings.json deny present 'Read(/vscode/User/History/**)' 'Read(/vscode/User/workspaceStorage/**)' \
+  'Read(/vscode/User/globalStorage/**)'
 
 echo "conventions: all checks passed"

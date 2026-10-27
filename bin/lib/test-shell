@@ -70,7 +70,7 @@ fi
 # The git wrapper keeps every argument, agent shells skip it, clone installs nothing
 [ "$(user_zsh 'git rev-parse --sq-quote "" "a b"')" = " '' 'a b'" ] || fail "git wrapper drops empty args"
 agent_zsh 'whence -w git' | grep -q command || fail "agent shell still has the git wrapper"
-(cd "$repo" && ! grep -qE 'yarn|pnpm install|npm install|bun install' zsh/aliases.zsh) || fail "git clone still auto-installs"
+! user_zsh 'whence -f git' | grep -qE 'yarn|pnpm install|npm install|bun install' || fail "git clone still auto-installs"
 # Flags before the URL must not decide the cd target (`--depth 1` once meant cd 1)
 mkdir -p "$tmp/o/origin" "$tmp/w"
 git -C "$tmp/o/origin" init -q
@@ -88,7 +88,7 @@ if need rg; then
 fi
 
 # No alias shadows the linker or zsh's where builtin
-! user_zsh 'alias ld' > /dev/null 2>&1 || fail "ld alias shadows the linker"
+! user_zsh 'alias ld' > /dev/null || fail "ld alias shadows the linker"
 [ "$(user_zsh 'whence -w where')" = "where: builtin" ] || fail "where is not the builtin"
 
 echo "shell: all checks passed"
