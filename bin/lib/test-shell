@@ -87,4 +87,8 @@ if need rg; then
   agent_zsh "cd $repo && rg -Hn fsmonitor tilde/.gitconfig" | grep -qE '^tilde/\.gitconfig:[0-9]+:' || fail "agent rg output is not path:line:text"
 fi
 
+# No alias shadows the linker or zsh's where builtin
+! user_zsh 'alias ld' > /dev/null 2>&1 || fail "ld alias shadows the linker"
+[ "$(user_zsh 'whence -w where')" = "where: builtin" ] || fail "where is not the builtin"
+
 echo "shell: all checks passed"

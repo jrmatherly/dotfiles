@@ -43,7 +43,6 @@ alias d="docker"
 alias dc="docker compose"
 alias e="$EDITOR"
 alias c="code ."
-alias where="which"
 alias sops="EDITOR=\"code --wait\" sops"
 alias python="python3"
 # List the long form of the GPG keys for which you have both a public and private key
@@ -70,7 +69,8 @@ alias re="nr release"
 # Apps
 
 # Lazydocker
-alias ld="lazydocker"
+# lzd, not ld: ld is the linker
+alias lzd="lazydocker"
 
 # Lazygit
 alias lg="lazygit --use-config-dir $DOTFILES/lazygit"

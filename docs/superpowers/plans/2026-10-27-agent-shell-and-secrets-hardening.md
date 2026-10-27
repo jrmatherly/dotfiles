@@ -300,28 +300,28 @@ git commit -m "Give agent shells stock rg output"
 - Modify: `setup/Brewfile:58` (the `(zsh `ld` alias)` comment)
 - Modify: `bin/lib/test-shell`
 
-- [ ] **Step 1: Add the failing assertion**
+- [x] **Step 1: Add the failing assertion**
 
 ```bash
 ! user_zsh 'alias ld' > /dev/null 2>&1 || fail "ld alias shadows the linker"
 [ "$(user_zsh 'whence -w where')" = "where: builtin" ] || fail "where is not the builtin"
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-shell`
 Expected: `FAIL: ld alias shadows the linker`.
 
-- [ ] **Step 3: Rename `ld` to `lzd`, delete the `where` alias**
+- [x] **Step 3: Rename `ld` to `lzd`, delete the `where` alias**
 
 Update the `docs/README.md` row and the Brewfile comment to `lzd`.
 
-- [ ] **Step 4: Run the self-check and the gate**
+- [x] **Step 4: Run the self-check and the gate**
 
 Run: `bash bin/lib/test-shell && pnpm check`
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add zsh/aliases.zsh docs/README.md setup/Brewfile bin/lib/test-shell

@@ -7,7 +7,7 @@
 - **Install:** `cask "orbstack"` in `setup/Brewfile`. The Brewfile also installs the `docker`, `docker-buildx` and `docker-compose` formulae, and OrbStack ships its own copies of these tools (it installs them only if working ones are missing)
 - **Shell:** `tilde/.zprofile` sources `~/.orbstack/shell/init.zsh`, which adds `~/.orbstack/bin` to `PATH` and adds zsh completions
 - **SSH:** `tilde/.ssh/config` starts with `Include ~/.orbstack/ssh/config`, which defines the `orb` host. It must stay above any `Host` blocks
-- **Aliases (`zsh/aliases.zsh`):** `d` = `docker`, `dc` = `docker compose`, `ld` = `lazydocker`
+- **Aliases (`zsh/aliases.zsh`):** `d` = `docker`, `dc` = `docker compose`, `lzd` = `lazydocker`
 
 ## Docker
 

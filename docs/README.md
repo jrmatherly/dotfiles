@@ -90,11 +90,10 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `d {{args}}` | Run the Docker CLI |
 | `dc {{args}}` | Run Docker Compose |
 | `sops {{file}}` | Edit an encrypted secrets file with `sops` using VS Code as the editor |
-| `where {{command}}` | Locate a command (alias for `which`) |
 | `python` | Run Python 3 (alias for `python3`) |
 | `ff` | Open current directory in Nimble Commander |
 | `lg` | Run [`lazygit`](https://github.com/jesseduffield/lazygit) in terminal (with this repo's config) |
-| `ld` | Run [`lazydocker`](https://github.com/jesseduffield/lazydocker) in terminal |
+| `lzd` | Run [`lazydocker`](https://github.com/jesseduffield/lazydocker) in terminal |
 | `gpgkeys` | List all secret GPG keys with long key ID format |
 
 ## Node & package management

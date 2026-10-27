@@ -55,7 +55,7 @@ brew "zoxide" # Convenient and magical navigation (better `cd`)
 brew "zsh" # A shell of choice
 brew "zsh-autosuggestions" # Fish-like autosuggestions for Zsh
 brew "zsh-fast-syntax-highlighting" # Feature-rich syntax highlighting for Zsh
-brew "jesseduffield/lazydocker/lazydocker", trusted: true # Full Docker management app (zsh `ld` alias)
+brew "jesseduffield/lazydocker/lazydocker", trusted: true # Full Docker management app (zsh `lzd` alias)
 cask "cmux" # Terminal for AI agents, config tracked in tilde/.config/cmux
 cask "codex" # OpenAI Codex CLI, config tracked in tilde/.codex
 cask "coteditor" # `cot` CLI required: tilde/.gitconfig core.editor, zsh/env.zsh $EDITOR
