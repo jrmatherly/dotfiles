@@ -101,4 +101,13 @@ if need brew && brew --prefix zsh-autosuggestions > /dev/null 2>&1; then
   user_zsh 'whence -w _zsh_autosuggest_start' | grep -q function || fail "zsh-autosuggestions did not load"
 fi
 
+# Interactive shells keep the PATH they inherit (a login shell's .zprofile
+# entries, SnippetsLab's appended one included), with the repo's entries first
+mkdir -p "$tmp/probe-bin"
+lab=/Applications/SnippetsLab.app/Contents/Helpers
+out=$(PATH="$tmp/probe-bin:$PATH:$lab" user_zsh 'echo $PATH' | tr : '\n')
+grep -qx "$tmp/probe-bin" <<< "$out" || fail "an inherited PATH entry was dropped"
+[ ! -d "$lab" ] || grep -qx "$lab" <<< "$out" || fail "SnippetsLab's lab dropped from PATH"
+[ "$(grep -nx "$repo/bin" <<< "$out" | cut -d: -f1)" -lt "$(grep -nx "$tmp/probe-bin" <<< "$out" | cut -d: -f1)" ] || fail "repo bin is not ahead of the inherited PATH"
+
 echo "shell: all checks passed"

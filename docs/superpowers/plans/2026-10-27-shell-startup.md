@@ -68,11 +68,11 @@ user_zsh "source $root/zsh/completion.zsh; today=027; zcompdump_is_stale $tmp/du
 - Modify: `zsh/path.zsh:3-5`
 - Modify: `tilde/.zprofile` (only if an entry must move)
 
-- [ ] **Step 1: Add the failing assertion**: `user_zsh 'echo $PATH' | tr : '\n' | grep -qx /Applications/SnippetsLab.app/Contents/Helpers` when that directory exists; and `FOO_PATH_PROBE=$tmp/probe-bin user_zsh 'echo $PATH'` contains the probe dir when it is prepended to `PATH` before launching (`PATH=$tmp/probe-bin:$PATH user_zsh …`).
-- [ ] **Step 2: Watch it fail** (`getconf PATH` reset).
-- [ ] **Step 3: Fix**: replace the reset with `typeset -U path` deduplication only; keep every `prepend`. The comment explains that `.zprofile` already builds the base PATH and `prepend` moves our entries to the front.
-- [ ] **Step 4: Check nothing regressed**: `user_zsh 'echo $PATH'` still has mise shims first, then pnpm, then `$DOTFILES/bin`, and `whence -p rust-analyzer` is `/opt/homebrew/bin/rust-analyzer`.
-- [ ] **Step 5: `pnpm check`, commit**: `git commit -m "Keep the login PATH in interactive shells"`.
+- [x] **Step 1: Add the failing assertion**: `user_zsh 'echo $PATH' | tr : '\n' | grep -qx /Applications/SnippetsLab.app/Contents/Helpers` when that directory exists; and `FOO_PATH_PROBE=$tmp/probe-bin user_zsh 'echo $PATH'` contains the probe dir when it is prepended to `PATH` before launching (`PATH=$tmp/probe-bin:$PATH user_zsh …`).
+- [x] **Step 2: Watch it fail** (`getconf PATH` reset).
+- [x] **Step 3: Fix**: replace the reset with `typeset -U path` deduplication only; keep every `prepend`. The comment explains that `.zprofile` already builds the base PATH and `prepend` moves our entries to the front.
+- [x] **Step 4: Check nothing regressed**: `user_zsh 'echo $PATH'` still has mise shims first, then pnpm, then `$DOTFILES/bin`, and `whence -p rust-analyzer` is `/opt/homebrew/bin/rust-analyzer`.
+- [x] **Step 5: `pnpm check`, commit**: `git commit -m "Keep the login PATH in interactive shells"`.
 
 ### Task 4: `NPM_CONFIG_INIT_AUTHOR_NAME` reads the included identity (D4)
 

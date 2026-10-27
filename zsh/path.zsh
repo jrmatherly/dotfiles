@@ -1,11 +1,9 @@
 # Note: The first added entry gets referenced last
 
-if command -v getconf &> /dev/null; then
-  PATH="$(getconf PATH)"
-fi
-
-# Prepend PATH by skipping duplicates
-declare -U PATH
+# Build on the inherited PATH: tilde/.zprofile (or a parent shell) already made
+# the base, and resetting it dropped entries such as SnippetsLab's `lab`.
+# typeset -U keeps the first copy, so each prepend moves its entry to the front.
+typeset -U path PATH
 prepend() {
   [ -d "$1" ] && PATH="$1:$PATH"
 }
@@ -16,8 +14,7 @@ prepend "/usr/local/bin"
 # Cursor CLI installs here
 prepend "$HOME/.local/bin"
 
-# .NET global tools (e.g. pwsh) — tilde/.zprofile adds this too, but the PATH
-# reset above drops it in interactive shells
+# .NET global tools (e.g. pwsh); tilde/.zprofile appends it too, for login and GUI shells
 prepend "$HOME/.dotnet/tools"
 
 # Flutter
