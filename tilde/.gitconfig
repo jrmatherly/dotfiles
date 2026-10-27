@@ -22,7 +22,6 @@
   fsckobjects = true
 
 [core]
-  editor = cot --wait
   pager = hunk pager
   autocrlf = input
   safecrlf = false

@@ -89,9 +89,9 @@ user_zsh "source $root/zsh/completion.zsh; today=027; zcompdump_is_stale $tmp/du
 - Modify: `tilde/.gitconfig:25` (delete `editor = cot --wait`), `zsh/env.zsh:18-23` (export `GIT_EDITOR="$EDITOR --wait"` locally is wrong for nano; set `GIT_EDITOR=cot --wait` in the non-SSH branch and `GIT_EDITOR=nano` in the SSH branch)
 - Modify: `tilde/README.md` (the git editor sentence, if present)
 
-- [ ] **Step 1: Assertion**: `SSH_CONNECTION=1 user_zsh 'echo $GIT_EDITOR'` is `nano`; without it, `cot --wait`.
-- [ ] **Step 2: Fix both files**, run `git var GIT_EDITOR` in a fresh shell to confirm the value.
-- [ ] **Step 3: `pnpm check`, commit**: `git commit -m "Pick the git editor per session instead of in gitconfig"`.
+- [x] **Step 1: Assertion**: `SSH_CONNECTION=1 user_zsh 'echo $GIT_EDITOR'` is `nano`; without it, `cot --wait`.
+- [x] **Step 2: Fix both files**, run `git var GIT_EDITOR` in a fresh shell to confirm the value.
+- [x] **Step 3: `pnpm check`, commit**: `git commit -m "Pick the git editor per session instead of in gitconfig"`.
 
 ### Task 6: `fast-theme` runs only when the theme changed (D6)
 

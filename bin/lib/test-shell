@@ -115,4 +115,8 @@ if git config -f ~/.gitconfig.local user.name > /dev/null 2>&1; then
   [ -n "$(user_zsh 'echo -n $NPM_CONFIG_INIT_AUTHOR_NAME')" ] || fail "NPM_CONFIG_INIT_AUTHOR_NAME is empty"
 fi
 
+# git opens nano over SSH and CotEditor locally (GIT_EDITOR, not core.editor)
+[ "$(SSH_CONNECTION=1 user_zsh 'echo $GIT_EDITOR')" = nano ] || fail "SSH git editor is not nano"
+[ "$(SSH_CONNECTION='' user_zsh 'echo $GIT_EDITOR')" = "cot --wait" ] || fail "local git editor is not cot --wait"
+
 echo "shell: all checks passed"

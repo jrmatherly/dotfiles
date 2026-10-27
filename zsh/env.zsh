@@ -14,11 +14,15 @@ export WORKSPACE="$HOME/dev"
 # Obsidian vault (iCloud Drive/Notes) — used by bin/obsidian-vault and bin/install-color-themes
 export OBSIDIAN_VAULT="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Notes"
 
-# Preferred editor for local and remote sessions
+# Preferred editor for local and remote sessions. GIT_EDITOR, not core.editor
+# in tilde/.gitconfig, so an SSH session's commit opens nano instead of waiting
+# on a CotEditor window nobody sees (git reads GIT_EDITOR before core.editor)
 if [[ -n $SSH_CONNECTION ]]; then
   export EDITOR="nano"
+  export GIT_EDITOR="nano"
 else
   export EDITOR="cot"
+  export GIT_EDITOR="cot --wait"
 fi
 export VISUAL="$EDITOR"
 
