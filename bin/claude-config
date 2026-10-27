@@ -239,12 +239,22 @@ save_skills() {
   } > "$skills_list.tmp" && mv "$skills_list.tmp" "$skills_list"
 }
 
-# upstream <name>: prints same or changed by comparing the git tree SHA of the
-# skill's folder on GitHub with the one the skills CLI recorded at install
-# (skillFolderHash), or unknown when it can't check (no gh, a source that
-# isn't GitHub, an API error)
+# upstream <name>: prints same or changed by comparing what the skills CLI
+# recorded at install with the source now: the git tree SHA of the skill's
+# folder on GitHub (skillFolderHash), or for a well-known source the digest its
+# site's index.json lists (wellKnownDigest). unknown when it can't check (no gh,
+# another source type, a network or API error)
 upstream() {
-  local entry repo path hash dir tree sha
+  local entry repo path hash dir tree sha url
+  if entry=$(jq -r --arg n "$1" '.skills[$n] | select(.sourceType == "well-known" and (.wellKnownDigest // "") != "")
+    | "\(.sourceUrl) \(.wellKnownDigest)"' "$skill_lock" 2> /dev/null) && [ -n "$entry" ]; then
+    read -r url hash <<< "$entry"
+    # sourceUrl is <site>/.well-known/agent-skills/<name>/skill.md, beside the index
+    sha=$(curl -fsSL --max-time 20 "${url%/*/*}/index.json" 2> /dev/null \
+      | jq -r --arg n "$1" '.skills[]? | select(.name == $n) | .digest // empty' 2> /dev/null)
+    if [ -z "$sha" ]; then echo unknown; elif [ "$sha" = "$hash" ]; then echo same; else echo changed; fi
+    return
+  fi
   command -v gh > /dev/null \
     && entry=$(jq -r --arg n "$1" '.skills[$n] | select(.sourceType == "github" and .skillFolderHash != null)
       | "\(.source) \(.skillFolderHash) \(.skillPath)"' "$skill_lock" 2> /dev/null) \

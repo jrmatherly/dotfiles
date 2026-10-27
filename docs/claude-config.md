@@ -17,7 +17,7 @@
 | `claude-config restore` | Add missing marketplaces and plugins, merge the base settings, install missing skills |
 | `claude-config restore plugins` / `settings` / `skills` | One part only |
 | `claude-config restore ... --dry-run` | Print what that part would do |
-| `claude-config restore skills --update` | Reinstall each tracked skill whose folder on GitHub changed since install (its git tree SHA against `skillFolderHash` in `~/.agents/.skill-lock.json`, one `gh api` call per repository), plus any it can't check, such as a well-known source, for its listed agents; prints `skill same\|changed\|unknown <name>` per skill (`upup` does this) |
+| `claude-config restore skills --update` | Reinstall each tracked skill whose source changed since install (on GitHub its folder's git tree SHA against `skillFolderHash` in `~/.agents/.skill-lock.json`, one `gh api` call per repository; for a well-known source such as `siderolabs`, the `digest` in the site's `/.well-known/agent-skills/index.json` against `wellKnownDigest`), plus any it can't check, for its listed agents; prints `skill same\|changed\|unknown <name>` per skill (`upup` does this) |
 
 ## The three tracked files
 
