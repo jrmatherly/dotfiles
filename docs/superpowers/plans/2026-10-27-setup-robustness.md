@@ -290,20 +290,20 @@ git commit -m "Release sudo before the installers that do not need it"
 
 These are checks the owner runs; each decides one block.
 
-- [ ] **Step 1: TextEdit.** Run the three `defaults write com.apple.TextEdit …` lines, quit and reopen TextEdit, `File > New`. Plain text with no ruler means honoured (keep); a rich-text document means dead (delete the block and the `TextEdit plain text` line in `setup/README.md`).
-- [ ] **Step 2: Preview.** `defaults write com.apple.Preview ApplePersistenceIgnoreState YES`, open two PDFs, quit, reopen one. Only that one open means honoured.
-- [ ] **Step 3: QuickTime.** Write the key, open a video. Auto-play means honoured.
-- [ ] **Step 4: helpviewer (`:108`).** Open any app's Help window; a floating window that stays above others means honoured.
-- [ ] **Step 5: Quick Look text selection (`:239`).** Quick Look a text file, try to select text. No selection means dead; delete the line.
-- [ ] **Step 6: Messages (`:542-548`).** Type `"hi"` in Messages; straight quotes mean honoured, curly means dead; delete the dead keys.
-- [ ] **Step 7: Commit** the deletions and README edits: `git commit -m "Drop macOS defaults the sandboxed apps ignore"`.
+- [ ] (skip: needs the owner) **Step 1: TextEdit.** Run the three `defaults write com.apple.TextEdit …` lines, quit and reopen TextEdit, `File > New`. Plain text with no ruler means honoured (keep); a rich-text document means dead (delete the block and the `TextEdit plain text` line in `setup/README.md`).
+- [ ] (skip: needs the owner) **Step 2: Preview.** `defaults write com.apple.Preview ApplePersistenceIgnoreState YES`, open two PDFs, quit, reopen one. Only that one open means honoured.
+- [ ] (skip: needs the owner) **Step 3: QuickTime.** Write the key, open a video. Auto-play means honoured.
+- [ ] (skip: needs the owner) **Step 4: helpviewer (`:108`).** Open any app's Help window; a floating window that stays above others means honoured.
+- [ ] (skip: needs the owner) **Step 5: Quick Look text selection (`:239`).** Quick Look a text file, try to select text. No selection means dead; delete the line.
+- [ ] (skip: needs the owner) **Step 6: Messages (`:542-548`).** Type `"hi"` in Messages; straight quotes mean honoured, curly means dead; delete the dead keys.
+- [ ] (skip: needs the owner) **Step 7: Commit** the deletions and README edits: `git commit -m "Drop macOS defaults the sandboxed apps ignore"`.
 
 ### Task 11: Validate the whole program on this Mac (B14 included)
 
-- [ ] **Step 1: `/validate-setup before`** (runs `pnpm check`, snapshots).
-- [ ] **Step 2: Run `./setup.sh --skip-brew` in your own terminal**, answering `b` once to a prompt you can afford to back up twice (then re-run for the second backup) so Task 1 is exercised live.
-- [ ] **Step 3: `/validate-setup after`.** In the log, confirm `Sudo released` precedes the Claude Code and npm steps and `Sudo reactivated` precedes the symlinks step, no `/!\` line names an abort, and `npm config get min-release-age` prints `7` afterwards (B14; if it does not, the rewriter is something else, `ls -l ~/.npmrc` for the mtime and `grep -rl npmrc ~/Library/LaunchAgents` would be the next check).
-- [ ] **Step 4:** Fix anything the diff or log shows, one commit per fix, then push.
+- [ ] (skip: needs the owner) **Step 1: `/validate-setup before`** (runs `pnpm check`, snapshots).
+- [ ] (skip: needs the owner) **Step 2: Run `./setup.sh --skip-brew` in your own terminal**, answering `b` once to a prompt you can afford to back up twice (then re-run for the second backup) so Task 1 is exercised live.
+- [ ] (skip: needs the owner) **Step 3: `/validate-setup after`.** In the log, confirm `Sudo released` precedes the Claude Code and npm steps and `Sudo reactivated` precedes the symlinks step, no `/!\` line names an abort, and `npm config get min-release-age` prints `7` afterwards (B14; if it does not, the rewriter is something else, `ls -l ~/.npmrc` for the mtime and `grep -rl npmrc ~/Library/LaunchAgents` would be the next check).
+- [ ] (skip: needs the owner) **Step 4:** Fix anything the diff or log shows, one commit per fix, then push.
 
 ---
 
