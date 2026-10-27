@@ -56,9 +56,10 @@ function main() {
 
   // Check for a script
   const binFilePath = `${BIN_DIR}/${query}`
-  if (fs.existsSync(binFilePath)) {
+  const stat = fs.statSync(binFilePath, { throwIfNoEntry: false })
+  if (stat) {
     // A directory such as bin/lib has no header: exit 1 so help says so
-    if (!fs.statSync(binFilePath).isFile()) {
+    if (!stat.isFile()) {
       process.exit(1)
     }
     const source = read(binFilePath)

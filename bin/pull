@@ -74,7 +74,7 @@ reset_dir() {
 # Test whether a file has changed since the pre-pull HEAD
 # $1 - filename
 has_changed() {
-  # $before, not ORIG_HEAD: a pull that fetches nothing leaves ORIG_HEAD stale
+  # $before is the HEAD recorded just before the pull, so this sees exactly what it brought in
   changed_files="$(git diff-tree -r --name-only --no-commit-id "$before" HEAD 2> /dev/null)"
   echo "$changed_files" | grep --quiet "$1"
 }

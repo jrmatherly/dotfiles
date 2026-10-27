@@ -118,14 +118,13 @@ if grep -q 'Label:' <<< "$macos_updates"; then
       || status notice macOS "couldn't read the Mac password from 1Password; type it at the prompt"
   fi
   # printf is a shell builtin, so the password never shows up in `ps`
-  if [ -z "$mac_password" ] \
-    || ! printf '%s\n' "$mac_password" | sudo softwareupdate -ia --verbose --user "$USER" --stdinpass 2>&1 | tee -a "$log"; then
-    if ! sudo softwareupdate -ia --verbose 2>&1 | tee -a "$log"; then
-      status fail macOS "install failed; run: sudo softwareupdate -ia --verbose"
-      macos_updates=""
-    fi
+  if { [ -n "$mac_password" ] \
+    && printf '%s\n' "$mac_password" | sudo softwareupdate -ia --verbose --user "$USER" --stdinpass 2>&1 | tee -a "$log"; } \
+    || sudo softwareupdate -ia --verbose 2>&1 | tee -a "$log"; then
+    status changed macOS "$(sed -n 's/^.*Label: //p' <<< "$macos_updates" | list)"
+  else
+    status fail macOS "install failed; run: sudo softwareupdate -ia --verbose"
   fi
-  [ -z "$macos_updates" ] || status changed macOS "$(sed -n 's/^.*Label: //p' <<< "$macos_updates" | list)"
   unset mac_password
 else
   status ok macOS "no updates"

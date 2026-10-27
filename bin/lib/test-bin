@@ -18,7 +18,8 @@ root="$(cd "$(dirname "$0")/.." && pwd -P)"
 root="${root%/bin}"
 tmp=$(mktemp -d)
 port=8099
-trap 'pkill -f "http.server $port" 2> /dev/null; rm -rf "$tmp"' EXIT
+serve_pid=""
+trap '[ -z "$serve_pid" ] || kill "$serve_pid" 2> /dev/null; rm -rf "$tmp"' EXIT
 # python3 can be a mise shim, which refuses the global config under a fake HOME
 # unless mise's trust records stay in the real state dir
 export MISE_STATE_DIR="${MISE_STATE_DIR:-$HOME/.local/state/mise}"
@@ -44,7 +45,9 @@ check() {
   git checkout -q main
 )
 
-(cd "$tmp" && SERVE_NO_OPEN=1 exec "$root/bin/serve" "$port" > /dev/null 2>&1 &)
+# Both the subshell and serve exec, so $! is the python server itself
+(cd "$tmp" && SERVE_NO_OPEN=1 exec "$root/bin/serve" "$port" > /dev/null 2>&1) &
+serve_pid=$!
 code=000
 for _ in $(seq 50); do
   code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/" 2> /dev/null)
@@ -52,7 +55,6 @@ for _ in $(seq 50); do
   sleep 0.1
 done
 check "serve answers" "[ '$code' = 200 ]"
-pkill -f "http.server $port" 2> /dev/null
 
 check "git-find top-level" "(cd '$tmp/repo' && '$root/bin/git-find' top.txt | grep -qx top.txt)"
 check "git-find nested" "(cd '$tmp/repo' && '$root/bin/git-find' inner.txt | grep -qx sub/inner.txt)"

@@ -60,6 +60,12 @@ check "valid registry saves its plugins" "grep -qx 'plugin y@a disabled' '$list'
 check "token never saved" "! grep -q OAUTH_TOKEN '$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json'"
 check "cert store kept" "grep -q CERT_STORE '$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json'"
 
+cp "$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json" "$tmp/settings.before"
+echo '{"env": {' > "$CLAUDE_CONFIG_DIR/settings.json"
+cc save settings > /dev/null 2> "$tmp/err"
+check "corrupt settings keeps claude-settings.json" "cmp -s '$tmp/settings.before' '$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json'"
+check "corrupt settings warns" "grep -q 'not valid JSON, kept .*claude-settings.json' '$tmp/err'"
+
 [ "$fails" -eq 0 ] || {
   echo "$fails failed" >&2
   exit 1

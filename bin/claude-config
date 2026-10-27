@@ -122,14 +122,13 @@ valid_json() {
 }
 
 save_plugins() {
-  local disabled=""
+  local f disabled=""
   missing_source "$config/plugins/installed_plugins.json" "$plugins_list" && return 0
-  valid_json "$config/plugins/installed_plugins.json" "$plugins_list" || return 0
-  if [ -f "$config/plugins/known_marketplaces.json" ]; then
-    valid_json "$config/plugins/known_marketplaces.json" "$plugins_list" || return 0
-  fi
+  for f in "$config/plugins/installed_plugins.json" "$config/plugins/known_marketplaces.json" "$settings"; do
+    [ -f "$f" ] || continue
+    valid_json "$f" "$plugins_list" || return 0
+  done
   if [ -f "$settings" ]; then
-    valid_json "$settings" "$plugins_list" || return 0
     disabled=$(jq -r '(.enabledPlugins // {}) | to_entries[] | select(.value == false) | .key' "$settings")
   fi
   {
@@ -179,6 +178,7 @@ restore_plugins() {
 
 save_settings() {
   missing_source "$settings" "$settings_base" && return 0
+  valid_json "$settings" "$settings_base" || return 0
   # Sorted permission lists keep the diff stable
   jq --arg home "$HOME" "$untilde $settings_filter"' | walk(if type == "string" then untilde($home) else . end)
     | if .permissions then .permissions |= with_entries(if (.value | type) == "array" then .value |= sort else . end) else . end' \
@@ -217,6 +217,7 @@ restore_settings() {
 
 save_skills() {
   missing_source "$skill_lock" "$skills_list" && return 0
+  valid_json "$skill_lock" "$skills_list" || return 0
   {
     echo "# User skills installed with the \`skills\` CLI — see bin/claude-config."
     echo "# skill <name> <source> <agents>"

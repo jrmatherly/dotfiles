@@ -35,20 +35,20 @@ done
 
 # tlrc rejects a page with a wrapped line, so render every header through help;
 # without tldr (the CI runner), only check that a header comment starts on line 2
-if command -v tldr > /dev/null; then
-  for file in bin/*; do
-    [[ -f $file && $file != bin/CLAUDE.md ]] || continue
-    bin/help "${file#bin/}" > /dev/null 2>&1 || fail "help render: $file"
-  done
-else
+have_tldr=false
+if command -v tldr > /dev/null; then have_tldr=true; else
   echo "test-conventions: tldr not found, skipping the help render check" >&2
-  for file in bin/*; do
-    [[ -f $file && $file != bin/CLAUDE.md ]] || continue
-    sed -n 2p "$file" | grep -qE '^(#|//)' || fail "bin headers: $file"
-  done
 fi
+# Each render must also remove the temp dir its page was written to
 before=$(ls -d "${TMPDIR:-/tmp}"/tldr-* 2> /dev/null | wc -l)
-bin/help serve > /dev/null 2>&1
+for file in bin/*; do
+  [[ -f $file && $file != bin/CLAUDE.md ]] || continue
+  if [ "$have_tldr" = true ]; then
+    bin/help "${file#bin/}" > /dev/null 2>&1 || fail "help render: $file"
+  else
+    sed -n 2p "$file" | grep -qE '^(#|//)' || fail "bin headers: $file"
+  fi
+done
 [ "$(ls -d "${TMPDIR:-/tmp}"/tldr-* 2> /dev/null | wc -l)" -le "$before" ] || fail "help leaves temp dirs"
 bin/help lib > /dev/null 2>&1 && fail "help lib should fail cleanly" || true
 

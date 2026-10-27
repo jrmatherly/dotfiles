@@ -41,12 +41,11 @@ fi
 if [[ "$md" == "$DOTFILES_DIR/docs/"* ]]; then
   render_markdown "$md"
 elif [ "$md" != "" ]; then
-  # A tldr page generated from a bin/ script's header comment
+  # A tldr page generated from a bin/ script's header comment, written into
+  # its own tldr-XXXX temp dir by get-tldr-md
+  tmpdir="$(dirname "$md")"
+  trap 'rm -rf "$tmpdir"' EXIT
   tldr --config "$config" --render "$md"
-  status=$?
-  # get-tldr-md writes each page into its own tldr-XXXX temp dir
-  rm -rf "$(dirname "$md")"
-  exit "$status"
 else
   tldr --config "$config" "$@"
 fi
