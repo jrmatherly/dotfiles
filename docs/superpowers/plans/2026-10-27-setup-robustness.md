@@ -266,14 +266,14 @@ git commit -m "Put Homebrew on symlinks.sh's PATH and prompt for sudo once"
 
 The steps that call `sudo`: Touch ID (`setup.sh:145`), `brew.sh` (cask installers), `zsh.sh:47` (`/etc/shells`), `symlinks.sh:95,345` (`/usr/local/bin`), `macos.sh` (its own keep-alive). `misc.sh` needs none once Task 8 lands, and it is the script that runs `curl | bash` and the npm, uv and dotnet installs.
 
-- [ ] **Step 1: Turn the keep-alive into `sudo_keepalive_start` and `sudo_keepalive_stop` functions** in `setup.sh` (start sets `SUDO_KEEPALIVE_PID` and the trap; stop kills it and prints `Sudo released` through `info`). Call stop before `misc.sh` and start again (printing `Sudo reactivated`) before `symlinks.sh`.
+- [x] **Step 1: Turn the keep-alive into `sudo_keepalive_start` and `sudo_keepalive_stop` functions** in `setup.sh` (start sets `SUDO_KEEPALIVE_PID` and the trap; stop kills it and prints `Sudo released` through `info`). Call stop before `misc.sh` and start again (printing `Sudo reactivated`) before `symlinks.sh`.
 
-- [ ] **Step 2: Prove the pair**
+- [x] **Step 2: Prove the pair**
 
 Run: `bash -c 'f(){ while true; do sleep 60; done & P=$!; }; f; kill -0 $P && echo running; kill $P; sleep 0.1; kill -0 $P 2>/dev/null || echo stopped'`
 Expected: `running` then `stopped`.
 
-- [ ] **Step 3: Run the gate and commit**
+- [x] **Step 3: Run the gate and commit**
 
 Run: `pnpm check`
 

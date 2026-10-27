@@ -146,24 +146,38 @@ if [ ! -f /etc/pam.d/sudo_local ]; then
   echo "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local > /dev/null
 fi
 
-# Ask for the administrator password upfront, then keep the sudo timestamp
-# alive for the whole run so app installers don't re-prompt halfway through
+# Keep the sudo timestamp alive so app installers don't re-prompt halfway
+# through. `sudo -n -v` is the documented way to *extend* the cached credential
+# without prompting (`sudo -n true` only checks it, so it expired after macOS's
+# default 5 minutes and printed "sudo: a password is required"). `|| true`
+# keeps one failure from killing the loop under the inherited `set -e`.
+sudo_keepalive_start() {
+  while true; do
+    sudo -n -v 2> /dev/null || true
+    sleep 60
+    kill -0 "$$" 2> /dev/null || exit
+  done &
+  SUDO_KEEPALIVE_PID=$!
+  trap sudo_keepalive_stop EXIT INT TERM
+}
+
+# Stop the keep-alive and drop the cached credential (`sudo -k`), so the steps
+# that follow can't use sudo without asking. A no-op when none is running.
+sudo_keepalive_stop() {
+  [ -n "${SUDO_KEEPALIVE_PID:-}" ] || return 0
+  kill "$SUDO_KEEPALIVE_PID" 2> /dev/null || true
+  SUDO_KEEPALIVE_PID=""
+  sudo -k
+  echo "Sudo released"
+}
+
+# Ask for the administrator password upfront; sudo is held for Homebrew, Zsh
+# and the symlinks, and released around misc.sh (curl | bash, npm, uv, dotnet)
 warning "Activate sudo"
 sudo -v
 # Tells the child scripts sudo is already cached, so they skip their own prompt
 export DOTFILES_SUDO_KEPT=1
-# `sudo -n -v` is the documented way to *extend* the cached credential without
-# prompting (`sudo -n true` only checks it, so it expired after macOS's default
-# 5 minutes and printed "sudo: a password is required"). `|| true` keeps one
-# failure from killing the loop under the inherited `set -e`.
-while true; do
-  sudo -n -v 2> /dev/null || true
-  sleep 60
-  kill -0 "$$" 2> /dev/null || exit
-done &
-SUDO_KEEPALIVE_PID=$!
-# shellcheck disable=SC2064 # expand the PID now, not when the trap fires
-trap "kill $SUDO_KEEPALIVE_PID 2> /dev/null || true" EXIT INT TERM
+sudo_keepalive_start
 echo "Sudo activated!"
 echo
 
@@ -182,13 +196,22 @@ title "🐚 Setting up Zsh…"
 echo
 
 # Xcode CLT, gh auth, mise tools, Claude Code + CodeGraph + mise/Serena MCP, PowerShell, npm config, then Claude Code's plugins/settings/skills + catalog
+# misc.sh needs no sudo, so its installers run without it
+sudo_keepalive_stop
 title "🚀 Setting up extra tools…"
 "$DOTFILES_DIR/setup/misc.sh"
 echo
 
-# Install dotfiles symlinks
+# symlinks.sh may need sudo for /usr/local/bin; if this prompt is refused, it asks itself
+if sudo -v; then
+  sudo_keepalive_start
+  echo "Sudo reactivated"
+else
+  warning "Sudo not reactivated"
+fi
 title "🍤 Setting up symlinks…"
 "$DOTFILES_DIR/setup/symlinks.sh"
+sudo_keepalive_stop
 
 # Optional: Dash docsets built from local folders
 if [ "$RUN_DASH" = true ]; then
