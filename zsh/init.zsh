@@ -3,7 +3,6 @@ command_exists() {
 }
 
 source_brew_plugin() {
-  command_exists brew || return 1
   # HOMEBREW_PREFIX comes from `brew shellenv` in tilde/.zprofile; `brew --prefix`
   # cost a Ruby start per call
   local plugin_path prefix=${HOMEBREW_PREFIX:-/opt/homebrew}
@@ -49,7 +48,8 @@ if command_exists zoxide; then
 fi
 
 # Starship prompt
-if command_exists starship; then
+# Not in a dumb terminal (an editor or agent shell), where starship errors on every prompt
+if [[ $TERM != dumb ]] && command_exists starship; then
   export STARSHIP_CONFIG=~/.starship.toml
   eval "$(starship init zsh)"
 fi

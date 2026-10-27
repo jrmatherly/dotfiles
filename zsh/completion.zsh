@@ -18,12 +18,13 @@ fi
 autoload -Uz compinit
 
 # Based on https://carlosbecker.com/posts/speeding-up-zsh/
-# Days compare as numbers: a string compare of "027" against 27 rebuilt the dump
-# every day from January 1 to April 9. `today` lets bin/lib/test-shell pin the day.
+# Stale = older than 24 hours (glob qualifier, no date/stat forks; a day-of-year
+# string compare once rebuilt it all day from January 1 to April 9)
 zcompdump_is_stale() {
-  (( ${today:-$(date +%j)} != $(stat -f '%Sm' -t '%j' "$1" 2>/dev/null || echo 0) ))
+  local old=($1(N.mh+24))
+  (( $#old ))
 }
-if zcompdump_is_stale ~/.zcompdump; then
+if zcompdump_is_stale ${ZDOTDIR:-$HOME}/.zcompdump; then
   compinit -i
 else
   compinit -C -i

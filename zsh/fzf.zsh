@@ -65,7 +65,6 @@ _fzf_comprun() {
   esac
 }
 
-# Set up fzf key bindings and fuzzy completion. Its script saves and restores
-# every option, and restoring zle fails in a shell without a terminal (zsh -i -c
-# from a script), where [[ -o zle ]] still reads on; `setopt zle` fails there too
-setopt zle 2> /dev/null && source <(fzf --zsh)
+# Set up fzf key bindings and fuzzy completion, only on a terminal: without one
+# (zsh -i -c from a script) its option restore fails with "can't change option: zle"
+[[ -t 0 ]] && source <(fzf --zsh)

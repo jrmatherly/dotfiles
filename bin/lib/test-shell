@@ -37,7 +37,7 @@ need() {
 
 # Run zsh code in an interactive shell built from the repo config; stdout only
 run_zsh() {
-  env -u GITHUB_TOKEN -u GH_TOKEN -u GIGET_AUTH -u CLAUDECODE -u RIPGREP_CONFIG_PATH \
+  env -u GITHUB_TOKEN -u GH_TOKEN -u GIGET_AUTH -u CLAUDECODE -u RIPGREP_CONFIG_PATH -u GIT_EDITOR \
     ZDOTDIR="$tmp" "$@" < /dev/null 2> /dev/null
 }
 
@@ -91,13 +91,15 @@ fi
 ! user_zsh 'alias ld' > /dev/null || fail "ld alias shadows the linker"
 [ "$(user_zsh 'whence -w where')" = "where: builtin" ] || fail "where is not the builtin"
 
-# The completion dump is fresh on its own day, below day 100 too (`date +%j` is 027, not 27)
-touch -t 202601271200 "$tmp/dump"
-[ "$(user_zsh "today=027; zcompdump_is_stale $tmp/dump && echo stale || echo fresh")" = fresh ] || fail "compinit cache miss on a day below 100"
-[ "$(user_zsh "today=028; zcompdump_is_stale $tmp/dump && echo stale || echo fresh")" = stale ] || fail "compinit cache never goes stale"
+# The completion dump is fresh until it is a day old (a day-of-year string compare
+# once missed the cache all of January 1 to April 9), and missing counts as fresh
+touch "$tmp/new"
+touch -t 202601271200 "$tmp/old"
+out=$(user_zsh "for d in $tmp/new $tmp/old $tmp/none; do zcompdump_is_stale \$d && echo stale || echo fresh; done" | tr '\n' ' ')
+[ "$out" = "fresh stale fresh " ] || fail "zcompdump_is_stale says '$out' for new, old, missing"
 
 # The Homebrew zsh plugins load (source_brew_plugin finds them under HOMEBREW_PREFIX)
-if need brew && brew --prefix zsh-autosuggestions > /dev/null 2>&1; then
+if [ -r "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]; then
   user_zsh 'whence -w _zsh_autosuggest_start' | grep -q function || fail "zsh-autosuggestions did not load"
 fi
 
@@ -115,19 +117,20 @@ if git config -f ~/.gitconfig.local user.name > /dev/null 2>&1; then
   [ -n "$(user_zsh 'echo -n $NPM_CONFIG_INIT_AUTHOR_NAME')" ] || fail "NPM_CONFIG_INIT_AUTHOR_NAME is empty"
 fi
 
-# git opens nano over SSH and CotEditor locally (GIT_EDITOR, not core.editor)
-[ "$(SSH_CONNECTION=1 user_zsh 'echo $GIT_EDITOR')" = nano ] || fail "SSH git editor is not nano"
-[ "$(SSH_CONNECTION='' user_zsh 'echo $GIT_EDITOR')" = "cot --wait" ] || fail "local git editor is not cot --wait"
+# git opens nano over SSH (GIT_EDITOR beats core.editor) and CotEditor locally;
+# the terminal's own TERM survives and only SSH sessions get xterm-256color
+[ "$(TERM=xterm-ghostty SSH_CONNECTION=1 user_zsh 'echo "$GIT_EDITOR|$TERM"')" = "nano|xterm-256color" ] || fail "SSH session: GIT_EDITOR|TERM is not nano|xterm-256color"
+[ "$(TERM=xterm-ghostty SSH_CONNECTION='' user_zsh 'echo "$GIT_EDITOR|$TERM"')" = "|xterm-ghostty" ] || fail "local session sets GIT_EDITOR or overrides TERM"
+[ "$(git config -f "$repo/tilde/.gitconfig" core.editor)" = "cot --wait" ] || fail "core.editor is not cot --wait"
 
-# fast-theme reapplies the repo theme after the ini changes and leaves the
-# stored theme alone otherwise (touch changes only the ini's mtime)
+# fast-theme reapplies the repo theme when the stored theme is older than the ini
+# (backdated here) and leaves it alone otherwise
 fsh=$(user_zsh '(( $+functions[fast-theme] )) && echo $FAST_WORK_DIR/current_theme.zsh')
 if [ -n "$fsh" ]; then
-  touch "$repo/colors/fast-syntax-highlighting.ini"
-  sleep 1 # bash 3.2's -nt compares whole seconds
+  touch -t 202001010000 "$fsh"
   [ "$(user_zsh 'echo $FAST_THEME_NAME')" = fast-syntax-highlighting ] || fail "fast-theme did not apply the repo theme"
-  [ "$fsh" -nt "$repo/colors/fast-syntax-highlighting.ini" ] || fail "fast-theme did not rewrite $fsh after the ini changed"
   before=$(stat -f %Fm "$fsh")
+  [ "${before%%.*}" -gt 1577836800 ] || fail "fast-theme did not rewrite $fsh when it was older than the ini"
   user_zsh true
   [ "$(stat -f %Fm "$fsh")" = "$before" ] || fail "fast-theme rewrote $fsh on an unchanged ini"
 fi
@@ -137,10 +140,6 @@ if need fzf; then
   n=$(env -u CLAUDECODE ZDOTDIR="$tmp" zsh -i -c true < /dev/null 2>&1 | grep -c "can't change option" || true)
   [ "$n" = 0 ] || fail "shell start printed $n \"can't change option\" lines"
 fi
-
-# The terminal's own TERM survives; only SSH sessions get xterm-256color
-[ "$(TERM=xterm-ghostty SSH_CONNECTION='' user_zsh 'echo $TERM')" = xterm-ghostty ] || fail "TERM is overridden locally"
-[ "$(TERM=xterm-ghostty SSH_CONNECTION=1 user_zsh 'echo $TERM')" = xterm-256color ] || fail "SSH TERM is not xterm-256color"
 
 # tilde/.zprofile starts cleanly on a Mac without Homebrew (its brew path swapped for a missing one)
 sed 's#/opt/homebrew/bin/brew#/nonexistent/brew#g' "$repo/tilde/.zprofile" > "$tmp/zprofile-nobrew"
