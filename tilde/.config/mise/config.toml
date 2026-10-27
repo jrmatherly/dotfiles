@@ -6,10 +6,9 @@
 # PATH. Projects select another via `.nvmrc` / `.python-version` / `mise.toml`,
 # or run one ad hoc: `mise exec node@22 -- node -v`.
 #
-# Node: 24 by default, pinned rather than the `lts` alias. Per
-# github.com/nodejs/Release schedule.json: 26 = Active LTS from 2026-10-28
-# (where `lts` points), 24 = Maintenance LTS until 2028-04-30, 22 =
-# Maintenance LTS until 2027-04-30. Move the default to 26 once projects do.
+# Node: 24 by default, pinned rather than the `lts` alias (26 from
+# 2026-10-28). 22 and 24 are Maintenance LTS. Move the default to 26 once
+# projects do.
 node = ["24", "22", "26"]
 # Global `tsc` for scratch files — projects pin `typescript` in their own
 # devDependencies (`pnpm exec tsc`). Held at major 6 while most projects are

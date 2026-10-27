@@ -166,9 +166,8 @@ export ASPIRE_DASHBOARD_TELEMETRY_OPTOUT=true
 # https://docs.jfrog.com/integrations/docs/jfrog-cli-environment-variables
 # (default true; not listed by `jf options`)
 export JFROG_CLI_REPORT_USAGE=false
-# Claude Code's error reports (setup.sh and the tracked Claude settings `env`
-# set it too). Not DISABLE_TELEMETRY: it also turns off feature flags, which
-# Remote Control needs (https://code.claude.com/docs/en/data-usage)
+# Claude Code error reports only. Not DISABLE_TELEMETRY: it also turns off
+# feature flags, which Remote Control needs (https://code.claude.com/docs/en/data-usage)
 export DISABLE_ERROR_REPORTING=1
 
 # Claude Code: use the system + bundled CA cert store (needed behind some corporate proxies)

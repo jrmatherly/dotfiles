@@ -1,6 +1,5 @@
 node_modules/
-# Claude Code's per-machine permission grants (the global ignore covers it too,
-# but a clone on another machine may not have that)
+# Per-machine Claude Code permission grants
 .claude/settings.local.json
 # Left behind when a bin/claude-config save write is interrupted
 agents/*.tmp

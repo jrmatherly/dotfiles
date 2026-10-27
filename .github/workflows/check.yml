@@ -16,9 +16,8 @@ concurrency:
 jobs:
   check:
     # The scripts target macOS: /bin/bash 3.2, zsh, and Homebrew for the
-    # Brewfile parse step that bin/lib/check skips without brew. Pinned
-    # (macos-latest moves without notice); Renovate's github-actions manager
-    # proposes the next image as a PR
+    # Brewfile parse step that bin/lib/check skips without brew.
+    # Pinned: macos-latest moves without notice (Renovate proposes bumps)
     runs-on: macos-26
     timeout-minutes: 15
     steps:
