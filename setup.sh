@@ -146,11 +146,9 @@ if [ ! -f /etc/pam.d/sudo_local ]; then
   echo "auth       sufficient     pam_tid.so" | sudo tee /etc/pam.d/sudo_local > /dev/null
 fi
 
-# Keep the sudo timestamp alive so app installers don't re-prompt halfway
-# through. `sudo -n -v` is the documented way to *extend* the cached credential
-# without prompting (`sudo -n true` only checks it, so it expired after macOS's
-# default 5 minutes and printed "sudo: a password is required"). `|| true`
-# keeps one failure from killing the loop under the inherited `set -e`.
+# Keep the sudo timestamp alive so app installers don't re-prompt halfway.
+# `sudo -n -v` extends the credential without prompting (`sudo -n true` only
+# checks it); `|| true` keeps one failure from killing the loop under `set -e`.
 sudo_keepalive_start() {
   while true; do
     sudo -n -v 2> /dev/null || true

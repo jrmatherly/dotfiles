@@ -10,9 +10,11 @@ if [ -x /opt/homebrew/bin/brew ]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
-BLUE=$(tput setaf 4 2> /dev/null || true)
-BOLD=$(tput bold 2> /dev/null || true)
-RESET=$(tput sgr0 2> /dev/null || true)
+# tput fails with TERM unset (CI, a launchd job), which would abort this set -e script
+tput() { command tput "$@" 2> /dev/null || true; }
+BLUE=$(tput setaf 4)
+BOLD=$(tput bold)
+RESET=$(tput sgr0)
 
 indent() {
   sed 's/^/  /'
@@ -24,9 +26,9 @@ info() {
 }
 
 warning() {
-  tput setaf 1 2> /dev/null || true
+  tput setaf 1
   echo "/!\\ $1 /!\\"
-  tput sgr0 2> /dev/null || true
+  tput sgr0
 }
 
 command_exists() {

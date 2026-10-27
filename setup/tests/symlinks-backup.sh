@@ -25,7 +25,6 @@ check() {
   fi
 }
 
-echo first > "$HOME/f"
 echo second > "$HOME/f"
 printf b | symlink_file "$src" "$HOME/f" > /dev/null 2>&1
 rm "$HOME/f"
