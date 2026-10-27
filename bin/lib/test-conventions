@@ -39,8 +39,9 @@ have_tldr=false
 if command -v tldr > /dev/null; then have_tldr=true; else
   echo "test-conventions: tldr not found, skipping the help render check" >&2
 fi
-# Each render must also remove the temp dir its page was written to
-before=$(ls -d "${TMPDIR:-/tmp}"/tldr-* 2> /dev/null | wc -l)
+# Each render must also remove the temp dir its page was written to (find,
+# not ls: with no tldr-* dirs, as on CI, ls fails and pipefail ends the script)
+before=$(find "${TMPDIR:-/tmp}/" -maxdepth 1 -name "tldr-*" | wc -l)
 for file in bin/*; do
   [[ -f $file && $file != bin/CLAUDE.md ]] || continue
   if [ "$have_tldr" = true ]; then
@@ -49,7 +50,7 @@ for file in bin/*; do
     sed -n 2p "$file" | grep -qE '^(#|//)' || fail "bin headers: $file"
   fi
 done
-[ "$(ls -d "${TMPDIR:-/tmp}"/tldr-* 2> /dev/null | wc -l)" -le "$before" ] || fail "help leaves temp dirs"
+[ "$(find "${TMPDIR:-/tmp}/" -maxdepth 1 -name "tldr-*" | wc -l)" -le "$before" ] || fail "help leaves temp dirs"
 bin/help lib > /dev/null 2>&1 && fail "help lib should fail cleanly" || true
 
 # help reached through a symlink (~/dotfiles) while $DOTFILES names the real
