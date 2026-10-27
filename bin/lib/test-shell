@@ -125,7 +125,7 @@ fi
 
 # fast-theme reapplies the repo theme when the stored theme is older than the ini
 # (backdated here) and leaves it alone otherwise
-fsh=$(user_zsh '(( $+functions[fast-theme] )) && echo $FAST_WORK_DIR/current_theme.zsh')
+fsh=$(user_zsh 'if (( $+functions[fast-theme] )); then echo $FAST_WORK_DIR/current_theme.zsh; fi')
 if [ -n "$fsh" ]; then
   touch -t 202001010000 "$fsh"
   [ "$(user_zsh 'echo $FAST_THEME_NAME')" = fast-syntax-highlighting ] || fail "fast-theme did not apply the repo theme"
