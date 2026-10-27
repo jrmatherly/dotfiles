@@ -79,9 +79,9 @@ user_zsh "source $root/zsh/completion.zsh; today=027; zcompdump_is_stale $tmp/du
 **Files:**
 - Modify: `zsh/env.zsh:176`
 
-- [ ] **Step 1: Assertion**: `[ -n "$(user_zsh 'echo -n $NPM_CONFIG_INIT_AUTHOR_NAME')" ]` when `~/.gitconfig.local` sets `user.name` (skip otherwise).
-- [ ] **Step 2: Fix**: `git config --global --includes user.name`.
-- [ ] **Step 3: `pnpm check`, commit**: `git commit -m "Read the npm init author through git's includes"`.
+- [x] **Step 1: Assertion**: `[ -n "$(user_zsh 'echo -n $NPM_CONFIG_INIT_AUTHOR_NAME')" ]` when `~/.gitconfig.local` sets `user.name` (skip otherwise).
+- [x] **Step 2: Fix**: `git config --global --includes user.name`.
+- [x] **Step 3: `pnpm check`, commit**: `git commit -m "Read the npm init author through git's includes"`.
 
 ### Task 5: SSH sessions get a terminal git editor (D5)
 

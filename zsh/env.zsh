@@ -170,7 +170,7 @@ export AZD_BICEP_TOOL_PATH="$HOME/.azure/bin/bicep"
 # repo + workflow token. Pass it per command: GIGET_AUTH=$(gh auth token) giget …
 
 # Node & NPM
-export NPM_CONFIG_INIT_AUTHOR_NAME="$(git config --global user.name 2> /dev/null)"
+export NPM_CONFIG_INIT_AUTHOR_NAME="$(git config --global --includes user.name 2> /dev/null)"
 export NPM_CONFIG_INIT_LICENSE="MIT"
 export NPM_CONFIG_INIT_VERSION="0.1.0"
 export NPM_CONFIG_PROGRESS="true"

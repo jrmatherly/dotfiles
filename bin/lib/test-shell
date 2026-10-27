@@ -110,4 +110,9 @@ grep -qx "$tmp/probe-bin" <<< "$out" || fail "an inherited PATH entry was droppe
 [ ! -d "$lab" ] || grep -qx "$lab" <<< "$out" || fail "SnippetsLab's lab dropped from PATH"
 [ "$(grep -nx "$repo/bin" <<< "$out" | cut -d: -f1)" -lt "$(grep -nx "$tmp/probe-bin" <<< "$out" | cut -d: -f1)" ] || fail "repo bin is not ahead of the inherited PATH"
 
+# npm init's author comes from the identity tilde/.gitconfig includes from ~/.gitconfig.local
+if git config -f ~/.gitconfig.local user.name > /dev/null 2>&1; then
+  [ -n "$(user_zsh 'echo -n $NPM_CONFIG_INIT_AUTHOR_NAME')" ] || fail "NPM_CONFIG_INIT_AUTHOR_NAME is empty"
+fi
+
 echo "shell: all checks passed"
