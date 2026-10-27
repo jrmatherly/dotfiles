@@ -188,7 +188,7 @@ git commit -m "Render every bin header through help and clean up its temp pages"
 - Modify: `bin/git-find:17-19`
 - Modify: `bin/lib/test-bin`
 
-- [ ] **Step 1: Add the failing checks** (in the scratch repo, which has a root file `top.txt` and `sub/inner.txt` committed):
+- [x] **Step 1: Add the failing checks** (in the scratch repo, which has a root file `top.txt` and `sub/inner.txt` committed):
 
 ```bash
 check "git-find top-level" "(cd '$tmp/repo' && '$root/bin/git-find' top.txt | grep -qx top.txt)"
@@ -196,11 +196,11 @@ check "git-find nested" "(cd '$tmp/repo' && '$root/bin/git-find' inner.txt | gre
 check "git-find usage" "! '$root/bin/git-find' > /dev/null 2>&1"
 ```
 
-- [ ] **Step 2: Run and watch `git-find top-level` and `git-find usage` fail.**
+- [x] **Step 2: Run and watch `git-find top-level` and `git-find usage` fail.**
 
-- [ ] **Step 3: Fix:** `[ $# -eq 1 ] || { echo "usage: git-find <file>" >&2; exit 64; }` and the pathspec `":(glob)**/$1"`.
+- [x] **Step 3: Fix:** `[ $# -eq 1 ] || { echo "usage: git-find <file>" >&2; exit 64; }` and the pathspec `":(glob)**/$1"`.
 
-- [ ] **Step 4: Run `bash bin/lib/test-bin && pnpm check`, then commit**
+- [x] **Step 4: Run `bash bin/lib/test-bin && pnpm check`, then commit**
 
 ```bash
 git add bin/git-find bin/lib/test-bin

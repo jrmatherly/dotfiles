@@ -16,4 +16,10 @@
 
 set -euo pipefail
 
-git log --all --full-history --name-only -- "**/$1"
+[ $# -eq 1 ] || {
+  echo "usage: git-find <file>" >&2
+  exit 64
+}
+
+# The glob magic lets **/ match zero directories, so top-level files match too
+git log --all --full-history --name-only -- ":(glob)**/$1"

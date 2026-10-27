@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Self-check for small bin/ scripts (serve) in a scratch HOME and git repo.
+# Self-check for small bin/ scripts (serve, git-find) in a scratch HOME and git repo.
 #
 # - Run it (pnpm check does too); exits 1 when an assertion fails:
 #
@@ -53,6 +53,11 @@ for _ in $(seq 50); do
 done
 check "serve answers" "[ '$code' = 200 ]"
 pkill -f "http.server $port" 2> /dev/null
+
+check "git-find top-level" "(cd '$tmp/repo' && '$root/bin/git-find' top.txt | grep -qx top.txt)"
+check "git-find nested" "(cd '$tmp/repo' && '$root/bin/git-find' inner.txt | grep -qx sub/inner.txt)"
+# A bare set -u crash also exits non-zero, so require the usage line too
+check "git-find usage" "! '$root/bin/git-find' > /dev/null 2> '$tmp/err' && grep -q '^usage: git-find' '$tmp/err'"
 
 [ "$fails" -eq 0 ] || {
   echo "$fails failed" >&2
