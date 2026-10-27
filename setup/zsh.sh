@@ -13,13 +13,13 @@ if [ -x /opt/homebrew/bin/brew ]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
-bold=$(tput bold)
-reset=$(tput sgr0)
+bold=$(tput bold 2> /dev/null || true)
+reset=$(tput sgr0 2> /dev/null || true)
 
 warning() {
-  tput setaf 1
+  tput setaf 1 2> /dev/null || true
   echo "/!\\ $1 /!\\"
-  tput sgr0
+  tput sgr0 2> /dev/null || true
 }
 
 title() {

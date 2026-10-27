@@ -85,6 +85,14 @@ done < <(grep -nE '^(brew|cask) "[^"]+/[^"]+/[^"]+"' setup/Brewfile)
 
 ! grep -qE '^(user-agent|referer)' tilde/.curlrc || fail "curlrc: spoofed user-agent or auto referer"
 
+# tput fails with TERM unset (CI, a launchd job), which aborts a set -e script;
+# strip the guarded calls, then any tput left on a line is unguarded
+for file in setup/brew.sh setup/zsh.sh setup/misc.sh; do
+  if sed -E 's/tput [a-z0-9 ]+ 2> \/dev\/null \|\| true//g' "$file" | grep -nE '(^|[^a-z_])tput '; then
+    fail "unguarded tput: $file"
+  fi
+done
+
 # Network fetches ask, credential paths and force-adds are denied.
 # rules <file> <list> <want: present|absent> <rule>...
 rules() {

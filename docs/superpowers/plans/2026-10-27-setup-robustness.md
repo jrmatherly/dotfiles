@@ -110,7 +110,7 @@ git commit -m "Carry on when mise, brew update, dotnet or pnpm fail"
 - Modify: `setup/brew.sh:8-9`, `setup/zsh.sh:16-22`, `setup/misc.sh:13-15`
 - Modify: `bin/lib/test-conventions`
 
-- [ ] **Step 1: Add the failing lint**
+- [x] **Step 1: Add the failing lint**
 
 ```bash
 for file in setup/brew.sh setup/zsh.sh setup/misc.sh; do
@@ -118,21 +118,21 @@ for file in setup/brew.sh setup/zsh.sh setup/misc.sh; do
 done
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-conventions`
 Expected: `FAIL: unguarded tput: setup/brew.sh`.
 
-- [ ] **Step 3: Guard every call**
+- [x] **Step 3: Guard every call**
 
 Use `dash.sh:25`'s form, `$(tput bold 2> /dev/null || true)`, for each assignment, and `tput setaf 1 2> /dev/null || true` for the bare calls inside `zsh.sh`'s `warning()`.
 
-- [ ] **Step 4: Prove it**
+- [x] **Step 4: Prove it**
 
 Run: `env -u TERM bash -c 'set -euo pipefail; b=$(tput bold 2> /dev/null || true); echo survived'` and `bash bin/lib/test-conventions`
 Expected: `survived`; the lint passes.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add setup/brew.sh setup/zsh.sh setup/misc.sh bin/lib/test-conventions

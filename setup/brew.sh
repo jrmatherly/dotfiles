@@ -5,8 +5,8 @@ set -euo pipefail
 DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 cd "$DOTFILES_DIR"
 
-bold=$(tput bold)
-reset=$(tput sgr0)
+bold=$(tput bold 2> /dev/null || true)
+reset=$(tput sgr0 2> /dev/null || true)
 
 title() {
   echo "${bold}==> $1${reset}"
@@ -18,7 +18,7 @@ indent() {
 }
 
 warn() {
-  echo "$(tput setaf 1)/!\\ $1 /!\\$(tput sgr0)"
+  echo "$(tput setaf 1 2> /dev/null || true)/!\\ $1 /!\\$(tput sgr0 2> /dev/null || true)"
 }
 
 # Check for Homebrew and install it if required
@@ -45,7 +45,7 @@ title "Installing software…"
 # installs the mise runtimes — report it and carry on.
 if ! "$DOTFILES_DIR/bin/brewpick" --all | indent; then
   echo
-  echo "$(tput setaf 1)/!\\ Some Brewfile entries failed to install — see above, then re-run \`brewpick --all\` /!\\$(tput sgr0)"
+  echo "$(tput setaf 1 2> /dev/null || true)/!\\ Some Brewfile entries failed to install — see above, then re-run \`brewpick --all\` /!\\$(tput sgr0 2> /dev/null || true)"
 fi
 
 # Optional apps: suggestions printed at the end of the run, NOT installed.
