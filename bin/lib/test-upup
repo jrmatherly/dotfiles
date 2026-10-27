@@ -62,12 +62,12 @@ esac
 exit 0'
 stub mise 'case $1 in
   ls) if [ -e "$STATE/prune" ]; then
-      echo "{\"node\":[{\"version\":\"24.0.0\",\"install_path\":\"$STATE/installs/node/24.0.0\"}],\"github:microsoft/aspire\":[{\"version\":\"13.6.0\",\"install_path\":\"$STATE/installs/aspire/13.6.0\"}]}"
+      echo "{\"node\":[{\"version\":\"24.0.0\",\"install_path\":\"$STATE/installs/node/24.0.0\"}],\"github:microsoft/aspire\":[{\"version\":\"13.6.0\",\"install_path\":\"$STATE/installs/aspire/13.6.0\"}],\"npm:node\":[{\"version\":\"1.0.0\",\"install_path\":\"$STATE/installs/npm-node/1.0.0\"},{\"version\":\"2.0.0\",\"install_path\":\"$STATE/installs/npm-node/2.0.0\"}]}"
     else echo "{}"; fi ;;
   prune) case "$*" in *--yes*) ;; *) echo "mise ERROR mise prune requires confirmation but there was nobody to ask"; exit 1 ;; esac
     [ -e "$STATE/prune-fails" ] && { echo "mise ERROR uninstall failed"; exit 1; }; rm -rf "$STATE/installs" "$STATE/prune" ;;
   upgrade) if [ -e "$STATE/mise" ]; then
-      printf "Upgraded 2 tools:\n  node 24.1.0 → 24.1.1\n  github:microsoft/aspire 13.6.1 → 13.6.2\n"
+      printf "Upgraded 3 tools:\n  node 24.1.0 → 24.1.1\n  github:microsoft/aspire 13.6.1 → 13.6.2\n  npm:tsc 5.8.0 → 5.8.1\n  npm:tsc 6.0.0 → 6.0.1\n"
       echo "mise WARN  newer github:microsoft/aspire release 13.6.3 (released 2026-10-23, eligible 2026-10-24 14:17 EDT) ignored by minimum_release_age (24h); latest eligible release is 13.6.2"
       echo "mise WARN  failed to reinstall pipx tools: ~/.local/share/mise/shims/uv exited with non-zero status: exit code 2"
     fi ;;
@@ -156,10 +156,10 @@ check_true "up to date: Rust is ok" has '^✔ Rust +up to date$'
 check_true "up to date: nothing for mise prune" has '^✔ mise prune +nothing unused$'
 check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
 check_true "up to date: one-line summary" has '^Everything up to date\.$'
-check_true "up to date: log is a file:// link" has "^Log: file://$DOTFILES/logs/upup-[0-9]{8}-[0-9]{6}\\.log\$"
+check_true "up to date: log is a file:// link" has "^Log +file://$DOTFILES/logs/upup-[0-9]{8}-[0-9]{6}\\.log\$"
 check_true "up to date: no step slow enough for a time" lacks '\([0-9]+s\)$'
 [ ! -x /Applications/SnippetsLab.app/Contents/Helpers/lab ] || check_true "up to date: SnippetsLab unchanged" has '^✔ SnippetsLab skill +unchanged$'
-check_true "up to date: summary links the catalog" has '^Catalog: file:///tmp/cat/catalog\.html$'
+check_true "up to date: summary links the catalog" has '^Catalog +file:///tmp/cat/catalog\.html$'
 check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/upup-*.log
 
 rm -rf "$DOTFILES/logs"
@@ -186,11 +186,16 @@ check_true "changes: a caveat shows its package and first line" has '^    gh: Ru
 check_true "changes: a shadow caveat is one line" has '^    uv: uv, uvx shadowed by ~/\.local/share/mise/shims$'
 check_true "changes: full caveats kept in the log" grep -qx 'Second line' "$DOTFILES"/logs/upup-*.log
 check_true "changes: Homebrew line counts" has '^↻ Homebrew +1 package upgraded$'
-check_true "changes: Homebrew versions under the line" has '^    gh 2\.103\.1→2\.103\.2$'
-check_true "changes: summary keeps the short Homebrew line" has '^  ↻ Homebrew  1 package upgraded$'
-check_true "changes: mise line counts" has '^↻ mise +2 versions upgraded$'
-check_true "changes: mise names each old→new pair under the line" has '^    node 24\.1\.0→24\.1\.1, aspire 13\.6\.1→13\.6\.2$'
-check_true "changes: mise prune counts, sizes and names what it removed" has '^↻ mise prune +2 versions removed, [0-9]+KB freed: node 24\.0\.0, aspire 13\.6\.0$'
+check_true "changes: Homebrew versions in a table under the line" has '^    gh  2\.103\.1 → 2\.103\.2$'
+check_true "changes: summary keeps the short Homebrew line" has '^  ↻ Homebrew +1 package upgraded$'
+check_true "changes: mise line counts" has '^↻ mise +4 versions upgraded$'
+check_true "changes: one tool in two pinned versions keeps its short name" has '^    tsc     5\.8\.0 → 5\.8\.1$'
+check_true "changes: mise names each old → new pair, one row each" has '^    node    24\.1\.0 → 24\.1\.1$'
+check_true "changes: mise rows drop the backend and align" has '^    aspire  13\.6\.1 → 13\.6\.2$'
+check_true "changes: mise prune counts and sizes what it removed" has '^↻ mise prune +4 versions removed, [0-9]+KB freed$'
+check_true "changes: mise prune names each tool in a row" has '^    aspire      13\.6\.0$'
+check_true "changes: a tool pruned from one backend keeps its short name" has '^    node        24\.0\.0$'
+check_true "changes: two backends of one tool stay apart" has '^    node \(npm\)  1\.0\.0, 2\.0\.0$'
 check_true "changes: prune ran before the upgrade" grep -q 'mise prune.*mise ' <<< "$(grep -oE '^== mise( prune)? ==' "$DOTFILES"/logs/upup-*.log | tr '\n' ' ')"
 check_true "changes: mise held release is a notice" has '^● mise +aspire 13.6.3 held until 2026-10-24 14:17 EDT by minimum_release_age$'
 check_true "changes: mise reinstall failure is a notice" has '^● mise +failed to reinstall pipx tools; the next upup.s mise prune removes a version no config pins$'
@@ -198,16 +203,20 @@ check_true "changes: uv failure names the command" has '^✖ uv +run: uv tool up
 check_true "changes: uv failure output shown" has '^    error: network down$'
 check_true "changes: Claude Code failure names the command" has '^✖ Claude Code +run: claude update$'
 check_true "changes: Claude Code failure output shown" has '^    Error: update failed$'
-check_true "changes: plugin update listed" has '^↻ plugins +1 plugin updated: alpha@m 1.0.0 → 1.1.0$'
+check_true "changes: plugin update listed" has '^↻ plugins +1 plugin updated$'
+check_true "changes: plugin versions in a row" has '^    alpha@m  1\.0\.0 → 1\.1\.0$'
 check_true "changes: steps after the failure still run" has '^✔ Raycast +asked to check for updates$'
-for section in Changed Notices Failed "Action needed"; do
+for section in Changed Notices Failed; do
   check_true "changes: summary has $section" has "^$section\$"
 done
-check_true "changes: summary lists the failure" has '^  ✖ uv  run: uv tool upgrade --all$'
+check_true "changes: summary lists the failure" has '^  ✖ uv +run: uv tool upgrade --all$'
 check_true "changes: restart action" has '^  › Restart Claude Code to apply plugin updates$'
 check_true "changes: new terminal action" has '^  › Open a new terminal: dotfiles changed$'
+check_true "changes: action banner counts the items" has '^ ▶ ACTION NEEDED \([0-9]+ items\) $'
+check_true "changes: headline counts each kind" has '^Done in [0-9]+s · [0-9]+ changed · [0-9]+ notices · [0-9]+ failed · [0-9]+ actions$'
 check_true "changes: not everything up to date" lacks 'Everything up to date'
 check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/upup-*.log
+check_true "changes: log keeps the status lines and the table" grep -q -e '^↻ Homebrew  *1 package upgraded$' -e '^    gh  2' "$DOTFILES"/logs/upup-*.log
 
 # A warning alone (no newer release) must still replace the ok line
 rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab"
@@ -224,7 +233,7 @@ rm -f "$STATE/prune" "$STATE/prune-fails"
 check_true "update: REA skill failure names the command" has '^✖ REA skill +run: rea setup --skill-client shared --skill-client claude_code --skill --yes$'
 check_true "update: REA skill failure shows only the remediation" has '^    Skill directory is a symbolic link\.$'
 check_true "update: REA skill failure hides the doctor payload" lacks 'needs_human'
-check_true "update: Rust names the channel and versions" has '^↻ Rust +stable 1\.99\.0→1\.99\.1$'
+check_true "update: Rust names the channel and versions" has '^↻ Rust +stable 1\.99\.0 → 1\.99\.1$'
 check_true "update: a failing cargo is a notice" has "^● Rust +cargo --version failed: rustup's proxies live in /opt/homebrew/opt/rustup/bin, so open a new terminal, or run: rustup default stable$"
 check_true "update: uv names the upgraded tool and the one whose dependencies moved" has '^↻ uv +serena-agent v0\.1\.4 -> v0\.1\.5, scrapling dependencies$'
 check_true "update: uv output shown" has '^    Modified scrapling environment$'
@@ -277,4 +286,6 @@ check_true "terminal: upup exited $rc" [ "$rc" -eq 0 ]
 check_true "terminal: status lines colored" has $'\x1b\\[[0-9;]*m✔'
 check_true "terminal: a running step shows a … line" has '… Homebrew'
 check_true "terminal: summary colored" has $'^  \x1b\\[[0-9;]*m✖'
+check_true "terminal: the log link is an OSC 8 hyperlink" has $'\x1b]8;;file://'"$DOTFILES"$'/logs/upup-[0-9-]+\\.log\x1b\\\\'
+check_true "terminal: action banner colored" has $'\x1b\\[[0-9;]*m ▶ ACTION NEEDED'
 check_true "terminal: log has no color codes" log_lacks $'\x1b'

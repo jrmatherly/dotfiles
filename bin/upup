@@ -21,10 +21,12 @@ changed=() notices=() failed=() actions=()
 
 # Colors only on a terminal tput knows (with TERM unset it prints an error per call)
 # and only there a "… <step>" line shows while a step runs
-c_ok="" c_changed="" c_notice="" c_fail="" c_prompt="" c_reset="" progress=""
+c_ok="" c_changed="" c_notice="" c_fail="" c_prompt="" c_reset="" c_bold="" c_dim="" c_banner="" progress=""
 if [ -t 1 ] && tput setaf 1 > /dev/null 2>&1; then
   c_ok=$(tput setaf 2) c_changed=$(tput setaf 6) c_notice=$(tput setaf 3)
   c_fail=$(tput setaf 1) c_prompt=$(tput setaf 5) c_reset=$(tput sgr0 2> /dev/null || true)
+  c_bold=$(tput bold 2> /dev/null || true) c_dim=$(tput dim 2> /dev/null || true)
+  c_banner="$c_bold$(tput setaf 0)$(tput setab 3 2> /dev/null || true)"
   progress=1
 fi
 step_started=0
@@ -65,13 +67,15 @@ status() {
       ;;
   esac
   clear_line
-  style "$1"
-  printf '%s%s%s %-18s %s%s\n' "$color" "$glyph" "$c_reset" "$2" "$3" "$took"
-  printf '%s %s  %s%s\n' "$glyph" "$2" "$3" "$took" >> "$log"
+  # An ok line's detail is dimmed so the lines that changed something stand out
+  local detail_color=""
+  [ "$1" != ok ] || detail_color=$c_dim
+  say "$(entry "" "$1" "$2" "$3$took" "$detail_color")"
+  # step<TAB>detail, for the summary's rows
   case $1 in
-    changed) changed+=("$2  $3") ;;
-    notice) notices+=("$2  $3") ;;
-    fail) failed+=("$2  $3") ;;
+    changed) changed+=("$2"$'\t'"$3") ;;
+    notice) notices+=("$2"$'\t'"$3") ;;
+    fail) failed+=("$2"$'\t'"$3") ;;
   esac
 }
 
@@ -95,17 +99,65 @@ show() {
   [ -z "$out" ] || sed 's/^/    /' <<< "$out"
 }
 
-# details: stdin lines → "a, b, c" under the status line, indented and
-# wrapped to the terminal, on screen and in the log
-details() {
-  local width=100
-  [ -z "$progress" ] || width=$(tput cols 2> /dev/null || echo 100)
+# say <text>: a line to the screen, and to the log without its color codes
+# (tput's sgr0 is ESC ( B ESC [ m)
+say() {
+  printf '%s\n' "$1"
+  printf '%s\n' "$1" | sed $'s/\033\\[[0-9;]*m//g; s/\033(B//g' >> "$log"
+}
+
+# entry <lead> <level> <step> <detail> [<detail color>]: one status or summary
+# row, the step padded to its column and a long detail wrapped under itself
+entry() {
+  style "$2"
+  printf '%s%s\n' "$(printf '%s\n' "$4" | wrap "$1$color$glyph$c_reset $(printf '%-18s' "$3") ${5:-}" $((${#1} + 21)))" "$c_reset"
+}
+
+# rows: stdin "name<TAB>value" lines → a two-column table under the status
+# line, names padded to the longest, dimmed on a terminal and plain in the log.
+# A name loses its backend or tap (github:microsoft/aspire, user/tap/gh) unless
+# another name would then read the same: "markdownlint-cli2 (npm)"
+rows() {
   clear_line
-  awk -v w="$width" '
-    NR == 1 { line = "    " $0; next }
-    length(line) + length($0) + 2 > w { print line ","; line = "    " $0; next }
-    { line = line ", " $0 }
-    END { if (NR) print line }' | tee -a "$log"
+  awk -F '\t' -v on="$c_dim" -v off="$c_reset" -v logfile="$log" '
+    {
+      key[NR] = $1; value[NR] = $2; short[NR] = $1; sub(/.*[:\/]/, "", short[NR])
+      # distinct names only: one tool upgraded in two pinned versions is no clash
+      if (!(($1) in counted)) { counted[$1]; names[short[NR]]++ }
+    }
+    END {
+      for (i = 1; i <= NR; i++) {
+        name[i] = short[i]
+        prefix = substr(key[i], 1, length(key[i]) - length(short[i]) - 1)
+        if (names[short[i]] > 1 && prefix != "") name[i] = short[i] " (" prefix ")"
+        if (length(name[i]) > width) width = length(name[i])
+      }
+      for (i = 1; i <= NR; i++) {
+        line = sprintf("    %-" width "s  %s", name[i], value[i])
+        sub(/ +$/, "", line)
+        print on line off
+        print line >> logfile
+      }
+    }'
+}
+
+# wrap <first> <indent>: stdin text word-wrapped to the terminal, the first
+# line after <first> (which shows <indent> columns wide) and the others after
+# <indent> spaces; one line, as given, off a terminal or when it fits
+wrap() {
+  local width=0
+  # Not tput cols: in $(…) with stderr discarded it reports terminfo's 80
+  [ -z "$progress" ] || width=$(stty size < /dev/tty 2> /dev/null | cut -d' ' -f2)
+  awk -v w="${width:-0}" -v first="$1" -v indent="$2" '
+    w == 0 || indent + length($0) <= w { print first $0; next }
+    {
+      line = first; used = indent; n = 0
+      for (i = 1; i <= NF; i++) {
+        if (w > 0 && n && used + 1 + length($i) > w) { line = line "\n" sprintf("%" indent "s", ""); used = indent; n = 0 }
+        line = line (n++ ? " " : "") $i; used += length($i) + (n > 1)
+      }
+      print line
+    }'
 }
 
 # stdin lines → "a, b, c"
@@ -118,7 +170,7 @@ plural() {
   printf '%s %s' "$1" "$2$([ "$1" = 1 ] || echo s)"
 }
 
-echo "Logging to ${log#"$DOTFILES"/}"
+printf '%sLogging to %s%s\n' "$c_dim" "${log#"$DOTFILES"/}" "$c_reset"
 
 step sudo
 status prompt sudo "Password for sudo, once for the whole run"
@@ -237,9 +289,9 @@ else
   # Of its output only the closing "name old -> new" table and the caveats
   # worth reading reach the screen, a tap's name/tap/ prefix dropped
   if capture brew upgrade --greedy --yes; then
-    versions=$(sed -n '/^==> Upgraded /,$p' <<< "$out" | sed -nE 's/^([^ ]+) +([^ ]+) +-> +(.*)$/\1 \2→\3/p')
+    versions=$(sed -n '/^==> Upgraded /,$p' <<< "$out" | sed -nE $'s/^([^ ]+) +([^ ]+) +-> +(.*)$/\\1\t\\2 → \\3/p')
     status changed Homebrew "$(plural "$outdated_count" package) upgraded"
-    sed -E 's#^[^ ]*/##' <<< "${versions:-$outdated_packages}" | details
+    rows <<< "${versions:-$outdated_packages}"
     brew_caveats
   else
     status fail Homebrew "upgrade failed; run: brew upgrade --greedy"
@@ -288,7 +340,8 @@ else
     prune=(mise prune --yes)
     ! command -v timeout > /dev/null || prune=(timeout 600 "${prune[@]}")
     if capture "${prune[@]}"; then
-      status changed "mise prune" "$(plural "$(wc -l <<< "$paths" | tr -d ' ')" version) removed, $(awk -v k="$kb" 'BEGIN { if (k >= 1048576) printf "%.1fGB", k / 1048576; else if (k >= 1024) printf "%.0fMB", k / 1024; else printf "%dKB", k }') freed: $(jq -r 'to_entries[] | (.key | sub(".*[:/]"; "")) + " " + ([.value[].version] | join(","))' <<< "$prunable" | list)"
+      status changed "mise prune" "$(plural "$(wc -l <<< "$paths" | tr -d ' ')" version) removed, $(awk -v k="$kb" 'BEGIN { if (k >= 1048576) printf "%.1fGB", k / 1048576; else if (k >= 1024) printf "%.0fMB", k / 1024; else printf "%dKB", k }') freed"
+      jq -r 'to_entries[] | .key + "\t" + ([.value[].version] | join(", "))' <<< "$prunable" | rows
     else
       status fail "mise prune" "run: mise prune --yes"
       show
@@ -301,10 +354,10 @@ if capture env MISE_LOG_LEVEL=warn mise upgrade; then
   # mise prints "Upgraded N tools:" then one "  <tool> <old> → <new>" line per
   # version, so a tool upgraded in several pinned versions (python 3.13, 3.14)
   # shows each pair
-  upgraded=$(sed -nE 's/^ +([^ ]+) ([^ ]+) → ([^ ]+)$/\1 \2→\3/p' <<< "$out" | sed -E 's/^[^ ]*[:/]//')
+  upgraded=$(sed -nE $'s/^ +([^ ]+) ([^ ]+) → ([^ ]+)$/\\1\t\\2 → \\3/p' <<< "$out")
   if [ -n "$upgraded" ]; then
     status changed mise "$(plural "$(wc -l <<< "$upgraded" | tr -d ' ')" version) upgraded"
-    details <<< "$upgraded"
+    rows <<< "$upgraded"
   else
     status ok mise "up to date"
   fi
@@ -344,7 +397,7 @@ if [ -n "$rustup_bin" ]; then
     status fail Rust "run: rustup update"
     show
   elif
-    rust_updated=$(sed -nE 's/^ *([a-z]+)[^ ]* updated - rustc ([0-9.]+).*from rustc ([0-9.]+).*/\1 \3→\2/p' <<< "$out")
+    rust_updated=$(sed -nE 's/^ *([a-z]+)[^ ]* updated - rustc ([0-9.]+).*from rustc ([0-9.]+).*/\1 \3 → \2/p' <<< "$out")
     [ -n "$rust_updated" ]
   then
     status changed Rust "$(list <<< "$rust_updated")"
@@ -428,8 +481,8 @@ if command -v claude > /dev/null; then
     fi
   fi
   # claude-config prints "skill same|changed|unknown <name>" per tracked skill
-  # and reinstalls only the changed and unknown ones (no way to compare a
-  # well-known source, or gh failed)
+  # and reinstalls only the changed and unknown ones (another source type, or
+  # gh or the site's index.json failed)
   step "agent skills"
   if capture claude-config restore skills --update; then
     skills_changed=$(sed -n 's/^skill changed //p' <<< "$out")
@@ -532,7 +585,7 @@ if command -v claude > /dev/null; then
     plugin_count=$((plugin_count + 1))
     if capture claude plugin update -y "$id" < /dev/null; then
       plugin_updates+=$(grep -E 'Plugin "?[^" ]+"? (updated|downgraded) from ' <<< "$out" \
-        | sed -E 's/^.*Plugin "?([^" ]+)"? (updated|downgraded) from ([^ ]+) to ([^ ]*[^ .]).*$/\1 \3 → \4/' \
+        | sed -E $'s/^.*Plugin "?([^" ]+)"? (updated|downgraded) from ([^ ]+) to ([^ ]*[^ .]).*$/\\1\t\\3 → \\4/' \
         || true)$'\n'
     else
       status fail plugins "updating $id failed; run: claude plugin update $id"
@@ -541,7 +594,8 @@ if command -v claude > /dev/null; then
   done < <(jq -r '.plugins | keys[]' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json" 2> /dev/null)
   plugin_updates=$(sed '/^$/d' <<< "$plugin_updates")
   if [ -n "$plugin_updates" ]; then
-    status changed plugins "$(plural "$(wc -l <<< "$plugin_updates" | tr -d ' ')" plugin) updated: $(list <<< "$plugin_updates")"
+    status changed plugins "$(plural "$(wc -l <<< "$plugin_updates" | tr -d ' ')" plugin) updated"
+    rows <<< "$plugin_updates"
     actions+=("Restart Claude Code to apply plugin updates")
   else
     status ok plugins "$plugin_count plugins up to date"
@@ -631,33 +685,63 @@ fi
 
 # Summary. Empty arrays are unbound under set -u in bash 3.2, hence the guards.
 step summary
-# say <text>: a plain line to the screen and the log
-say() { printf '%s\n' "$1" | tee -a "$log"; }
-# summary <title> <level> <line…>: colored on screen, plain in the log
+# summary <title> <level> <step<TAB>detail…>: a colored title, then one row per
+# line, laid out as the status lines are
 summary() {
-  local title=$1 line
-  style "$2"
+  local title=$1 level=$2 line
+  style "$level"
   shift 2
-  say "$title"
+  say "$c_bold$color$title$c_reset"
   for line in "$@"; do
-    printf '  %s%s%s %s\n' "$color" "$glyph" "$c_reset" "$line"
-    printf '  %s %s\n' "$glyph" "$line" >> "$log"
+    say "$(entry "  " "$level" "${line%%$'\t'*}" "${line#*$'\t'}")"
   done
 }
-say ""
+# link <label> <path>: on a terminal the path as ~/… and clickable (OSC 8),
+# otherwise a file:// URL, which terminals without OSC 8 still link
+link() {
+  local short="$2"
+  [[ $short != "$HOME"/* ]] || short="~${short#"$HOME"}"
+  if [ -n "$progress" ]; then
+    printf '%s%-8s%s \033]8;;file://%s\033\\%s\033]8;;\033\\\n' "$c_dim" "$1" "$c_reset" "$2" "$short"
+  else
+    printf '%-8s file://%s\n' "$1" "$2"
+  fi
+  printf '%-8s file://%s\n' "$1" "$2" >> "$log"
+}
+# counts: "4 changed · 1 notice · 1 failed · 2 actions", leaving out zeros
+counts() {
+  local parts=()
+  [ ${#changed[@]} -eq 0 ] || parts+=("${#changed[@]} changed")
+  [ ${#notices[@]} -eq 0 ] || parts+=("$(plural ${#notices[@]} notice)")
+  [ ${#failed[@]} -eq 0 ] || parts+=("${#failed[@]} failed")
+  [ ${#actions[@]} -eq 0 ] || parts+=("$(plural ${#actions[@]} action)")
+  [ ${#parts[@]} -eq 0 ] || printf '%s · ' "${parts[@]}" | sed 's/ · $//'
+}
 clear_line
-say "Done in $(elapsed "$SECONDS")"
-if [ ${#changed[@]} -eq 0 ] && [ ${#notices[@]} -eq 0 ] && [ ${#failed[@]} -eq 0 ] && [ ${#actions[@]} -eq 0 ]; then
-  say "Everything up to date."
+say ""
+done_in="${c_bold}Done in $(elapsed "$SECONDS")${c_reset}"
+tally=$(counts)
+if [ -z "$tally" ]; then
+  say "$done_in"
+  say "${c_ok}Everything up to date.${c_reset}"
 else
+  say "$done_in ${c_dim}·${c_reset} $tally"
   [ ${#changed[@]} -eq 0 ] || summary Changed changed "${changed[@]}"
   [ ${#notices[@]} -eq 0 ] || summary Notices notice "${notices[@]}"
   [ ${#failed[@]} -eq 0 ] || summary Failed fail "${failed[@]}"
-  [ ${#actions[@]} -eq 0 ] || summary "Action needed" prompt "${actions[@]}"
+  # Last before the links, set apart, so it's what the eye lands on
+  if [ ${#actions[@]} -gt 0 ]; then
+    say ""
+    say "${c_banner} ▶ ACTION NEEDED ($(plural ${#actions[@]} item)) ${c_reset}"
+    style prompt
+    for action in "${actions[@]}"; do
+      say "$(wrap "  $color$glyph$c_reset $c_bold" 4 <<< "$action")$c_reset"
+    done
+  fi
 fi
-# A file:// URL is what terminals turn into a clickable link
-[ -z "${catalog_dir:-}" ] || say "Catalog: file://$catalog_dir/catalog.html"
-say "Log: file://$log"
+say ""
+[ -z "${catalog_dir:-}" ] || link Catalog "$catalog_dir/catalog.html"
+link Log "$log"
 say ""
 
 # Sign-off: Deadpool with his katanas (bin/nyan)
