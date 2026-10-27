@@ -1,6 +1,6 @@
 [cache]
 # Override the cache directory
-dir = ".tlrc"
+dir = "~/.cache/tlrc"
 mirror = "https://github.com/tldr-pages/tldr/releases/latest/download"
 auto_update = true
 max_age = 336 # 336 hours = 2 weeks

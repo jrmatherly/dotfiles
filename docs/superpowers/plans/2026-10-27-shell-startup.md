@@ -125,9 +125,9 @@ user_zsh "source $root/zsh/completion.zsh; today=027; zcompdump_is_stale $tmp/du
 
 ### Task 9: Settle the write-back guesses (D16)
 
-- [ ] **Step 1: btop**: run `btop`, quit, `git status --short tilde/.config/btop`. A diff means btop rewrites its tracked config on exit; then either commit the 1.4.8 rewrite once and set `save_config_on_exit = false`, or stop tracking it. No diff: nothing to do, note it in `tilde/README.md`.
-- [ ] **Step 2: tlrc**: `cd $(mktemp -d) && tldr --config ~/.tlrc.toml --info`. If a `.tlrc/` appears in that directory, change `dir` in `tilde/.tlrc.toml` to `~/.cache/tlrc` (tlrc expands `~`; confirm with `tldr --info` afterwards).
-- [ ] **Step 3: Commit** any change: `git commit -m "Pin the tldr cache dir"`.
+- [x] **Step 1: btop**: run `btop`, quit, `git status --short tilde/.config/btop`. A diff means btop rewrites its tracked config on exit; then either commit the 1.4.8 rewrite once and set `save_config_on_exit = false`, or stop tracking it. No diff: nothing to do, note it in `tilde/README.md`.
+- [x] **Step 2: tlrc**: `cd $(mktemp -d) && tldr --config ~/.tlrc.toml --info`. If a `.tlrc/` appears in that directory, change `dir` in `tilde/.tlrc.toml` to `~/.cache/tlrc` (tlrc expands `~`; confirm with `tldr --info` afterwards).
+- [x] **Step 3: Commit** any change: `git commit -m "Pin the tldr cache dir"`.
 
 ### Task 10: Report the total (D7)
 
