@@ -36,10 +36,10 @@
 
 Decisions recorded here, change them before Step 2: `microsoft/foundry/devpack` is removed (it is not installed and pulls the azure-cli cask); of the unlisted packages, `git-filter-repo`, `komac` and `llama.cpp` are added, the `jrmatherly/ai-kb` formulas, `gcloud-cli`, `signal` and the ten VS Code extensions are left out (uninstall them by hand or add rows if you want them on a fresh Mac).
 
-- [ ] **Step 1: Baseline**: `grep -v '^manual' setup/Brewfile > /tmp/bf && brew bundle check --verbose --no-upgrade --file=/tmp/bf`; expected today: `Cask devpack needs to be installed`.
-- [ ] **Step 2: Edit**: add the tap line; delete the devpack line; add the three formulas in their alphabetical places with a comment each; move the `font-*-nerd-font` casks under the `# Fonts` tap header at `:26` (rename `:247` to `# Manual installs (skipped by brewpick --all)`).
-- [ ] **Step 3: Verify**: rerun the Step 1 command; expected `The Brewfile's dependencies are satisfied.`; then `pnpm check`.
-- [ ] **Step 4: Commit**: `git commit -m "Match the Brewfile to what is installed and regroup the fonts"`.
+- [x] **Step 1: Baseline**: `grep -v '^manual' setup/Brewfile > /tmp/bf && brew bundle check --verbose --no-upgrade --file=/tmp/bf`; expected today: `Cask devpack needs to be installed`.
+- [x] **Step 2: Edit**: add the tap line; delete the devpack line; add the three formulas in their alphabetical places with a comment each; move the `font-*-nerd-font` casks under the `# Fonts` tap header at `:26` (rename `:247` to `# Manual installs (skipped by brewpick --all)`).
+- [x] **Step 3: Verify**: rerun the Step 1 command; expected `The Brewfile's dependencies are satisfied.`; then `pnpm check`.
+- [x] **Step 4: Commit**: `git commit -m "Match the Brewfile to what is installed and regroup the fonts"`.
 
 ### Task 2: Retire the Intel-only Quick Look plugins (E2)
 

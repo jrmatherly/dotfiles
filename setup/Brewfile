@@ -8,6 +8,7 @@
 # Dotfiles framework
 tap "modem-dev/tap" # hunk (git pager)
 tap "jrmatherly/tap" # claude-multipass
+tap "jesseduffield/lazydocker" # lazydocker (zsh `lzd` alias)
 
 # Cloud / infra
 tap "azure/azd"
@@ -19,12 +20,18 @@ tap "azure/kubelogin"
 tap "fluxcd/tap" # flux (Flux CD CLI; core `flux` is InfluxData's query language)
 tap "getsentry/tools" # sentry (cli.sentry.dev)
 tap "kubestellar/tap" # kubestellar-deploy / kubestellar-ops
-tap "microsoft/foundry"
 tap "siderolabs/tap"
 tap "skyhook-io/tap" # radar (Kubernetes visibility)
 
 # Fonts
 tap "bramstein/webfonttools"
+cask "font-anonymice-nerd-font"
+cask "font-fira-code-nerd-font" # VS Code fallback; its main font, Iosevka Code, has no cask: bin/install-iosevka-code
+cask "font-hack-nerd-font"
+cask "font-profont-nerd-font"
+cask "font-sauce-code-pro-nerd-font"
+cask "font-tinos-nerd-font"
+cask "font-ubuntu-nerd-font"
 
 # Dotfiles framework requirements
 #
@@ -74,7 +81,6 @@ brew "azurite" # Local Azure Storage emulator
 # Aspire and VS tooling expect. Do NOT also install the `dotnet` formula: both
 # claim /opt/homebrew/bin/dotnet (Homebrew/homebrew-core#275368).
 cask "dotnet-sdk" # .NET SDK
-cask "microsoft/foundry/devpack", trusted: true # Microsoft dev pack
 
 # Kubernetes / containers / infra
 brew "cilium-cli" # Install and troubleshoot Cilium (CNI) on a cluster
@@ -112,6 +118,7 @@ brew "gopls" # Go language server
 brew "govulncheck" # Go vulnerability scanner (vuln.go.dev)
 brew "hadolint" # Dockerfile linter
 brew "just" # Command runner
+brew "komac" # Create and submit WinGet (Windows Package Manager) manifests
 brew "lua-language-server" # Lua language server
 brew "markdownlint-cli" # Markdown linter
 brew "markdownlint-cli2" # Markdown linter (v2)
@@ -180,6 +187,7 @@ brew "cue" # CUE data validation language
 brew "findutils" # GNU find/xargs (macOS ships outdated BSD versions)
 brew "gnu-sed" # GNU sed (macOS ships outdated BSD version)
 brew "grep" # GNU grep (macOS ships outdated BSD version)
+brew "llama.cpp" # Run local LLMs (llama-cli, llama-server) from GGUF models
 brew "luarocks" # Lua package manager (brings `lua`)
 brew "moreutils" # Extra useful Unix utilities (sponge, vidir, etc.)
 brew "perl"
@@ -202,6 +210,7 @@ brew "bats-core" # Bash testing framework
 brew "binutils" # GNU binary tools
 brew "ffmpeg" # Audio/video conversion
 brew "ghostscript" # PostScript/PDF interpreter
+brew "git-filter-repo" # Rewrite git history (the tool git itself recommends over filter-branch)
 brew "git-lfs" # Git Large File Storage
 brew "imagemagick" # Image manipulation
 brew "jq" # JSON processor
@@ -225,13 +234,6 @@ brew "bramstein/webfonttools/sfnt2woff", trusted: true # Web font conversion
 cask "1password" # Password manager
 cask "1password-cli" # 1Password CLI integration
 cask "comet" # Perplexity's AI browser (default browser; auto-updates itself)
-cask "font-anonymice-nerd-font"
-cask "font-fira-code-nerd-font" # VS Code fallback; its main font, Iosevka Code, has no cask: bin/install-iosevka-code
-cask "font-hack-nerd-font"
-cask "font-profont-nerd-font"
-cask "font-sauce-code-pro-nerd-font"
-cask "font-tinos-nerd-font"
-cask "font-ubuntu-nerd-font"
 cask "git-credential-manager" # Git credential storage/auth helper
 cask "hopper-disassembler" # Disassembler/decompiler (paid license, free demo; REA's default launcher path)
 cask "iterm2" # Terminal emulator
@@ -244,7 +246,7 @@ cask "terax" # Terminal-first AI workspace (terax.app); its language servers: se
 cask "utm" # QEMU-based virtual machines
 cask "warp" # Agentic terminal
 
-# Fonts (optional, skipped by `brewpick --all`)
+# Manual installs (skipped by `brewpick --all`)
 #
 # MonoLisa is a paid font (personal license, no Homebrew cask) — select it via
 # `bin/brewpick` to open the purchase/download page. Raw `brew bundle` rejects
