@@ -268,9 +268,9 @@ git commit -m "Report the macOS step once and parse REA's JSON past stderr"
 - Modify: `bin/hindsight-memory:158,243`
 - Modify: `bin/lib/test-hindsight-memory:130,149`
 
-- [ ] **Step 1: Change the two expectations** to `"uninstall claude-code codex"`, run `bash bin/lib/test-hindsight-memory`, watch both fail.
-- [ ] **Step 2: Change both calls** to `uninstall claude-code codex` (the harness list `run_installer` installs; factor it into one variable used by both).
-- [ ] **Step 3: Run `bash bin/lib/test-hindsight-memory && pnpm check`, then commit**
+- [x] **Step 1: Change the two expectations** to `"uninstall claude-code codex"`, run `bash bin/lib/test-hindsight-memory`, watch both fail.
+- [x] **Step 2: Change both calls** to `uninstall claude-code codex` (the harness list `run_installer` installs; factor it into one variable used by both).
+- [x] **Step 3: Run `bash bin/lib/test-hindsight-memory && pnpm check`, then commit**
 
 ```bash
 git add bin/hindsight-memory bin/lib/test-hindsight-memory

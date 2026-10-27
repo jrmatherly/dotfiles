@@ -131,7 +131,9 @@ need_config() { [ -f "$cfg" ] || fail "no config at $cfg; run: hindsight-memory 
 # upup treats the config's presence as "installed", so uninstall keeps it aside
 aside=$cfg.uninstalled
 
-run_installer() { "${installer[@]}" install claude-code codex --server daemon; }
+# The harnesses init wires; rollback and uninstall unwire only these
+harnesses=(claude-code codex)
+run_installer() { "${installer[@]}" install "${harnesses[@]}" --server daemon; }
 
 norm_path() {
   local p=${1%/}
@@ -155,7 +157,7 @@ cmd_init() {
     # already wired, a missing config would mean vendor defaults everywhere
     if ! run_installer; then
       # A partial run may have wired one harness already
-      "${installer[@]}" uninstall all || true
+      "${installer[@]}" uninstall "${harnesses[@]}" || true
       [ ! -f "$cfg" ] || mv "$cfg" "$aside"
       fail "the installer failed"
     fi
@@ -240,7 +242,7 @@ cmd_status() {
 }
 
 cmd_uninstall() {
-  "${installer[@]}" uninstall all || fail "the vendor uninstall failed"
+  "${installer[@]}" uninstall "${harnesses[@]}" || fail "the vendor uninstall failed"
   "${embed[@]}" -p coding-agent daemon stop || warning "the coding-agent daemon did not stop (it may not be running)"
   [ ! -f "$cfg" ] || mv "$cfg" "$aside"
 }
