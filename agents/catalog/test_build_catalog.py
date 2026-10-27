@@ -1,7 +1,12 @@
 """Checks the cleanup/status rules and change tracking. Run: python3 test_build_catalog.py"""
-import json, tempfile
+import json, os, tempfile
 from pathlib import Path
+
+# Set before the import: build_catalog reads it at module load (the path is never created)
+os.environ["CLAUDE_CONFIG_DIR"] = config_dir = os.path.join(tempfile.gettempdir(), "catalog-test-claude")
 import build_catalog as b
+
+assert b.CLAUDE == Path(config_dir), b.CLAUDE
 
 
 def plugin(name, **kw):

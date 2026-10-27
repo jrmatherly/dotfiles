@@ -292,9 +292,9 @@ git commit -m "Uninstall only the harnesses hindsight-memory installed"
 - Modify: `agents/catalog/build_catalog.py:18` (`CLAUDE = Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude"))`), `:210-212` (delete the dead `by_name`)
 - Modify: `agents/catalog/test_build_catalog.py`
 
-- [ ] **Step 1: Add the failing assertion**: with `CLAUDE_CONFIG_DIR` set in `os.environ` before `import build_catalog`, `b.CLAUDE == Path(that dir)`.
-- [ ] **Step 2: Run `mise exec python -- python3 agents/catalog/test_build_catalog.py`**, watch it fail, fix, rerun.
-- [ ] **Step 3: `pnpm check`, commit**: `git commit -m "Read the catalog from CLAUDE_CONFIG_DIR"`.
+- [x] **Step 1: Add the failing assertion**: with `CLAUDE_CONFIG_DIR` set in `os.environ` before `import build_catalog`, `b.CLAUDE == Path(that dir)`.
+- [x] **Step 2: Run `mise exec python -- python3 agents/catalog/test_build_catalog.py`**, watch it fail, fix, rerun.
+- [x] **Step 3: `pnpm check`, commit**: `git commit -m "Read the catalog from CLAUDE_CONFIG_DIR"`.
 
 ### Task 11: Retire `radio`, index the rest (C7, C16)
 

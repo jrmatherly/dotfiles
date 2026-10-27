@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build a catalog of Claude Code skills, commands, subagents and MCP servers.
 
-Scans ~/.claude (installed plugins, user skills, claude.ai-synced skills) and
+Scans $CLAUDE_CONFIG_DIR or ~/.claude (installed plugins, user skills, claude.ai-synced skills) and
 ~/.claude.json (MCP servers), merges hand-written notes from curated.toml, and
 writes CATALOG.md (for AI assistants) and catalog.html (for people).
 
@@ -9,13 +9,13 @@ writes CATALOG.md (for AI assistants) and catalog.html (for people).
 
 Stdlib only. Re-run after installing/removing plugins.
 """
-import argparse, json, re, shutil, subprocess, sys, time, tomllib
+import argparse, json, os, re, shutil, subprocess, sys, time, tomllib
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 
 HOME = Path.home()
-CLAUDE = HOME / ".claude"
+CLAUDE = Path(os.environ.get("CLAUDE_CONFIG_DIR", HOME / ".claude"))
 HERE = Path(__file__).resolve().parent
 
 
@@ -207,9 +207,6 @@ def usage(it):
 
 
 def merge(items, cur):
-    by_name = {}
-    for it in items:
-        by_name.setdefault(it["name"], it)
     for b in cur.get("builtin", []):
         items.append(dict(kind=b.get("kind", "skill"), name=b["name"], source="built-in",
                           desc=b["desc"], enabled=True))
