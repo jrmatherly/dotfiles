@@ -12,7 +12,7 @@
 # through help (a header comment on line 2 without tldr), that help cleans up its
 # temp pages, refuses a directory and keeps docs/gui when run through a symlink,
 # that every third-party Brewfile formula or cask is trusted, and that git keeps
-# its default file protocol policy.
+# its default file protocol policy and curl its own user agent and no referer.
 #
 # License: MIT
 
@@ -80,5 +80,7 @@ done < <(grep -nE '^(brew|cask) "[^"]+/[^"]+/[^"]+"' setup/Brewfile)
 
 # CVE-2022-39253: a malicious repo's file:// submodule can read local files
 ! grep -qE '^[[:space:]]*allow[[:space:]]*=[[:space:]]*always' tilde/.gitconfig || fail "gitconfig: protocol.file.allow = always (CVE-2022-39253)"
+
+! grep -qE '^(user-agent|referer)' tilde/.curlrc || fail "curlrc: spoofed user-agent or auto referer"
 
 echo "conventions: all checks passed"

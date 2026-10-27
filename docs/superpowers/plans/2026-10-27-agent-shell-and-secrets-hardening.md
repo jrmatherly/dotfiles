@@ -229,27 +229,27 @@ git commit -m "Restore git's default file protocol policy"
 - Modify: `tilde/.curlrc:8,17`
 - Modify: `bin/lib/test-conventions`
 
-- [ ] **Step 1: Add the failing assertion**
+- [x] **Step 1: Add the failing assertion**
 
 ```bash
 ! grep -qE '^(user-agent|referer)' tilde/.curlrc || fail "curlrc: spoofed user-agent or auto referer"
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-conventions`
 Expected: `FAIL: curlrc: spoofed user-agent or auto referer`.
 
-- [ ] **Step 3: Delete both lines and their comments**
+- [x] **Step 3: Delete both lines and their comments**
 
 Keep `connect-timeout`, `progress-bar` and `show-error`.
 
-- [ ] **Step 4: Verify live**
+- [x] **Step 4: Verify live**
 
 Run: `curl -s https://httpbin.org/user-agent`
 Expected: a `curl/<version>` agent.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tilde/.curlrc bin/lib/test-conventions
