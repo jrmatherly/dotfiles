@@ -8,7 +8,8 @@
 #
 # ---
 # Never upgrades anything: every external command upup calls is a stub on
-# PATH, DOTFILES is a throwaway git repo and CLAUDE_CONFIG_DIR a fixture.
+# PATH, HOME is a temp dir, DOTFILES a throwaway git repo and CLAUDE_CONFIG_DIR
+# a fixture.
 #
 # License: MIT
 
@@ -18,10 +19,14 @@ script="$(cd "$(dirname "$0")/.." && pwd -P)/upup"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
+# mise shims (jq) refuse the global config under a fake HOME unless mise's
+# trust records stay in the real state dir
+export MISE_STATE_DIR="${MISE_STATE_DIR:-$HOME/.local/state/mise}"
+# A scratch HOME: upup's rm of a stale REA skill link must never reach the real one.
 # HOMEBREW_PREFIX points nowhere so upup's by-path rustup falls back to the stub
-export DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
+export HOME="$tmp/home" DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
 unset DOTFILES_MAC_PASSWORD_OP
-mkdir -p "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
+mkdir -p "$HOME" "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
 printf 'skill one src claude-code\nskill two src claude-code\n' > "$DOTFILES/agents/claude-skills.txt"
 git -C "$DOTFILES" init -q
 git -C "$DOTFILES" add -A
@@ -136,7 +141,10 @@ check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' 
 
 rm -rf "$DOTFILES/logs"
 touch "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea"
+mkdir -p "$CLAUDE_CONFIG_DIR/skills"
+ln -s /nonexistent "$CLAUDE_CONFIG_DIR/skills/reverse-engineer-anything"
 run
+check_true "stale REA skill symlink removed in the scratch config dir" test ! -L "$CLAUDE_CONFIG_DIR/skills/reverse-engineer-anything"
 check_true "changes: REA skill reinstalled" has '^↻ REA skill +reinstalled for rea-agents 6\.8\.0$'
 check_true "changes: newer Hindsight release is a notice" has '^● Hindsight memory +newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION in bin/hindsight-memory$'
 check_true "changes: the installer's ▲ warning is a notice, first line only" has '^● Hindsight memory +installer: macOS needs a current Rust toolchain to build the daemon.s dependencies \(litellm; see the log$'

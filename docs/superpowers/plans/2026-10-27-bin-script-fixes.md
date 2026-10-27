@@ -84,18 +84,18 @@ git commit -m "Keep the tracked plugin list when the registry does not parse"
 - Modify: `bin/lib/test-upup:22` (export `HOME="$tmp/home"` and create it)
 - Modify: `bin/upup:322` (use `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/…`)
 
-- [ ] **Step 1: Add the failing check**
+- [x] **Step 1: Add the failing check**
 
 In `test-upup`, before the "changes" run: `mkdir -p "$CLAUDE_CONFIG_DIR/skills"; ln -s /nonexistent "$CLAUDE_CONFIG_DIR/skills/reverse-engineer-anything"`, and after it `check_true "stale REA skill symlink removed in the scratch config dir" test ! -L "$CLAUDE_CONFIG_DIR/skills/reverse-engineer-anything"`.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-upup`
 Expected: that check fails (upup looked under the real `$HOME/.claude`).
 
-- [ ] **Step 3: Fix both files**, then run `bash bin/lib/test-upup && pnpm check`.
+- [x] **Step 3: Fix both files**, then run `bash bin/lib/test-upup && pnpm check`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add bin/lib/test-upup bin/upup
