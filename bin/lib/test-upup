@@ -51,11 +51,11 @@ stub softwareupdate 'case $1 in
     echo "Downloaded: macOS 27.2" ;;
 esac'
 stub brew 'case $1 in
-  outdated) [ -e "$STATE/brew" ] && echo gh ;;
+  outdated) [ -e "$STATE/brew" ] && printf "gh\ncodex\n" ;;
   upgrade) echo "==> Upgrading gh"; echo "==> Caveats"; echo "zsh completions have been installed to:"; echo "  /opt/homebrew/share/zsh/site-functions"
     echo "==> gh"; echo "Run gh auth login to use it."; echo "Second line"
     echo "==> uv"; echo "The following uv executables are shadowed by commands in $HOME/.local/share/mise/shims:"; echo uv; echo uvx; echo "Running these by name will not invoke the version provided by Homebrew"
-    echo "==> Upgraded 1 outdated package"; echo "gh       2.103.1  -> 2.103.2" ;;
+    echo "==> Upgrading codex"; echo "  0.164.0 -> 0.165.0"; echo "==> Upgraded 1 outdated package"; echo "gh       2.103.1  -> 2.103.2" ;;
   cleanup) echo "==> This operation has freed approximately 29.5MB of disk space." ;;
   doctor) echo "Your system is ready to brew." ;;
 esac
@@ -86,7 +86,9 @@ stub scrapling 'echo "Chromium already installed"'
 stub install-iosevka-code 'echo "Iosevka Code is up to date"'
 stub install-snippetslab-skill '[ ! -e "$STATE/snippetslab" ] || { mkdir -p "$HOME/.agents/skills/snippetslab"; date +%s%N > "$HOME/.agents/skills/snippetslab/SKILL.md"; }'
 stub claude 'case "$1 $2" in
-  "plugin update") if [ -e "$STATE/plugin" ] && [ "$4" = alpha@m ]; then
+  "plugin update") if [ -e "$STATE/plugin-fails" ] && [ "$4" = beta@m ]; then
+      echo "fatal: unable to access https://github.com/o/r.git/: Recv failure: Operation timed out"; exit 1
+    elif [ -e "$STATE/plugin" ] && [ "$4" = alpha@m ]; then
       echo "Marketplace cache updated"
       echo "✔ Plugin \"alpha@m\" updated from 1.0.0 to 1.1.0 for scope user. Restart to apply changes."
     else echo "$4 is already at the latest version"; fi ;;
@@ -185,9 +187,10 @@ check_true "changes: boilerplate caveat dropped" lacks 'completions'
 check_true "changes: a caveat shows its package and first line" has '^    gh: Run gh auth login to use it\. \(more in the log\)$'
 check_true "changes: a shadow caveat is one line" has '^    uv: uv, uvx shadowed by ~/\.local/share/mise/shims$'
 check_true "changes: full caveats kept in the log" grep -qx 'Second line' "$DOTFILES"/logs/upup-*.log
-check_true "changes: Homebrew line counts" has '^↻ Homebrew +1 package upgraded$'
-check_true "changes: Homebrew versions in a table under the line" has '^    gh  2\.103\.1 → 2\.103\.2$'
-check_true "changes: summary keeps the short Homebrew line" has '^  ↻ Homebrew +1 package upgraded$'
+check_true "changes: Homebrew line counts" has '^↻ Homebrew +2 packages upgraded$'
+check_true "changes: a formula's versions come from brew's table" has '^    gh     2\.103\.1 → 2\.103\.2$'
+check_true "changes: a cask's versions come from its Upgrading block" has '^    codex  0\.164\.0 → 0\.165\.0$'
+check_true "changes: summary keeps the short Homebrew line" has '^  ↻ Homebrew +2 packages upgraded$'
 check_true "changes: mise line counts" has '^↻ mise +4 versions upgraded$'
 check_true "changes: one tool in two pinned versions keeps its short name" has '^    tsc     5\.8\.0 → 5\.8\.1$'
 check_true "changes: mise names each old → new pair, one row each" has '^    node    24\.1\.0 → 24\.1\.1$'
@@ -216,7 +219,7 @@ check_true "changes: action banner counts the items" has '^ ▶ ACTION NEEDED \(
 check_true "changes: headline counts each kind" has '^Done in [0-9]+s · [0-9]+ changed · [0-9]+ notices · [0-9]+ failed · [0-9]+ actions$'
 check_true "changes: not everything up to date" lacks 'Everything up to date'
 check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/upup-*.log
-check_true "changes: log keeps the status lines and the table" grep -q -e '^↻ Homebrew  *1 package upgraded$' -e '^    gh  2' "$DOTFILES"/logs/upup-*.log
+check_true "changes: log keeps the status lines and the table" grep -q -e '^↻ Homebrew  *2 packages upgraded$' -e '^    gh  ' "$DOTFILES"/logs/upup-*.log
 
 # A warning alone (no newer release) must still replace the ok line
 rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab"
@@ -278,6 +281,13 @@ check_true "slow: the summary leaves the time out" lacks '^  [↻●✖›] .*\(
 rm -rf "$DOTFILES/logs" "$HINDSIGHT_CONFIG" "$STATE/uv"
 run
 check_true "no Hindsight config: step skipped" lacks 'Hindsight memory'
+
+rm -rf "$DOTFILES/logs" "$STATE/plugin"
+touch "$STATE/plugin-fails"
+run
+check_true "plugin failure: its own fail line" has '^✖ plugins +updating beta@m failed; run: claude plugin update beta@m$'
+check_true "plugin failure: not counted as up to date" has '^✔ plugins +1 plugin up to date$'
+rm -f "$STATE/plugin-fails"
 
 rm -rf "$DOTFILES/logs"
 rc=0

@@ -286,10 +286,17 @@ else
   outdated_count=$(wc -l <<< "$outdated_packages" | tr -d ' ')
   working "Homebrew: upgrading $(plural "$outdated_count" package)"
   # --yes: Homebrew asks before upgrading by default; the list is in the log.
-  # Of its output only the closing "name old -> new" table and the caveats
-  # worth reading reach the screen, a tap's name/tap/ prefix dropped
+  # Of its output only each package's old -> new and the caveats worth reading
+  # reach the screen. A formula's pair is in the closing "==> Upgraded" table
+  # ("name old -> new"); a cask has no table, only "==> Upgrading name" with
+  # "  old -> new" under it
   if capture brew upgrade --greedy --yes; then
-    versions=$(sed -n '/^==> Upgraded /,$p' <<< "$out" | sed -nE $'s/^([^ ]+) +([^ ]+) +-> +(.*)$/\\1\t\\2 → \\3/p')
+    versions=$(awk '
+      /^==> Upgraded / { table = 1; next }
+      table && $3 == "->" && !seen[$1]++ { print $1 "\t" $2 " → " $4; next }
+      /^==> Upgrading [^ ]+$/ { name = $3; next }
+      name != "" && /^  [^ ]+ -> [^ ]+$/ && !seen[name]++ { print name "\t" $1 " → " $3 }
+      { name = "" }' <<< "$out")
     status changed Homebrew "$(plural "$outdated_count" package) upgraded"
     rows <<< "${versions:-$outdated_packages}"
     brew_caveats
@@ -582,8 +589,9 @@ if command -v claude > /dev/null; then
   fi
   plugin_count=0 plugin_updates=""
   while read -r id; do
-    plugin_count=$((plugin_count + 1))
     if capture claude plugin update -y "$id" < /dev/null; then
+      # Counted only once checked: a failed one is its own fail line
+      plugin_count=$((plugin_count + 1))
       plugin_updates+=$(grep -E 'Plugin "?[^" ]+"? (updated|downgraded) from ' <<< "$out" \
         | sed -E $'s/^.*Plugin "?([^" ]+)"? (updated|downgraded) from ([^ ]+) to ([^ ]*[^ .]).*$/\\1\t\\3 → \\4/' \
         || true)$'\n'
@@ -597,8 +605,8 @@ if command -v claude > /dev/null; then
     status changed plugins "$(plural "$(wc -l <<< "$plugin_updates" | tr -d ' ')" plugin) updated"
     rows <<< "$plugin_updates"
     actions+=("Restart Claude Code to apply plugin updates")
-  else
-    status ok plugins "$plugin_count plugins up to date"
+  elif [ "$plugin_count" -gt 0 ]; then
+    status ok plugins "$(plural "$plugin_count" plugin) up to date"
   fi
 
   step "Claude config"
