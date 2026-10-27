@@ -4,8 +4,10 @@ command_exists() {
 
 source_brew_plugin() {
   command_exists brew || return 1
-  local plugin_path
-  for plugin_path in "$(brew --prefix)/share/$1/$1.zsh" "$(brew --prefix)/share/$1/${1#zsh-}.plugin.zsh"; do
+  # HOMEBREW_PREFIX comes from `brew shellenv` in tilde/.zprofile; `brew --prefix`
+  # cost a Ruby start per call
+  local plugin_path prefix=${HOMEBREW_PREFIX:-/opt/homebrew}
+  for plugin_path in "$prefix/share/$1/$1.zsh" "$prefix/share/$1/${1#zsh-}.plugin.zsh"; do
     [[ -r "$plugin_path" ]] && source "$plugin_path"
   done
 }

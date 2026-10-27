@@ -57,10 +57,10 @@ user_zsh "source $root/zsh/completion.zsh; today=027; zcompdump_is_stale $tmp/du
 **Files:**
 - Modify: `zsh/init.zsh:5-11`
 
-- [ ] **Step 1: Baseline**: five runs of `zsh -i -c exit`, note the median.
-- [ ] **Step 2: Change `source_brew_plugin`** to use `${HOMEBREW_PREFIX:-/opt/homebrew}` (exported by `brew shellenv` in `.zprofile`) instead of `$(brew --prefix)`.
-- [ ] **Step 3: Assertion** in `test-shell`: `user_zsh 'whence -w _zsh_autosuggest_start' | grep -q function` when `brew --prefix zsh-autosuggestions` exists (skip otherwise).
-- [ ] **Step 4: Measure again**, five runs interleaved with trunk; commit with both medians: `git commit -m "Use HOMEBREW_PREFIX for the zsh plugins"`.
+- [x] **Step 1: Baseline**: five runs of `zsh -i -c exit`, note the median.
+- [x] **Step 2: Change `source_brew_plugin`** to use `${HOMEBREW_PREFIX:-/opt/homebrew}` (exported by `brew shellenv` in `.zprofile`) instead of `$(brew --prefix)`.
+- [x] **Step 3: Assertion** in `test-shell`: `user_zsh 'whence -w _zsh_autosuggest_start' | grep -q function` when `brew --prefix zsh-autosuggestions` exists (skip otherwise).
+- [x] **Step 4: Measure again**, five runs interleaved with trunk; commit with both medians: `git commit -m "Use HOMEBREW_PREFIX for the zsh plugins"`.
 
 ### Task 3: `path.zsh` builds on the inherited PATH (D3)
 
