@@ -40,6 +40,23 @@ printf b | symlink_file "$srcdir" "$HOME/d" > /dev/null 2>&1
 check "directory backup not nested" "[ ! -e '$HOME/d.backup/d' ]"
 check "directory backed up beside the old one" "find '$HOME' -maxdepth 1 -type d -name 'd.backup.*' | grep -q ."
 
+# misc.sh's link_config_dir: only creates or relinks ~/.config/<name> when it is
+# missing or already points into the repo
+eval "$(sed -nE '/^(warning|link_config_dir)\(\) \{/,/^}/p' "$repo/setup/misc.sh")"
+DOTFILES_DIR="$HOME/repo"
+mkdir -p "$DOTFILES_DIR/tilde/.config/a" "$DOTFILES_DIR/tilde/.config/b" "$DOTFILES_DIR/tilde/.config/c" "$HOME/elsewhere" "$HOME/.config/d"
+ln -s "$HOME/elsewhere" "$HOME/.config/a"
+out=$(link_config_dir a 2>&1)
+check "foreign link left untouched" "[ \"\$(readlink '$HOME/.config/a')\" = '$HOME/elsewhere' ]"
+check "foreign link warned about" "printf '%s' '$out' | grep -q 'links elsewhere'"
+link_config_dir b > /dev/null 2>&1
+check "missing link created" "[ \"\$(readlink '$HOME/.config/b')\" = '$DOTFILES_DIR/tilde/.config/b' ]"
+ln -s "$DOTFILES_DIR/tilde/.config/old" "$HOME/.config/c"
+link_config_dir c > /dev/null 2>&1
+check "repo link relinked" "[ \"\$(readlink '$HOME/.config/c')\" = '$DOTFILES_DIR/tilde/.config/c' ]"
+link_config_dir d > /dev/null 2>&1
+check "real directory left untouched" "[ -d '$HOME/.config/d' ] && [ ! -L '$HOME/.config/d' ]"
+
 [ "$fails" -eq 0 ] || {
   echo "$fails failed" >&2
   exit 1

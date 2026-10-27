@@ -33,6 +33,24 @@ command_exists() {
   command -v "$@" &> /dev/null
 }
 
+# Link ~/.config/<name> to the repo's copy when it is missing or already a link
+# into the repo. Anything else (a real directory, a link to somewhere else) is
+# left for symlinks.sh to ask about; returns 1 then.
+# shellcheck disable=SC2088 # display text, not a path
+link_config_dir() {
+  local dst="$HOME/.config/$1"
+  mkdir -p "$HOME/.config"
+  if [ ! -e "$dst" ] && [ ! -L "$dst" ] || [[ -L "$dst" && "$(readlink "$dst")" == "$DOTFILES_DIR"/* ]]; then
+    ln -sfn "$DOTFILES_DIR/tilde/.config/$1" "$dst"
+  elif [ -L "$dst" ]; then
+    warning "~/.config/$1 links elsewhere; leaving it; symlinks.sh will ask"
+    return 1
+  else
+    warning "~/.config/$1 is not linked to this repo; leaving it; symlinks.sh will ask"
+    return 1
+  fi
+}
+
 # Ask for the administrator password upfront
 warning "Activate sudo"
 sudo echo "Sudo activated!"
@@ -94,10 +112,7 @@ if command_exists gh && ! gh auth status &> /dev/null; then
   # Link the config dir first (symlinks.sh will skip it later as already done)
   # so gh writes its hosts.yml inside the repo's gitignored path rather than
   # creating a real ~/.config/gh that symlinks.sh would then have to replace
-  mkdir -p "$HOME/.config"
-  if [ ! -e "$HOME/.config/gh" ] || [ -L "$HOME/.config/gh" ]; then
-    ln -sfn "$DOTFILES_DIR/tilde/.config/gh" "$HOME/.config/gh"
-  fi
+  link_config_dir gh || true
 
   if [ -t 0 ]; then
     read -rp "  [GitHub CLI] Not logged in. Run \`gh auth login\` now? [y/N] " gh_login
@@ -117,16 +132,9 @@ fi
 # so `mise install` picks up the tracked tool versions.
 if command_exists mise; then
   info "📦 Installing runtimes with mise…"
-  mkdir -p "$HOME/.config"
-  if [ ! -e "$HOME/.config/mise" ] || [ -L "$HOME/.config/mise" ]; then
-    ln -sfn "$DOTFILES_DIR/tilde/.config/mise" "$HOME/.config/mise"
-  else
-    # A real directory from an earlier mise install: symlinks.sh will ask
-    # before replacing it, so don't touch it here — but this `mise install`
-    # uses that old config, not the repo's
-    # shellcheck disable=SC2088 # display text, not a path
-    warning "~/.config/mise is not linked to this repo — installing from its existing config"
-    echo "Let symlinks.sh replace it, then run: ${BOLD}mise install${RESET}" | indent
+  if ! link_config_dir mise; then
+    # This `mise install` uses that other config, not the repo's
+    echo "Installing from its existing config. Let symlinks.sh replace it, then run: ${BOLD}mise install${RESET}" | indent
   fi
   # --skip-codegraph: leave it out of this install (doesn't remove an existing
   # one). Scope MISE_DISABLE_TOOLS to `mise install` only, then reshim without

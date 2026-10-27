@@ -185,11 +185,11 @@ git commit -m "Restore Claude Code config even without npm"
 **Files:**
 - Modify: `setup/misc.sh:93-94,116-117`
 
-- [ ] **Step 1: Add the failing test to `setup/tests/symlinks-backup.sh`** (same harness): a helper `link_config_dir <name>` extracted from `misc.sh` that, given `$HOME/.config/<name>` as a symlink to `$tmp/elsewhere`, leaves it untouched and warns; given none, creates the link; given a link into `$DOTFILES_DIR`, relinks.
+- [x] **Step 1: Add the failing test to `setup/tests/symlinks-backup.sh`** (same harness): a helper `link_config_dir <name>` extracted from `misc.sh` that, given `$HOME/.config/<name>` as a symlink to `$tmp/elsewhere`, leaves it untouched and warns; given none, creates the link; given a link into `$DOTFILES_DIR`, relinks.
 
-- [ ] **Step 2: Extract the duplicated block into `link_config_dir()`** in `misc.sh` (used for `gh` and `mise`) with that rule, warning text: `~/.config/<name> links elsewhere — leaving it; symlinks.sh will ask`.
+- [x] **Step 2: Extract the duplicated block into `link_config_dir()`** in `misc.sh` (used for `gh` and `mise`) with that rule, warning text: `~/.config/<name> links elsewhere — leaving it; symlinks.sh will ask`.
 
-- [ ] **Step 3: Run the test and the gate, then commit**
+- [x] **Step 3: Run the test and the gate, then commit**
 
 Run: `bash setup/tests/symlinks-backup.sh && pnpm check`
 
