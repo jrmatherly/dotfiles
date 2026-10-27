@@ -36,8 +36,8 @@
   untrackedCache = true
 
 [help]
-  # Correct typos
-  autoCorrect = 1
+  # Correct typos, after asking (1 ran the guess after 0.1 s)
+  autoCorrect = prompt
 
 [color]
   # Use colors in Git commands that are capable of colored output when

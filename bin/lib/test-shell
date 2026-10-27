@@ -132,4 +132,14 @@ if [ -n "$fsh" ]; then
   [ "$(stat -f %Fm "$fsh")" = "$before" ] || fail "fast-theme rewrote $fsh on an unchanged ini"
 fi
 
+# A shell without a line editor (zsh -c, no tty) starts without zle errors from fzf's widgets
+if need fzf; then
+  n=$(env -u CLAUDECODE ZDOTDIR="$tmp" zsh -i -c true < /dev/null 2>&1 | grep -c "can't change option" || true)
+  [ "$n" = 0 ] || fail "shell start printed $n \"can't change option\" lines"
+fi
+
+# The terminal's own TERM survives; only SSH sessions get xterm-256color
+[ "$(TERM=xterm-ghostty SSH_CONNECTION='' user_zsh 'echo $TERM')" = xterm-ghostty ] || fail "TERM is overridden locally"
+[ "$(TERM=xterm-ghostty SSH_CONNECTION=1 user_zsh 'echo $TERM')" = xterm-256color ] || fail "SSH TERM is not xterm-256color"
+
 echo "shell: all checks passed"

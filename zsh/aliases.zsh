@@ -73,7 +73,7 @@ alias re="nr release"
 alias lzd="lazydocker"
 
 # Lazygit
-alias lg="lazygit --use-config-dir $DOTFILES/lazygit"
+alias lg=lazygit
 
 # File Manager
 alias ff="open -a 'Nimble Commander' ."

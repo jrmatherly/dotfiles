@@ -108,12 +108,12 @@ user_zsh "source $root/zsh/completion.zsh; today=027; zcompdump_is_stale $tmp/du
 - Modify: `zsh/fzf.zsh:63-64,71`, `zsh/env.zsh:10,167`, `zsh/aliases.zsh:76`, `tilde/.gitconfig:41`
 - Modify: `docs/README.md` (the `lg` row if its description changes)
 
-- [ ] **Step 1: fzf**: guard the source with `[[ -o zle ]] &&`; delete the dead `llt` case. Assertion: `user_zsh 'true' 2>&1 | grep -c "can't change option"` is 0.
-- [ ] **Step 2: TERM**: export `xterm-256color` only when `SSH_CONNECTION` is set. Assertion: `TERM=xterm-ghostty user_zsh 'echo $TERM'` prints `xterm-ghostty`.
-- [ ] **Step 3: lazygit**: export `LG_CONFIG_FILE="$DOTFILES/lazygit/config.yml"` and reduce the alias to `alias lg=lazygit`. Verify `lazygit --print-config-dir` or `lg` opens with the repo theme.
-- [ ] **Step 4: azd**: export `AZD_BICEP_TOOL_PATH` only when the file exists.
-- [ ] **Step 5: git autoCorrect**: `autoCorrect = prompt`.
-- [ ] **Step 6: `pnpm check`, one commit**: `git commit -m "Tidy the fzf, TERM, lazygit, azd and git autocorrect settings"`.
+- [x] **Step 1: fzf**: guard the source with `[[ -o zle ]] &&`; delete the dead `llt` case. Assertion: `user_zsh 'true' 2>&1 | grep -c "can't change option"` is 0.
+- [x] **Step 2: TERM**: export `xterm-256color` only when `SSH_CONNECTION` is set. Assertion: `TERM=xterm-ghostty user_zsh 'echo $TERM'` prints `xterm-ghostty`.
+- [x] **Step 3: lazygit**: export `LG_CONFIG_FILE="$DOTFILES/lazygit/config.yml"` and reduce the alias to `alias lg=lazygit`. Verify `lazygit --print-config-dir` or `lg` opens with the repo theme.
+- [x] **Step 4: azd**: export `AZD_BICEP_TOOL_PATH` only when the file exists.
+- [x] **Step 5: git autoCorrect**: `autoCorrect = prompt`.
+- [x] **Step 6: `pnpm check`, one commit**: `git commit -m "Tidy the fzf, TERM, lazygit, azd and git autocorrect settings"`.
 
 ### Task 8: `.zprofile` survives a Mac without Homebrew (D12)
 

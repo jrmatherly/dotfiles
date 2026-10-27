@@ -7,7 +7,9 @@ export LC_ALL="en_US.UTF-8"
 export LANG="en_US.UTF-8"
 export LANGUAGE="en_US.UTF-8"
 
-export TERM="xterm-256color"
+# Remote hosts may lack the local terminal's terminfo (xterm-ghostty); locally
+# the terminal's own TERM stays
+[[ -n $SSH_CONNECTION ]] && export TERM="xterm-256color"
 # Normally set in ~/.zshenv (resolved from this repo's real location)
 export DOTFILES="${DOTFILES:-$HOME/dotfiles}"
 export WORKSPACE="$HOME/dev"
@@ -168,7 +170,12 @@ export CLAUDE_CODE_CERT_STORE="bundled,system"
 
 # azd bundles its own (often older) Bicep; point it at the az CLI-managed Bicep
 # binary instead when a project's .bicepparam files need a newer Bicep feature.
-export AZD_BICEP_TOOL_PATH="$HOME/.azure/bin/bicep"
+# Only when that binary exists, so a Mac without it keeps azd's own Bicep.
+[[ -x $HOME/.azure/bin/bicep ]] && export AZD_BICEP_TOOL_PATH="$HOME/.azure/bin/bicep"
+
+# lazygit reads this repo's config from any shell (state.yml stays in its own
+# config dir, ~/Library/Application Support/lazygit)
+export LG_CONFIG_FILE="$DOTFILES/lazygit/config.yml"
 
 # No exported GitHub token: every child process (agents included) would inherit a
 # repo + workflow token. Pass it per command: GIGET_AUTH=$(gh auth token) giget …

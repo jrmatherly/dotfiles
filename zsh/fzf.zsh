@@ -60,12 +60,12 @@ _fzf_comprun() {
   case "$command" in
     # cd **<TAB>
     cd) fzf --preview 'eza --tree --color=always {} | head -200' "$@" ;;
-    # llt **<TAB>
-    llt) fd --type d --hidden | fzf --preview 'eza --tree --color=always {} | head -200' "$@" ;;
     # any_other_command **<TAB>
     *) fzf --preview 'bat -n --color=always {}' "$@" ;;
   esac
 }
 
-# Set up fzf key bindings and fuzzy completion
-source <(fzf --zsh)
+# Set up fzf key bindings and fuzzy completion. Its script saves and restores
+# every option, and restoring zle fails in a shell without a terminal (zsh -i -c
+# from a script), where [[ -o zle ]] still reads on; `setopt zle` fails there too
+setopt zle 2> /dev/null && source <(fzf --zsh)
