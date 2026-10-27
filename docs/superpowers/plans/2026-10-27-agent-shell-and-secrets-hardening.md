@@ -41,7 +41,7 @@
 **Interfaces:**
 - Produces: `bin/lib/test-shell` with two functions later tasks call. `agent_zsh '<zsh code>'` runs it in an interactive zsh with `CLAUDECODE=1` and `ZDOTDIR=$tmp`; `user_zsh '<zsh code>'` runs it with `CLAUDECODE` unset. Both print stdout only, and return the shell's exit code. `need <tool>` returns 1 and prints `skip: <tool> not installed` to stderr when `command -v` fails. `fail '<msg>'` exits 1.
 
-- [ ] **Step 1: Write the harness and the failing assertion**
+- [x] **Step 1: Write the harness and the failing assertion**
 
 `$tmp/.zshenv` holds `export DOTFILES=<repo root>`; `$tmp/.zshrc` holds `source "$DOTFILES/tilde/.zshrc"`. The first assertion:
 
@@ -53,21 +53,21 @@ printf 'echo sourced-ok\n' > "$tmp/s.zsh"
 
 End the script with `echo "shell: all checks passed"`.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-shell`
 Expected: `FAIL: agent shell: . does not source`, exit 1.
 
-- [ ] **Step 3: Rename the alias**
+- [x] **Step 3: Rename the alias**
 
 In `zsh/aliases.zsh:7` change `alias .=` to `alias here=`; keep the printf and `pwd`. In `docs/README.md:65` change the row's command to `` `here` ``.
 
-- [ ] **Step 4: Run the self-check and the gate**
+- [x] **Step 4: Run the self-check and the gate**
 
 Run: `bash bin/lib/test-shell && pnpm check`
 Expected: `shell: all checks passed`, then the gate exits 0 (add `bash bin/lib/test-shell > /dev/null` to `bin/lib/check` under the `test-upup` line first).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add bin/lib/test-shell bin/lib/check zsh/aliases.zsh docs/README.md CLAUDE.md

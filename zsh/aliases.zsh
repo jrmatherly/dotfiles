@@ -4,7 +4,7 @@
 alias sudo="sudo "
 
 # Easier navigation
-alias .="printf '\U000F17A9 ' && pwd"
+alias here="printf '\U000F17A9 ' && pwd"
 alias ..="cd .."
 alias ...="cd ../.."
 alias ....="cd ../../.."

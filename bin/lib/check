@@ -66,6 +66,8 @@ bash bin/lib/test-hindsight-memory > /dev/null
 bash bin/lib/test-claude-config > /dev/null
 # bin/upup's report against stubbed tools (nothing is upgraded)
 bash bin/lib/test-upup > /dev/null
+# zsh/ and tilde/.zshrc in interactive agent and user shells, through a temp ZDOTDIR
+bash bin/lib/test-shell > /dev/null
 # bin/serve, bin/git-find and bin/git-tidy under a scratch HOME and git repo
 bash bin/lib/test-bin > /dev/null
 # bin/rea-mcp against a stubbed brew, a fixture Ghidra keg and a fake mise shim (REA never starts)

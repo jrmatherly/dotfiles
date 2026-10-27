@@ -62,7 +62,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 
 | Command | Description |
 | --- | --- |
-| `.` | Print the current directory path |
+| `here` | Print the current directory path |
 | `..` `...` `....` | Navigate to 1/2/3 parent directories up |
 | `-` | Navigate to a previous working directory |
 | `library` | Navigate to the user `~/Library` directory |

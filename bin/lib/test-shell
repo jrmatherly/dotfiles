@@ -1,0 +1,55 @@
+#!/bin/bash
+#
+# Self-check for the zsh config that agent and user shells load.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-shell`
+#
+# ---
+# Runs interactive zsh against this repo's tilde/.zshrc through a temp ZDOTDIR
+# (never ~/.zshrc), with the parent's tokens and CLAUDECODE stripped so the
+# config alone decides each result. An assertion needing a missing tool skips.
+#
+# License: MIT
+
+set -euo pipefail
+
+repo="$(cd "$(dirname "$0")/../.." && pwd -P)"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+printf 'export DOTFILES=%q\n' "$repo" > "$tmp/.zshenv"
+printf 'source "$DOTFILES/tilde/.zshrc"\n' > "$tmp/.zshrc"
+
+# Print the failed assertion and stop
+fail() {
+  echo "FAIL: $1" >&2
+  exit 1
+}
+
+# Return 1 (with a skip note on stderr) when a tool isn't installed
+need() {
+  command -v "$1" > /dev/null || {
+    echo "skip: $1 not installed" >&2
+    return 1
+  }
+}
+
+# Run zsh code in an interactive shell built from the repo config; stdout only
+run_zsh() {
+  env -u GITHUB_TOKEN -u GH_TOKEN -u GIGET_AUTH -u CLAUDECODE -u RIPGREP_CONFIG_PATH \
+    ZDOTDIR="$tmp" "$@" < /dev/null 2> /dev/null
+}
+
+# Agent shell: what Claude Code's Bash tool gets (CLAUDECODE=1)
+agent_zsh() { run_zsh CLAUDECODE=1 zsh -i -c "$1"; }
+
+# User shell: CLAUDECODE unset
+user_zsh() { run_zsh zsh -i -c "$1"; }
+
+# `.` is the source builtin, not an alias
+printf 'echo sourced-ok\n' > "$tmp/s.zsh"
+[ "$(agent_zsh ". $tmp/s.zsh")" = sourced-ok ] || fail "agent shell: . does not source"
+[ "$(user_zsh ". $tmp/s.zsh")" = sourced-ok ] || fail "user shell: . does not source"
+
+echo "shell: all checks passed"
