@@ -529,6 +529,9 @@
     ]
   },
   "shellcheck.executablePath": "/opt/homebrew/bin/shellcheck",
+  // The level pnpm check enforces (bin/lib/check); .shellcheckrc can't set a
+  // severity, so the info and style notes it skips would otherwise show here
+  "shellcheck.customArgs": ["--severity=warning"],
   "hadolint.cliOptions": [
     "--ignore=DL3007",
     "--ignore=DL3008",
