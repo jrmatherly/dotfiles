@@ -38,7 +38,7 @@
 **Interfaces:**
 - Produces: `valid_json <file>` in `bin/claude-config`, exit 0 when `jq -e . "$1"` succeeds, else prints `claude-config: <~/path> is not valid JSON — kept <~/tracked>` to stderr and exits 1.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `bin/lib/test-claude-config` sets `HOME=$tmp/home CLAUDE_CONFIG_DIR=$tmp/cfg CLAUDE_CONFIG_SAVE_DIR=$tmp/save`, seeds `$tmp/save/claude-plugins.txt` with `marketplace a b`, `plugin x@a`, `plugin y@a disabled`, and checks:
 
@@ -57,21 +57,21 @@ check "warning paths use ~" "grep -q '~/' '$tmp/err'"
 
 Run the whole file twice when `/opt/homebrew/bin/bash` exists, once per bash, so the `tildify` fix (C13) is covered under bash 5.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-claude-config`
 Expected: `FAIL corrupt registry keeps the list` (0 plugin lines), `FAIL token never saved`.
 
-- [ ] **Step 3: Fix the script**
+- [x] **Step 3: Fix the script**
 
 Add `valid_json`; in `save_plugins` call `valid_json "$config/plugins/installed_plugins.json" || return 0` after `missing_source`, and the same for `known_marketplaces.json` when present and for `$settings` before the `disabled` lookup; drop the three `|| true`. Extend the env filter with `and (.key | test("TOKEN|SECRET|PASSPHRASE|API_KEY|CLIENT_KEY") | not)`. Add `trap 'rm -f "$save_dir"/*.tmp' EXIT` near the top. Change `tildify` to `[[ $1 == "$HOME"* ]] && printf '~%s' "${1#"$HOME"}" || printf '%s' "$1"` (the form `bin/hindsight-memory` uses), and apply the same to `bin/copy-ssh:17`.
 
-- [ ] **Step 4: Run the test and the gate**
+- [x] **Step 4: Run the test and the gate**
 
 Run: `bash bin/lib/test-claude-config && pnpm check`
 Expected: all `ok`; gate exit 0 after adding `bash bin/lib/test-claude-config > /dev/null` to `bin/lib/check`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add bin/claude-config bin/copy-ssh bin/lib/test-claude-config bin/lib/check CLAUDE.md .claude/rules/claude-config.md

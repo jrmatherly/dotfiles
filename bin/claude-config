@@ -55,6 +55,7 @@ skill_lock="$HOME/.agents/.skill-lock.json"
 settings_filter='del(.enabledPlugins, .extraKnownMarketplaces, .hooks,
     .apiKeyHelper, .awsCredentialExport, .awsAuthRefresh, .otelHeadersHelper)
   | if .env then .env |= with_entries(select((.key | test("^(CLAUDE_CODE_|DISABLE_|MAX_|AZURE_MCP_COLLECT_TELEMETRY$|HINDSIGHT_API_(LLM_PROVIDER|[A-Z_]*LLM_MODEL)$)"))
+      and (.key | test("TOKEN|SECRET|PASSPHRASE|API_KEY|CLIENT_KEY") | not)
       and (.key | IN("CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY", "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT") | not)))
       | if .env == {} then del(.env) else . end
     else . end'
@@ -70,6 +71,8 @@ untilde='def untilde($h): (split("//" + $h + "/") | join("~/")) as $s | ($s | sp
 dry_run=false
 update=false
 failed=0
+# A jq that fails mid-write leaves its .tmp behind in the repo
+trap 'rm -f "$save_dir"/*.tmp' EXIT
 
 run() {
   if [ "$dry_run" = true ]; then
@@ -90,14 +93,14 @@ run() {
 known_marketplaces() {
   local f="$config/plugins/known_marketplaces.json"
   [ -f "$f" ] || return 0
-  jq -r 'to_entries[] | "\(.key) \(.value.source | .repo // .url // .path // empty)"' "$f" || true
+  jq -r 'to_entries[] | "\(.key) \(.value.source | .repo // .url // .path // empty)"' "$f"
 }
 
 # plugin@marketplace ids installed at user scope
 installed_plugins() {
   local f="$config/plugins/installed_plugins.json"
   [ -f "$f" ] || return 0
-  jq -r '.plugins | to_entries[] | select(any(.value[]; .scope == "user")) | .key' "$f" || true
+  jq -r '.plugins | to_entries[] | select(any(.value[]; .scope == "user")) | .key' "$f"
 }
 
 # Saving must never shrink a tracked file because this machine lacks its
@@ -110,10 +113,25 @@ missing_source() {
   return 1
 }
 
+# ...or because its source does not parse: an empty jq result would save
+# as an empty list
+valid_json() {
+  jq -e . "$1" > /dev/null 2>&1 && return 0
+  echo "claude-config: $(tildify "$1") is not valid JSON, kept $(tildify "$2")" >&2
+  return 1
+}
+
 save_plugins() {
-  local disabled
+  local disabled=""
   missing_source "$config/plugins/installed_plugins.json" "$plugins_list" && return 0
-  disabled=$(jq -r '(.enabledPlugins // {}) | to_entries[] | select(.value == false) | .key' "$settings" 2> /dev/null || true)
+  valid_json "$config/plugins/installed_plugins.json" "$plugins_list" || return 0
+  if [ -f "$config/plugins/known_marketplaces.json" ]; then
+    valid_json "$config/plugins/known_marketplaces.json" "$plugins_list" || return 0
+  fi
+  if [ -f "$settings" ]; then
+    valid_json "$settings" "$plugins_list" || return 0
+    disabled=$(jq -r '(.enabledPlugins // {}) | to_entries[] | select(.value == false) | .key' "$settings")
+  fi
   {
     echo "# Claude Code marketplaces and user-scope plugins — see bin/claude-config."
     echo "# \"disabled\" = installed but turned off."
@@ -249,7 +267,8 @@ restore_skills() {
 }
 
 tildify() {
-  printf '%s' "${1/#$HOME/~}"
+  # Not ${1/#$HOME/~}: bash 5 tilde-expands that replacement back to $HOME
+  [[ $1 == "$HOME" || $1 == "$HOME"/* ]] && printf '~%s' "${1#"$HOME"}" || printf '%s' "$1"
 }
 
 case "${1:-}" in

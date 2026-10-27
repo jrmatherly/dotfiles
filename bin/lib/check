@@ -62,6 +62,8 @@ prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}"
 bash setup/tests/codex-config.sh > /dev/null
 # bin/hindsight-memory against a fixture HOME with the installer, hindsight-embed and npm stubbed
 bash bin/lib/test-hindsight-memory > /dev/null
+# bin/claude-config save against fixture dirs, under each bash (never the real ~/.claude or agents/)
+bash bin/lib/test-claude-config > /dev/null
 # bin/upup's report against stubbed tools (nothing is upgraded)
 bash bin/lib/test-upup > /dev/null
 # bin/rea-mcp against a stubbed brew, a fixture Ghidra keg and a fake mise shim (REA never starts)

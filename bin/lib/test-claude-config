@@ -1,0 +1,66 @@
+#!/bin/bash
+#
+# Self-check for claude-config save against fixture dirs.
+#
+# - Run it (pnpm check does too); exits 1 when an assertion fails:
+#
+# `test-claude-config`
+#
+# ---
+# Never touches the real ~/.claude or agents/: HOME, CLAUDE_CONFIG_DIR and
+# CLAUDE_CONFIG_SAVE_DIR are temp dirs. Runs once per bash (macOS 3.2 and
+# Homebrew's 5, where ~ in a substitution's replacement is expanded).
+#
+# License: MIT
+
+set -u
+
+if [ -z "${TEST_CLAUDE_CONFIG_BASH:-}" ]; then
+  rc=0
+  for b in /bin/bash /opt/homebrew/bin/bash; do
+    [ -x "$b" ] || continue
+    echo "== $b"
+    TEST_CLAUDE_CONFIG_BASH=$b "$b" "$0" || rc=1
+  done
+  exit "$rc"
+fi
+
+script="$(cd "$(dirname "$0")/.." && pwd -P)/claude-config"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+# jq can be a mise shim, which refuses the global config under a fake HOME
+# unless mise's trust records stay in the real state dir
+export MISE_STATE_DIR="${MISE_STATE_DIR:-$HOME/.local/state/mise}"
+# The config dir sits under HOME so the warnings have a path to shorten to ~
+export HOME="$tmp/home" CLAUDE_CONFIG_DIR="$tmp/home/.claude" CLAUDE_CONFIG_SAVE_DIR="$tmp/save"
+mkdir -p "$CLAUDE_CONFIG_DIR/plugins" "$CLAUDE_CONFIG_SAVE_DIR"
+list="$CLAUDE_CONFIG_SAVE_DIR/claude-plugins.txt"
+printf 'marketplace a b\nplugin x@a\nplugin y@a disabled\n' > "$list"
+fails=0
+
+check() {
+  if eval "$2"; then echo "ok   $1"; else
+    echo "FAIL $1"
+    fails=$((fails + 1))
+  fi
+}
+cc() { "$TEST_CLAUDE_CONFIG_BASH" "$script" "$@"; }
+
+echo '{"plugins": {' > "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
+cc save plugins > /dev/null 2> "$tmp/err"
+check "corrupt registry keeps the list" "[ \"\$(grep -c '^plugin ' '$list')\" = 2 ]"
+check "corrupt registry warns" "grep -q 'not valid JSON' '$tmp/err'"
+check "no tmp file left" "[ ! -e '$list.tmp' ]"
+check "warning paths use ~" "grep -q '~/' '$tmp/err'"
+
+printf '{"plugins":{"x@a":[{"scope":"user"}],"y@a":[{"scope":"user"}]}}' > "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
+printf '{"enabledPlugins":{"y@a":false},"env":{"CLAUDE_CODE_OAUTH_TOKEN":"x","CLAUDE_CODE_CERT_STORE":"bundled,system","DISABLE_TELEMETRY":"1"}}' > "$CLAUDE_CONFIG_DIR/settings.json"
+cc save settings > /dev/null 2>&1
+check "valid registry saves its plugins" "grep -qx 'plugin y@a disabled' '$list' && [ \"\$(grep -c '^plugin ' '$list')\" = 2 ]"
+check "token never saved" "! grep -q OAUTH_TOKEN '$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json'"
+check "cert store kept" "grep -q CERT_STORE '$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json'"
+
+[ "$fails" -eq 0 ] || {
+  echo "$fails failed" >&2
+  exit 1
+}

@@ -14,7 +14,8 @@
 for file in "$HOME/.ssh/github_personal.pub" "$HOME/.ssh/id_ed25519.pub"; do
   if [ -f "$file" ]; then
     pbcopy < "$file"
-    printf '=> Public SSH key copied to clipboard (%s).\n' "${file/#$HOME/~}"
+    # ~ by hand: bash 5 tilde-expands the replacement in ${file/#$HOME/~}
+    printf '=> Public SSH key copied to clipboard (~%s).\n' "${file#"$HOME"}"
     exit 0
   fi
 done
