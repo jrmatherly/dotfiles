@@ -463,39 +463,40 @@ if command_exists aspire && command_exists dotnet; then
   fi
 fi
 
-if ! command_exists npm; then
-  echo "npm not found — skipping Node.js global config and packages" | indent
-  exit 0
-fi
+# Without npm only the npm config and the repo's dependencies are skipped;
+# the Claude Code restore below still runs
+if command_exists npm; then
+  # Node.js global config
+  info "🚀 Configuring npm…"
+  # Less verbose output
+  npm config set loglevel warn
+  # Disable funding messages
+  npm config set fund false
+  # Install exact version of packages ("1.2.3" instead of "^1.2.3" or "~1.2.3"). Keeps pinning durable
+  npm config set save-exact true
+  # Do not allow installing packages from Git
+  npm config set allow-git none
+  # Do not allow installing packages from a file
+  # npm config set allow-file none
+  # Do not allow installing packages from remote dependencies (URLs instead of npm registry)
+  # npm config set allow-remote none
+  # Only install package versions published at least 7 days ago
+  npm config set min-release-age 7
+  # (Bun: the same rules live in tilde/.bunfig.toml)
 
-# Node.js global config
-info "🚀 Configuring npm…"
-# Less verbose output
-npm config set loglevel warn
-# Disable funding messages
-npm config set fund false
-# Install exact version of packages ("1.2.3" instead of "^1.2.3" or "~1.2.3"). Keeps pinning durable
-npm config set save-exact true
-# Do not allow installing packages from Git
-npm config set allow-git none
-# Do not allow installing packages from a file
-# npm config set allow-file none
-# Do not allow installing packages from remote dependencies (URLs instead of npm registry)
-# npm config set allow-remote none
-# Only install package versions published at least 7 days ago
-npm config set min-release-age 7
-# (Bun: the same rules live in tilde/.bunfig.toml)
+  # Global npm CLIs (serverless, @antfu/ni) are `npm:` tools in the mise config,
+  # installed by `mise install` above. aws-cdk comes from the Brewfile.
 
-# Global npm CLIs (serverless, @antfu/ni) are `npm:` tools in the mise config,
-# installed by `mise install` above. aws-cdk comes from the Brewfile.
-
-# This repo's own dependencies: `prettier` (+ prettier-plugin-sh) for `pnpm
-# format`, and `avif`, which bin/optimize-image expects at node_modules/.bin
-if command_exists pnpm; then
-  info "📦 Installing this repo's dependencies…"
-  pnpm install --dir "$DOTFILES_DIR" | indent || warning "pnpm install failed; re-run: pnpm install"
+  # This repo's own dependencies: `prettier` (+ prettier-plugin-sh) for `pnpm
+  # format`, and `avif`, which bin/optimize-image expects at node_modules/.bin
+  if command_exists pnpm; then
+    info "📦 Installing this repo's dependencies…"
+    pnpm install --dir "$DOTFILES_DIR" | indent || warning "pnpm install failed; re-run: pnpm install"
+  else
+    echo "pnpm not found — skipping repo dependencies (run 'pnpm install' later)" | indent
+  fi
 else
-  echo "pnpm not found — skipping repo dependencies (run 'pnpm install' later)" | indent
+  echo "npm not found; skipping npm config and repo dependencies" | indent
 fi
 
 # Last, after the npm settings above (min-release-age, allow-git none) so the

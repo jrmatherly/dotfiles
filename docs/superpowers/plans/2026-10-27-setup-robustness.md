@@ -169,9 +169,9 @@ git commit -m "Bound the Xcode CLT wait and skip it headless"
 - Modify: `setup/misc.sh:461-491`
 - Modify: `setup/README.md` (`misc` section, order note)
 
-- [ ] **Step 1: Replace `exit 0` with an `if command_exists npm; then … fi` around the npm config and the pnpm install**, so the Claude restore and catalog at `:503-511` run either way. Keep the comment that the restore must come after the npm settings.
+- [x] **Step 1: Replace `exit 0` with an `if command_exists npm; then … fi` around the npm config and the pnpm install**, so the Claude restore and catalog at `:503-511` run either way. Keep the comment that the restore must come after the npm settings.
 
-- [ ] **Step 2: Run the gate and commit**
+- [x] **Step 2: Run the gate and commit**
 
 Run: `pnpm check`
 
