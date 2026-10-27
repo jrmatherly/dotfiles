@@ -87,10 +87,6 @@
 #   [url "git@github.com:<your-username>/"]
 #     insteadOf = "https://github.com/<your-username>/"
 
-[protocol "file"]
-  # Always permit operations using file protocol without any restrictions or warnings
-  allow = always
-
 # command-specific
 
 [commit]

@@ -196,27 +196,27 @@ git commit -m "Quote the git wrapper's arguments and drop its clone-time install
 - Modify: `bin/lib/test-conventions`
 - Modify: `tilde/README.md` (only if it documents the setting)
 
-- [ ] **Step 1: Add the failing assertion to `test-conventions`**
+- [x] **Step 1: Add the failing assertion to `test-conventions`**
 
 ```bash
 ! grep -qE '^\s*allow\s*=\s*always' tilde/.gitconfig || fail "gitconfig: protocol.file.allow = always (CVE-2022-39253)"
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-conventions`
 Expected: `FAIL: gitconfig: protocol.file.allow = always`.
 
-- [ ] **Step 3: Delete the section**
+- [x] **Step 3: Delete the section**
 
 Remove `tilde/.gitconfig:90-92`. Where a local clone needs it, the form is `git -c protocol.file.allow=always clone …`; put that in the comment block above `[protocol]`'s former place only if the file keeps a comment there.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 Run: `pnpm check`
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tilde/.gitconfig bin/lib/test-conventions
