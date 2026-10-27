@@ -282,9 +282,9 @@ git commit -m "Uninstall only the harnesses hindsight-memory installed"
 **Files:**
 - Modify: `bin/pull:49-51` and the `has_changed` logic that reads `ORIG_HEAD`
 
-- [ ] **Step 1: Save `before=$(git rev-parse HEAD)` before the pull** and compare against it instead of `ORIG_HEAD`; in `change_dir`, take the first matching path (`head -n 1`).
-- [ ] **Step 2: Verify by hand** in a scratch clone with two `package.json` files changed upstream: `pull` installs in the first one's directory; a second `pull` with nothing new installs nothing.
-- [ ] **Step 3: `pnpm check`, commit**: `git commit -m "Compare pull against the pre-pull HEAD"`.
+- [x] **Step 1: Save `before=$(git rev-parse HEAD)` before the pull** and compare against it instead of `ORIG_HEAD`; in `change_dir`, take the first matching path (`head -n 1`).
+- [x] **Step 2: Verify by hand** in a scratch clone with two `package.json` files changed upstream: `pull` installs in the first one's directory; a second `pull` with nothing new installs nothing.
+- [x] **Step 3: `pnpm check`, commit**: `git commit -m "Compare pull against the pre-pull HEAD"`.
 
 ### Task 10: The catalog honours `CLAUDE_CONFIG_DIR` (C15)
 

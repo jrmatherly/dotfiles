@@ -57,7 +57,8 @@ file_exists() {
 # Go to directory of changed file
 # $1 - filename
 change_dir() {
-  file=$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD | grep "$1")
+  # The first match when several directories changed
+  file=$(git diff-tree -r --name-only --no-commit-id "$before" HEAD | grep "$1" | head -n 1)
   if [[ -e "./$base_dir$file" ]]; then
     cd "$(dirname "./$base_dir$file")" || return 1
     return 0
@@ -73,8 +74,8 @@ reset_dir() {
 # Test whether a file has changed since the pre-pull HEAD
 # $1 - filename
 has_changed() {
-  # ORIG_HEAD is the value of HEAD before the pull.
-  changed_files="$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD 2> /dev/null)"
+  # $before, not ORIG_HEAD: a pull that fetches nothing leaves ORIG_HEAD stale
+  changed_files="$(git diff-tree -r --name-only --no-commit-id "$before" HEAD 2> /dev/null)"
   echo "$changed_files" | grep --quiet "$1"
 }
 
@@ -105,6 +106,7 @@ echo "🚀 Fetching from ${remote}…"
 git fetch --prune --no-recurse-submodules --jobs=10 "$remote" || rollback $?
 
 # Pull, using rebase
+before=$(git rev-parse HEAD)
 git pull --rebase --recurse-submodules --jobs=10 "$remote" "$remote_branch" || rollback $?
 
 # Pop any stashed changes
