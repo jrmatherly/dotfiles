@@ -166,11 +166,8 @@ export CLAUDE_CODE_CERT_STORE="bundled,system"
 # binary instead when a project's .bicepparam files need a newer Bicep feature.
 export AZD_BICEP_TOOL_PATH="$HOME/.azure/bin/bicep"
 
-# GitHub token for tools that read it directly (e.g. ~/.npmrc private registries, giget)
-if command -v gh &> /dev/null; then
-  export GITHUB_TOKEN="$(env -u GITHUB_TOKEN -u GH_TOKEN gh auth token 2> /dev/null)"
-  export GIGET_AUTH="$GITHUB_TOKEN"
-fi
+# No exported GitHub token: every child process (agents included) would inherit a
+# repo + workflow token. Pass it per command: GIGET_AUTH=$(gh auth token) giget …
 
 # Node & NPM
 export NPM_CONFIG_INIT_AUTHOR_NAME="$(git config --global user.name 2> /dev/null)"

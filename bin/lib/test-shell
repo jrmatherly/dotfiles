@@ -61,4 +61,10 @@ if need zoxide; then
   [ "$(user_zsh 'whence -w cd')" = "cd: function" ] || fail "user shell: cd is not zoxide's"
 fi
 
+# No shell exports the gh token
+if need gh; then
+  [ -z "$(agent_zsh 'echo -n $GITHUB_TOKEN$GIGET_AUTH')" ] || fail "agent shell exports a GitHub token"
+  [ -z "$(user_zsh 'echo -n $GITHUB_TOKEN$GIGET_AUTH')" ] || fail "user shell exports a GitHub token"
+fi
+
 echo "shell: all checks passed"

@@ -123,7 +123,7 @@ git commit -m "Keep the stock cd in agent shells"
 
 Decision recorded here: `~/.npmrc` holds a literal registry token and does not reference `GITHUB_TOKEN` (`grep -c GITHUB_TOKEN ~/.npmrc` is 0, measured 2026-10-27), so no shell consumer needs the export. The one named consumer, giget, takes `GIGET_AUTH` per command.
 
-- [ ] **Step 1: Add the failing assertion**
+- [x] **Step 1: Add the failing assertion**
 
 ```bash
 if need gh; then
@@ -132,21 +132,21 @@ if need gh; then
 fi
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-shell`
 Expected: `FAIL: agent shell exports a GitHub token`.
 
-- [ ] **Step 3: Delete the export block**
+- [x] **Step 3: Delete the export block**
 
 Remove `zsh/env.zsh:169-173` (the comment and the `if command -v gh` block). Add a two-line comment in its place: tools that need the token get it per command, `GITHUB_TOKEN=$(gh auth token) giget …`, and why (every child process would otherwise inherit a `repo` + `workflow` token).
 
-- [ ] **Step 4: Run the self-check and the gate**
+- [x] **Step 4: Run the self-check and the gate**
 
 Run: `bash bin/lib/test-shell && pnpm check`
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add zsh/env.zsh bin/lib/test-shell docs/privacy.md
