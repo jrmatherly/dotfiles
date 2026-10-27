@@ -104,9 +104,9 @@ Defaults recorded here: VS Code `"telemetry.telemetryLevel": "off"` is added (no
 - Modify: `docs/privacy.md:27` (drop the build count or make it "five")
 - Modify: `tilde/.config/mise/config.toml:9-11` (when Node 26 is LTS: 26 Active, 24 Maintenance; decide whether the global default moves; today's order is `["24", "22", "26"]`)
 
-- [ ] **Step 1: Check Node's status**: `curl -s https://nodejs.org/dist/index.json | jq -r '.[] | select(.lts != false) | "\(.version) \(.lts)"' | head -3`.
-- [ ] **Step 2: Edit the four files**, `/docs-audit README.md setup/README.md docs/privacy.md`, expected `0 mismatches`.
-- [ ] **Step 3: `pnpm check`, commit**: `git commit -m "Fix the owner table, the REA note, the Hindsight count and the Node comment"`.
+- [x] **Step 1: Check Node's status**: `curl -s https://nodejs.org/dist/index.json | jq -r '.[] | select(.lts != false) | "\(.version) \(.lts)"' | head -3`.
+- [x] **Step 2: Edit the four files**, `/docs-audit README.md setup/README.md docs/privacy.md`, expected `0 mismatches`.
+- [x] **Step 3: `pnpm check`, commit**: `git commit -m "Fix the owner table, the REA note, the Hindsight count and the Node comment"`.
 
 ---
 
