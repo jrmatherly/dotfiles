@@ -189,5 +189,6 @@ export HOMEBREW_NO_UPDATE_REPORT_NEW=1
 export HOMEBREW_BUNDLE_FILE="$DOTFILES/setup/Brewfile"
 export HOMEBREW_CASK_OPTS="--appdir=/Applications"
 
-# Ripgrep config file location
-export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"
+# Ripgrep config file location; agents expect stock rg, like the aliases
+# aliases.zsh drops for them
+if [[ -z $CLAUDECODE ]]; then export RIPGREP_CONFIG_PATH="$HOME/.ripgreprc"; fi

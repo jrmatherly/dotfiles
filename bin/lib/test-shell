@@ -78,4 +78,13 @@ git -C "$tmp/o/origin" -c user.name=t -c user.email=t@t -c commit.gpgsign=false 
 out=$(user_zsh "cd $tmp/w && git clone -q --depth 1 file://$tmp/o/origin && pwd")
 [ "$out" = "$tmp/w/origin" ] || fail "git clone landed in '$out', not $tmp/w/origin"
 
+# rg prints path:line:text (-H: one file omits the path): the repo config keeps
+# the separator, agent shells skip the config
+if need rg; then
+  (cd "$repo" && RIPGREP_CONFIG_PATH=tilde/.ripgreprc rg -Hn fsmonitor tilde/.gitconfig) \
+    | grep -qE '^tilde/\.gitconfig:[0-9]+:' || fail "tilde/.ripgreprc output is not path:line:text"
+  [ -z "$(agent_zsh 'echo -n $RIPGREP_CONFIG_PATH')" ] || fail "agent shell sets RIPGREP_CONFIG_PATH"
+  agent_zsh "cd $repo && rg -Hn fsmonitor tilde/.gitconfig" | grep -qE '^tilde/\.gitconfig:[0-9]+:' || fail "agent rg output is not path:line:text"
+fi
+
 echo "shell: all checks passed"

@@ -17,9 +17,6 @@
 --glob=!yarn.lock
 --glob=!.git
 
-# Hide : after line numbers
---field-match-separator=
-
 # Color theme
 --colors=path:fg:blue
 --colors=path:style:bold

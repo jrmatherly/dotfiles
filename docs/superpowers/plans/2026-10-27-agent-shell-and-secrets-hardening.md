@@ -263,7 +263,7 @@ git commit -m "Stop curl spoofing its user agent and sending referers"
 - Modify: `zsh/env.zsh:195-196`
 - Modify: `bin/lib/test-shell`
 
-- [ ] **Step 1: Add the failing assertion**
+- [x] **Step 1: Add the failing assertion**
 
 ```bash
 if need rg; then
@@ -271,21 +271,21 @@ if need rg; then
 fi
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-shell`
 Expected: `FAIL: agent rg output is not path:line:text`.
 
-- [ ] **Step 3: Fix both sides**
+- [x] **Step 3: Fix both sides**
 
 Delete `--field-match-separator=` from `tilde/.ripgreprc`. In `zsh/env.zsh` export `RIPGREP_CONFIG_PATH` only when `CLAUDECODE` is unset, with a one-line comment (agents expect stock `rg`, like the aliases dropped in `aliases.zsh`).
 
-- [ ] **Step 4: Run the self-check and the gate**
+- [x] **Step 4: Run the self-check and the gate**
 
 Run: `bash bin/lib/test-shell && pnpm check`
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tilde/.ripgreprc zsh/env.zsh bin/lib/test-shell CLAUDE.md
