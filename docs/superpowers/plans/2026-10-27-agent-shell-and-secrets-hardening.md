@@ -160,7 +160,7 @@ git commit -m "Stop exporting the GitHub token into every shell"
 - Modify: `bin/lib/test-shell`
 - Modify: `docs/README.md` (the `git` row, if the index describes the clone behavior)
 
-- [ ] **Step 1: Add the failing assertions**
+- [x] **Step 1: Add the failing assertions**
 
 ```bash
 [ "$(user_zsh 'git rev-parse --sq-quote "" "a b"')" = " '' 'a b'" ] || fail "git wrapper drops empty args"
@@ -168,21 +168,21 @@ agent_zsh 'whence -w git' | grep -q command || fail "agent shell still has the g
 ! grep -qE 'yarn|pnpm install|npm install|bun install' zsh/aliases.zsh || fail "git clone still auto-installs"
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-shell`
 Expected: `FAIL: git wrapper drops empty args`.
 
-- [ ] **Step 3: Rewrite the wrapper**
+- [x] **Step 3: Rewrite the wrapper**
 
 Signature stays `git()`. Body: when `"$1"` is `clone`, run `command git clone "${@:2}"`, then `cd` into the clone only when the last argument is an existing directory after the clone (`[ -d "${@: -1}" ]`), else into `$(basename "${@: -1}" .git)` when that exists. No package install. Otherwise `command git "$@"`. In the `CLAUDECODE` block add `unfunction git 2> /dev/null`.
 
-- [ ] **Step 4: Run the self-check and the gate**
+- [x] **Step 4: Run the self-check and the gate**
 
 Run: `bash bin/lib/test-shell && pnpm check`
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add zsh/aliases.zsh bin/lib/test-shell docs/README.md

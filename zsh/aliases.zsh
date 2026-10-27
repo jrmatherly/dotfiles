@@ -152,28 +152,20 @@ take() {
   \mkdir -p "$1" && cd "$1"
 }
 
-function git() {
-  # Clone a GitHub repo and cd into the created directory
-  if [ $1 = "clone" ]; then
-    command git clone "${@:2}"
-
-    if [ "$3" ]; then
-      cd "$3"
-    else
-      cd $(basename "$2" .git)
-    fi
-
-    if [[ -r "./yarn.lock" ]]; then
-      yarn
-    elif [[ -r "./pnpm-lock.yaml" ]]; then
-      pnpm install
-    elif [[ -r "./package-lock.json" ]]; then
-      npm install
-    elif [[ -r "./bun.lock" ]]; then
-      bun install
+# git clone also cds into the clone: the last argument when the clone created
+# it (a local source path already existed), else the URL's basename
+git() {
+  if [[ $1 == clone ]]; then
+    local dest="${@: -1}" existed=
+    [[ -d $dest ]] && existed=1
+    command git clone "${@:2}" || return
+    if [[ -z $existed && -d $dest ]]; then
+      cd "$dest"
+    elif [[ -d $(basename "$dest" .git) ]]; then
+      cd "$(basename "$dest" .git)"
     fi
   else
-    command git $@
+    command git "$@"
   fi
 }
 
@@ -192,7 +184,9 @@ alias hidedesktop="defaults write com.apple.finder CreateDesktop -bool false && 
 # Agents (Claude Code sets CLAUDECODE=1) run commands through this shell and
 # expect the stock tools: `cat`→bat, `find`→fd and `ls`→eza take different
 # flags, `grep -i` silently changes matches, and `-i` prompts hang a
-# non-interactive run. Drop those overrides for agent shells only.
+# non-interactive run, and the git wrapper cds after a clone. Drop those
+# overrides for agent shells only.
 if [[ -n $CLAUDECODE ]]; then
   unalias cat cp find grep ls man mv ping rm top 2> /dev/null
+  unfunction git 2> /dev/null
 fi

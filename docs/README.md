@@ -129,7 +129,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | Command | Description |
 | --- | --- |
 | `gitroot` `gr` | Navigate to the root directory of a Git repository |
-| `git clone {{repo_url}}` `g clone {{repo_url}}` | Clone Git repository, navigate to created directory, and install dependencies (yarn, pnpm, npm or bun, based on the lockfile) |
+| `git clone {{repo_url}}` `g clone {{repo_url}}` | Clone Git repository and navigate to the created directory (not in agent shells, which get the stock `git`) |
 | `gs` | Show the state of the working directory and staging area of a Git repository, or list directory contents outside a Git repo |
 | `gaa` | Stage all changes in the working directory |
 | `gcm {{message}}` | Create a commit with the specified message |

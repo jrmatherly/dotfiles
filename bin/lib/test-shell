@@ -67,4 +67,15 @@ if need gh; then
   [ -z "$(user_zsh 'echo -n $GITHUB_TOKEN$GIGET_AUTH')" ] || fail "user shell exports a GitHub token"
 fi
 
+# The git wrapper keeps every argument, agent shells skip it, clone installs nothing
+[ "$(user_zsh 'git rev-parse --sq-quote "" "a b"')" = " '' 'a b'" ] || fail "git wrapper drops empty args"
+agent_zsh 'whence -w git' | grep -q command || fail "agent shell still has the git wrapper"
+(cd "$repo" && ! grep -qE 'yarn|pnpm install|npm install|bun install' zsh/aliases.zsh) || fail "git clone still auto-installs"
+# Flags before the URL must not decide the cd target (`--depth 1` once meant cd 1)
+mkdir -p "$tmp/o/origin" "$tmp/w"
+git -C "$tmp/o/origin" init -q
+git -C "$tmp/o/origin" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m init
+out=$(user_zsh "cd $tmp/w && git clone -q --depth 1 file://$tmp/o/origin && pwd")
+[ "$out" = "$tmp/w/origin" ] || fail "git clone landed in '$out', not $tmp/w/origin"
+
 echo "shell: all checks passed"
