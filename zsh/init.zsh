@@ -11,22 +11,24 @@ source_brew_plugin() {
   done
 }
 
-# Activate mise for full shell integration (auto-switching tool versions on cd,
-# env vars, etc.). Shims for non-interactive/GUI processes are activated
-# separately in tilde/.zprofile. See https://mise.jdx.dev/getting-started.html
+# mise: shims first, full activation at the first prompt (the order mise's
+# docs give: https://mise.jdx.dev/dev-tools/shims.html). The shims go back in
+# front of /opt/homebrew/bin, which zsh/path.zsh just put ahead of them (it
+# has Homebrew's own node). Full activation, which puts each tool's install
+# dir first and switches versions on cd, waits for a prompt: Claude Desktop
+# reads PATH from an interactive login shell that never prompts and hands it
+# to Claude Code, which keeps it ahead of everything in its shell snapshot,
+# so activating here pinned every global node (24, 22, 26) for whole agent
+# sessions. Agent shells never prompt either, so they resolve through shims
 if command_exists mise; then
-  if [[ -n $CLAUDECODE ]]; then
-    # Agent shells get shims only. Claude Code snapshots the shell once per
-    # session and never runs the prompt hook full activation relies on, so the
-    # install dirs it puts on PATH (every global node, in list order) held for
-    # the whole session: node was 22 in a repo pinned to 24. A shim resolves
-    # the version for the working directory on each call. Install dirs
-    # inherited from a parent shell go too, or they'd still win
-    path=(${path:#${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/*})
-    eval "$(mise activate zsh --shims)"
-  else
+  eval "$(mise activate zsh --shims)"
+  _dotfiles_mise_activate() {
+    add-zsh-hook -d precmd _dotfiles_mise_activate
+    unfunction _dotfiles_mise_activate
     eval "$(mise activate zsh)"
-  fi
+  }
+  autoload -Uz add-zsh-hook
+  add-zsh-hook precmd _dotfiles_mise_activate
 fi
 
 # Activate Fish-like autosuggestions: https://github.com/zsh-users/zsh-autosuggestions/blob/master/INSTALL.md#homebrew
