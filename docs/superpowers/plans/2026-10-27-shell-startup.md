@@ -131,7 +131,7 @@ user_zsh "source $root/zsh/completion.zsh; today=027; zcompdump_is_stale $tmp/du
 
 ### Task 10: Report the total (D7)
 
-- [ ] **Step 1:** Five interleaved runs of `zsh -i -c exit` at the plan's start SHA and at head; record both medians and the per-section split (`EPOCHREALTIME` around each `source` in a scratch `.zshrc`) in the final commit message or in `tilde/README.md`'s shell section.
+- [x] **Step 1:** Five interleaved runs of `zsh -i -c exit` at the plan's start SHA and at head; record both medians and the per-section split (`EPOCHREALTIME` around each `source` in a scratch `.zshrc`) in the final commit message or in `tilde/README.md`'s shell section.
 
 ---
 
