@@ -275,7 +275,7 @@ pnpm format # fix formatting
 
 ## License
 
-MIT License.
+MIT License. The icons in `icons/`, the Squirrelsong theme files and the bundled Obsidian plugins stay under their owners' terms; see the end of [`LICENSE`](LICENSE).
 
 ## Inspiration
 

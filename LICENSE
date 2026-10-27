@@ -20,3 +20,19 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Third-party material
+
+The MIT license above covers this repository's own work. These files stay
+under their owners' terms:
+
+- icons/: replacement app icons from the sources credited in icons/README.md.
+  Several reproduce logos or app icons that are trademarks of their owners.
+- The Squirrelsong theme files (colors/ and the per-app theme files that
+  colors/README.md lists) derive from Squirrelsong by Artem Sapegin,
+  https://github.com/sapegin/squirrelsong, under the MIT license in that
+  repository's License.md: Copyright (c) 2016 Artem Sapegin
+  (http://sapegin.me), contributors.
+- obsidian/.obsidian/plugins/: built Obsidian community plugins, each under
+  its author's license (the author is in its manifest.json). auto-h1 is
+  Nick Plekhanov's and covered above.

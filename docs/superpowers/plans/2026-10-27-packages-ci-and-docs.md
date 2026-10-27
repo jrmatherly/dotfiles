@@ -82,8 +82,8 @@ Decision recorded here: delete without replacement. `syntax-highlight` (already 
 **Files:**
 - Modify: `LICENSE` (append a short section), `README.md` (one sentence near the license mention)
 
-- [ ] **Step 1: Append** after the MIT text: `icons/` (origins in `icons/README.md`, several are trademarks of their owners), `colors/` and the other Squirrelsong theme files (Artem Sapegin, MIT per the upstream repo; confirm the license file at https://github.com/sapegin/squirrelsong and name it), and any vendored binary, remain under their owners' terms.
-- [ ] **Step 2: `/docs-audit LICENSE README.md`**, fix what it reports, `pnpm check`, commit: `git commit -m "Name the third-party terms the repo redistributes"`.
+- [x] **Step 1: Append** after the MIT text: `icons/` (origins in `icons/README.md`, several are trademarks of their owners), `colors/` and the other Squirrelsong theme files (Artem Sapegin, MIT per the upstream repo; confirm the license file at https://github.com/sapegin/squirrelsong and name it), and any vendored binary, remain under their owners' terms.
+- [x] **Step 2: `/docs-audit LICENSE README.md`**, fix what it reports, `pnpm check`, commit: `git commit -m "Name the third-party terms the repo redistributes"`.
 
 ### Task 6: Telemetry decisions (A15)
 
