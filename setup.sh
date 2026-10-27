@@ -150,6 +150,8 @@ fi
 # alive for the whole run so app installers don't re-prompt halfway through
 warning "Activate sudo"
 sudo -v
+# Tells the child scripts sudo is already cached, so they skip their own prompt
+export DOTFILES_SUDO_KEPT=1
 # `sudo -n -v` is the documented way to *extend* the cached credential without
 # prompting (`sudo -n true` only checks it, so it expired after macOS's default
 # 5 minutes and printed "sudo: a password is required"). `|| true` keeps one

@@ -242,14 +242,14 @@ git commit -m "Prompt before replacing Firefox CSS and fix the profiles.ini fall
 - Modify: `setup/symlinks.sh:5` (add the guarded `brew shellenv` eval from `misc.sh:9-11`)
 - Modify: `setup.sh:150-166`, `setup/zsh.sh:38-40`, `setup/misc.sh:36-39`
 
-- [ ] **Step 1: Export `DOTFILES_SUDO_KEPT=1` in `setup.sh` after `sudo -v`**, and in `zsh.sh` and `misc.sh` wrap the `warning "Activate sudo"` and `sudo echo` in `if [ -z "${DOTFILES_SUDO_KEPT:-}" ]`.
+- [x] **Step 1: Export `DOTFILES_SUDO_KEPT=1` in `setup.sh` after `sudo -v`**, and in `zsh.sh` and `misc.sh` wrap the `warning "Activate sudo"` and `sudo echo` in `if [ -z "${DOTFILES_SUDO_KEPT:-}" ]`.
 
-- [ ] **Step 2: Prove the skip**
+- [x] **Step 2: Prove the skip**
 
 Run: `DOTFILES_SUDO_KEPT=1 bash -c '[ -z "${DOTFILES_SUDO_KEPT:-}" ] && echo would-prompt || echo skipped'`
 Expected: `skipped`.
 
-- [ ] **Step 3: Run the gate and commit**
+- [x] **Step 3: Run the gate and commit**
 
 Run: `pnpm check`
 

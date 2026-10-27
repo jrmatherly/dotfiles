@@ -35,10 +35,12 @@ if [ "$SHELL" == "/opt/homebrew/bin/zsh" ] || [ "$SHELL" == "$zsh_path" ]; then
   exit 0
 fi
 
-# Ask for the administrator password upfront
-warning "Activate sudo"
-sudo echo "Sudo activated!"
-echo
+# Ask for the administrator password upfront, unless setup.sh already holds sudo
+if [ -z "${DOTFILES_SUDO_KEPT:-}" ]; then
+  warning "Activate sudo"
+  sudo echo "Sudo activated!"
+  echo
+fi
 
 # To work around an error for non-standard shell,
 # ensure zsh is a valid shell option

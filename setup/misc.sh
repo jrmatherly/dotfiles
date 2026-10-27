@@ -51,10 +51,12 @@ link_config_dir() {
   fi
 }
 
-# Ask for the administrator password upfront
-warning "Activate sudo"
-sudo echo "Sudo activated!"
-echo
+# Ask for the administrator password upfront, unless setup.sh already holds sudo
+if [ -z "${DOTFILES_SUDO_KEPT:-}" ]; then
+  warning "Activate sudo"
+  sudo echo "Sudo activated!"
+  echo
+fi
 
 # Install Xcode Command Line Tools and accept its license
 if xcode-select -p 2> /dev/null; then

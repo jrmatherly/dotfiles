@@ -8,7 +8,7 @@ The diagram is generated with [Archify](https://github.com/tt-a1i/archify) from 
 
 `../setup.sh` runs these in order: **brew → zsh → misc → symlinks** (plus `dash` with `--dash`). Flags: `-y/--yes`, `--skip-brew`, `--skip-codegraph`, `--dash`, `-h/--help` — see the table in the [main README](../README.md#automatically). With `TERM` unset (a launchd job, CI), the step scripts print without colors instead of aborting on a failed `tput`.
 
-It resolves its own location, so the repo can live anywhere; it creates a `~/dotfiles` symlink to the clone for configs that can't expand variables, and keeps the sudo timestamp alive so long installs don't re-prompt. If `/etc/pam.d/sudo_local` doesn't exist, it creates it to enable Touch ID for `sudo`. It does **not** touch `~/.zshrc` itself — that goes through `symlinks.sh`'s skip/overwrite/backup prompt like every other file.
+It resolves its own location, so the repo can live anywhere; it creates a `~/dotfiles` symlink to the clone for configs that can't expand variables, and keeps the sudo timestamp alive so long installs don't re-prompt. After its `sudo -v` it exports `DOTFILES_SUDO_KEPT=1`, so `zsh.sh` and `misc.sh` don't ask again. If `/etc/pam.d/sudo_local` doesn't exist, it creates it to enable Touch ID for `sudo`. It does **not** touch `~/.zshrc` itself — that goes through `symlinks.sh`'s skip/overwrite/backup prompt like every other file.
 
 When run from a terminal, it records the whole run (prompts included) to `private/setup-logs/<timestamp>.log`, which is git-ignored, by re-running itself under macOS `script`. `/validate-setup after` reads the newest log, so there's no need to paste output.
 
@@ -34,9 +34,11 @@ The Aspire CLI and `flate` are not Brewfile casks but mise `github:` tools (see 
 
 ## zsh
 
-Registers Homebrew's Zsh (installed by the Brewfile) in `/etc/shells` and makes it your login shell with `chsh`. Does nothing if you're already using it.
+Registers Homebrew's Zsh (installed by the Brewfile) in `/etc/shells` and makes it your login shell with `chsh`. Does nothing if you're already using it. Run on its own, it asks for sudo first; under `setup.sh` (which exports `DOTFILES_SUDO_KEPT=1` after its own `sudo -v`) it skips that prompt.
 
 ## misc
+
+Run on its own, it asks for sudo first; under `setup.sh` (`DOTFILES_SUDO_KEPT=1`) it skips that prompt.
 
 - Installs the Xcode Command Line Tools if missing and makes the scripts in `bin/` executable. It waits at most 30 minutes for the install dialog, then warns and carries on (a cancelled dialog no longer hangs the run); without a terminal it skips the install and prints `xcode-select --install` to run later.
 - Installs the [Iosevka Code](https://github.com/amnweb/Iosevka-Code) Nerd Font (VS Code's font, no Homebrew cask) into `~/Library/Fonts` with [`bin/install-iosevka-code`](../bin/install-iosevka-code). Unlike the rest of setup it also updates: if the upstream release zip changed since the last install, it's reinstalled (see [fonts](../fonts/README.md)). A failed download warns and setup carries on.
@@ -74,6 +76,8 @@ Registers Homebrew's Zsh (installed by the Brewfile) in `/etc/shells` and makes 
 - Last, so `npx skills` runs with the npm settings above: restores Claude Code's plugins, base settings and user skills with `claude-config restore` (see [agents/README.md](../agents/README.md#claude-code-plugins-settings-skills-and-catalog)): missing marketplaces and plugins are installed, [`agents/claude-settings.json`](../agents/claude-settings.json) is merged into `~/.claude/settings.json` without overwriting what's there, and missing skills are added with `npx skills add`. Some entries come from my public [jrmatherly/skills](https://github.com/jrmatherly/skills) repo (the `jrmatherly-skills` marketplace with the `jstack` and `resume` plugins, and the `coding-standards` and `supabase-prompts` skills), which Claude Code and the skills CLI clone anonymously over HTTPS. Then builds the catalog of installed skills, agents and MCP servers with `claude-catalog` (`~/.claude/catalog/`). Both warn instead of failing; re-run them by name. Without npm, setup skips only the npm defaults and `pnpm install` above; the restore and catalog still run.
 
 ## symlinks
+
+It puts Homebrew on its PATH first (when `/opt/homebrew/bin/brew` exists), so the `bat`, `cot` and `code` checks below see Homebrew's tools even when run outside a login shell.
 
 Links `tilde/` into your home directory: each dotfile and folder becomes a symlink (e.g. `~/.zshrc`, `~/.gitconfig`), and each item under `tilde/.config/` is linked individually into `~/.config/`. Claude Code's global instructions are the rules in `tilde/.claude/rules/`: each one is linked into `~/.claude/rules/`, which stays a real directory so machine-local rules can sit next to them (an older whole-directory link is migrated). Top-level files in `tilde/.claude/`, such as the status line script `statusline-command.sh`, are linked into `~/.claude/` the same way. `~/.claude/CLAUDE.md` (rewritten by `codegraph install`), `~/.claude/settings.json` (rewritten by Claude Code and plugins) and `~/.claude.json` (auth and machine state) aren't tracked. `tilde/.codex` and `tilde/.ssh` are handled separately. Every existing file prompts for skip/overwrite/backup, and anything unanswered is skipped. A backup goes to `<name>.backup`, or to `<name>.backup.<YYYYmmdd-HHMMSS>` when that already exists, so an earlier backup is never overwritten.
 
