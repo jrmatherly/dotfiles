@@ -26,7 +26,9 @@ source_brew_plugin "zsh-autosuggestions"
 source_brew_plugin "zsh-fast-syntax-highlighting"
 # Only themeable once the plugin is actually installed (e.g. before the first
 # `brew bundle` on a new machine it isn't)
-if (( $+functions[fast-theme] )); then
+# The plugin loads the stored theme ($FAST_WORK_DIR/current_theme.zsh) itself,
+# so fast-theme reruns only when the repo's ini is newer than that file
+if (( $+functions[fast-theme] )) && [[ $DOTFILES/colors/fast-syntax-highlighting.ini -nt $FAST_WORK_DIR/current_theme.zsh ]]; then
   fast-theme $DOTFILES/colors/fast-syntax-highlighting.ini --quiet
 fi
 

@@ -98,9 +98,9 @@ user_zsh "source $root/zsh/completion.zsh; today=027; zcompdump_is_stale $tmp/du
 **Files:**
 - Modify: `zsh/init.zsh:24-29`
 
-- [ ] **Step 1: Assertion**: after `touch "$root/colors/fast-syntax-highlighting.ini"`, `user_zsh 'echo $FAST_THEME_NAME'` names the repo theme; a second shell start without touching does not rewrite `${XDG_CACHE_HOME:-$HOME/.cache}/fsh/*` (compare `stat -f %m` before and after).
-- [ ] **Step 2: Fix**: apply `fast-theme` only when the ini is newer than the stored theme file (`[[ $ini -nt $FAST_WORK_DIR/current_theme.zsh ]]`; check the plugin's actual stored-theme path with `fast-theme -l` and `echo $FAST_WORK_DIR` first).
-- [ ] **Step 3: Measure** five runs, commit with both medians: `git commit -m "Apply fast-theme only when the theme file changed"`.
+- [x] **Step 1: Assertion**: after `touch "$root/colors/fast-syntax-highlighting.ini"`, `user_zsh 'echo $FAST_THEME_NAME'` names the repo theme; a second shell start without touching does not rewrite `${XDG_CACHE_HOME:-$HOME/.cache}/fsh/*` (compare `stat -f %m` before and after).
+- [x] **Step 2: Fix**: apply `fast-theme` only when the ini is newer than the stored theme file (`[[ $ini -nt $FAST_WORK_DIR/current_theme.zsh ]]`; check the plugin's actual stored-theme path with `fast-theme -l` and `echo $FAST_WORK_DIR` first).
+- [x] **Step 3: Measure** five runs, commit with both medians: `git commit -m "Apply fast-theme only when the theme file changed"`.
 
 ### Task 7: Small fixes that need no measurement (D9, D10, D11, D13, D14, D15)
 

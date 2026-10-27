@@ -119,4 +119,17 @@ fi
 [ "$(SSH_CONNECTION=1 user_zsh 'echo $GIT_EDITOR')" = nano ] || fail "SSH git editor is not nano"
 [ "$(SSH_CONNECTION='' user_zsh 'echo $GIT_EDITOR')" = "cot --wait" ] || fail "local git editor is not cot --wait"
 
+# fast-theme reapplies the repo theme after the ini changes and leaves the
+# stored theme alone otherwise (touch changes only the ini's mtime)
+fsh=$(user_zsh '(( $+functions[fast-theme] )) && echo $FAST_WORK_DIR/current_theme.zsh')
+if [ -n "$fsh" ]; then
+  touch "$repo/colors/fast-syntax-highlighting.ini"
+  sleep 1 # bash 3.2's -nt compares whole seconds
+  [ "$(user_zsh 'echo $FAST_THEME_NAME')" = fast-syntax-highlighting ] || fail "fast-theme did not apply the repo theme"
+  [ "$fsh" -nt "$repo/colors/fast-syntax-highlighting.ini" ] || fail "fast-theme did not rewrite $fsh after the ini changed"
+  before=$(stat -f %Fm "$fsh")
+  user_zsh true
+  [ "$(stat -f %Fm "$fsh")" = "$before" ] || fail "fast-theme rewrote $fsh on an unchanged ini"
+fi
+
 echo "shell: all checks passed"
