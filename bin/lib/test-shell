@@ -142,4 +142,9 @@ fi
 [ "$(TERM=xterm-ghostty SSH_CONNECTION='' user_zsh 'echo $TERM')" = xterm-ghostty ] || fail "TERM is overridden locally"
 [ "$(TERM=xterm-ghostty SSH_CONNECTION=1 user_zsh 'echo $TERM')" = xterm-256color ] || fail "SSH TERM is not xterm-256color"
 
+# tilde/.zprofile starts cleanly on a Mac without Homebrew (its brew path swapped for a missing one)
+sed 's#/opt/homebrew/bin/brew#/nonexistent/brew#g' "$repo/tilde/.zprofile" > "$tmp/zprofile-nobrew"
+out=$(env -i HOME="$HOME" PATH=/usr/bin:/bin /bin/zsh -fc "source $tmp/zprofile-nobrew" 2>&1)
+[ -z "$out" ] || fail "tilde/.zprofile without Homebrew printed: $out"
+
 echo "shell: all checks passed"

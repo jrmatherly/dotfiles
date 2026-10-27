@@ -1,8 +1,8 @@
 # ~/.zprofile — runs once for login shells (including shells spawned by GUI
 # apps like VSCode/Finder). Interactive-only setup belongs in .zshrc instead.
 
-# Homebrew
-eval "$(/opt/homebrew/bin/brew shellenv zsh)"
+# Homebrew (absent on a fresh Mac until setup installs it)
+[[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv zsh)"
 
 # mise: make tool shims available to non-interactive/GUI-launched processes
 # (e.g. VSCode's integrated Python/Node resolution). Full shell activation

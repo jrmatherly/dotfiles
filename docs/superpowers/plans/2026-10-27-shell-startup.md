@@ -120,8 +120,8 @@ user_zsh "source $root/zsh/completion.zsh; today=027; zcompdump_is_stale $tmp/du
 **Files:**
 - Modify: `tilde/.zprofile:5`
 
-- [ ] **Step 1: Assertion**: `env -i HOME=$HOME ZDOTDIR=$tmp zsh -l -c true 2>&1` with `$tmp/.zprofile` sourcing the repo's `.zprofile` and `PATH=/usr/bin:/bin` prints nothing (no `no such file` line) when `/opt/homebrew/bin/brew` is temporarily shadowed; simplest: assert the file's eval line is wrapped in `[[ -x /opt/homebrew/bin/brew ]]` via `test-conventions`, since the runner has Homebrew.
-- [ ] **Step 2: Fix and commit**: `git commit -m "Guard brew shellenv in .zprofile"`.
+- [x] **Step 1: Assertion**: `env -i HOME=$HOME ZDOTDIR=$tmp zsh -l -c true 2>&1` with `$tmp/.zprofile` sourcing the repo's `.zprofile` and `PATH=/usr/bin:/bin` prints nothing (no `no such file` line) when `/opt/homebrew/bin/brew` is temporarily shadowed; simplest: assert the file's eval line is wrapped in `[[ -x /opt/homebrew/bin/brew ]]` via `test-conventions`, since the runner has Homebrew.
+- [x] **Step 2: Fix and commit**: `git commit -m "Guard brew shellenv in .zprofile"`.
 
 ### Task 9: Settle the write-back guesses (D16)
 
