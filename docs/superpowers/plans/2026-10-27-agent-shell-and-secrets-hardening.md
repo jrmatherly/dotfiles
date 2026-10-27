@@ -338,7 +338,7 @@ git commit -m "Rename the ld alias and drop the where alias"
 
 Decision recorded here, change it before Step 3 if you disagree: `curl` and `gh api` move from `allow` to `ask`; bare `WebFetch` leaves `allow` (prompts per domain; add `WebFetch(domain:…)` rules for the docs hosts you use most). `git add` stays allowed and `git add -f` is denied.
 
-- [ ] **Step 1: Add the failing assertions to `test-conventions`**
+- [x] **Step 1: Add the failing assertions to `test-conventions`**
 
 ```bash
 for rule in 'Bash(curl:*)' 'Bash(gh api:*)' 'WebFetch'; do
@@ -355,22 +355,22 @@ for rule in 'Read(/vscode/User/History/**)' 'Read(/vscode/User/workspaceStorage/
 done
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash bin/lib/test-conventions`
 Expected: `FAIL: claude-settings allow: Bash(curl:*)`.
 
-- [ ] **Step 3: Edit the tracked files**
+- [x] **Step 3: Edit the tracked files**
 
 In `agents/claude-settings.json` remove the three allow entries, add `Bash(curl *)` and `Bash(gh api *)` to `ask`, add the seven deny rules. In `.claude/settings.json` add the three project deny rules. Check each rule shape against the permissions doc (`~/.claude-code-docs/cache/claude-code__permissions.md`, "Read and Edit rules" and "Wildcard patterns") before saving. Keep both files `jq .`-clean and the lists sorted.
 
-- [ ] **Step 4: Apply to the live settings**
+- [ ] **Step 4: Apply to the live settings** (skip: needs the owner)
 
 Remove `Bash(curl:*)`, `Bash(gh api:*)` and `WebFetch` from `~/.claude/settings.json` through `/permissions` in an interactive `claude`, then run `bin/claude-config restore settings` and `bin/claude-config save`.
 Run: `git diff --stat agents/`
 Expected: no output (live and tracked agree).
 
-- [ ] **Step 5: Run the gate, then commit**
+- [x] **Step 5: Run the gate, then commit**
 
 Run: `pnpm check`
 

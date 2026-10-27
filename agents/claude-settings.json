@@ -20,9 +20,7 @@
       "Bash(bun update:*)",
       "Bash(cat:*)",
       "Bash(claude mcp list:*)",
-      "Bash(curl:*)",
       "Bash(find:*)",
-      "Bash(gh api:*)",
       "Bash(gh issue:*)",
       "Bash(gh search:*)",
       "Bash(git add:*)",
@@ -42,7 +40,6 @@
       "Bash(wc:*)",
       "Skill(remember)",
       "Skill(remember:*)",
-      "WebFetch",
       "WebSearch",
       "mcp__codegraph__*",
       "mcp__microsoft-learn__microsoft_code_sample_search",
@@ -114,11 +111,20 @@
       "mcp__snippetslab__search_snippets"
     ],
     "deny": [
+      "Bash(git add --force*)",
+      "Bash(git add -f*)",
       "Bash(npm i -g *)",
       "Bash(npm install --global *)",
-      "Bash(npm install -g *)"
+      "Bash(npm install -g *)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(~/.aws/**)",
+      "Read(~/.config/gh/hosts.yml)",
+      "Read(~/.ssh/**)"
     ],
     "ask": [
+      "Bash(curl *)",
+      "Bash(gh api *)",
       "mcp__plugin_supabase_supabase__apply_migration",
       "mcp__plugin_supabase_supabase__create_branch",
       "mcp__plugin_supabase_supabase__create_edge_function_secret",

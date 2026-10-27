@@ -36,7 +36,10 @@
     "deny": [
       "Edit(/ql-plugins/**)",
       "Edit(/obsidian/.obsidian/plugins/**)",
-      "Edit(/tilde/.config/gh/hosts.yml)"
+      "Edit(/tilde/.config/gh/hosts.yml)",
+      "Read(/vscode/User/History/**)",
+      "Read(/vscode/User/workspaceStorage/**)",
+      "Read(/vscode/User/globalStorage/**)"
     ]
   },
   "hooks": {

@@ -12,7 +12,9 @@
 # through help (a header comment on line 2 without tldr), that help cleans up its
 # temp pages, refuses a directory and keeps docs/gui when run through a symlink,
 # that every third-party Brewfile formula or cask is trusted, and that git keeps
-# its default file protocol policy and curl its own user agent and no referer.
+# its default file protocol policy and curl its own user agent and no referer,
+# and that the tracked Claude Code permissions ask before curl and gh api and
+# deny credential paths, git add -f and VS Code's private state.
 #
 # License: MIT
 
@@ -82,5 +84,20 @@ done < <(grep -nE '^(brew|cask) "[^"]+/[^"]+/[^"]+"' setup/Brewfile)
 ! grep -qE '^[[:space:]]*allow[[:space:]]*=[[:space:]]*always' tilde/.gitconfig || fail "gitconfig: protocol.file.allow = always (CVE-2022-39253)"
 
 ! grep -qE '^(user-agent|referer)' tilde/.curlrc || fail "curlrc: spoofed user-agent or auto referer"
+
+# Network fetches ask, credential paths and force-adds are denied (A2, A8)
+for rule in 'Bash(curl:*)' 'Bash(gh api:*)' 'WebFetch'; do
+  jq -e --arg r "$rule" '.permissions.allow | index($r) == null' agents/claude-settings.json > /dev/null \
+    || fail "claude-settings allow: $rule"
+done
+for rule in 'Read(~/.ssh/**)' 'Read(~/.aws/**)' 'Read(~/.config/gh/hosts.yml)' 'Read(**/.env)' 'Read(**/.env.*)' 'Bash(git add -f*)' 'Bash(git add --force*)'; do
+  jq -e --arg r "$rule" '.permissions.deny | index($r) != null' agents/claude-settings.json > /dev/null \
+    || fail "claude-settings deny missing: $rule"
+done
+# a single leading / anchors at the project root in project settings
+for rule in 'Read(/vscode/User/History/**)' 'Read(/vscode/User/workspaceStorage/**)' 'Read(/vscode/User/globalStorage/**)'; do
+  jq -e --arg r "$rule" '.permissions.deny | index($r) != null' .claude/settings.json > /dev/null \
+    || fail "project deny missing: $rule"
+done
 
 echo "conventions: all checks passed"
