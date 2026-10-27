@@ -108,6 +108,23 @@ symlink_file() {
   fi
 }
 
+# A free name for a backup of $1, so an earlier backup is never overwritten (or,
+# for a directory, moved into)
+backup_path() {
+  local bak="$1.backup"
+  [ -e "$bak" ] || [ -L "$bak" ] || {
+    printf '%s' "$bak"
+    return
+  }
+  bak="$bak.$(date +%Y%m%d-%H%M%S)"
+  local candidate=$bak n=1
+  while [ -e "$candidate" ] || [ -L "$candidate" ]; do
+    candidate="$bak.$n"
+    n=$((n + 1))
+  done
+  printf '%s' "$candidate"
+}
+
 handle_existing_file() {
   if [ "$overwrite_all" == "false" ] && [ "$backup_all" == "false" ] && [ "$skip_all" == "false" ]; then
     user "File already exists: $dst ($(basename "$src")), what do you want to do?\n\
@@ -154,8 +171,10 @@ handle_existing_file() {
   fi
 
   if [ "$backup" == "true" ]; then
-    mv "$dst" "${dst}.backup"
-    success "moved $dst to ${dst}.backup"
+    local bak
+    bak=$(backup_path "$dst")
+    mv "$dst" "$bak"
+    success "moved $dst to $bak"
   fi
 }
 
