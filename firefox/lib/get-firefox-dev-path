@@ -19,9 +19,16 @@ firefox_dev_profile=$(find "$profile_dir" -maxdepth 1 -type d -name "*dev-editio
 
 # If not found by name pattern, check profiles.ini
 if [ -z "$firefox_dev_profile" ] && [ -f "$firefox_app_support_dir/profiles.ini" ]; then
-  profile_path=$(grep -A 5 "Name=dev-edition" "$firefox_app_support_dir/profiles.ini" | grep "Path=" | head -1 | cut -d= -f2)
+  # The dev-edition section, from its Name line to the next [section]
+  profile_section=$(sed -n '/^Name=dev-edition/,/^\[/p' "$firefox_app_support_dir/profiles.ini")
+  profile_path=$(printf '%s\n' "$profile_section" | grep -m1 '^Path=' | cut -d= -f2-)
+  # IsRelative=1 paths are relative to the Firefox folder (e.g. Profiles/abc.default)
   if [ -n "$profile_path" ]; then
-    firefox_dev_profile="$profile_dir/$profile_path"
+    if printf '%s\n' "$profile_section" | grep -q '^IsRelative=0'; then
+      firefox_dev_profile="$profile_path"
+    else
+      firefox_dev_profile="$firefox_app_support_dir/$profile_path"
+    fi
   fi
 fi
 

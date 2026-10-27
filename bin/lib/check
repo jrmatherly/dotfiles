@@ -16,6 +16,7 @@ shell_scripts=(
   .claude/hooks/*.sh
   .claude/skills/*/*.sh
   tilde/.claude/*.sh
+  firefox/lib/get-firefox-dev-path
 )
 
 bash_syntax_files=(
@@ -66,6 +67,8 @@ prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}"
 bash setup/tests/codex-config.sh > /dev/null
 # setup/symlinks.sh: a backup never overwrites (or nests into) an earlier one
 bash setup/tests/symlinks-backup.sh > /dev/null
+# firefox/lib/get-firefox-dev-path: the profiles.ini fallback, relative and absolute Path
+bash setup/tests/firefox-dev-path.sh > /dev/null
 # bin/hindsight-memory against a fixture HOME with the installer, hindsight-embed and npm stubbed
 bash bin/lib/test-hindsight-memory > /dev/null
 # bin/claude-config save against fixture dirs, under each bash (never the real ~/.claude or agents/)

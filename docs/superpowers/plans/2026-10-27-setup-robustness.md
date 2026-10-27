@@ -206,7 +206,7 @@ git commit -m "Only relink config dirs that already point at the repo"
 - Create: `setup/tests/firefox-dev-path.sh`
 - Modify: `bin/lib/check`, `firefox/README.md` (if it describes the hard links)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `setup/tests/firefox-dev-path.sh`: under `HOME=$(mktemp -d)`, create `$HOME/Library/Application Support/Firefox/profiles.ini` with a `[Profile0]` block `Name=dev-edition-default`, `IsRelative=1`, `Path=Profiles/abc.dev-edition-default`, and the directory `…/Firefox/Profiles/abc.dev-edition-default`; also a second case with `IsRelative=0` and an absolute `Path`.
 
@@ -216,18 +216,18 @@ check "relative Path resolves" "[ \"\$(firefox/lib/get-firefox-dev-path)\" = \"$
 
 (Name the profile dir without `dev-edition` in the first `find` branch's pattern, e.g. `abc.custom`, so the fallback is what resolves it.)
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `bash setup/tests/firefox-dev-path.sh`
 Expected: `FAIL relative Path resolves` (today's result is `…/Profiles/Profiles/abc.custom`).
 
-- [ ] **Step 3: Fix the join**
+- [x] **Step 3: Fix the join**
 
 Read `IsRelative` next to `Path`; relative paths join `$firefox_app_support_dir/$profile_path`, absolute ones are used as is.
 
-- [ ] **Step 4: Route the two CSS files through `symlink_file … true`** at `symlinks.sh:398-399`, like `user.js` at `:396`.
+- [x] **Step 4: Route the two CSS files through `symlink_file … true`** at `symlinks.sh:398-399`, like `user.js` at `:396`.
 
-- [ ] **Step 5: Run the test and the gate, then commit**
+- [x] **Step 5: Run the test and the gate, then commit**
 
 Run: `bash setup/tests/firefox-dev-path.sh && pnpm check`
 

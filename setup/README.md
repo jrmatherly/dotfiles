@@ -87,7 +87,7 @@ It also links:
 - lazydocker's config, `~/.gnupg/gpg-agent.conf` and Codex's `~/.codex/AGENTS.md`. Codex's `config.toml` is copied instead (only when missing, or to replace an older link): apps such as NotchBar and Jean rewrite it in place, Jean with a token, so a link would put their writes in the repo. Later runs only warn about tracked lines the live file lacks.
 - Mole's `~/.config/mole/whitelist` and `whitelist_optimize`, each to `mole/<name>`, or to the gitignored `mole/<name>.local` when that exists (a Mac's full replacement, not merged). Only the two files are linked because Mole writes `clean-list.txt` and `purge_paths` into the same folder. Adding or removing a `.local` and re-running switches the link without a prompt. See [docs/mole.md](../docs/mole.md#configuration).
 - The `cot` and `code` command-line tools into `/usr/local/bin` if they're not already on PATH.
-- The Firefox Developer Edition styles, hard-linked into its profile — skipped with a warning if there's no dev-edition profile. The same goes for the CotEditor/VS Code CLIs when those apps aren't installed.
+- The Firefox Developer Edition styles, hard-linked into its profile (an existing different file gets the skip/overwrite/backup prompt) — skipped with a warning if there's no dev-edition profile. The same goes for the CotEditor/VS Code CLIs when those apps aren't installed.
 
 lazygit's `state.yml` is machine-local and not linked. Finally it rebuilds bat's cache so the themes in `tilde/.config/bat/themes` load.
 

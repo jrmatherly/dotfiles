@@ -410,10 +410,8 @@ install_extras() {
   ff_dev_profile_dir="$("$DOTFILES_DIR"/firefox/lib/get-firefox-dev-path)"
   if [ -n "$ff_dev_profile_dir" ] && [ -d "$ff_dev_profile_dir" ]; then
     symlink_file "$DOTFILES_DIR/firefox/user.js" "$ff_dev_profile_dir/user.js" true
-    mkdir -p "$ff_dev_profile_dir/chrome"
-    ln -f "$DOTFILES_DIR/firefox/chrome/userContent.css" "$ff_dev_profile_dir/chrome/userContent.css"
-    ln -f "$DOTFILES_DIR/firefox/chrome/userChrome.css" "$ff_dev_profile_dir/chrome/userChrome.css"
-    success "$(tildify "$ff_dev_profile_dir/chrome")"
+    symlink_file "$DOTFILES_DIR/firefox/chrome/userContent.css" "$ff_dev_profile_dir/chrome/userContent.css" true
+    symlink_file "$DOTFILES_DIR/firefox/chrome/userChrome.css" "$ff_dev_profile_dir/chrome/userChrome.css" true
   else
     warn "No Firefox Developer Edition profile found — skipping Firefox styles"
   fi

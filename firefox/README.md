@@ -7,8 +7,8 @@
 
 `user.js` (preferences), `chrome/userChrome.css` (browser UI) and `chrome/userContent.css` (web content) are applied by [setup/symlinks.sh](../setup/symlinks.sh):
 
-- It finds the Developer Edition profile with [lib/get-firefox-dev-path](lib/get-firefox-dev-path) (a `*dev-edition*` profile folder, or the `dev-edition` entry in `profiles.ini`).
-- It **hard-links** the three files into that profile (`user.js` at the profile root, the CSS files in `chrome/`).
+- It finds the Developer Edition profile with [lib/get-firefox-dev-path](lib/get-firefox-dev-path) (a `*dev-edition*` profile folder, or the `dev-edition` entry in `profiles.ini`, whose `Path` is relative to the Firefox folder unless `IsRelative=0`).
+- It **hard-links** the three files into that profile (`user.js` at the profile root, the CSS files in `chrome/`). A file there that isn't already that hard link gets the usual skip/overwrite/backup prompt.
 - If no Developer Edition profile exists, it skips this step with a warning.
 
 After installing Developer Edition, launch it once so it creates its profile, quit it, then re-run `setup/symlinks.sh`.
