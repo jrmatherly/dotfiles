@@ -266,7 +266,7 @@ An update of VS Code replaces the files the SpaceBox UI Enhancer patched, so run
    op read "$DOTFILES_MAC_PASSWORD_OP" > /dev/null && echo ok
    ```
 
-`upup` only asks 1Password when a macOS update is actually pending. If `op` is missing, the variable is unset, or the password is rejected, it falls back to the normal `Password:` prompt. Update the 1Password item when you change your login password.
+`upup` only asks 1Password when a macOS update is actually pending. If `op` is missing, the variable is unset, or the password is rejected, it asks for the password at its own `Password:` prompt, which hides what you type, and passes it to `softwareupdate` the same way. Update the 1Password item when you change your login password.
 
 ## Changing the dotfiles
 

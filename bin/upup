@@ -247,22 +247,20 @@ if grep -q 'Label:' <<< "$macos_updates"; then
     mac_password="$(op read "$DOTFILES_MAC_PASSWORD_OP")" \
       || status notice macOS "couldn't read the Mac password from 1Password; type it at the prompt"
   fi
-  # Only a typed password needs softwareupdate on the screen; otherwise its
-  # progress lines go to the log. printf is a shell builtin, so the password
-  # never shows up in `ps`
+  # Never let softwareupdate prompt itself: with its output piped to the log,
+  # what was typed at its prompt showed on screen. Read it here, hidden
+  if [ -n "$pending" ] && [ -z "$mac_password" ] && [ -t 0 ]; then
+    status prompt macOS "Mac password for $pending (hidden; DOTFILES_MAC_PASSWORD_OP reads it from 1Password)"
+    read -rs -p "    Password: " mac_password || true
+    printf '\n'
+  fi
+  # printf is a shell builtin, so the password never shows up in `ps`
   # (the log is ours, so the shell writes it, not sudo)
   # shellcheck disable=SC2024
   if [ -n "$mac_password" ]; then
-    printf '%s\n' "$mac_password" | sudo softwareupdate -ia --verbose --user "$USER" --stdinpass >> "$log" 2>&1 \
-      || {
-        clear_line
-        sudo softwareupdate -ia --verbose 2>&1 | tee -a "$log"
-      }
-  elif [ -n "$pending" ]; then
-    clear_line
-    sudo softwareupdate -ia --verbose 2>&1 | tee -a "$log"
+    printf '%s\n' "$mac_password" | sudo softwareupdate -ia --verbose --user "$USER" --stdinpass >> "$log" 2>&1
   else
-    sudo softwareupdate -ia --verbose >> "$log" 2>&1
+    sudo softwareupdate -ia --verbose < /dev/null >> "$log" 2>&1
   fi && macos_rc=0 || macos_rc=$?
   unset mac_password
   if [ "$macos_rc" -eq 0 ]; then
@@ -587,7 +585,7 @@ if command -v claude > /dev/null; then
     status fail marketplaces "run: claude plugin marketplace update"
     show
   fi
-  plugin_count=0 plugin_updates=""
+  plugin_count=0 plugin_updates="" plugins_blocked=0
   while read -r id; do
     if capture claude plugin update -y "$id" < /dev/null; then
       # Counted only once checked: a failed one is its own fail line
@@ -595,11 +593,16 @@ if command -v claude > /dev/null; then
       plugin_updates+=$(grep -E 'Plugin "?[^" ]+"? (updated|downgraded) from ' <<< "$out" \
         | sed -E $'s/^.*Plugin "?([^" ]+)"? (updated|downgraded) from ([^ ]+) to ([^ ]*[^ .]).*$/\\1\t\\3 → \\4/' \
         || true)$'\n'
+    elif grep -q "blocked by your organization's policy" <<< "$out"; then
+      # Managed settings on this Mac forbid the marketplace; nothing to rerun
+      plugins_blocked=$((plugins_blocked + 1))
     else
       status fail plugins "updating $id failed; run: claude plugin update $id"
       show
     fi
   done < <(jq -r '.plugins | keys[]' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json" 2> /dev/null)
+  [ "$plugins_blocked" -eq 0 ] \
+    || status notice plugins "$(plural "$plugins_blocked" plugin) skipped: marketplace blocked by your organization's policy"
   plugin_updates=$(sed '/^$/d' <<< "$plugin_updates")
   if [ -n "$plugin_updates" ]; then
     status changed plugins "$(plural "$(wc -l <<< "$plugin_updates" | tr -d ' ')" plugin) updated"

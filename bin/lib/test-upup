@@ -88,6 +88,8 @@ stub install-snippetslab-skill '[ ! -e "$STATE/snippetslab" ] || { mkdir -p "$HO
 stub claude 'case "$1 $2" in
   "plugin update") if [ -e "$STATE/plugin-fails" ] && [ "$4" = beta@m ]; then
       echo "fatal: unable to access https://github.com/o/r.git/: Recv failure: Operation timed out"; exit 1
+    elif [ -e "$STATE/plugin-blocked" ]; then
+      echo "Plugin \"${4%@*}\" is from marketplace \"m\", which is blocked by your organization'"'"'s policy"; exit 1
     elif [ -e "$STATE/plugin" ] && [ "$4" = alpha@m ]; then
       echo "Marketplace cache updated"
       echo "✔ Plugin \"alpha@m\" updated from 1.0.0 to 1.1.0 for scope user. Restart to apply changes."
@@ -258,7 +260,8 @@ mkdir -p "$HOME/.local/share/mise/installs/rust"
 run
 check_true "macOS: a restart update is downloaded, not installed" has '^↻ macOS +Safari 99\.1 installed; macOS 27\.2-26B123 downloaded, not installed yet$'
 check_true "macOS: the install is an action naming what installs it" has "^  › Install macOS 27\\.2-26B123: System Settings → General → Software Update → Restart Now, or run: sudo softwareupdate -ia --restart \\(a plain restart doesn't install it\\)\$"
-check_true "macOS: without a stored password the install streams, for its prompt" has '^Downloaded: macOS 27\.2$'
+check_true "macOS: off a terminal without a stored password the install stays in the log" lacks '^Downloaded:'
+check_true "macOS: off a terminal no password prompt" lacks 'Mac password'
 check_true "macOS: no 1Password prompt without DOTFILES_MAC_PASSWORD_OP" lacks '1Password'
 check_true "rust in mise: prune skipped as a notice" has '^● mise prune +skipped while a mise rust install shadows rustup; see the Rust step$'
 check_true "rust in mise: prune never ran" test -e "$STATE/prune"
@@ -267,6 +270,16 @@ screen=$(DOTFILES_MAC_PASSWORD_OP=op://vault/item/password "$script" < /dev/null
 check_true "macOS: the 1Password fingerprint is announced" has '^› macOS +1Password: approve reading the Mac password for macOS 27\.2-26B123$'
 check_true "macOS: with the stored password the install stays in the log" lacks '^Downloaded:'
 check_true "macOS: the stored password was accepted" has '^↻ macOS +macOS 27\.2-26B123 downloaded, not installed yet$'
+rm -rf "$DOTFILES/logs"
+# A real terminal: the typed password must not echo. The delay lets upup's
+# read turn echo off before the keys arrive
+screen=$({
+  sleep 2
+  printf 'secret\n'
+} | TERM=xterm-256color script -q /dev/null "$script" 2>&1 | tr -d '\r') || true
+check_true "macOS: a terminal asks for the password itself" has 'Mac password for macOS 27\.2-26B123'
+check_true "macOS: the typed password is not shown" lacks 'secret'
+check_true "macOS: the typed password was accepted" has 'macOS 27\.2-26B123 downloaded, not installed yet'
 rm -rf "$DOTFILES/logs" "$STATE/macos-os"
 touch "$STATE/macos"
 run
@@ -288,6 +301,12 @@ run
 check_true "plugin failure: its own fail line" has '^✖ plugins +updating beta@m failed; run: claude plugin update beta@m$'
 check_true "plugin failure: not counted as up to date" has '^✔ plugins +1 plugin up to date$'
 rm -f "$STATE/plugin-fails"
+rm -rf "$DOTFILES/logs"
+touch "$STATE/plugin-blocked"
+run
+check_true "plugins blocked by policy: one notice, no fail line" has "^● plugins +2 plugins skipped: marketplace blocked by your organization's policy\$"
+check_true "plugins blocked by policy: not a failure" lacks '^✖ plugins'
+rm -f "$STATE/plugin-blocked"
 
 rm -rf "$DOTFILES/logs"
 rc=0
