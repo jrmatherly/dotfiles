@@ -315,7 +315,16 @@ step "brew doctor"
 if capture brew doctor || grep -q 'Your system is ready to brew' <<< "$out"; then
   status ok "brew doctor" "ready to brew"
 else
-  status notice "brew doctor" "$(grep -m1 '^Warning:' <<< "$out" || head -1 <<< "$out")"
+  # One notice per warning: its "Warning:" line plus the indented items under
+  # it (a missing dependency, an unlinked keg), the prose between in the log only
+  warnings=$(awk '
+    /^Warning:/ { if (w) print w; w = $0; sep = " "; next }
+    w && /^ / { sub(/^ +/, ""); w = w sep $0; sep = ", "; next }
+    /^$/ { if (w) print w; w = "" }
+    END { if (w) print w }' <<< "$out")
+  while read -r warning; do
+    status notice "brew doctor" "$warning"
+  done <<< "${warnings:-$(head -1 <<< "$out")}"
 fi
 
 # mise tools (Node/Python patch releases, npm: CLIs like CodeGraph, GitHub
@@ -443,6 +452,8 @@ if command -v uv > /dev/null; then
       status fail Scrapling "browser download failed; run: scrapling install"
     elif [[ $out != *"already installed"* ]]; then
       status changed Scrapling "browser reinstalled"
+    else
+      status ok Scrapling "browser up to date"
     fi
   fi
 fi
@@ -653,7 +664,9 @@ if command -v claude > /dev/null; then
     mise_get() { claude mcp get mise 2> /dev/null | sed 's/^ *//' || true; }
     mise_mcp="$(mise_get)"
     printf '%s\n' "$mise_mcp" >> "$log"
-    if [ -n "$mise_mcp" ] && ! grep -qx 'Status: ✔ Connected' <<< "$mise_mcp"; then
+    if grep -qx 'Status: ✔ Connected' <<< "$mise_mcp"; then
+      status ok "mise MCP" "connected"
+    elif [ -n "$mise_mcp" ]; then
       if grep -q '^Scope: User config' <<< "$mise_mcp" \
         && ! { grep -qxF "Command: $mise_bin" <<< "$mise_mcp" && grep -qx 'Args: mcp' <<< "$mise_mcp"; }; then
         echo "Re-registering mise's MCP server with Claude Code…" >> "$log"

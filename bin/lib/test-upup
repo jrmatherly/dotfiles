@@ -57,7 +57,8 @@ stub brew 'case $1 in
     echo "==> uv"; echo "The following uv executables are shadowed by commands in $HOME/.local/share/mise/shims:"; echo uv; echo uvx; echo "Running these by name will not invoke the version provided by Homebrew"
     echo "==> Upgrading codex"; echo "  0.164.0 -> 0.165.0"; echo "==> Upgraded 1 outdated package"; echo "gh       2.103.1  -> 2.103.2" ;;
   cleanup) echo "==> This operation has freed approximately 29.5MB of disk space." ;;
-  doctor) echo "Your system is ready to brew." ;;
+  doctor) [ -e "$STATE/brew-doctor" ] || { echo "Your system is ready to brew."; exit 0; }
+    printf "Please note that these warnings are just used to help the Homebrew maintainers\n\nWarning: Some installed formulae or casks are missing dependencies:\n  gcloud-cli: python@3.13\n\nYou should `brew install` the missing dependencies:\n  brew install python@3.13\n\nWarning: You have unlinked kegs in your Cellar.\nLeaving kegs unlinked can lead to build-trouble. Run `brew link` on these:\n  openssl@3\n  python@3.12\n"; exit 1 ;;
 esac
 exit 0'
 stub mise 'case $1 in
@@ -150,6 +151,8 @@ run
 check_true "up to date: Homebrew is ok" has '^✔ Homebrew +up to date$'
 check_true "up to date: cleanup reports what it freed" has '^✔ brew cleanup +freed 29.5MB$'
 check_true "up to date: healthy brew doctor gets a line" has '^✔ brew doctor +ready to brew$'
+check_true "up to date: an installed Scrapling browser gets a line" has '^✔ Scrapling +browser up to date$'
+check_true "up to date: a connected mise MCP server gets a line" has '^✔ mise MCP +connected$'
 check_true "up to date: config left dirty before the run is unchanged" has '^✔ Claude config +unchanged$'
 check_true "up to date: plugins counted" has '^✔ plugins +2 plugins up to date$'
 check_true "up to date: Claude Code version" has '^✔ Claude Code +2\.1\.310 up to date$'
@@ -165,11 +168,18 @@ check_true "up to date: no step slow enough for a time" lacks '\([0-9]+s\)$'
 [ ! -x /Applications/SnippetsLab.app/Contents/Helpers/lab ] || check_true "up to date: SnippetsLab unchanged" has '^✔ SnippetsLab skill +unchanged$'
 check_true "up to date: summary links the catalog" has '^Catalog +file:///tmp/cat/catalog\.html$'
 check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/upup-*.log
+# The header promises one status line per step: a step whose branch forgot its
+# line shows as a heading with nothing under it (the summary has none by design)
+silent_steps=$(awk '
+  /^== / { if (step && !seen) print step; step = $0; seen = 0; next }
+  /^[✔↻●✖›] / { seen = 1 }
+  END { if (step != "== summary ==" && !seen) print step }' "$DOTFILES"/logs/upup-*.log)
+check_true "up to date: every step has a status line${silent_steps:+ (silent: $silent_steps)}" [ -z "$silent_steps" ]
 
 rm -rf "$DOTFILES/logs"
 mkdir -p "$STATE/installs/node/24.0.0" "$STATE/installs/aspire/13.6.0"
 head -c 2048 /dev/zero > "$STATE/installs/node/24.0.0/bin"
-touch "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/prune" "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea"
+touch "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/prune" "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea" "$STATE/brew-doctor"
 mkdir -p "$CLAUDE_CONFIG_DIR/skills"
 ln -s /nonexistent "$CLAUDE_CONFIG_DIR/skills/reverse-engineer-anything"
 run
@@ -189,6 +199,9 @@ check_true "changes: boilerplate caveat dropped" lacks 'completions'
 check_true "changes: a caveat shows its package and first line" has '^    gh: Run gh auth login to use it\. \(more in the log\)$'
 check_true "changes: a shadow caveat is one line" has '^    uv: uv, uvx shadowed by ~/\.local/share/mise/shims$'
 check_true "changes: full caveats kept in the log" grep -qx 'Second line' "$DOTFILES"/logs/upup-*.log
+check_true "changes: a brew doctor warning names what it found" has '^● brew doctor +Warning: Some installed formulae or casks are missing dependencies: gcloud-cli: python@3.13$'
+check_true "changes: each brew doctor warning is its own notice, items joined" has '^● brew doctor +Warning: You have unlinked kegs in your Cellar. openssl@3, python@3.12$'
+check_true "changes: brew doctor prose stays in the log" lacks 'Leaving kegs unlinked'
 check_true "changes: Homebrew line counts" has '^↻ Homebrew +2 packages upgraded$'
 check_true "changes: a formula's versions come from brew's table" has '^    gh     2\.103\.1 → 2\.103\.2$'
 check_true "changes: a cask's versions come from its Upgrading block" has '^    codex  0\.164\.0 → 0\.165\.0$'
@@ -224,7 +237,7 @@ check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$D
 check_true "changes: log keeps the status lines and the table" grep -q -e '^↻ Homebrew  *2 packages upgraded$' -e '^    gh  ' "$DOTFILES"/logs/upup-*.log
 
 # A warning alone (no newer release) must still replace the ok line
-rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab"
+rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/brew-doctor"
 run
 check_true "warned: installer warning is the step's only line" lacks '^✔ Hindsight memory'
 check_true "warned: installer warning still a notice" has '^● Hindsight memory +installer: '
