@@ -25,7 +25,7 @@ export MISE_STATE_DIR="${MISE_STATE_DIR:-$HOME/.local/state/mise}"
 # A scratch HOME: upup's rm of a stale REA skill link must never reach the real one.
 # HOMEBREW_PREFIX points nowhere so upup's by-path rustup falls back to the stub
 export HOME="$tmp/home" DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
-unset DOTFILES_MAC_PASSWORD_OP
+unset DOTFILES_MAC_PASSWORD_OP DOTFILES_TRIM_CA_ROOTS
 mkdir -p "$HOME" "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
 printf 'skill one src claude-code\nskill two src claude-code\n' > "$DOTFILES/agents/claude-skills.txt"
 git -C "$DOTFILES" init -q
@@ -57,8 +57,11 @@ stub brew 'case $1 in
     echo "==> uv"; echo "The following uv executables are shadowed by commands in $HOME/.local/share/mise/shims:"; echo uv; echo uvx; echo "Running these by name will not invoke the version provided by Homebrew"
     echo "==> Upgrading codex"; echo "  0.164.0 -> 0.165.0"; echo "==> Upgraded 1 outdated package"; echo "gh       2.103.1  -> 2.103.2" ;;
   cleanup) echo "==> This operation has freed approximately 29.5MB of disk space." ;;
-  doctor) [ -e "$STATE/brew-doctor" ] || { echo "Your system is ready to brew."; exit 0; }
-    printf "Please note that these warnings are just used to help the Homebrew maintainers\n\nWarning: Some installed formulae or casks are missing dependencies:\n  gcloud-cli: python@3.13\n\nYou should `brew install` the missing dependencies:\n  brew install python@3.13\n\nWarning: You have unlinked kegs in your Cellar.\nLeaving kegs unlinked can lead to build-trouble. Run `brew link` on these:\n  openssl@3\n  python@3.12\n"; exit 1 ;;
+  doctor) [ -e "$STATE/brew-doctor" ] || { [ -e "$STATE/brew-doctor-roots" ] && [ ! -e "$STATE/roots-trimmed" ]; } || { echo "Your system is ready to brew."; exit 0; }
+    echo "Please note that these warnings are just used to help the Homebrew maintainers"
+    [ ! -e "$STATE/brew-doctor-roots" ] || [ -e "$STATE/roots-trimmed" ] || printf "\nWarning: Root certificates in /etc/ssl/cert.pem can trust compromised CAs.\nCommand-line tools using this file may accept forged TLS certificates:\n  AAA Certificate Services\n  emSign ECC Root CA - G3\n\nRun this script to create a backup and remove these roots:\n  sudo /opt/homebrew/Library/Homebrew/vendor/portable-ruby/4.0.9/bin/ruby --disable=gems,rubyopt /opt/homebrew/Library/Homebrew/utils/emudhra_certificates.rb\n\nThe script validates the bundle before replacing it. Removing the roots\ncan break HTTPS connections to some websites.\n\nRun brew doctor afterwards and after system updates, which can restore\nthe roots.\nFor details and software update plans, see:\n  https://support.apple.com/en-us/149555\n"
+    [ -e "$STATE/brew-doctor" ] || exit 1
+    printf "\nWarning: Some installed formulae or casks are missing dependencies:\n  gcloud-cli: python@3.13\n\nYou should `brew install` the missing dependencies:\n  brew install python@3.13\n\nWarning: You have unlinked kegs in your Cellar.\nLeaving kegs unlinked can lead to build-trouble. Run `brew link` on these:\n  openssl@3\n  python@3.12\n"; exit 1 ;;
 esac
 exit 0'
 stub mise 'case $1 in
@@ -121,6 +124,11 @@ stub hindsight-memory '[ -e "$STATE/hindsight-fails" ] && { echo "installer fail
 if [ -e "$STATE/hindsight-warns" ]; then echo "│  ✓ runtime staged at ~/.hindsight/coding-agents"; echo "│  ▲ macOS needs a current Rust toolchain to build the daemon'"'"'s dependencies (litellm"; echo "│    publishes no macOS wheel). Install from https://rustup.rs"; fi
 [ ! -e "$STATE/hindsight-change" ] || { mkdir -p "$HOME/.codex"; date +%s%N > "$HOME/.codex/hooks.json"; }
 echo "runtime re-staged"'
+stub ca-roots 'echo "$*" >> "$STATE/ca-roots.log"
+[ -e "$STATE/ca-roots-fails" ] && { echo "ca-roots: still in /etc/ssl/cert.pem: AAA Certificate Services"; exit 1; }
+[ -e "$STATE/roots-trimmed" ] && { echo "The roots are already absent from /etc/ssl/cert.pem."; exit 0; }
+touch "$STATE/roots-trimmed"
+echo "Removed roots that trust compromised eMudhra certificates."; echo "Removed: emSign ECC Root CA - G3, AAA Certificate Services"; echo "Restore them with: ca-roots restore"'
 # A failing stub, not a missing one: CI's macOS runner has a real cargo on PATH
 stub cargo '[ -e "$STATE/no-cargo" ] && exit 1; echo "cargo 1.99.1"'
 export PATH="$tmp/bin:$PATH"
@@ -241,6 +249,32 @@ rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsig
 run
 check_true "warned: installer warning is the step's only line" lacks '^✔ Hindsight memory'
 check_true "warned: installer warning still a notice" has '^● Hindsight memory +installer: '
+
+# The root-certificate warning: a notice naming the opt-in; opted in, a CA roots
+# step trims before doctor runs, and the next run finds nothing to do
+rm -rf "$DOTFILES/logs"
+touch "$STATE/brew-doctor-roots"
+run
+check_true "roots: the notice joins the two CA names and names the opt-in" has '^● brew doctor +Warning: Root certificates in /etc/ssl/cert\.pem can trust compromised CAs\. AAA Certificate Services, emSign ECC Root CA - G3 \(set DOTFILES_TRIM_CA_ROOTS=1 in ~/\.zsh\.local to let upup remove them\)$'
+check_true "roots: no ca-roots without the opt-in" test ! -e "$STATE/ca-roots.log"
+rm -rf "$DOTFILES/logs"
+export DOTFILES_TRIM_CA_ROOTS=1
+run
+check_true "roots opted in: trimmed, with the revert" has '^↻ CA roots +removed emSign ECC Root CA - G3, AAA Certificate Services; restore: ca-roots restore$'
+check_true "roots opted in: no root notice" lacks 'Root certificates'
+check_true "roots opted in: ca-roots trim called once" [ "$(cat "$STATE/ca-roots.log")" = trim ]
+check_true "roots opted in: brew doctor then reports clean" has '^✔ brew doctor +ready to brew$'
+rm -rf "$DOTFILES/logs"
+run
+check_true "roots opted in, already trimmed: ok line" has '^✔ CA roots +already absent$'
+rm -rf "$DOTFILES/logs"
+rm "$STATE/roots-trimmed"
+touch "$STATE/ca-roots-fails"
+run
+check_true "roots opted in, trim fails: fail line names the command" has '^✖ CA roots +run: ca-roots trim$'
+check_true "roots opted in, trim fails: its output shown" has '^    ca-roots: still in /etc/ssl/cert\.pem: AAA Certificate Services$'
+unset DOTFILES_TRIM_CA_ROOTS
+rm -f "$STATE/brew-doctor-roots" "$STATE/ca-roots-fails" "$STATE/ca-roots.log" "$STATE/roots-trimmed"
 
 rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
 touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust" "$STATE/no-cargo" "$STATE/rea-fails" "$STATE/prune" "$STATE/prune-fails"

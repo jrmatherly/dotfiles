@@ -1,0 +1,132 @@
+#!/bin/bash
+#
+# Self-check for ca-roots against a fixture bundle and a stub of Homebrew's script.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-ca-roots`
+#
+# ---
+# Never touches /etc/ssl/cert.pem or runs sudo: the bundle is a temp file of
+# certificates made here (the real bundle loses the roots once trimmed), sudo a
+# stub that logs and runs its arguments, and the brew prefix holds a fake
+# portable Ruby that runs a bash stand-in for emudhra_certificates.rb.
+#
+# License: MIT
+
+set -euo pipefail
+
+script="$(cd "$(dirname "$0")/.." && pwd -P)/ca-roots"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+export CA_ROOTS_BUNDLE="$tmp/cert.pem" CA_ROOTS_SUDO="$tmp/sudo" HOMEBREW_PREFIX="$tmp/brew"
+bundle=$CA_ROOTS_BUNDLE
+
+# Subjects as real roots carry them, plus one whose CN isn't last (EC keys:
+# RSA keygen was half the test's time)
+cert() { /usr/bin/openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes -keyout /dev/null -days 2 -subj "$1" 2> /dev/null; }
+cert "/C=IN/OU=emSign PKI/O=eMudhra Technologies Limited/CN=emSign ECC Root CA - G3" > "$tmp/full.pem"
+cert "/C=GB/ST=Greater Manchester/O=Comodo CA Limited/CN=AAA Certificate Services" >> "$tmp/full.pem"
+cert "/CN=Unrelated Root/O=Example" > "$tmp/trimmed.pem"
+cat "$tmp/trimmed.pem" >> "$tmp/full.pem"
+
+printf '#!/bin/bash\necho "$*" >> "%s/sudo.log"\nexec "$@"\n' "$tmp" > "$tmp/sudo"
+mkdir -p "$tmp/brew/Library/Homebrew/utils" "$tmp/brew/Library/Homebrew/vendor/portable-ruby/current/bin"
+ruby="$tmp/brew/Library/Homebrew/vendor/portable-ruby/current/bin/ruby"
+# ruby --disable=gems,rubyopt <script>
+printf '#!/bin/bash\nexec bash "$2"\n' > "$ruby"
+chmod +x "$tmp/sudo" "$ruby"
+# What the real script does that ca-roots can observe: .orig on the first run
+# only, .bak each run, the bundle without the roots ($tmp/stuck keeps them)
+cat > "$tmp/brew/Library/Homebrew/utils/emudhra_certificates.rb" << EOF
+if cmp -s "\$CA_ROOTS_BUNDLE" "$tmp/trimmed.pem"; then
+  echo "The roots are already absent. Run \\\`brew doctor\\\` to check your system."
+  exit 0
+fi
+echo "Removing these roots can break HTTPS connections to some websites."
+[ -e "\$CA_ROOTS_BUNDLE.orig" ] || cp -p "\$CA_ROOTS_BUNDLE" "\$CA_ROOTS_BUNDLE.orig"
+cp -p "\$CA_ROOTS_BUNDLE" "\$CA_ROOTS_BUNDLE.bak"
+[ -e "$tmp/stuck" ] || cp "$tmp/trimmed.pem" "\$CA_ROOTS_BUNDLE"
+echo "Removed roots that trust compromised eMudhra certificates."
+EOF
+
+check() {
+  if [[ $2 != "$3" ]]; then
+    printf 'FAIL: %s\n  expected: %s\n  actual:   %s\n' "$1" "$2" "$3" >&2
+    exit 1
+  fi
+  echo "ok: $1"
+}
+# run <verb>: sets $output and $rc
+run() { output=$("$script" "$@" 2>&1) && rc=0 || rc=$?; }
+
+# LibreSSL and OpenSSL print subjects differently
+for openssl in /usr/bin/openssl /opt/homebrew/bin/openssl; do
+  [ -x "$openssl" ] || continue
+  export CA_ROOTS_OPENSSL=$openssl
+  name=$("$openssl" version | cut -d" " -f1)
+  rm -f "$bundle".* "$tmp/sudo.log" "$tmp/stuck"
+  cp "$tmp/full.pem" "$bundle"
+
+  run status
+  check "$name: status with the roots exits 1" 1 "$rc"
+  check "$name: status lists both present, then the missing backups" "present  emSign ECC Root CA - G3
+present  AAA Certificate Services
+missing  $bundle.bak
+missing  $bundle.orig" "$output"
+
+  touch "$tmp/stuck"
+  run trim
+  check "$name: trim fails when Homebrew's script leaves a root" 1 "$rc"
+  check "$name: the failure names the roots left" "ca-roots: still in $bundle: emSign ECC Root CA - G3, AAA Certificate Services" "$(tail -1 <<< "$output")"
+  rm -f "$tmp/stuck" "$tmp/sudo.log" "$bundle".*
+
+  run trim
+  check "$name: trim exits 0" 0 "$rc"
+  check "$name: trim names what it removed and the revert" "Removed: emSign ECC Root CA - G3, AAA Certificate Services
+Restore them with: ca-roots restore" "$(tail -2 <<< "$output")"
+  check "$name: trim ran Homebrew's command through sudo" "$ruby --disable=gems,rubyopt $tmp/brew/Library/Homebrew/utils/emudhra_certificates.rb" "$(cat "$tmp/sudo.log")"
+  check "$name: trim left the unrelated root" "$(cat "$tmp/trimmed.pem")" "$(cat "$bundle")"
+
+  run status
+  check "$name: status after trim exits 0" 0 "$rc"
+  check "$name: status after trim lists both absent and the backups" "absent   emSign ECC Root CA - G3
+absent   AAA Certificate Services
+exists   $bundle.bak
+exists   $bundle.orig" "$output"
+
+  rm "$tmp/sudo.log"
+  run trim
+  check "$name: a second trim exits 0" 0 "$rc"
+  check "$name: a second trim says so" "The roots are already absent from $bundle." "$output"
+  check "$name: a second trim never calls sudo" no "$([ -e "$tmp/sudo.log" ] && echo yes || echo no)"
+
+  run restore
+  check "$name: restore exits 0" 0 "$rc"
+  check "$name: restore names the opt-in to remove" "Remove DOTFILES_TRIM_CA_ROOTS from ~/.zsh.local, or the next upup removes them again." "$(tail -1 <<< "$output")"
+  check "$name: restore ran cp through sudo" "cp -p $bundle.bak $bundle" "$(cat "$tmp/sudo.log")"
+  run status
+  check "$name: status after restore exits 1" 1 "$rc"
+
+  rm "$tmp/sudo.log"
+  run restore
+  check "$name: restore with the roots present exits 0" 0 "$rc"
+  check "$name: restore with the roots present says so and skips sudo" "The roots are already in $bundle; nothing to restore. no" "$output $([ -e "$tmp/sudo.log" ] && echo yes || echo no)"
+
+  cp "$tmp/trimmed.pem" "$bundle"
+  rm "$bundle.bak"
+  run restore
+  check "$name: restore without a backup exits 1" 1 "$rc"
+  check "$name: restore without a backup says why" "ca-roots: no backup at $bundle.bak to restore from" "$output"
+done
+
+mv "$ruby" "$ruby.off"
+cp "$tmp/full.pem" "$bundle"
+run trim
+check "trim without Homebrew's script exits 1" 1 "$rc"
+check "trim without Homebrew's script says so" "ca-roots: Homebrew's $tmp/brew/Library/Homebrew/utils/emudhra_certificates.rb (or its portable Ruby) is missing; run: brew update" "$output"
+
+run bogus
+check "an unknown verb exits 1" 1 "$rc"
+check "an unknown verb prints usage" "usage: ca-roots status|trim|restore" "$output"

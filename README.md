@@ -224,6 +224,7 @@ upup
 - pulls the latest dotfiles (`git pull` in the clone)
 - installs macOS software updates (a macOS update asks for your login password: see [below](#macos-update-password-from-1password-optional)); one that needs a restart, such as a new macOS version, is only downloaded, and the summary tells you to install it from System Settings → General → Software Update → Restart Now or with `sudo softwareupdate -ia --restart`, since a plain restart doesn't install it
 - upgrades Homebrew formulae and casks (VS Code included) without asking for confirmation (`brew upgrade --yes`; the outdated list goes to the log, the upgraded pairs to the screen), then cleans up
+- removes the compromised eMudhra roots from `/etc/ssl/cert.pem` if you opted in (see [below](#removing-the-compromised-emudhra-roots-optional)), before `brew doctor` so its warning about them goes away; `ca-roots restore` puts them back
 - upgrades mise tools (Node/Python patch releases, CodeGraph, the npm CLIs, the Aspire CLI and flate), the stable Rust toolchain (Homebrew's `rustup update` called by path, with a notice when `cargo --version` fails in that shell, since the keg-only rustup keeps its proxies in `/opt/homebrew/opt/rustup/bin`, and a notice when a mise rust toolchain no config pins shadows it; a tool mise could not reinstall is a notice too). Before upgrading, it runs `mise prune`, which deletes the versions the previous run replaced that no project's mise config still uses, and reports how much it freed; the versions this run replaces stay until the next run, so you can go back to one. It skips the prune while a leftover mise rust install would make it hang and uv tools (Serena and Scrapling, re-running `scrapling install` so its Chromium matches)
 - reinstalls the Iosevka Code font if its upstream zip changed
 - updates Claude Code itself (`claude update`) and reports its version, before the steps below so they run on the new binary
@@ -267,6 +268,20 @@ An update of VS Code replaces the files the SpaceBox UI Enhancer patched, so run
    ```
 
 `upup` only asks 1Password when a macOS update is actually pending. If `op` is missing or the variable is unset, it asks for the password at its own `Password:` prompt, which hides what you type, and passes it to `softwareupdate` the same way. A password `softwareupdate` rejects fails the macOS step; there is no retry. Update the 1Password item when you change your login password.
+
+### Removing the compromised eMudhra roots (optional)
+
+Keys of eMudhra intermediate CAs were compromised ([Apple](https://support.apple.com/en-us/149555)). Apple's frameworks already block them, but `/etc/ssl/cert.pem`, which Apple's bundled `curl`, `python3`, `git` and `openssl` read, still carries the two roots that trust them, `emSign ECC Root CA - G3` and `AAA Certificate Services`. Homebrew's `curl` verifies through Apple's trust store and its `openssl` and `git` through Homebrew's own `ca-certificates`, so they don't read it. `brew doctor` warns about this, and `upup` shows that warning as a notice.
+
+To let `upup` remove the roots, add this to [`~/.zsh.local`](#zshlocal):
+
+```shell
+export DOTFILES_TRIM_CA_ROOTS=1
+```
+
+`upup` then runs `ca-roots trim` each run, before `brew doctor`; while a root is present it runs Homebrew's own script with `sudo`, otherwise it does nothing. The script keeps a backup in `/etc/ssl/cert.pem.bak` (and the first original in `.orig`). A macOS update can put the roots back, so while the variable is set each `upup` after one removes them again. `ca-roots status` shows whether they're there.
+
+To undo it, run `ca-roots restore` (it copies the backup back with `sudo`, and does nothing if a macOS update already brought the roots back) and delete the line from `~/.zsh.local`. Removing the roots can break HTTPS connections to some websites.
 
 ## Changing the dotfiles
 

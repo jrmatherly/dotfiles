@@ -71,6 +71,8 @@ bash setup/tests/symlinks-backup.sh > /dev/null
 bash setup/tests/firefox-dev-path.sh > /dev/null
 # bin/hindsight-memory against a fixture HOME with the installer, hindsight-embed and npm stubbed
 bash bin/lib/test-hindsight-memory > /dev/null
+# bin/ca-roots against a generated bundle and stubs of sudo and Homebrew's script (never /etc/ssl)
+bash bin/lib/test-ca-roots > /dev/null
 # bin/claude-config save against fixture dirs, under each bash (never the real ~/.claude or agents/)
 bash bin/lib/test-claude-config > /dev/null
 # bin/upup's report against stubbed tools (nothing is upgraded)

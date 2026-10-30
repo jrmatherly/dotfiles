@@ -4,6 +4,7 @@
 #
 # > Reads like a report: one status line per step and a summary at the end. Full tool output goes to `logs/upup-<timestamp>.log` in the dotfiles repo, and to the screen only when a step changed something or failed.
 # > A macOS update asks for your login password. Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` to a 1Password secret reference (`op://vault/item/password`) to supply it with a fingerprint instead.
+# > Set `DOTFILES_TRIM_CA_ROOTS=1` in `~/.zsh.local` to let it remove the two compromised eMudhra roots `brew doctor` warns about from /etc/ssl/cert.pem (`ca-roots restore` puts them back).
 #
 # - Run updates:
 #
@@ -311,6 +312,24 @@ else
   status fail "brew cleanup" "run: brew cleanup --prune=all"
   show
 fi
+# Opt-in: drop the two roots that trust the compromised eMudhra CAs from
+# /etc/ssl/cert.pem (Apple's curl, python3 and git read it; brew doctor warns).
+# Before doctor, so a trimmed bundle gets no notice; a macOS update can put the
+# roots back, and trim is a no-op without sudo while they're absent
+if [ -n "${DOTFILES_TRIM_CA_ROOTS:-}" ]; then
+  step "CA roots"
+  if ! capture ca-roots trim; then
+    status fail "CA roots" "run: ca-roots trim"
+    show
+  else
+    removed=$(sed -n 's/^Removed: //p' <<< "$out")
+    if [ -n "$removed" ]; then
+      status changed "CA roots" "removed $removed; restore: ca-roots restore"
+    else
+      status ok "CA roots" "already absent"
+    fi
+  fi
+fi
 step "brew doctor"
 if capture brew doctor || grep -q 'Your system is ready to brew' <<< "$out"; then
   status ok "brew doctor" "ready to brew"
@@ -323,6 +342,9 @@ else
     /^$/ { if (w) print w; w = "" }
     END { if (w) print w }' <<< "$out")
   while read -r warning; do
+    case $warning in
+      *"Root certificates in /etc/ssl/cert.pem"*) warning+=" (set DOTFILES_TRIM_CA_ROOTS=1 in ~/.zsh.local to let upup remove them)" ;;
+    esac
     status notice "brew doctor" "$warning"
   done <<< "${warnings:-$(head -1 <<< "$out")}"
 fi

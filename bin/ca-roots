@@ -1,0 +1,103 @@
+#!/bin/bash
+#
+# Remove the two root CAs that trust the compromised eMudhra intermediates from macOS's /etc/ssl/cert.pem, or put them back.
+#
+# - Show whether each root is in the bundle and whether the backups exist (exits 1 while a root is present):
+#
+# `ca-roots status`
+#
+# - Remove them with Homebrew's script (sudo; upup runs this when `DOTFILES_TRIM_CA_ROOTS` is set):
+#
+# `ca-roots trim`
+#
+# - Put the bundle back from the backup Homebrew's script keeps (sudo):
+#
+# `ca-roots restore`
+#
+# ---
+# Apple's bundled curl, python3, git and openssl read /etc/ssl/cert.pem; Apple's
+# frameworks already block the intermediates (https://support.apple.com/en-us/149555).
+# Homebrew's script rewrites the bundle without its comment headers, so roots are
+# matched by subject CN, never by grepping the file. A macOS update can restore them.
+#
+# HOMEBREW_PREFIX locates Homebrew's script (default /opt/homebrew). Overrides the
+# self-check uses:
+#   CA_ROOTS_BUNDLE   the bundle (default /etc/ssl/cert.pem); .bak and .orig sit beside it
+#   CA_ROOTS_SUDO     instead of sudo
+#   CA_ROOTS_OPENSSL  instead of /usr/bin/openssl (LibreSSL, so no Homebrew needed)
+#
+# License: MIT
+
+set -euo pipefail
+
+# Keep in step with Homebrew's Library/Homebrew/utils/emudhra_certificates.rb
+roots=("emSign ECC Root CA - G3" "AAA Certificate Services")
+
+bundle=${CA_ROOTS_BUNDLE:-/etc/ssl/cert.pem}
+sudo=${CA_ROOTS_SUDO:-sudo}
+openssl=${CA_ROOTS_OPENSSL:-/usr/bin/openssl}
+prefix=${HOMEBREW_PREFIX:-/opt/homebrew}
+
+die() {
+  echo "ca-roots: $*" >&2
+  exit 1
+}
+
+# The roots still in the bundle, one per line, matched by subject CN in either
+# print_certs format: LibreSSL's subject=/C=GB/.../CN=<name>, OpenSSL's
+# subject=C=GB, ..., CN=<name>
+present_roots() {
+  local subjects name
+  subjects=$("$openssl" crl2pkcs7 -nocrl -certfile "$bundle" | "$openssl" pkcs7 -print_certs -noout) || return
+  for name in "${roots[@]}"; do
+    if grep -Eq "^subject=.*CN *= *$name(,|/|\$)" <<< "$subjects"; then echo "$name"; fi
+  done
+}
+# stdin names, one per line, as "a, b"
+joined() { paste -sd, - | sed 's/,/, /g'; }
+
+case ${1:-} in
+  status)
+    present=$(present_roots)
+    for name in "${roots[@]}"; do
+      if grep -qxF "$name" <<< "$present"; then echo "present  $name"; else echo "absent   $name"; fi
+    done
+    for file in "$bundle.bak" "$bundle.orig"; do
+      if [ -e "$file" ]; then echo "exists   $file"; else echo "missing  $file"; fi
+    done
+    [ -z "$present" ]
+    ;;
+  trim)
+    present=$(present_roots | joined)
+    if [ -z "$present" ]; then
+      echo "The roots are already absent from $bundle."
+      exit 0
+    fi
+    ruby="$prefix/Library/Homebrew/vendor/portable-ruby/current/bin/ruby"
+    script="$prefix/Library/Homebrew/utils/emudhra_certificates.rb"
+    [ -x "$ruby" ] && [ -f "$script" ] || die "Homebrew's $script (or its portable Ruby) is missing; run: brew update"
+    "$sudo" "$ruby" --disable=gems,rubyopt "$script"
+    left=$(present_roots | joined)
+    [ -z "$left" ] || die "still in $bundle: $left"
+    echo "Removed: $present"
+    echo "Restore them with: ca-roots restore"
+    ;;
+  restore)
+    # A macOS update can bring the roots back on its own; then .bak is older
+    # than the bundle and copying it would roll Apple's file back
+    if [ "$(present_roots | wc -l | tr -d ' ')" -eq "${#roots[@]}" ]; then
+      echo "The roots are already in $bundle; nothing to restore."
+      exit 0
+    fi
+    [ -e "$bundle.bak" ] || die "no backup at $bundle.bak to restore from"
+    "$sudo" cp -p "$bundle.bak" "$bundle"
+    left=$(present_roots | wc -l | tr -d ' ') || die "can't read $bundle after the restore"
+    [ "$left" -eq "${#roots[@]}" ] || die "restored $bundle from $bundle.bak, but a root is still missing"
+    echo "Restored $bundle from $bundle.bak; the roots are back."
+    echo "Remove DOTFILES_TRIM_CA_ROOTS from ~/.zsh.local, or the next upup removes them again."
+    ;;
+  *)
+    echo "usage: ca-roots status|trim|restore" >&2
+    exit 1
+    ;;
+esac
