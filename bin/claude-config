@@ -14,7 +14,7 @@
 #
 # `claude-config restore {{plugins|settings|skills}} --dry-run`
 #
-# - Reinstall each tracked skill whose GitHub folder changed since install, and any it can't check, for its listed agents (`upup` runs this):
+# - Reinstall each tracked skill whose GitHub folder or well-known site digest changed since install, and any it can't check, for its listed agents (`upup` runs this):
 #
 # `claude-config restore skills --update`
 #

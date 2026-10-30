@@ -170,7 +170,10 @@ cmd_upgrade() {
   local latest newest
   run_installer || fail "the installer failed; the config is unchanged"
   merge_defaults
-  latest=$("${npm_cmd[@]}" view @vectorize-io/hindsight-coding-agents version 2> /dev/null) || latest=""
+  # pack --dry-run resolves the newest version npm's min-release-age allows today
+  # (it fetches the tarball to do so); `npm view` ignores that setting and named
+  # 0.8.3 a week before the pin could install it (checked 2026-10-29)
+  latest=$("${npm_cmd[@]}" pack --dry-run --json @vectorize-io/hindsight-coding-agents 2> /dev/null | jq -r '.[0].version // empty') || latest=""
   newest=$(printf '%s\n%s\n' "$CODING_AGENTS_VERSION" "$latest" | sort -V | tail -1)
   if [ -n "$latest" ] && [ "$newest" != "$CODING_AGENTS_VERSION" ]; then
     echo "newer release $latest on npm; bump CODING_AGENTS_VERSION"
