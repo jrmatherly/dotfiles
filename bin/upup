@@ -318,6 +318,12 @@ fi
 # roots back, and trim is a no-op without sudo while they're absent
 if [ -n "${DOTFILES_TRIM_CA_ROOTS:-}" ]; then
   step "CA roots"
+  # The run's sudo credential may have timed out during brew upgrade; renew it
+  # only when a root is present, since trim needs no sudo otherwise
+  if ! ca-roots status > /dev/null 2>&1 && ! sudo -n -v 2> /dev/null; then
+    status prompt sudo "Password for sudo again, to remove the CA roots"
+    sudo -v
+  fi
   if ! capture ca-roots trim; then
     status fail "CA roots" "run: ca-roots trim"
     show
@@ -343,7 +349,7 @@ else
     END { if (w) print w }' <<< "$out")
   while read -r warning; do
     case $warning in
-      *"Root certificates in /etc/ssl/cert.pem"*) warning+=" (set DOTFILES_TRIM_CA_ROOTS=1 in ~/.zsh.local to let upup remove them)" ;;
+      *"Root certificates in /etc/ssl/cert.pem"*) [ -n "${DOTFILES_TRIM_CA_ROOTS:-}" ] || warning+=" (set DOTFILES_TRIM_CA_ROOTS=1 in ~/.zsh.local to let upup remove them)" ;;
     esac
     status notice "brew doctor" "$warning"
   done <<< "${warnings:-$(head -1 <<< "$out")}"

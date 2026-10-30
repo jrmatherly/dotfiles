@@ -281,7 +281,7 @@ export DOTFILES_TRIM_CA_ROOTS=1
 
 `upup` then runs `ca-roots trim` each run, before `brew doctor`; while a root is present it runs Homebrew's own script with `sudo`, otherwise it does nothing. The script keeps a backup in `/etc/ssl/cert.pem.bak` (and the first original in `.orig`). A macOS update can put the roots back, so while the variable is set each `upup` after one removes them again. `ca-roots status` shows whether they're there.
 
-To undo it, run `ca-roots restore` (it copies the backup back with `sudo`, and does nothing if a macOS update already brought the roots back) and delete the line from `~/.zsh.local`. Removing the roots can break HTTPS connections to some websites.
+To undo it, run `ca-roots restore` (it copies the backup back with `sudo`; it does nothing if the roots are already back, and refuses if the bundle is no longer the backup minus the roots, as after a macOS update) and delete the line from `~/.zsh.local`. Removing the roots can break HTTPS connections to some websites.
 
 ## Changing the dotfiles
 

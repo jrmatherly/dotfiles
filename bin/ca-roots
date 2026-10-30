@@ -21,7 +21,8 @@
 # matched by subject CN, never by grepping the file. A macOS update can restore them.
 #
 # HOMEBREW_PREFIX locates Homebrew's script (default /opt/homebrew). Overrides the
-# self-check uses:
+# self-check uses (Homebrew's script always rewrites /etc/ssl/cert.pem itself, so
+# CA_ROOTS_BUNDLE is for a stub of it, never a real trim):
 #   CA_ROOTS_BUNDLE   the bundle (default /etc/ssl/cert.pem); .bak and .orig sit beside it
 #   CA_ROOTS_SUDO     instead of sudo
 #   CA_ROOTS_OPENSSL  instead of /usr/bin/openssl (LibreSSL, so no Homebrew needed)
@@ -43,14 +44,18 @@ die() {
   exit 1
 }
 
-# The roots still in the bundle, one per line, matched by subject CN in either
-# print_certs format: LibreSSL's subject=/C=GB/.../CN=<name>, OpenSSL's
-# subject=C=GB, ..., CN=<name>
+# subjects <file>: one subject line per certificate, in either print_certs
+# format: LibreSSL's subject=/C=GB/.../CN=<name>, OpenSSL's subject=C=GB, ..., CN=<name>
+subjects() {
+  "$openssl" crl2pkcs7 -nocrl -certfile "$1" | "$openssl" pkcs7 -print_certs -noout | grep '^subject='
+}
+root_pattern() { echo "CN *= *$1(,|/|\$)"; }
+# The roots still in the bundle, one per line
 present_roots() {
-  local subjects name
-  subjects=$("$openssl" crl2pkcs7 -nocrl -certfile "$bundle" | "$openssl" pkcs7 -print_certs -noout) || return
+  local lines name
+  lines=$(subjects "$bundle") || return
   for name in "${roots[@]}"; do
-    if grep -Eq "^subject=.*CN *= *$name(,|/|\$)" <<< "$subjects"; then echo "$name"; fi
+    if grep -Eq "$(root_pattern "$name")" <<< "$lines"; then echo "$name"; fi
   done
 }
 # stdin names, one per line, as "a, b"
@@ -58,7 +63,7 @@ joined() { paste -sd, - | sed 's/,/, /g'; }
 
 case ${1:-} in
   status)
-    present=$(present_roots)
+    present=$(present_roots) || die "can't read $bundle"
     for name in "${roots[@]}"; do
       if grep -qxF "$name" <<< "$present"; then echo "present  $name"; else echo "absent   $name"; fi
     done
@@ -68,7 +73,7 @@ case ${1:-} in
     [ -z "$present" ]
     ;;
   trim)
-    present=$(present_roots | joined)
+    present=$(present_roots | joined) || die "can't read $bundle"
     if [ -z "$present" ]; then
       echo "The roots are already absent from $bundle."
       exit 0
@@ -90,6 +95,11 @@ case ${1:-} in
       exit 0
     fi
     [ -e "$bundle.bak" ] || die "no backup at $bundle.bak to restore from"
+    # Only undo a trim: the bundle must be .bak minus the roots. Once Apple ships
+    # a bundle without them, or changes anything else, copying .bak back would
+    # roll that update back
+    expected=$(subjects "$bundle.bak" | grep -Ev "$(for name in "${roots[@]}"; do root_pattern "$name"; done | paste -sd'|' -)" | sort)
+    [ "$(subjects "$bundle" | sort)" = "$expected" ] || die "$bundle is not $bundle.bak minus the roots (a macOS update changed it?); not restoring"
     "$sudo" cp -p "$bundle.bak" "$bundle"
     left=$(present_roots | wc -l | tr -d ' ') || die "can't read $bundle after the restore"
     [ "$left" -eq "${#roots[@]}" ] || die "restored $bundle from $bundle.bak, but a root is still missing"

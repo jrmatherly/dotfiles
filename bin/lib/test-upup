@@ -40,7 +40,7 @@ stub() {
   printf '#!/bin/bash\n%s\n' "$2" > "$tmp/bin/$1"
   chmod +x "$tmp/bin/$1"
 }
-stub sudo '[ "$1" = -v ] && exit 0; exec "$@"'
+stub sudo 'case $1 in -v) exit 0 ;; -n) echo "sudo -n -v" >> "$STATE/sudo.log"; [ -e "$STATE/sudo-expired" ] && exit 1; exit 0 ;; esac; exec "$@"'
 stub dotfiles '[ -e "$STATE/pull" ] && git -C "$DOTFILES" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q --allow-empty -m "Pulled change"; echo pulled'
 stub softwareupdate 'case $1 in
   -l) [ -e "$STATE/macos" ] || [ -e "$STATE/macos-os" ] || echo "No new software available."
@@ -125,6 +125,7 @@ if [ -e "$STATE/hindsight-warns" ]; then echo "│  ✓ runtime staged at ~/.hin
 [ ! -e "$STATE/hindsight-change" ] || { mkdir -p "$HOME/.codex"; date +%s%N > "$HOME/.codex/hooks.json"; }
 echo "runtime re-staged"'
 stub ca-roots 'echo "$*" >> "$STATE/ca-roots.log"
+[ "$1" = status ] && { [ -e "$STATE/roots-trimmed" ]; exit; }
 [ -e "$STATE/ca-roots-fails" ] && { echo "ca-roots: still in /etc/ssl/cert.pem: AAA Certificate Services"; exit 1; }
 [ -e "$STATE/roots-trimmed" ] && { echo "The roots are already absent from /etc/ssl/cert.pem."; exit 0; }
 touch "$STATE/roots-trimmed"
@@ -262,7 +263,8 @@ export DOTFILES_TRIM_CA_ROOTS=1
 run
 check_true "roots opted in: trimmed, with the revert" has '^↻ CA roots +removed emSign ECC Root CA - G3, AAA Certificate Services; restore: ca-roots restore$'
 check_true "roots opted in: no root notice" lacks 'Root certificates'
-check_true "roots opted in: ca-roots trim called once" [ "$(cat "$STATE/ca-roots.log")" = trim ]
+check_true "roots opted in: status, then one trim" [ "$(paste -sd' ' "$STATE/ca-roots.log")" = "status trim" ]
+check_true "roots opted in: a live sudo credential asks for nothing" lacks 'Password for sudo again'
 check_true "roots opted in: brew doctor then reports clean" has '^✔ brew doctor +ready to brew$'
 rm -rf "$DOTFILES/logs"
 run
@@ -273,8 +275,13 @@ touch "$STATE/ca-roots-fails"
 run
 check_true "roots opted in, trim fails: fail line names the command" has '^✖ CA roots +run: ca-roots trim$'
 check_true "roots opted in, trim fails: its output shown" has '^    ca-roots: still in /etc/ssl/cert\.pem: AAA Certificate Services$'
+check_true "roots opted in, trim fails: the notice doesn't suggest opting in" lacks 'set DOTFILES_TRIM_CA_ROOTS'
+rm -rf "$DOTFILES/logs"
+touch "$STATE/sudo-expired"
+run
+check_true "roots opted in, sudo expired: asks again before the trim" has '^› sudo +Password for sudo again, to remove the CA roots$'
 unset DOTFILES_TRIM_CA_ROOTS
-rm -f "$STATE/brew-doctor-roots" "$STATE/ca-roots-fails" "$STATE/ca-roots.log" "$STATE/roots-trimmed"
+rm -f "$STATE/brew-doctor-roots" "$STATE/ca-roots-fails" "$STATE/ca-roots.log" "$STATE/roots-trimmed" "$STATE/sudo-expired" "$STATE/sudo.log"
 
 rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
 touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust" "$STATE/no-cargo" "$STATE/rea-fails" "$STATE/prune" "$STATE/prune-fails"

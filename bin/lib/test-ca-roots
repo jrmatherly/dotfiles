@@ -30,6 +30,7 @@ cert "/C=IN/OU=emSign PKI/O=eMudhra Technologies Limited/CN=emSign ECC Root CA -
 cert "/C=GB/ST=Greater Manchester/O=Comodo CA Limited/CN=AAA Certificate Services" >> "$tmp/full.pem"
 cert "/CN=Unrelated Root/O=Example" > "$tmp/trimmed.pem"
 cat "$tmp/trimmed.pem" >> "$tmp/full.pem"
+cert "/CN=Another Root/O=Example" > "$tmp/other.pem"
 
 printf '#!/bin/bash\necho "$*" >> "%s/sudo.log"\nexec "$@"\n' "$tmp" > "$tmp/sudo"
 mkdir -p "$tmp/brew/Library/Homebrew/utils" "$tmp/brew/Library/Homebrew/vendor/portable-ruby/current/bin"
@@ -113,6 +114,13 @@ exists   $bundle.orig" "$output"
   run restore
   check "$name: restore with the roots present exits 0" 0 "$rc"
   check "$name: restore with the roots present says so and skips sudo" "The roots are already in $bundle; nothing to restore. no" "$output $([ -e "$tmp/sudo.log" ] && echo yes || echo no)"
+
+  cp "$tmp/trimmed.pem" "$bundle"
+  cat "$tmp/other.pem" >> "$bundle"
+  rm -f "$tmp/sudo.log"
+  run restore
+  check "$name: restore refuses a bundle that is not .bak minus the roots" 1 "$rc"
+  check "$name: that refusal names the cause and skips sudo" "ca-roots: $bundle is not $bundle.bak minus the roots (a macOS update changed it?); not restoring no" "$output $([ -e "$tmp/sudo.log" ] && echo yes || echo no)"
 
   cp "$tmp/trimmed.pem" "$bundle"
   rm "$bundle.bak"
