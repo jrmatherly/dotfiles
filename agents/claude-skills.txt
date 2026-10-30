@@ -5,10 +5,13 @@ skill better-auth-best-practices better-auth/skills claude-code,codex
 skill better-auth-security-best-practices better-auth/skills claude-code,codex
 skill coding-standards jrmatherly/skills claude-code,codex
 skill create-auth better-auth/skills claude-code,codex
+skill doc-coauthoring anthropics/skills claude-code,codex
 skill email-and-password-best-practices better-auth/skills claude-code,codex
 skill find-skills vercel-labs/skills claude-code,codex
 skill hindsight-architect vectorize-io/hindsight claude-code,codex
 skill hindsight-docs vectorize-io/hindsight claude-code,codex
+skill internal-comms anthropics/skills claude-code,codex
+skill mcp-builder anthropics/skills claude-code,codex
 skill microsoft-foundry microsoft/azure-skills codex
 skill organization-best-practices better-auth/skills claude-code,codex
 skill scrapling-official D4Vinci/Scrapling claude-code,codex
@@ -16,4 +19,6 @@ skill siderolabs https://docs.siderolabs.com claude-code,codex
 skill supabase supabase/agent-skills codex
 skill supabase-postgres-best-practices supabase/agent-skills codex
 skill supabase-prompts jrmatherly/skills claude-code,codex
+skill theme-factory anthropics/skills claude-code,codex
 skill two-factor-authentication-best-practices better-auth/skills claude-code,codex
+skill web-artifacts-builder anthropics/skills claude-code,codex

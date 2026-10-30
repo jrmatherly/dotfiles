@@ -60,6 +60,12 @@ assert not any(p.startswith(("group", "curated")) for p in probs[1:])
 probs = b.lint([], {}, {"mcp": {"ghost": {"desc": "x"}}, "group": [{"title": "G", "items": ["ghost", "nope"]}]})
 assert probs == ["group 'G' names unknown item: nope", "mcp server not registered on this machine: ghost"], probs
 
+# a curated claude.ai skill the signed-in account doesn't sync is one note, not a fatal error per mention
+probs = b.lint([], {}, {"group": [{"title": "G", "items": ["anthropic-skills:pptx", "anthropic-skills:docs"]}],
+                        "notes": {"anthropic-skills:docs": "n"}, "duplicates": {"anthropic-skills:pptx": "x:y"}})
+assert probs == ["curated entry for unknown item: x:y",
+                 "claude.ai skills not synced to this account: anthropic-skills:docs, anthropic-skills:pptx"], probs
+
 # an empty CLAUDE_CONFIG_DIR means unset, like the shell's ${VAR:-}, not the cwd
 import importlib
 os.environ["CLAUDE_CONFIG_DIR"] = ""

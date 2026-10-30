@@ -4,7 +4,8 @@
 #   [mcp.<name>]    description + tool summary for an MCP server found on disk (one missing here only warns: registration is per machine)
 #   [notes]         extra "use when / don't confuse with" note for any item, by exact name
 #   [[group]]       task guide: overlapping options for one job, with a default pick
-# The build fails (exit 1) if a group or note names something that isn't installed.
+# The build fails (exit 1) if a group or note names something that isn't installed, except an MCP server
+# (registered per machine) or an anthropic-skills:* skill (synced per claude.ai account): those only warn.
 
 intro = """
 Every skill, slash command, subagent and MCP server available to Claude Code on this machine.
@@ -323,7 +324,7 @@ items = ["chrome-devtools-mcp:debug-optimize-lcp", "cloudflare:web-perf", "chrom
 title = "Frontend UI and visual design"
 pick = ["frontend-design:frontend-design"]
 guide = "frontend-design for aesthetic direction in code. ui-ux-pro-max for design systems, tokens and brand. superdesign for exploring on a canvas. modern-web-guidance first for any HTML/CSS/JS platform question."
-items = ["frontend-design:frontend-design", "ui-ux-pro-max:ui-ux-pro-max", "ui-ux-pro-max:design-system", "ui-ux-pro-max:ui-styling", "ui-ux-pro-max:design", "ui-ux-pro-max:brand", "ui-ux-pro-max:banner-design", "superdesign:superdesign", "modern-web-guidance:modern-web-guidance", "voltagent-core-dev:design-bridge", "voltagent-core-dev:ui-designer", "modern-web-guidance:chrome-extensions", "anthropic-skills:web-artifacts-builder", "voltagent-core-dev:frontend-developer", "voltagent-dev-exp:visual-asset-generator"]
+items = ["frontend-design:frontend-design", "ui-ux-pro-max:ui-ux-pro-max", "ui-ux-pro-max:design-system", "ui-ux-pro-max:ui-styling", "ui-ux-pro-max:design", "ui-ux-pro-max:brand", "ui-ux-pro-max:banner-design", "superdesign:superdesign", "modern-web-guidance:modern-web-guidance", "voltagent-core-dev:design-bridge", "voltagent-core-dev:ui-designer", "modern-web-guidance:chrome-extensions", "web-artifacts-builder", "voltagent-core-dev:frontend-developer", "voltagent-dev-exp:visual-asset-generator"]
 
 [[group]]
 title = "Review and QA an existing UI"
@@ -334,13 +335,13 @@ items = ["chrome-devtools-mcp:a11y-debugging", "chrome-devtools-mcp:chrome-devto
 [[group]]
 title = "Diagrams, charts, slides and Artifact pages"
 pick = ["archify", "dataviz"]
-items = ["archify", "azure:azure-resource-visualizer", "dataviz", "artifact-diagramming", "artifact-design", "artifact-capabilities", "ui-ux-pro-max:slides", "anthropic-skills:pptx", "anthropic-skills:theme-factory"]
+items = ["archify", "azure:azure-resource-visualizer", "dataviz", "artifact-diagramming", "artifact-design", "artifact-capabilities", "ui-ux-pro-max:slides", "anthropic-skills:pptx", "theme-factory"]
 
 [[group]]
 title = "Office files and documents"
 pick = ["anthropic-skills:docs"]
 guide = "A shared or living doc: anthropic-skills:docs (Claude Docs). A specific file format: docx/pdf/pptx/xlsx."
-items = ["anthropic-skills:docs", "anthropic-skills:doc-coauthoring", "anthropic-skills:docx", "anthropic-skills:pdf", "anthropic-skills:pptx", "anthropic-skills:xlsx", "anthropic-skills:google-workspace", "anthropic-skills:internal-comms"]
+items = ["anthropic-skills:docs", "doc-coauthoring", "anthropic-skills:docx", "anthropic-skills:pdf", "anthropic-skills:pptx", "anthropic-skills:xlsx", "anthropic-skills:google-workspace", "internal-comms"]
 
 [[group]]
 title = "Git, commits, PRs, worktrees"
@@ -357,7 +358,7 @@ items = ["claude-md-management:claude-md-improver", "claude-md-management:revise
 title = "Extend Claude Code (skills, plugins, hooks, MCP)"
 pick = ["skill-creator:skill-creator", "plugin-dev:create-plugin"]
 guide = "Skills: skill-creator (with evals) or superpowers:writing-skills (TDD-style). Hooks: update-config or skills:hooks-create (settings.json hooks); hookify is installed but off. MCP servers: mcp-server-dev."
-items = ["skill-creator:skill-creator", "superpowers:writing-skills", "skills:skills-create", "plugin-dev:skill-development", "plugin-dev:create-plugin", "plugin-dev:plugin-structure", "plugin-dev:agent-development", "plugin-dev:command-development", "plugin-dev:hook-development", "plugin-dev:mcp-integration", "hookify:hookify", "skills:hooks-create", "update-config", "mcp-server-dev:build-mcp-server", "mcp-server-dev:build-mcp-app", "mcp-server-dev:build-mcpb", "anthropic-skills:mcp-builder", "claude-code-setup:claude-automation-recommender", "find-skills", "plugin-dev:plugin-validator", "plugin-dev:skill-reviewer", "microsoft-docs:microsoft-skill-creator", "voltagent-dev-exp:mcp-developer", "voltagent-meta:agent-installer"]
+items = ["skill-creator:skill-creator", "superpowers:writing-skills", "skills:skills-create", "plugin-dev:skill-development", "plugin-dev:create-plugin", "plugin-dev:plugin-structure", "plugin-dev:agent-development", "plugin-dev:command-development", "plugin-dev:hook-development", "plugin-dev:mcp-integration", "hookify:hookify", "skills:hooks-create", "update-config", "mcp-server-dev:build-mcp-server", "mcp-server-dev:build-mcp-app", "mcp-server-dev:build-mcpb", "mcp-builder", "claude-code-setup:claude-automation-recommender", "find-skills", "plugin-dev:plugin-validator", "plugin-dev:skill-reviewer", "microsoft-docs:microsoft-skill-creator", "voltagent-dev-exp:mcp-developer", "voltagent-meta:agent-installer"]
 plugins = ["plugin-dev"]
 
 [[group]]

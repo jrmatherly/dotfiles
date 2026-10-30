@@ -16,6 +16,9 @@ from pathlib import Path
 
 HOME = Path.home()
 CLAUDE = Path(os.environ.get("CLAUDE_CONFIG_DIR") or HOME / ".claude")  # empty = unset, as in the shell
+# Claude Desktop keeps its own copy of the claude.ai skills, one plugin dir per <org>/<account>
+DESKTOP_SKILLS = HOME / "Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin"
+SYNCED = "anthropic-skills:"
 HERE = Path(__file__).resolve().parent
 
 
@@ -175,10 +178,16 @@ def scan_user():
     user_dirs = [d for d in sorted((CLAUDE / "skills").iterdir()) if d.name != "synced"] \
         if (CLAUDE / "skills").is_dir() else []
     items += scan_skills(user_dirs, "", "user")
-    items += scan_skills(sorted((CLAUDE / "skills/synced").glob("*")), "anthropic-skills:", "claude.ai (synced)")
+    cfg = load_json(HOME / ".claude.json", {}) or {}
+    # The CLI syncs claude.ai skills into skills/synced/<org>_<account>/ and trashes them on an
+    # account switch; Claude Desktop syncs the signed-in account's set into its own plugin dir
+    acct = cfg.get("oauthAccount") or {}
+    synced = sorted((CLAUDE / "skills/synced").glob("*"))
+    if acct.get("organizationUuid") and acct.get("accountUuid"):
+        synced.append(DESKTOP_SKILLS / acct["organizationUuid"] / acct["accountUuid"] / "skills")
+    items += scan_skills(synced, SYNCED, "claude.ai (synced)")
     items += scan_md([CLAUDE / "commands"], "", "user", "command")
     items += scan_md([CLAUDE / "agents"], "", "user", "agent")
-    cfg = load_json(HOME / ".claude.json", {}) or {}
     items += mcp_entries(cfg.get("mcpServers"), "user", "user")
     for proj, pc in (cfg.get("projects") or {}).items():
         for e in mcp_entries(pc.get("mcpServers"), "project", "project"):
@@ -232,12 +241,16 @@ def lint(items, by_name, cur):
     problems = []
     sources = {i["source"] for i in items}
     mcp_curated = set(cur.get("mcp", {}))
+    unsynced = set()
     for g in cur.get("group", []):
         for n in g.get("items", []) + as_list(g.get("pick")):
             if n in by_name:
                 continue
-            # A curated MCP server is registered per machine: reported below, never fatal
-            if n not in mcp_curated:
+            # A curated MCP server is registered per machine, and a claude.ai skill is synced per
+            # account: both reported below, never fatal
+            if n.startswith(SYNCED):
+                unsynced.add(n)
+            elif n not in mcp_curated:
                 problems.append(f"group '{g['title']}' names unknown item: {n}")
         for pl in g.get("plugins", []):
             if pl not in sources:
@@ -247,8 +260,14 @@ def lint(items, by_name, cur):
             problems.append(f"curated internal entry for unknown item: {n}")
     for n in list(cur.get("notes", {})) + list(cur.get("retire", {})) \
             + list(cur.get("duplicates", {})) + list(cur.get("duplicates", {}).values()):
-        if n not in by_name:
+        if n in by_name:
+            continue
+        if n.startswith(SYNCED):
+            unsynced.add(n)
+        else:
             problems.append(f"curated entry for unknown item: {n}")
+    if unsynced:
+        problems.append("claude.ai skills not synced to this account: " + ", ".join(sorted(unsynced)))
     # MCP registration is per machine (an app that isn't installed, a project
     # that isn't cloned), so a curated server missing here is a note, not an error
     for n in cur.get("mcp", {}):

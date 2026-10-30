@@ -6,7 +6,7 @@
 
 - Rebuild after installing, updating or removing plugins or skills: `claude-catalog` (`upup` does it too).
 - `claude-catalog --open` rebuilds and opens `catalog.html`.
-- The hand-written half lives in `agents/catalog/curated.toml`: task groups, the recommended pick per group, notes, and keep or retire decisions per plugin. The build exits 1 when that file names something that is not installed, except an MCP server, which only warns because MCP registration is per machine.
+- The hand-written half lives in `agents/catalog/curated.toml`: task groups, the recommended pick per group, notes, and keep or retire decisions per plugin. The build exits 1 when that file names something that is not installed, except an MCP server (registration is per machine) or an `anthropic-skills:*` skill (synced per claude.ai account), which only warn.
 - A global rule, `tilde/.claude/rules/catalog.md`, tells Claude to consult the catalog when choosing a tool.
 
 ## Commands
@@ -22,7 +22,7 @@
 The generator, `agents/catalog/build_catalog.py`, scans:
 
 - installed plugins from `~/.claude/plugins/installed_plugins.json`, their manifests and the marketplace entries, collecting skills, commands, agents and MCP servers per plugin, with the enabled flag from `settings.json`;
-- user skills, commands and agents under `~/.claude`, synced claude.ai skills, and user- and project-scope MCP servers from `~/.claude.json`;
+- user skills, commands and agents under `~/.claude`, the claude.ai skills synced for the signed-in account (`~/.claude/skills/synced/`, and Claude Desktop's copy under `~/Library/Application Support/Claude/local-agent-mode-sessions/skills-plugin/<org>/<account>/`), and user- and project-scope MCP servers from `~/.claude.json`;
 - usage counters Claude Code keeps in `~/.claude.json` (`pluginUsage`, `skillUsage`), undocumented keys that only lower confidence when they vanish;
 - each plugin's always-on context cost from `claude plugin details`, cached per version in the output folder, with an estimate for components `details` does not count.
 
