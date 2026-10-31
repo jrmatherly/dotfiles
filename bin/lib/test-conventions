@@ -101,7 +101,7 @@ rules() {
       || fail "$file $list: $r should be $want"
   done
 }
-rules agents/claude-settings.json allow absent 'Bash(curl:*)' 'Bash(gh api:*)' 'WebFetch'
+rules agents/claude-settings.json allow absent 'Bash(curl:*)' 'Bash(gh api:*)' 'WebFetch' 'Bash(gh issue:*)' 'Bash(git remote *)'
 rules agents/claude-settings.json deny present 'Read(~/.ssh/**)' 'Read(~/.aws/**)' 'Read(~/.config/gh/hosts.yml)' \
   'Read(**/.env)' 'Read(**/.env.*)' 'Bash(git add -f*)' 'Bash(git add --force*)'
 # a single leading / anchors at the project root in project settings

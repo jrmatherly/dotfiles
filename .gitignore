@@ -38,6 +38,10 @@ obsidian/**/workspace-mobile.json
 # Claude Code auto-memory
 .claude/auto-memory/dirty-files*
 
+# Claude Code worktrees: Prettier reads this file but not .git/info/exclude, so
+# without this line a worktree's unformatted work fails the main checkout's gate
+.claude/worktrees/
+
 # Archify runs: a new timestamped folder per diagram, with a ~770 KB HTML and
 # receipts holding absolute local paths. Commit exported images, not this.
 .archify/
