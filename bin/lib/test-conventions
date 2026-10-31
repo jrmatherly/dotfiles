@@ -13,8 +13,9 @@
 # temp pages, refuses a directory and keeps docs/gui when run through a symlink,
 # that every third-party Brewfile formula or cask is trusted, and that git keeps
 # its default file protocol policy and curl its own user agent and no referer,
-# and that the tracked Claude Code permissions ask before curl and gh api and
-# deny credential paths, git add -f and VS Code's private state.
+# that the tracked Claude Code permissions ask before curl and gh api and
+# deny credential paths, git add -f and VS Code's private state, that no allow
+# rule is also retired, and that the instruction files stay under their caps.
 #
 # License: MIT
 
@@ -104,6 +105,9 @@ rules() {
 rules agents/claude-settings.json allow absent 'Bash(curl:*)' 'Bash(gh api:*)' 'WebFetch' 'Bash(gh issue:*)' 'Bash(git remote *)'
 rules agents/claude-settings.json deny present 'Read(~/.ssh/**)' 'Read(~/.aws/**)' 'Read(~/.config/gh/hosts.yml)' \
   'Read(**/.env)' 'Read(**/.env.*)' 'Bash(git add -f*)' 'Bash(git add --force*)'
+# restore and save would silently drop it
+both=$(grep -v '^#' agents/claude-permissions-retired.txt | jq -Rnc --slurpfile s agents/claude-settings.json '[inputs] as $r | $s[0].permissions.allow | map(select(IN($r[])))')
+[ "$both" = '[]' ] || fail "agents/claude-settings.json allows retired rules: $both"
 # a single leading / anchors at the project root in project settings
 rules .claude/settings.json deny present 'Read(/vscode/User/History/**)' 'Read(/vscode/User/workspaceStorage/**)' \
   'Read(/vscode/User/globalStorage/**)'
@@ -129,6 +133,6 @@ size_limit 12000 CLAUDE.md
 size_limit 8000 bin/CLAUDE.md
 size_limit 6000 .claude/rules/*.md tilde/.claude/rules/*.md .claude/agents/*.md .claude/skills/*/SKILL.md
 long=$(awk -v max=1000 'length($0) > max { print FILENAME ":" FNR " (" length($0) ")" }' CLAUDE.md bin/CLAUDE.md .claude/rules/*.md tilde/.claude/rules/*.md)
-[ -z "$long" ] || fail "instruction lines over 1000 characters: $long"
+[ -z "$long" ] || fail "instruction lines over 1000 bytes: $long"
 
 echo "conventions: all checks passed"

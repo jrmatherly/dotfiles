@@ -666,7 +666,17 @@ if command -v claude > /dev/null; then
     status changed "Claude settings" "dropped retired permission rules"
   fi
   agents_before=$(agents_state || true)
-  if ! capture claude-config save; then
+  # save writes this Mac over the tracked files, which would erase what a pull
+  # just added and ask to commit that. shortcut: a live rule with an absolute
+  # $HOME path also reads as pending until a restore adds its ~ form
+  capture claude-config restore plugins --dry-run || true
+  pending=$out
+  capture claude-config restore settings --dry-run || true
+  pending+=$out
+  if [ -n "$pending" ]; then
+    status notice "Claude config" "the repo has plugins or settings this Mac lacks, so nothing was saved"
+    actions+=("Take the tracked Claude config (review with --dry-run): claude-config restore; or drop it from the repo: claude-config save")
+  elif ! capture claude-config save; then
     status fail "Claude config" "claude-config save failed; the tracked lists were left as they were; run: claude-config save"
     show
   elif [ "$(agents_state || true)" != "$agents_before" ]; then

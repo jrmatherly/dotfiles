@@ -2,6 +2,7 @@
 paths:
   - '.claude/**'
   - 'tilde/.claude/**'
+  - 'agents/claude-settings.json'
 ---
 
 # Claude Code config in this repo

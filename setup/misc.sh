@@ -515,8 +515,8 @@ fi
 # Last, after the npm settings above (min-release-age, allow-git none) so the
 # skills restore's npx runs with them: Claude Code's plugins, base settings and
 # user skills from agents/claude-*
-# (`claude-config save` refreshes them; restore only adds what's missing and
-# never overwrites settings already here), then the catalog of everything
+# (`claude-config save` refreshes them; restore adds what's missing, drops
+# retired allow rules and never overwrites other settings), then the catalog of everything
 # installed (~/.claude/catalog). claude may not be on PATH yet on a fresh Mac,
 # so put its directory first for both.
 if [ -x "$claude_bin" ]; then

@@ -131,7 +131,7 @@ valid_json() {
 }
 
 save_plugins() {
-  local f disabled=""
+  local f disabled="" marketplaces plugins known="$config/plugins/known_marketplaces.json"
   # Without the marketplaces the list loses those lines, without settings its disabled flags
   for f in "$config/plugins/installed_plugins.json" "$config/plugins/known_marketplaces.json" "$settings"; do
     missing_source "$f" "$plugins_list" && return 0
@@ -140,17 +140,26 @@ save_plugins() {
     valid_json "$f" "$plugins_list" || return 0
   done
   disabled=$(jq -r '(.enabledPlugins // {}) | to_entries[] | select(.value == false) | .key' "$settings")
+  # Read before the braces, where set -e is off: valid JSON in a changed format
+  # fails here, or yields fewer lines, instead of saving a shorter list
+  marketplaces=$(known_marketplaces | sort)
+  plugins=$(installed_plugins | sort)
+  if [ "$(grep -c . <<< "$marketplaces" || true)" != "$(jq length "$known")" ]; then
+    echo "claude-config: $(tildify "$known") has a marketplace source this script can't read, kept $(tildify "$plugins_list")" >&2
+    return 1
+  fi
   {
     echo "# Claude Code marketplaces and user-scope plugins — see bin/claude-config."
     echo "# \"disabled\" = installed but turned off."
-    known_marketplaces | sort | sed 's/^/marketplace /'
-    installed_plugins | sort | while read -r id; do
+    sed -n 's/^./marketplace &/p' <<< "$marketplaces"
+    while read -r id; do
+      [ -n "$id" ] || continue
       if grep -qxF "$id" <<< "$disabled"; then
         echo "plugin $id disabled"
       else
         echo "plugin $id"
       fi
-    done
+    done <<< "$plugins"
   } > "$plugins_list.tmp" && mv "$plugins_list.tmp" "$plugins_list"
 }
 
@@ -186,7 +195,12 @@ restore_plugins() {
 #
 
 retired_rules() {
-  { grep -Ev '^[[:space:]]*(#|$)' "$retired_list" 2> /dev/null || true; } | jq -Rn '[inputs]'
+  { sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' "$retired_list" 2> /dev/null | grep -Ev '^(#|$)' || true; } | jq -Rn '[inputs]'
+}
+
+# Through the file, not over it: keeps its mode (it can hold keys) and a symlink
+write_settings() {
+  printf '%s\n' "$1" > "$settings.tmp" && cat "$settings.tmp" > "$settings" && rm -f "$settings.tmp"
 }
 
 save_settings() {
@@ -223,7 +237,7 @@ restore_settings() {
     return
   fi
   mkdir -p "$config"
-  printf '%s\n' "$merged" > "$settings.tmp" && mv "$settings.tmp" "$settings"
+  write_settings "$merged"
 }
 
 # Only ever removes: new rules wait for a restore you run yourself, so a pull
@@ -234,7 +248,7 @@ retire_settings() {
   local trimmed
   trimmed=$(jq --argjson retired "$(retired_rules)" 'if .permissions.allow then .permissions.allow -= $retired else . end' "$settings")
   [ "$(jq -S . <<< "$trimmed")" = "$(jq -S . "$settings")" ] && return 0
-  printf '%s\n' "$trimmed" > "$settings.tmp" && mv "$settings.tmp" "$settings"
+  write_settings "$trimmed"
 }
 
 #

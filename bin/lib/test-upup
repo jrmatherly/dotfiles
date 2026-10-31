@@ -106,8 +106,10 @@ esac'
 stub claude-config 'echo "$*" >> "$STATE/claude-config.log"
 case $1 in
   save) [ -e "$STATE/config" ] && echo "# saved" >> "$DOTFILES/agents/claude-skills.txt" ;;
-  retire) [ -e "$STATE/settings" ] && echo "{}" > "$CLAUDE_CONFIG_DIR/settings.json" ;;
-  restore) if [ -e "$STATE/skills" ]; then printf "skill changed one\nskill same two\n"; else printf "skill same one\nskill unknown two\n"; fi ;;
+  retire) [ -e "$STATE/retire-fails" ] && exit 1
+    [ -e "$STATE/settings" ] && echo "{}" > "$CLAUDE_CONFIG_DIR/settings.json" ;;
+  restore) case "$*" in *--dry-run*) [ -e "$STATE/config-pending" ] && [ "$2" = settings ] && echo "merge tracked"; exit 0 ;; esac
+    if [ -e "$STATE/skills" ]; then printf "skill changed one\nskill same two\n"; else printf "skill same one\nskill unknown two\n"; fi ;;
 esac
 exit 0'
 stub rea 'case $1 in
@@ -150,7 +152,7 @@ check_true() {
 }
 has() { grep -Eq -- "$1" <<< "$screen"; }
 lacks() { ! has "$1"; }
-lacks_settings_restore() { ! grep -q 'restore settings' "$STATE/claude-config.log"; }
+lacks_settings_restore() { ! grep -v -- --dry-run "$STATE/claude-config.log" | grep -q 'restore settings'; }
 log_lacks() { ! grep -q -- "$1" "$DOTFILES"/logs/upup-*.log; }
 run() {
   local rc=0
@@ -208,7 +210,7 @@ check_true "changes: skills that changed upstream named" has '^↻ agent skills 
 check_true "changes: Hindsight hooks change seen" has '^↻ Hindsight memory +hooks or runtime updated$'
 [ ! -x /Applications/SnippetsLab.app/Contents/Helpers/lab ] || check_true "changes: SnippetsLab change seen" has '^↻ SnippetsLab skill +updated from SnippetsLab$'
 check_true "changes: no upgrading line off a terminal" lacks 'upgrading'
-check_true "changes: a merged settings file is reported" has '^↻ Claude settings +dropped retired permission rules$'
+check_true "changes: dropped retired rules are reported" has '^↻ Claude settings +dropped retired permission rules$'
 check_true "changes: a further edit to dirty config is a change" has '^↻ Claude config +tracked Claude config changed$'
 check_true "changes: dotfiles pulled" has '^↻ dotfiles +pulled 1 commit$'
 check_true "changes: brew upgrade noise stays off screen" lacks '^==> Upgrading gh$'
@@ -369,6 +371,23 @@ run
 check_true "plugins blocked by policy: one notice, no fail line" has "^● plugins +2 plugins skipped: marketplace blocked by your organization's policy\$"
 check_true "plugins blocked by policy: not a failure" lacks '^✖ plugins'
 rm -f "$STATE/plugin-blocked"
+
+rm -rf "$DOTFILES/logs" "$STATE/claude-config.log"
+touch "$STATE/retire-fails"
+run
+check_true "retire failure: its own fail line" has '^✖ Claude settings +run: claude-config retire$'
+check_true "retire failure: save still runs" grep -qx save "$STATE/claude-config.log"
+rm -f "$STATE/retire-fails"
+
+rm -rf "$DOTFILES/logs" "$STATE/claude-config.log"
+touch "$STATE/config-pending"
+run
+check_true "pending config: one notice" has '^● Claude config +the repo has plugins or settings this Mac lacks, so nothing was saved$'
+check_true "pending config: the choice is an action" has 'claude-config restore; or drop it from the repo: claude-config save'
+no_save() { ! grep -qx save "$STATE/claude-config.log"; }
+check_true "pending config: save would erase it, so it doesn't run" no_save
+check_true "pending config: upup still merges nothing" lacks_settings_restore
+rm -f "$STATE/config-pending"
 
 rm -rf "$DOTFILES/logs"
 rc=0

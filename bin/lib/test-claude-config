@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Self-check for claude-config save against fixture dirs.
+# Self-check for claude-config save, restore settings and retire against fixture dirs.
 #
 # - Run it (pnpm check does too); exits 1 when an assertion fails:
 #
@@ -130,12 +130,24 @@ check "retire removes a retired rule and adds nothing" "[ \"\$(allow '$CLAUDE_CO
 cksum "$CLAUDE_CONFIG_DIR/settings.json" > "$tmp/sum"
 cc retire > /dev/null 2>&1
 check "retire leaves a clean file alone" "[ \"\$(cksum '$CLAUDE_CONFIG_DIR/settings.json')\" = \"\$(cat '$tmp/sum')\" ]"
+printf ' Bash(old) \r\n' > "$CLAUDE_CONFIG_SAVE_DIR/claude-permissions-retired.txt"
+echo '{"permissions":{"allow":["Bash(local)","Bash(old)"]}}' > "$CLAUDE_CONFIG_DIR/settings.json"
+chmod 600 "$CLAUDE_CONFIG_DIR/settings.json"
+cc retire > /dev/null 2>&1
+check "retired rules are matched without their whitespace" "[ \"\$(allow '$CLAUDE_CONFIG_DIR/settings.json')\" = '[\"Bash(local)\"]' ]"
+check "retire keeps the settings file's mode" "[ \"\$(stat -f %Lp '$CLAUDE_CONFIG_DIR/settings.json')\" = 600 ]"
 echo '{"env": {' > "$CLAUDE_CONFIG_DIR/settings.json"
 check "retire refuses corrupt settings" "! cc retire > /dev/null 2>&1 && [ \"\$(cat '$CLAUDE_CONFIG_DIR/settings.json')\" = '{\"env\": {' ]"
 echo '{"permissions":{"allow":["Bash(local)"]}}' > "$CLAUDE_CONFIG_DIR/settings.json"
 rm "$CLAUDE_CONFIG_SAVE_DIR/claude-permissions-retired.txt"
 cc save settings > /dev/null 2>&1
 check "no retired list keeps the rules" "jq -e '.permissions.allow | index(\"Bash(local)\")' '$base' > /dev/null"
+
+cp "$list" "$tmp/list.before"
+for shape in '{"m":{"source":"x"}}' '{"m":"x"}' '{"m":{"source":{"source":"new"}}}'; do
+  echo "$shape" > "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json"
+  check "marketplaces shaped $shape fail and keep the list" "! cc save > /dev/null 2>&1 && cmp -s '$list' '$tmp/list.before'"
+done
 
 [ "$fails" -eq 0 ] || {
   echo "$fails failed" >&2
