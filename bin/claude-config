@@ -81,7 +81,7 @@ update=false
 failed=0
 # A jq that fails mid-write leaves its .tmp behind in the repo
 tree_cache=""
-trap 'rm -f "$save_dir"/*.tmp; [ -z "$tree_cache" ] || rm -rf "$tree_cache"' EXIT
+trap 'rm -f "$save_dir"/*.tmp "$settings.tmp"; [ -z "$tree_cache" ] || rm -rf "$tree_cache"' EXIT
 
 run() {
   if [ "$dry_run" = true ]; then
@@ -200,7 +200,10 @@ retired_rules() {
 
 # Through the file, not over it: keeps its mode (it can hold keys) and a symlink
 write_settings() {
-  printf '%s\n' "$1" > "$settings.tmp" && cat "$settings.tmp" > "$settings" && rm -f "$settings.tmp"
+  (
+    umask 077
+    printf '%s\n' "$1" > "$settings.tmp"
+  ) && cat "$settings.tmp" > "$settings"
 }
 
 save_settings() {
