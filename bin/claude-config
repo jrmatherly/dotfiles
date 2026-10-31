@@ -14,6 +14,10 @@
 #
 # `claude-config restore {{plugins|settings|skills}} --dry-run`
 #
+# - Drop retired allow rules from this machine's settings and change nothing else (`upup` runs this):
+#
+# `claude-config retire`
+#
 # - Reinstall each tracked skill whose GitHub folder or well-known site digest changed since install, and any it can't check, for its listed agents (`upup` runs this):
 #
 # `claude-config restore skills --update`
@@ -26,7 +30,7 @@
 #                        restore merges it in: values already on the machine
 #                        win, permission lists are unioned
 #   claude-permissions-retired.txt
-#                        allow rules that save and restore both drop, because
+#                        allow rules that save, restore and retire drop, because
 #                        the union alone would keep them on every other Mac
 #   claude-skills.txt    user skills installed with the `skills` CLI, and for
 #                        which agents (claude-code → ~/.claude/skills,
@@ -222,6 +226,17 @@ restore_settings() {
   printf '%s\n' "$merged" > "$settings.tmp" && mv "$settings.tmp" "$settings"
 }
 
+# Only ever removes: new rules wait for a restore you run yourself, so a pull
+# can't grant anything and a rule revoked here stays revoked
+retire_settings() {
+  [ -s "$settings" ] || return 0
+  valid_json "$settings" "$settings" || return 1
+  local trimmed
+  trimmed=$(jq --argjson retired "$(retired_rules)" 'if .permissions.allow then .permissions.allow -= $retired else . end' "$settings")
+  [ "$(jq -S . <<< "$trimmed")" = "$(jq -S . "$settings")" ] && return 0
+  printf '%s\n' "$trimmed" > "$settings.tmp" && mv "$settings.tmp" "$settings"
+}
+
 #
 # Skills
 #
@@ -351,8 +366,9 @@ case "${1:-}" in
     if [ "$part" = all ] || [ "$part" = skills ]; then restore_skills; fi
     exit "$failed"
     ;;
+  retire) retire_settings ;;
   *)
-    echo "Usage: claude-config save | restore [plugins|settings|skills] [--dry-run] [--update]" >&2
+    echo "Usage: claude-config save | retire | restore [plugins|settings|skills] [--dry-run] [--update]" >&2
     exit 2
     ;;
 esac

@@ -1,4 +1,4 @@
-# Allow rules that claude-config save and restore both drop, one per line: the
+# Allow rules that claude-config save, restore and retire drop, one per line: the
 # union in restore would otherwise keep a removed rule on every other Mac. Only
 # permissions.allow is affected. To allow one again, delete its line here.
 Bash(gh issue:*)

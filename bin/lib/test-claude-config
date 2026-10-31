@@ -123,6 +123,16 @@ echo '{"permissions":{"allow":["Bash(new)","Bash(old)"]}}' > "$base"
 cc restore settings > /dev/null 2>&1
 check "restore drops a retired rule and keeps the rest" "[ \"\$(allow '$CLAUDE_CONFIG_DIR/settings.json')\" = '[\"Bash(local)\",\"Bash(new)\"]' ]"
 check "a retired rule stays in deny" "jq -e '.permissions.deny == [\"Bash(old)\"]' '$CLAUDE_CONFIG_DIR/settings.json' > /dev/null"
+echo '{"model":"m","permissions":{"allow":["Bash(local)","Bash(old)"]}}' > "$CLAUDE_CONFIG_DIR/settings.json"
+echo '{"theme":"t","permissions":{"allow":["Bash(new)"]}}' > "$base"
+cc retire > /dev/null 2>&1
+check "retire removes a retired rule and adds nothing" "[ \"\$(allow '$CLAUDE_CONFIG_DIR/settings.json')\" = '[\"Bash(local)\"]' ] && jq -e '.model == \"m\" and (has(\"theme\") | not)' '$CLAUDE_CONFIG_DIR/settings.json' > /dev/null"
+cksum "$CLAUDE_CONFIG_DIR/settings.json" > "$tmp/sum"
+cc retire > /dev/null 2>&1
+check "retire leaves a clean file alone" "[ \"\$(cksum '$CLAUDE_CONFIG_DIR/settings.json')\" = \"\$(cat '$tmp/sum')\" ]"
+echo '{"env": {' > "$CLAUDE_CONFIG_DIR/settings.json"
+check "retire refuses corrupt settings" "! cc retire > /dev/null 2>&1 && [ \"\$(cat '$CLAUDE_CONFIG_DIR/settings.json')\" = '{\"env\": {' ]"
+echo '{"permissions":{"allow":["Bash(local)"]}}' > "$CLAUDE_CONFIG_DIR/settings.json"
 rm "$CLAUDE_CONFIG_SAVE_DIR/claude-permissions-retired.txt"
 cc save settings > /dev/null 2>&1
 check "no retired list keeps the rules" "jq -e '.permissions.allow | index(\"Bash(local)\")' '$base' > /dev/null"
