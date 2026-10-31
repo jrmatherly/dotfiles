@@ -23,11 +23,11 @@ claude mcp add --scope user serena -- serena start-mcp-server --context claude-c
 
 `excluded_tools` (duplicates of native Claude Code tools — gone, use native instead): `read_file`→Read · `create_text_file`→Write · `execute_shell_command`→Bash · `search_for_pattern`/`find_file`/`list_dir`→Grep/Glob.
 
-**Kept:** symbolic tools (`find_symbol`, `get_symbols_overview`, `find_referencing_symbols`, the `*_symbol` editors) + memory tools (`read_memory`/`write_memory`/`list_memories`) + `get_current_config`. (`activate_project` is in the context's tool set but disabled at runtime because `--project-from-cwd` always supplies a project.) Symbolic tools only pay off where a language server exists (the context prompt forbids Read/Edit on code files in favor of them) — for LSP-less repos (Bicep/XML/JSON), navigate with native Grep/Glob/Read, edit with Edit.
+**Kept:** symbolic tools (`find_symbol`, `get_symbols_overview`, `find_referencing_symbols`, the `*_symbol` editors) + memory tools (`read_memory`/`write_memory`/`list_memories`). (`activate_project` is in the context's tool set but disabled at runtime because `--project-from-cwd` always supplies a project.) Symbolic tools only pay off where a language server exists (the context prompt forbids Read/Edit on code files in favor of them) — for LSP-less repos (Bicep/XML/JSON), navigate with native Grep/Glob/Read, edit with Edit.
 
 ## `--project-from-cwd` is ON (since 2026-09-03; matches the Serena docs' Claude Code recipe)
 
-The flag auto-activates the nearest ancestor with `.serena/project.yml` or `.git` at launch, so one user-scope registration serves every repo on this machine. Because the `claude-code` context sets `single_project: true`, **`activate_project` is disabled whenever a project is supplied at startup** — so no skill or workflow may call it. The ai-hub-gateway `/session-primer` was edited accordingly (it now only reads memories; the explicit activation call was removed). It also removes the race where memory reads issued alongside an explicit `activate_project` failed with "No active project". If a skill ever needs `activate_project` again, the trade is one-for-one: drop the flag from the registration AND restore the explicit call.
+The flag auto-activates the nearest ancestor with `.serena/project.yml` or `.git` at launch, so one user-scope registration serves every repo on this machine. Because the `claude-code` context sets `single_project: true`, **`activate_project` is disabled whenever a project is supplied at startup** — so no skill or workflow may call it. It also removes the race where memory reads issued alongside an explicit `activate_project` failed with "No active project". If a skill ever needs `activate_project` again, the trade is one-for-one: drop the flag from the registration AND restore the explicit call.
 
 ## Hooks (`serena-hooks`) are deliberately NOT installed
 
@@ -41,4 +41,4 @@ If one ever needs it, add that repo's **exact absolute root** (e.g. `/Users/you/
 
 ## Verify after any change
 
-`claude mcp get serena` → Args `start-mcp-server --context claude-code --project-from-cwd`, **Connected**. In session: `get_current_config` → context `claude-code`, project active, the excluded tools absent. Changes take effect on next Claude Code restart (MCP + plugin enable/disable load at startup).
+`claude mcp get serena` → Args `start-mcp-server --context claude-code --project-from-cwd`, **Connected**. In session: the excluded tools are absent from the tool list. Changes take effect on next Claude Code restart (MCP + plugin enable/disable load at startup).

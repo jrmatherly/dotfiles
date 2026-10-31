@@ -178,6 +178,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `palette` | Show the terminal's color palette (256 colors) and text effects |
 | `serve` `serve {{port}}` | Serve the current directory over HTTP (default port `8080`) |
 | `check-port {{port}}` `clear-port {{port}}` | Show / kill the process using a port |
+| `lint-dups {{file}}` `lint-passive-voice {{file}}` `lint-weasel-words {{file}}` | Find duplicate words, passive voice or weasel words in prose |
 | `optimize-image` `optimize-image {{file}}` | Convert images to WebP/AVIF and keep the smallest result |
 | `ocr {{file}}` | Extract text from images with Apple’s text recognition |
 | `license` | Print the MIT license |

@@ -8,6 +8,9 @@ paths:
 
 - A closed stdin (non-interactive run) must mean "skip", never abort or overwrite.
 - `brew.sh` runs first; later scripts may use Homebrew tools but must guard with `command_exists` for `--skip-brew` on a fresh Mac.
+- `setup.sh` only installs what's missing and doesn't upgrade, except PowerShell (`dotnet tool update`), the dependencies `brew bundle` upgrades on its own, and the Iosevka font (reinstalled when the upstream zip changes).
+- Order constraints in `misc.sh`: `claude-config restore` and the catalog run last so `npx skills` runs with the npm settings (`min-release-age`, `allow-git none`). After mise tools it links `<mise data dir>/node_modules/typescript` to the global `npm:typescript`, so Terax's `typescript-language-server` finds TypeScript outside projects (`upup` relinks it). `chmod +x` skips `*.md` so `bin/CLAUDE.md` stays non-executable.
+- `aspire certs trust` has no y/N prompt and macOS may ask for the password, so it is skipped when already trusted and only a hint when non-interactive.
 - Every behavior change updates `setup/README.md` (and `README.md` for flags) in the same commit.
 - `--skip-codegraph` must leave an existing CodeGraph install untouched, including its mise shim (a `mise reshim` while `MISE_DISABLE_TOOLS` is set deletes it).
 - Fresh-install paths (no Homebrew, no 1Password, no `node_modules`) can't be verified on this machine — say so when a change touches them.

@@ -114,4 +114,21 @@ for s in upup set-defaults; do
     "Bash(bash bin/$s*)" "Bash(sh bin/$s*)"
 done
 
+# Instruction files load into agent context, and each change used to append to
+# them (bin/CLAUDE.md grew 8.6 KB in four days). A long catch-all line is what
+# invites that, so cap both: past a limit, delete restated text or scope a rule
+size_limit() {
+  local max=$1 file bytes
+  shift
+  for file in "$@"; do
+    bytes=$(wc -c < "$file" | tr -d ' ')
+    [ "$bytes" -le "$max" ] || fail "$file is $bytes bytes, over $max: trim it or move it to a path-scoped rule"
+  done
+}
+size_limit 12000 CLAUDE.md
+size_limit 8000 bin/CLAUDE.md
+size_limit 6000 .claude/rules/*.md tilde/.claude/rules/*.md .claude/agents/*.md .claude/skills/*/SKILL.md
+long=$(awk -v max=1000 'length($0) > max { print FILENAME ":" FNR " (" length($0) ")" }' CLAUDE.md bin/CLAUDE.md .claude/rules/*.md tilde/.claude/rules/*.md)
+[ -z "$long" ] || fail "instruction lines over 1000 characters: $long"
+
 echo "conventions: all checks passed"
