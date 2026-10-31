@@ -103,9 +103,11 @@ stub claude 'case "$1 $2" in
   "update ") [ -e "$STATE/claude-fails" ] && { echo "Error: update failed"; exit 1; }
     [ -e "$STATE/claude" ] && touch "$STATE/claude-done"; echo "Checking for updates to latest version..." ;;
 esac'
-stub claude-config 'case $1 in
+stub claude-config 'echo "$*" >> "$STATE/claude-config.log"
+case $1 in
   save) [ -e "$STATE/config" ] && echo "# saved" >> "$DOTFILES/agents/claude-skills.txt" ;;
-  restore) if [ -e "$STATE/skills" ]; then printf "skill changed one\nskill same two\n"; else printf "skill same one\nskill unknown two\n"; fi ;;
+  restore) [ "$2" = settings ] && [ -e "$STATE/settings" ] && echo "{}" > "$CLAUDE_CONFIG_DIR/settings.json"
+    if [ -e "$STATE/skills" ]; then printf "skill changed one\nskill same two\n"; else printf "skill same one\nskill unknown two\n"; fi ;;
 esac
 exit 0'
 stub rea 'case $1 in
@@ -163,6 +165,10 @@ check_true "up to date: healthy brew doctor gets a line" has '^✔ brew doctor +
 check_true "up to date: an installed Scrapling browser gets a line" has '^✔ Scrapling +browser up to date$'
 check_true "up to date: a connected mise MCP server gets a line" has '^✔ mise MCP +connected$'
 check_true "up to date: config left dirty before the run is unchanged" has '^✔ Claude config +unchanged$'
+restore_then_save() { [ "$(grep -E 'restore settings|^save' "$STATE/claude-config.log" | tr '\n' ,)" = 'restore settings,save,' ]; }
+check_true "settings restore runs before save" restore_then_save
+no_settings_line() { ! has 'Claude settings'; }
+check_true "up to date: no settings line when nothing merged" no_settings_line
 check_true "up to date: plugins counted" has '^✔ plugins +2 plugins up to date$'
 check_true "up to date: Claude Code version" has '^✔ Claude Code +2\.1\.310 up to date$'
 check_true "up to date: skills checked, the uncheckable one named" has '^✔ agent skills +1 unchanged, reinstalled without a check: two$'
@@ -188,7 +194,7 @@ check_true "up to date: every step has a status line${silent_steps:+ (silent: $s
 rm -rf "$DOTFILES/logs"
 mkdir -p "$STATE/installs/node/24.0.0" "$STATE/installs/aspire/13.6.0"
 head -c 2048 /dev/zero > "$STATE/installs/node/24.0.0/bin"
-touch "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/prune" "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea" "$STATE/brew-doctor"
+touch "$STATE/settings" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/prune" "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea" "$STATE/brew-doctor"
 mkdir -p "$CLAUDE_CONFIG_DIR/skills"
 ln -s /nonexistent "$CLAUDE_CONFIG_DIR/skills/reverse-engineer-anything"
 run
@@ -201,6 +207,7 @@ check_true "changes: skills that changed upstream named" has '^↻ agent skills 
 check_true "changes: Hindsight hooks change seen" has '^↻ Hindsight memory +hooks or runtime updated$'
 [ ! -x /Applications/SnippetsLab.app/Contents/Helpers/lab ] || check_true "changes: SnippetsLab change seen" has '^↻ SnippetsLab skill +updated from SnippetsLab$'
 check_true "changes: no upgrading line off a terminal" lacks 'upgrading'
+check_true "changes: a merged settings file is reported" has '^↻ Claude settings +merged the tracked settings$'
 check_true "changes: a further edit to dirty config is a change" has '^↻ Claude config +tracked Claude config changed$'
 check_true "changes: dotfiles pulled" has '^↻ dotfiles +pulled 1 commit$'
 check_true "changes: brew upgrade noise stays off screen" lacks '^==> Upgrading gh$'

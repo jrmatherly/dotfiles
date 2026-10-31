@@ -46,6 +46,8 @@ check() {
 }
 cc() { "$TEST_CLAUDE_CONFIG_BASH" "$script" "$@"; }
 
+echo '{}' > "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json"
+echo '{}' > "$CLAUDE_CONFIG_DIR/settings.json"
 echo '{"plugins": {' > "$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
 cc save plugins > /dev/null 2> "$tmp/err"
 check "corrupt registry keeps the list" "[ \"\$(grep -c '^plugin ' '$list')\" = 2 ]"
@@ -60,6 +62,12 @@ check "valid registry saves its plugins" "grep -qx 'plugin y@a disabled' '$list'
 check "token never saved" "! grep -q OAUTH_TOKEN '$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json'"
 check "token counts kept" "grep -q MAX_THINKING_TOKENS '$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json'"
 check "cert store kept" "grep -q CERT_STORE '$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json'"
+
+cp "$list" "$tmp/list.before"
+rm "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json"
+cc save plugins > /dev/null 2> "$tmp/err"
+check "missing marketplaces keeps the list" "cmp -s '$tmp/list.before' '$list' && grep -q 'known_marketplaces.json not found' '$tmp/err'"
+echo '{}' > "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json"
 
 cp "$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json" "$tmp/settings.before"
 echo '{"env": {' > "$CLAUDE_CONFIG_DIR/settings.json"
@@ -104,6 +112,20 @@ check "a source it can't check is reinstalled" "grep -qx 'skill unknown f' '$tmp
 check "a skill at the repository root compares the root tree" "grep -qx 'skill same d' '$tmp/out'"
 check "one gh call per repository" "[ \"\$(wc -l < '$TEST_LOG.gh' | tr -d ' ')\" = 1 ]"
 check "the tree cache is removed" "! ls -d \"\${TMPDIR:-/tmp}\"/tmp.* 2> /dev/null | xargs -I{} test -e '{}/o_r'"
+
+base="$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json"
+allow() { jq -c '.permissions.allow' "$1"; }
+printf '# why\n\nBash(old)\n' > "$CLAUDE_CONFIG_SAVE_DIR/claude-permissions-retired.txt"
+echo '{"permissions":{"allow":["Bash(local)","Bash(old)"],"deny":["Bash(old)"]}}' > "$CLAUDE_CONFIG_DIR/settings.json"
+cc save settings > /dev/null 2>&1
+check "save drops a retired rule" "[ \"\$(allow '$base')\" = '[\"Bash(local)\"]' ]"
+echo '{"permissions":{"allow":["Bash(new)","Bash(old)"]}}' > "$base"
+cc restore settings > /dev/null 2>&1
+check "restore drops a retired rule and keeps the rest" "[ \"\$(allow '$CLAUDE_CONFIG_DIR/settings.json')\" = '[\"Bash(local)\",\"Bash(new)\"]' ]"
+check "a retired rule stays in deny" "jq -e '.permissions.deny == [\"Bash(old)\"]' '$CLAUDE_CONFIG_DIR/settings.json' > /dev/null"
+rm "$CLAUDE_CONFIG_SAVE_DIR/claude-permissions-retired.txt"
+cc save settings > /dev/null 2>&1
+check "no retired list keeps the rules" "jq -e '.permissions.allow | index(\"Bash(local)\")' '$base' > /dev/null"
 
 [ "$fails" -eq 0 ] || {
   echo "$fails failed" >&2

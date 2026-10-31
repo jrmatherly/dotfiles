@@ -25,6 +25,9 @@
 #                        (enabledPlugins, extraKnownMarketplaces, hooks);
 #                        restore merges it in: values already on the machine
 #                        win, permission lists are unioned
+#   claude-permissions-retired.txt
+#                        allow rules that save and restore both drop, because
+#                        the union alone would keep them on every other Mac
 #   claude-skills.txt    user skills installed with the `skills` CLI, and for
 #                        which agents (claude-code → ~/.claude/skills,
 #                        codex → ~/.agents/skills)
@@ -41,6 +44,7 @@ config="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 plugins_list="$save_dir/claude-plugins.txt"
 settings_base="$save_dir/claude-settings.json"
 skills_list="$save_dir/claude-skills.txt"
+retired_list="$save_dir/claude-permissions-retired.txt"
 settings="$config/settings.json"
 skill_lock="$HOME/.agents/.skill-lock.json"
 # Never saved: keys other tools write (plugins are restored separately;
@@ -124,14 +128,14 @@ valid_json() {
 
 save_plugins() {
   local f disabled=""
-  missing_source "$config/plugins/installed_plugins.json" "$plugins_list" && return 0
+  # Without the marketplaces the list loses those lines, without settings its disabled flags
   for f in "$config/plugins/installed_plugins.json" "$config/plugins/known_marketplaces.json" "$settings"; do
-    [ -f "$f" ] || continue
+    missing_source "$f" "$plugins_list" && return 0
+  done
+  for f in "$config/plugins/installed_plugins.json" "$config/plugins/known_marketplaces.json" "$settings"; do
     valid_json "$f" "$plugins_list" || return 0
   done
-  if [ -f "$settings" ]; then
-    disabled=$(jq -r '(.enabledPlugins // {}) | to_entries[] | select(.value == false) | .key' "$settings")
-  fi
+  disabled=$(jq -r '(.enabledPlugins // {}) | to_entries[] | select(.value == false) | .key' "$settings")
   {
     echo "# Claude Code marketplaces and user-scope plugins — see bin/claude-config."
     echo "# \"disabled\" = installed but turned off."
@@ -177,11 +181,16 @@ restore_plugins() {
 # Settings
 #
 
+retired_rules() {
+  { grep -Ev '^[[:space:]]*(#|$)' "$retired_list" 2> /dev/null || true; } | jq -Rn '[inputs]'
+}
+
 save_settings() {
   missing_source "$settings" "$settings_base" && return 0
   valid_json "$settings" "$settings_base" || return 0
   # Sorted permission lists keep the diff stable
-  jq --arg home "$HOME" "$untilde $settings_filter"' | walk(if type == "string" then untilde($home) else . end)
+  jq --arg home "$HOME" --argjson retired "$(retired_rules)" "$untilde $settings_filter"' | walk(if type == "string" then untilde($home) else . end)
+    | if .permissions.allow then .permissions.allow -= $retired else . end
     | if .permissions then .permissions |= with_entries(if (.value | type) == "array" then .value |= sort else . end) else . end' \
     "$settings" > "$settings_base.tmp" && mv "$settings_base.tmp" "$settings_base"
 }
@@ -190,12 +199,13 @@ restore_settings() {
   local current='{}' merged same='walk(if type == "array" then sort else . end)'
   [ -s "$settings" ] && current=$(cat "$settings")
   # Base first, then what's already here wins; permission lists are unioned
-  if ! merged=$(jq -n --argjson base "$(cat "$settings_base")" --argjson cur "$current" '
+  if ! merged=$(jq -n --argjson base "$(cat "$settings_base")" --argjson cur "$current" --argjson retired "$(retired_rules)" '
     ($base * $cur)
     | reduce ("allow", "deny", "ask", "additionalDirectories") as $k (.;
         if ($base.permissions[$k] // $cur.permissions[$k]) then
           .permissions[$k] = (($base.permissions[$k] // []) + ($cur.permissions[$k] // []) | unique)
-        else . end)'); then
+        else . end)
+    | if .permissions.allow then .permissions.allow -= $retired else . end'); then
     echo "claude-config: couldn't merge $(tildify "$settings_base") into $(tildify "$settings") (invalid JSON?)" >&2
     failed=1
     return 0

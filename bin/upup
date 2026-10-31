@@ -655,6 +655,16 @@ if command -v claude > /dev/null; then
   # Compared before and after, so changes left uncommitted from an earlier run
   # don't count, while a further edit to an already-dirty file does
   agents_state() { git -C "$DOTFILES" status --porcelain agents/ && git -C "$DOTFILES" diff HEAD -- agents/; } 2> /dev/null
+  # The tracked rules first, so this Mac gains new ones and drops retired ones
+  # before save records its list; save alone would undo a pull's cleanup
+  live_settings="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+  settings_before=$(cksum "$live_settings" 2> /dev/null || true)
+  if ! capture claude-config restore settings; then
+    status fail "Claude settings" "run: claude-config restore settings"
+    show
+  elif [ "$(cksum "$live_settings" 2> /dev/null || true)" != "$settings_before" ]; then
+    status changed "Claude settings" "merged the tracked settings"
+  fi
   agents_before=$(agents_state || true)
   if ! capture claude-config save; then
     status fail "Claude config" "claude-config save failed; the tracked lists were left as they were; run: claude-config save"

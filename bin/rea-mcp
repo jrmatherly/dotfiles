@@ -42,7 +42,7 @@ if [ -d "$ghidra/libexec" ]; then
   fi
   if [ -n "${JAVA_HOME:-}" ] && [ ! -x "$JAVA_HOME/bin/java" ]; then
     warn "JAVA_HOME=$JAVA_HOME has no bin/java; leaving it unset"
-    JAVA_HOME=""
+    unset JAVA_HOME
   fi
   [ -n "${JAVA_HOME:-}" ] && export JAVA_HOME
 else
