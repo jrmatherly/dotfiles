@@ -1,0 +1,6 @@
+# Commands the Claude Code hook must not rewrite: permission rules match the
+# rewritten text, so `gh api x` as `rtk gh api x` skips every ask rule on it.
+# bin/lib/test-conventions checks this repo's rules (curl, gh); helm, just, kubectl
+# and sops are for ask rules in other repos' project settings
+[hooks]
+exclude_commands = ["curl", "gh", "helm", "just", "kubectl", "sops"]

@@ -399,6 +399,9 @@ install_extras() {
   # Lazydocker
   symlink_file "$DOTFILES_DIR/lazydocker/config.yml" "$HOME/Library/Application Support/lazydocker/config.yml"
 
+  # rtk: commands its Claude Code hook leaves alone, so ask rules still match them
+  symlink_file "$DOTFILES_DIR/rtk/config.toml" "$HOME/Library/Application Support/rtk/config.toml"
+
   install_mole_config
 
   # Lazygit: config lives in the repo and zsh/env.zsh points LG_CONFIG_FILE at

@@ -11,6 +11,6 @@ paths:
 
 - `tilde/.claude` is special-cased: `~/.claude/rules` stays a real directory and each tracked `tilde/.claude/rules/*.md` is symlinked into it individually, so machine-local rules can sit alongside (an older whole-directory link is migrated); top-level files in `tilde/.claude` (e.g. `statusline-command.sh`) are linked into `~/.claude` too.
 - `.codex` and `.ssh` are excluded and handled specially: only `.ssh/config` is linked. `tilde/README.md` itself is not linked.
-- Targets that don't mirror a `tilde/` path (VS Code `User`, lazydocker, gpg, Firefox's three files as hard links, `cot` and `code` in `/usr/local/bin`) need an explicit `symlink_file` call.
+- Targets that don't mirror a `tilde/` path (VS Code `User`, lazydocker, rtk, gpg, Firefox's three files as hard links, `cot` and `code` in `/usr/local/bin`) need an explicit `symlink_file` call.
 - So do Mole's two whitelists (`install_mole_config`): `mole/<name>` or, when present, the gitignored `mole/<name>.local` is linked as `~/.config/mole/<name>` (Mole writes other files in that folder), and a link to the other candidate is replaced without a prompt.
 - `symlink_file` never overwrites silently; it prompts skip/overwrite/backup.

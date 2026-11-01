@@ -15,7 +15,8 @@
 # its default file protocol policy and curl its own user agent and no referer,
 # that the tracked Claude Code permissions ask before curl and gh api and
 # deny credential paths, git add -f and VS Code's private state, that no allow
-# rule is also retired, and that the instruction files stay under their caps.
+# rule is also retired, that rtk's hook rewrites no command with a Bash ask rule,
+# and that the instruction files stay under their caps.
 #
 # License: MIT
 
@@ -117,6 +118,34 @@ for s in upup set-defaults; do
   rules .claude/settings.json ask present "Bash($s *)" "Bash(bin/$s*)" "Bash(./bin/$s*)" "Bash(*/bin/$s*)" \
     "Bash(bash bin/$s*)" "Bash(sh bin/$s*)"
 done
+
+# rtk's hook rewrites a command before Claude Code matches rules, so `curl x` as
+# `rtk curl x` skips `Bash(curl *)`. rtk leaves a deny match alone by itself, but
+# not an ask match. A scratch HOME tests the tracked config, not the live one.
+# Rules holding a path name scripts, not tools, and rules starting with * have no
+# command to probe, so neither is checked. rtk rewrites many tools only by
+# subcommand (`git status`, not `git x`), so a whole-tool rule gets several probes
+if command -v rtk > /dev/null; then
+  scratch=$(mktemp -d)
+  trap 'rm -rf "$scratch"' EXIT
+  mkdir -p "$scratch/Library/Application Support/rtk"
+  cp rtk/config.toml "$scratch/Library/Application Support/rtk/"
+  # With no rtk rewrite to compare against, every probe below would pass
+  [ -n "$(HOME="$scratch" rtk rewrite "git status" 2> /dev/null || true)" ] || fail "rtk rewrite no longer rewrites git status"
+  probed=0
+  while IFS= read -r command; do
+    probed=$((probed + 1))
+    args="x status list get ps test build push"
+    [[ $command != *" "* ]] || args=x
+    for arg in $args; do
+      rewritten=$(HOME="$scratch" rtk rewrite "$command $arg" 2> /dev/null || true)
+      [ -z "$rewritten" ] || fail "rtk rewrites '$command $arg' to '$rewritten', so its ask rule never matches: add the command to rtk/config.toml"
+    done
+  done < <(jq -r '.permissions.ask // [] | .[] | select(startswith("Bash(")) | .[5:-1] | split("*")[0] | rtrimstr(" ") | rtrimstr(":") | select(length > 0 and (contains("/") | not))' agents/claude-settings.json .claude/settings.json)
+  [ "$probed" -gt 0 ] || fail "no Bash ask rules found to probe against rtk"
+else
+  echo "test-conventions: rtk not found, skipping the rewrite check" >&2
+fi
 
 # Instruction files load into agent context, and each change used to append to
 # them (bin/CLAUDE.md grew 8.6 KB in four days). A long catch-all line is what
