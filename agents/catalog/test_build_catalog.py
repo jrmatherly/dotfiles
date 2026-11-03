@@ -76,6 +76,11 @@ assert data["signals"]["pydantic-ai@m"]["deps"] == ["pydantic[-_]ai"]
 assert b.catalog_data([], [], {})["signals"] == {}
 
 
+assert b.named("added", []) == ""
+assert b.named("removed", ["skill:p:one", "mcp:two"]) == "  removed: p:one, two"
+assert b.named("added", [f"skill:{i}" for i in range(10)], limit=2) == "  added: 0, 1, +8 more"
+
+
 def stack_cur(key, **sig):
     return {"stack": {"signals": {key: sig}}}
 

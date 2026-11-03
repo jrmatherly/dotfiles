@@ -19,6 +19,9 @@ DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 mkdir -p "$DOTFILES/logs"
 log="$DOTFILES/logs/upup-$(date +%Y%m%d-%H%M%S).log"
 changed=() notices=() failed=() actions=()
+# Not wherever upup was started: from a project, mise upgrade would also
+# upgrade what that project's mise.toml lists
+cd "$HOME"
 
 # Colors only on a terminal tput knows (with TERM unset it prints an error per call)
 # and only there a "… <step>" line shows while a step runs
@@ -90,7 +93,9 @@ step() {
 capture() {
   local rc
   out=$("$@" 2>&1) && rc=0 || rc=$?
-  [ -z "$out" ] || printf '%s\n' "$out" >> "$log"
+  # A byte that isn't UTF-8 would abort the sed and awk parsers reading $out
+  out=$(iconv -c -f UTF-8 -t UTF-8 <<< "$out" 2> /dev/null || true)
+  [ -z "$out" ] || printf '%s\n' "$out" | log_clean >> "$log"
   return "$rc"
 }
 
@@ -100,11 +105,25 @@ show() {
   [ -z "$out" ] || sed 's/^/    /' <<< "$out"
 }
 
-# say <text>: a line to the screen, and to the log without its color codes
-# (tput's sgr0 is ESC ( B ESC [ m)
+# log_clean: stdin as the log wants it, without color codes or cursor moves
+# (tput's sgr0 is ESC ( B ESC [ m), a spinner redrawn in place (ESC [ 1G ESC [ J,
+# the skills CLI's) reduced to its last frame
+log_clean() {
+  sed $'s/.*\033\\[1G\033\\[J//; s/\033\\[[0-9;?]*[A-Za-z]//g; s/\033(B//g'
+}
+
+# say <text>: a line to the screen, and to the log
 say() {
   printf '%s\n' "$1"
-  printf '%s\n' "$1" | sed $'s/\033\\[[0-9;]*m//g; s/\033(B//g' >> "$log"
+  printf '%s\n' "$1" | log_clean >> "$log"
+}
+
+# tildify <path>: $HOME as ~
+tildify() {
+  case $1 in
+    "$HOME"/*) printf '~%s' "${1#"$HOME"}" ;;
+    *) printf '%s' "$1" ;;
+  esac
 }
 
 # entry <lead> <level> <step> <detail> [<detail color>]: one status or summary
@@ -171,7 +190,7 @@ plural() {
   printf '%s %s' "$1" "$2$([ "$1" = 1 ] || echo s)"
 }
 
-printf '%sLogging to %s%s\n' "$c_dim" "${log#"$DOTFILES"/}" "$c_reset"
+printf '%sLogging to %s%s\n' "$c_dim" "$(tildify "$log")" "$c_reset"
 
 step sudo
 status prompt sudo "Password for sudo, once for the whole run"
@@ -197,12 +216,15 @@ fi
 
 # brew_caveats: the caveats in $out worth reading, one line per package, on
 # screen and in the log. Dropped: "completions installed to", "examples
-# directory installed to", fish activation. A "shadowed by" block (a formula
-# mise also installs) becomes "<names> shadowed by <dir>"; any other block
-# shows its first line. The full text stays in the log
+# directory installed to", fish activation, and the Docker plugin block (Docker
+# loads OrbStack's plugins, linked in ~/.docker/cli-plugins). A "shadowed by" block
+# becomes "<names> shadowed by <dir>", also dropped for mise's shims unless mise
+# has the tool active, since the shim otherwise runs Homebrew's copy. Any other
+# block shows its first sentence. The full text stays in the log
 brew_caveats() {
   sed -n '/^==> Caveats$/,/^==> Upgraded /p' <<< "$out" | awk -v home="$HOME" '
     function flush(   i, kept, n, text, names) {
+      if (lines[1] ~ /is a Docker plugin/) { c = 0; delete lines; return }
       n = 0
       for (i = 1; i <= c; i++) {
         if (lines[i] ~ /(completions|functions|directory) ha(ve|s) been installed to:$/) { if (lines[i + 1] ~ /^ /) i++; continue }
@@ -214,14 +236,25 @@ brew_caveats() {
         for (i = 2; i <= n && kept[i] !~ /^Running these/; i++) names = names (names ? ", " : "") kept[i]
         print "    " (pkg ? pkg ": " : "") names " shadowed by " text
       } else if (n) {
-        print "    " (pkg ? pkg ": " : "") kept[1] (n > 1 ? " (more in the log)" : "")
+        text = kept[1]
+        for (i = 1; i < n && text !~ /[.:!?]$/ && kept[i + 1] != ""; i++) text = text " " kept[i + 1]
+        print "    " (pkg ? pkg ": " : "") text (i < n ? " (more in the log)" : "")
       }
       c = 0; delete lines
     }
     /^==> Caveats$/ { next }
     /^==> / { flush(); pkg = substr($0, 5); next }
     { lines[++c] = $0 }
-    END { flush() }' | tee -a "$log"
+    END { flush() }' | while IFS= read -r caveat; do
+    case $caveat in
+      *" shadowed by "*/mise/shims)
+        # Homebrew's first block has no "==> name" heading, so no "name: " here
+        tool=${caveat#"    "} tool=${tool#*: } tool=${tool%%[, ]*}
+        mise which "$tool" > /dev/null 2>&1 || continue
+        ;;
+    esac
+    printf '%s\n' "$caveat"
+  done | tee -a "$log"
 }
 
 # macOS. List first: with nothing to install there's no second scan, and the
@@ -303,6 +336,14 @@ else
     status fail Homebrew "upgrade failed; run: brew upgrade --greedy"
     show
   fi
+  # Homebrew carries on after this warning and replaces the app anyway: 1Password
+  # aborted when that happened, taking down the SSH agent git needs (2026-11-03)
+  while IFS=$'\t' read -r cask app_id; do
+    status notice Homebrew "$cask replaced while running: Homebrew couldn't quit it; check your terminal's Automation access to System Events"
+    actions+=("Reopen $cask if it closed: open -b $app_id")
+  done < <(awk '
+    /^==> Upgrading / { cask = $3; sub(/.*\//, "", cask) }
+    /^Warning: Application .* did not quit/ { split($0, part, /\047/); print cask "\t" part[2] }' <<< "$out")
 fi
 step "brew cleanup"
 if capture brew cleanup --prune=all; then
@@ -468,7 +509,11 @@ if command -v uv > /dev/null; then
   # when only its dependencies did; both count as a change
   elif uv_updated=$(sed -n 's/^Updated //p; s/^Modified \(.*\) environment$/\1 dependencies/p' <<< "$out") && [ -n "$uv_updated" ]; then
     status changed uv "$(list <<< "$uv_updated")"
-    show
+    # uv prints " - name==old" then " + name==new" under each tool's line
+    awk '
+      /^(Updated|Modified) / { tool = $2; delete old; next }
+      /^ - / { split($2, dep, "=="); old[dep[1]] = dep[2]; next }
+      /^ \+ / { split($2, dep, "=="); print tool "\t" dep[1] " " (dep[1] in old ? old[dep[1]] " → " : "") dep[2] }' <<< "$out" | rows
   else
     status notice uv "unrecognized output, see the log"
   fi
@@ -692,6 +737,7 @@ if command -v claude > /dev/null; then
     read -r since_date added removed <<< "${since:-none 0 0}"
     if [ "$added$removed" != 00 ]; then
       status changed catalog "catalog rebuilt, +$added -$removed since $since_date"
+      sed -nE $'s/^  (added|removed): /\\1\t/p' <<< "$out" | rows
     else
       status ok catalog "catalog rebuilt"
     fi
@@ -771,8 +817,8 @@ summary() {
 # link <label> <path>: on a terminal the path as ~/… and clickable (OSC 8),
 # otherwise a file:// URL, which terminals without OSC 8 still link
 link() {
-  local short="$2"
-  [[ $short != "$HOME"/* ]] || short="~${short#"$HOME"}"
+  local short
+  short=$(tildify "$2")
   if [ -n "$progress" ]; then
     printf '%s%-8s%s \033]8;;file://%s\033\\%s\033]8;;\033\\\n' "$c_dim" "$1" "$c_reset" "$2" "$short"
   else

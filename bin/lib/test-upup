@@ -52,9 +52,14 @@ stub softwareupdate 'case $1 in
 esac'
 stub brew 'case $1 in
   outdated) [ -e "$STATE/brew" ] && printf "gh\ncodex\n" ;;
-  upgrade) echo "==> Upgrading gh"; echo "==> Caveats"; echo "zsh completions have been installed to:"; echo "  /opt/homebrew/share/zsh/site-functions"
+  upgrade) trap '"'"'[ ! -e "$STATE/brew-upgrade-fails" ] || exit 1'"'"' EXIT
+    [ ! -e "$STATE/cask-no-quit" ] || { echo "==> Upgrading some/tap/1password"; echo "  8.12.42 -> 8.12.44"; echo "==> Quitting application '"'"'com.1password.1password'"'"'..."; echo "Warning: Application '"'"'com.1password.1password'"'"' did not quit. Enable Automation access for \"Terminal → System Events\" in:"; }
+    echo "==> Upgrading gh"; echo "==> Caveats"; echo "zsh completions have been installed to:"; echo "  /opt/homebrew/share/zsh/site-functions"
+    [ ! -e "$STATE/shadow-first" ] || { echo "The following rg executables are shadowed by commands in $HOME/.local/share/mise/shims:"; echo rg; echo "Running these by name will not invoke the version provided by Homebrew"; }
     echo "==> gh"; echo "Run gh auth login to use it."; echo "Second line"
     echo "==> uv"; echo "The following uv executables are shadowed by commands in $HOME/.local/share/mise/shims:"; echo uv; echo uvx; echo "Running these by name will not invoke the version provided by Homebrew"
+    echo "==> openssh"; echo "Default host keys are regenerated once to replace keys"; echo "previously distributed in bottles. This also replaces locally generated keys."; echo; echo "Restart any running Homebrew sshd."
+    echo "==> docker-buildx"; echo "docker-buildx is a Docker plugin. For Docker to find the plugin, add it to ~/.docker/config.json:"; echo "  \"cliPluginsExtraDirs\": ["
     echo "==> Upgrading codex"; echo "  0.164.0 -> 0.165.0"; echo "==> Upgraded 1 outdated package"; echo "gh       2.103.1  -> 2.103.2" ;;
   cleanup) echo "==> This operation has freed approximately 29.5MB of disk space." ;;
   doctor) [ -e "$STATE/brew-doctor" ] || { [ -e "$STATE/brew-doctor-roots" ] && [ ! -e "$STATE/roots-trimmed" ]; } || { echo "Your system is ready to brew."; exit 0; }
@@ -65,12 +70,14 @@ stub brew 'case $1 in
 esac
 exit 0'
 stub mise 'case $1 in
+  which) [ -e "$STATE/mise-uv-active" ] ;;
   ls) if [ -e "$STATE/prune" ]; then
       echo "{\"node\":[{\"version\":\"24.0.0\",\"install_path\":\"$STATE/installs/node/24.0.0\"}],\"github:microsoft/aspire\":[{\"version\":\"13.6.0\",\"install_path\":\"$STATE/installs/aspire/13.6.0\"}],\"npm:node\":[{\"version\":\"1.0.0\",\"install_path\":\"$STATE/installs/npm-node/1.0.0\"},{\"version\":\"2.0.0\",\"install_path\":\"$STATE/installs/npm-node/2.0.0\"}]}"
     else echo "{}"; fi ;;
   prune) case "$*" in *--yes*) ;; *) echo "mise ERROR mise prune requires confirmation but there was nobody to ask"; exit 1 ;; esac
     [ -e "$STATE/prune-fails" ] && { echo "mise ERROR uninstall failed"; exit 1; }; rm -rf "$STATE/installs" "$STATE/prune" ;;
-  upgrade) if [ -e "$STATE/mise" ]; then
+  upgrade) pwd -P > "$STATE/mise-pwd"
+    if [ -e "$STATE/mise" ]; then
       printf "Upgraded 3 tools:\n  node 24.1.0 → 24.1.1\n  github:microsoft/aspire 13.6.1 → 13.6.2\n  npm:tsc 5.8.0 → 5.8.1\n  npm:tsc 6.0.0 → 6.0.1\n"
       echo "mise WARN  newer github:microsoft/aspire release 13.6.3 (released 2026-10-23, eligible 2026-10-24 14:17 EDT) ignored by minimum_release_age (24h); latest eligible release is 13.6.2"
       echo "mise WARN  failed to reinstall pipx tools: ~/.local/share/mise/shims/uv exited with non-zero status: exit code 2"
@@ -109,7 +116,8 @@ case $1 in
   retire) [ -e "$STATE/retire-fails" ] && exit 1
     [ -e "$STATE/settings" ] && echo "{}" > "$CLAUDE_CONFIG_DIR/settings.json" ;;
   restore) case "$*" in *--dry-run*) [ -e "$STATE/config-pending" ] && [ "$2" = settings ] && echo "merge tracked"; exit 0 ;; esac
-    if [ -e "$STATE/skills" ]; then printf "skill changed one\nskill same two\n"; else printf "skill same one\nskill unknown two\n"; fi ;;
+    if [ -e "$STATE/skills" ]; then printf "skill changed one\n\033[38;5;250mART\033[0m\n\033[?25l◒  Cloning…\033[1G\033[J◐  Cloning…\033[1G\033[J◇  Repository cloned\n\033[?25h\nskill same two\n"; else printf "skill same one\nskill unknown two\n"; fi
+    [ ! -e "$STATE/bad-byte" ] || printf "\377\nafter the bad byte\n" ;;
 esac
 exit 0'
 stub rea 'case $1 in
@@ -119,7 +127,9 @@ stub rea 'case $1 in
     if [ -e "$STATE/rea-fails" ]; then echo "{\"status\":\"needs_human\",\"doctor\":{\"identity\":{\"skill\":{\"remediation\":\"Skill directory is a symbolic link.\"}}}}"; exit 1; fi
     if [ -e "$STATE/rea" ]; then echo "{\"appliedActions\":[{\"id\":\"install_skill\"}]}"; else echo "{\"appliedActions\":[]}"; fi ;;
 esac'
-stub claude-catalog 'echo "wrote /tmp/cat/CATALOG.md, CATALOG-lite.md, catalog.html, since 2026-10-20: +0 -0"'
+stub claude-catalog 'if [ -e "$STATE/catalog-delta" ]; then
+  printf "wrote /tmp/cat/CATALOG.md, CATALOG-lite.md, catalog.html, since 2026-10-20: +1 -2\n  added: p:new\n  removed: p:one, p:two\n"
+else echo "wrote /tmp/cat/CATALOG.md, CATALOG-lite.md, catalog.html, since 2026-10-20: +0 -0"; fi'
 stub open 'exit 0'
 stub amp 'echo "Amp is already up to date"'
 stub nyan 'exit 0'
@@ -162,6 +172,8 @@ run() {
 }
 
 run
+check_true "off HOME: the log path stays absolute" has "^Logging to $DOTFILES/logs/upup-[0-9]{8}-[0-9]{6}\\.log\$"
+check_true "any directory: mise runs from HOME, not the caller's project" [ "$(cat "$STATE/mise-pwd")" = "$(cd "$HOME" && pwd -P)" ]
 check_true "up to date: Homebrew is ok" has '^✔ Homebrew +up to date$'
 check_true "up to date: cleanup reports what it freed" has '^✔ brew cleanup +freed 29.5MB$'
 check_true "up to date: healthy brew doctor gets a line" has '^✔ brew doctor +ready to brew$'
@@ -195,9 +207,12 @@ silent_steps=$(awk '
 check_true "up to date: every step has a status line${silent_steps:+ (silent: $silent_steps)}" [ -z "$silent_steps" ]
 
 rm -rf "$DOTFILES/logs"
+screen=$(HOME="$tmp" "$script" < /dev/null 2>&1) || true
+check_true "under HOME: the log path is the ~/ form" has '^Logging to ~/dotfiles/logs/upup-[0-9]{8}-[0-9]{6}\.log$'
+rm -rf "$DOTFILES/logs"
 mkdir -p "$STATE/installs/node/24.0.0" "$STATE/installs/aspire/13.6.0"
 head -c 2048 /dev/zero > "$STATE/installs/node/24.0.0/bin"
-touch "$STATE/settings" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/prune" "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea" "$STATE/brew-doctor"
+touch "$STATE/settings" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/prune" "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea" "$STATE/brew-doctor" "$STATE/mise-uv-active" "$STATE/catalog-delta"
 mkdir -p "$CLAUDE_CONFIG_DIR/skills"
 ln -s /nonexistent "$CLAUDE_CONFIG_DIR/skills/reverse-engineer-anything"
 run
@@ -217,6 +232,15 @@ check_true "changes: brew upgrade noise stays off screen" lacks '^==> Upgrading 
 check_true "changes: boilerplate caveat dropped" lacks 'completions'
 check_true "changes: a caveat shows its package and first line" has '^    gh: Run gh auth login to use it\. \(more in the log\)$'
 check_true "changes: a shadow caveat is one line" has '^    uv: uv, uvx shadowed by ~/\.local/share/mise/shims$'
+check_true "changes: a wrapped sentence shows whole" has '^    openssh: Default host keys are regenerated once to replace keys previously distributed in bottles\. This also replaces locally generated keys\. \(more in the log\)$'
+check_true "changes: no reopen action without the cask warning" lacks 'Reopen'
+check_true "changes: the Docker plugin caveat stays off screen" lacks 'is a Docker plugin'
+check_true "changes: the Docker plugin caveat stays in the log" grep -q 'is a Docker plugin' "$DOTFILES"/logs/upup-*.log
+check_true "changes: catalog names what it gained" has '^    added    p:new$'
+check_true "changes: catalog names what it lost" has '^    removed  p:one, p:two$'
+check_true "changes: a spinner is only its last frame in the log" grep -qx '◇  Repository cloned' "$DOTFILES"/logs/upup-*.log
+check_true "changes: no spinner frames in the log" log_lacks 'Cloning'
+check_true "changes: no cursor or color codes in the log" log_lacks $'\x1b'
 check_true "changes: full caveats kept in the log" grep -qx 'Second line' "$DOTFILES"/logs/upup-*.log
 check_true "changes: a brew doctor warning names what it found" has '^● brew doctor +Warning: Some installed formulae or casks are missing dependencies: gcloud-cli: python@3.13$'
 check_true "changes: each brew doctor warning is its own notice, items joined" has '^● brew doctor +Warning: You have unlinked kegs in your Cellar. openssl@3, python@3.12$'
@@ -256,8 +280,24 @@ check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$D
 check_true "changes: log keeps the status lines and the table" grep -q -e '^↻ Homebrew  *2 packages upgraded$' -e '^    gh  ' "$DOTFILES"/logs/upup-*.log
 
 # A warning alone (no newer release) must still replace the ok line
-rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/brew-doctor"
+rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/brew-doctor" "$STATE/mise-uv-active" "$STATE/catalog-delta"
+touch "$STATE/cask-no-quit" "$STATE/shadow-first"
 run
+check_true "shadow: a tool mise doesn't have active isn't shadowed" lacks 'shadowed by'
+check_true "shadow: the caveat stays in the log" grep -q 'uv executables are shadowed' "$DOTFILES"/logs/upup-*.log
+check_true "cask Homebrew couldn't quit is a notice" has "^● Homebrew +1password replaced while running: Homebrew couldn't quit it; check your terminal's Automation access to System Events\$"
+check_true "cask: reopening it is an action" has '^  › Reopen 1password if it closed: open -b com\.1password\.1password$'
+rm -rf "$DOTFILES/logs" "$STATE/shadow-first"
+touch "$STATE/brew-upgrade-fails"
+run
+check_true "cask, upgrade fails: the failure is still reported" has '^✖ Homebrew +upgrade failed'
+check_true "cask, upgrade fails: reopening it is still an action" has '^  › Reopen 1password if it closed'
+rm -rf "$DOTFILES/logs"
+rm -f "$STATE/cask-no-quit" "$STATE/brew-upgrade-fails"
+touch "$STATE/mise-uv-active" "$STATE/shadow-first"
+run
+check_true "shadow: an active tool in the first, unnamed caveat block still shows" has '^    rg shadowed by ~/\.local/share/mise/shims$'
+rm -f "$STATE/mise-uv-active" "$STATE/shadow-first"
 check_true "warned: installer warning is the step's only line" lacks '^✔ Hindsight memory'
 check_true "warned: installer warning still a notice" has '^● Hindsight memory +installer: '
 
@@ -305,7 +345,10 @@ check_true "update: REA skill failure hides the doctor payload" lacks 'needs_hum
 check_true "update: Rust names the channel and versions" has '^↻ Rust +stable 1\.99\.0 → 1\.99\.1$'
 check_true "update: a failing cargo is a notice" has "^● Rust +cargo --version failed: rustup's proxies live in /opt/homebrew/opt/rustup/bin, so open a new terminal, or run: rustup default stable$"
 check_true "update: uv names the upgraded tool and the one whose dependencies moved" has '^↻ uv +serena-agent v0\.1\.4 -> v0\.1\.5, scrapling dependencies$'
-check_true "update: uv output shown" has '^    Modified scrapling environment$'
+check_true "update: uv rows name the tool and what moved" has '^    scrapling     sse-starlette 3\.5\.0 → 3\.5\.1$'
+check_true "update: an upgraded uv tool gets a row too" has '^    serena-agent  serena-agent 0\.1\.4 → 0\.1\.5$'
+check_true "update: uv's raw output stays in the log" grep -qx 'Modified scrapling environment' "$DOTFILES"/logs/upup-*.log
+check_true "update: uv's raw output stays off screen" lacks '^    Modified scrapling environment$'
 check_true "update: no unrecognized uv output" lacks 'unrecognized output'
 check_true "update: Claude Code updated" has '^↻ Claude Code +2\.1\.310 → 2\.1\.311$'
 check_true "update: Claude Code restart action" has '^  › Restart Claude Code to run 2\.1\.311$'
@@ -388,6 +431,13 @@ no_save() { ! grep -qx save "$STATE/claude-config.log"; }
 check_true "pending config: save would erase it, so it doesn't run" no_save
 check_true "pending config: upup still merges nothing" lacks_settings_restore
 rm -f "$STATE/config-pending"
+
+rm -rf "$DOTFILES/logs"
+touch "$STATE/bad-byte"
+run
+check_true "a byte sed can't decode: the step still reports" has '^✔ agent skills'
+check_true "a byte sed can't decode: the output after it still reaches the log" grep -qx 'after the bad byte' "$DOTFILES"/logs/upup-*.log
+rm -f "$STATE/bad-byte"
 
 rm -rf "$DOTFILES/logs"
 rc=0

@@ -447,6 +447,13 @@ def skill_overrides(items):
     return json.dumps({"skillOverrides": off}, indent=2) if off else ""
 
 
+def named(label, keys, limit=8):
+    """One report line naming what `changes` found (kind:name keys)."""
+    names = [k.split(":", 1)[1] for k in keys]
+    more = f", +{len(names) - limit} more" if len(names) > limit else ""
+    return f"  {label}: {', '.join(names[:limit])}{more}" if names else ""
+
+
 def changes(items, state_file):
     """Compare with the previous build; returns (since_date, new_names, removed_names)."""
     prev = load_json(state_file, None)
@@ -621,6 +628,8 @@ def main():
     print(f"wrote {a.out}/CATALOG.md, CATALOG-lite.md, catalog.html — {kinds}, {len(plugins)} plugins, "
           f"{extra['total_cost']:,} always-on tokens, plugin flags {flags}"
           + (f", since {since}: +{len(new)} -{len(removed)}" if since else ""))
+    for line in filter(None, (named("added", new), named("removed", removed))):
+        print(line)
     for p in probs:
         print("  lint:", p, file=sys.stderr)
     return 1 if any(p.startswith(("group", "curated")) for p in probs) else 0
