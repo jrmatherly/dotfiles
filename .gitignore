@@ -38,6 +38,10 @@ obsidian/**/workspace-mobile.json
 # Claude Code auto-memory
 .claude/auto-memory/dirty-files*
 
+# claude-stack's per-machine selection: Prettier reads this file but not the global one
+.claude/skill-stack.json
+.claude/rules/skill-stack.md
+
 # Claude Code worktrees: Prettier reads this file but not .git/info/exclude, so
 # without this line a worktree's unformatted work fails the main checkout's gate
 .claude/worktrees/

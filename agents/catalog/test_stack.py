@@ -112,4 +112,151 @@ text = s.manifest_text(r, files)
 assert "wrangler" in text
 assert "SECRET" not in text and "qdrant" not in text, text
 
+# merge_settings: only ever touch our own false entries
+cur = {"permissions": {"allow": ["Bash(ls)"]}, "enabledPlugins": {"mine@m": True, "old@m": False}}
+new, owned = s.merge_settings(cur, {"a@m", "mine@m"}, {"old@m"})
+assert new["permissions"] == cur["permissions"]
+assert new["enabledPlugins"] == {"mine@m": True, "a@m": False}, "user's entry wins, stale owned entry goes"
+assert owned == {"a@m"}
+assert "enabledPlugins" not in s.merge_settings({}, set(), set())[0]
+new, owned = s.merge_settings({"enabledPlugins": {"x@m": True}}, {"x@m"}, {"x@m"})
+assert new["enabledPlugins"] == {"x@m": True} and owned == set(), "a user's edit to an owned key sticks"
+
+# apply and reset on real repos
+IGNORE = ".claude/settings.local.json\n.claude/skill-stack.json\n.claude/rules/skill-stack.md\n"
+empty = tmp / "no-history"
+counter = iter(range(1000))
+
+
+def stack_repo(ignore=IGNORE):
+    r = repo(tmp / f"sr{next(counter)}")
+    (r / ".gitignore").write_text(ignore)
+    return r
+
+
+def paths(r):
+    return r / ".claude/settings.local.json", r / ".claude/skill-stack.json", r / ".claude/rules/skill-stack.md"
+
+
+def apply(r, keep=(), off=(), **kw):
+    return s.apply_stack(r, kw.pop("catalog", cat), keep, off, projects_dir=kw.pop("projects", empty), **kw)
+
+
+def settings(r):
+    return json.loads(paths(r)[0].read_text())
+
+
+r = stack_repo()
+m = apply(r)
+assert settings(r)["enabledPlugins"] == {"cloudflare@m": False, "pydantic-ai@m": False}
+assert m["schema"] == 1 and sorted(m["owned"]) == ["cloudflare@m", "pydantic-ai@m"]
+assert all(p.exists() for p in paths(r))
+before = [p.read_bytes() for p in paths(r)]
+apply(r)
+assert [p.read_bytes() for p in paths(r)] == before, "re-apply is byte-identical"
+
+# reset removes what apply wrote, and only that
+r = stack_repo()
+s_file, m_file, rule = paths(r)
+s_file.parent.mkdir()
+s_file.write_text(json.dumps({"permissions": {"allow": ["Bash(ls)"]}, "enabledPlugins": {"mine@m": True}}))
+apply(r)
+assert settings(r)["enabledPlugins"]["mine@m"] is True and settings(r)["permissions"]["allow"] == ["Bash(ls)"]
+s.reset_stack(r)
+assert settings(r) == {"permissions": {"allow": ["Bash(ls)"]}, "enabledPlugins": {"mine@m": True}}
+assert not m_file.exists() and not rule.exists()
+s.reset_stack(r)  # a no-op without a manifest
+r = stack_repo()
+apply(r)
+s.reset_stack(r)
+assert not paths(r)[0].exists(), "no settings file before apply, none after reset"
+
+# bad JSON aborts with nothing written
+r = stack_repo()
+s_file, m_file, rule = paths(r)
+s_file.parent.mkdir()
+s_file.write_text("{nope")
+raises(lambda: apply(r), "settings.local.json")
+assert s_file.read_text() == "{nope" and not m_file.exists() and not rule.exists()
+r = stack_repo()
+apply(r)
+paths(r)[0].write_text("{nope")
+raises(lambda: s.reset_stack(r), "settings.local.json")
+assert paths(r)[0].read_text() == "{nope" and paths(r)[1].exists()
+
+# refuses to dirty a repo that doesn't ignore these files
+r = stack_repo(ignore=".claude/settings.local.json\n")
+raises(lambda: apply(r), ".claude/skill-stack.json")
+assert not any(p.exists() for p in paths(r))
+r = stack_repo()
+paths(r)[0].parent.mkdir()
+paths(r)[0].write_text("{}")
+git(r, "add", "-f", ".claude/settings.local.json")
+raises(lambda: apply(r), ".claude/settings.local.json")
+assert not paths(r)[1].exists()
+
+# sticky flags
+r = stack_repo()
+apply(r, keep=["pydantic-ai@m"])
+m = apply(r)
+assert m["decisions"]["pydantic-ai@m"]["why"] == "kept by hand" and "pydantic-ai@m" not in settings(r)["enabledPlugins"]
+r = stack_repo()
+apply(r, off=["pydantic-ai@m"])
+assert settings(r)["enabledPlugins"]["pydantic-ai@m"] is False
+apply(r, keep=["pydantic-ai@m"])
+assert "pydantic-ai@m" not in settings(r)["enabledPlugins"], "the restore path the rule advertises"
+raises(lambda: apply(stack_repo(), keep=["cloudflare@m"], off=["cloudflare@m"]), "cloudflare@m")
+raises(lambda: apply(stack_repo(), keep=["core@m"]), "core@m")
+raises(lambda: apply(stack_repo(), off=["off-already@m"]), "off-already@m")
+r = stack_repo()
+paths(r)[0].parent.mkdir()
+paths(r)[0].write_text(json.dumps({"enabledPlugins": {"pydantic-ai@m": False}}))
+raises(lambda: apply(r, keep=["pydantic-ai@m"]), "pydantic-ai@m")
+
+# status follows the evidence
+r = stack_repo()
+assert s.stack_status(r, cat, empty) == "none"
+apply(r)
+assert s.stack_status(r, cat, empty) == "current"
+(r / "wrangler.jsonc").write_text("{}")
+git(r, "add", "wrangler.jsonc")
+assert s.stack_status(r, cat, empty).startswith("stale: cloudflare@m"), s.stack_status(r, cat, empty)
+r = stack_repo()
+apply(r)
+hist = tmp / "hist"
+(hist / s.slug(r)).mkdir(parents=True)
+(hist / s.slug(r) / "a.jsonl").write_text(skill("ai:x") + "\n")
+assert s.stack_status(r, cat, hist).startswith("stale: pydantic-ai@m")
+
+# the CLI: expected failures exit 2 with no traceback, and paths resolve from the caller's directory
+script = Path(s.__file__)
+
+
+def cli(*args, catalog=None, cwd=None):
+    env = {**os.environ, "CLAUDE_STACK_CATALOG": str(catalog), "CLAUDE_CONFIG_DIR": str(tmp / "cfg")}
+    if cwd:
+        env["CLAUDE_STACK_CWD"] = str(cwd)
+    return subprocess.run(["python3", str(script), *args], capture_output=True, text=True, env=env, cwd=str(tmp))
+
+
+r = stack_repo()
+for bad in (tmp / "absent.json", tmp / "bad.json"):
+    (tmp / "bad.json").write_text("{nope")
+    p = cli("scan", str(r), catalog=bad)
+    assert p.returncode == 2 and "run claude-catalog first" in p.stderr and "Traceback" not in p.stderr, p.stderr
+good = tmp / "good.json"
+good.write_text(json.dumps({**cat, "plugins": [dict(pl, cost=7) for pl in cat["plugins"]]}))
+p = cli("scan", catalog=good, cwd=r)
+assert p.returncode == 0 and "off cloudflare@m" in p.stdout and "14" in p.stdout and "applied: none" in p.stdout, p.stdout
+assert not paths(r)[1].exists(), "scan writes nothing"
+p = cli("apply", catalog=good, cwd=r)
+assert p.returncode == 0 and paths(r)[1].exists(), p.stderr
+assert "applied: current" in cli("scan", catalog=good, cwd=r).stdout
+p = cli("apply", "--keep", "core@m", catalog=good, cwd=r)
+assert p.returncode == 2 and "core@m" in p.stderr and "Traceback" not in p.stderr, p.stderr
+assert cli("reset", catalog=tmp / "absent.json", cwd=r).returncode == 0, "reset needs no catalog"
+assert not paths(r)[1].exists()
+p = cli("scan", catalog=good, cwd=tmp / "plain")
+assert p.returncode == 2 and "not a git repository" in p.stderr, p.stderr
+
 print("ok")

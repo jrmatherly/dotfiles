@@ -28,5 +28,7 @@ yarn-error.log
 .idea
 
 **/.claude/settings.local.json
+**/.claude/skill-stack.json
+**/.claude/rules/skill-stack.md
 
 **/.claude/.cc-writes/

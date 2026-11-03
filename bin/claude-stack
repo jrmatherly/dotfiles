@@ -1,0 +1,47 @@
+#!/bin/bash
+#
+# Select which installed Claude Code plugins a project needs, from its files, dependencies and session history.
+#
+# - Show what each selectable plugin would do here, and why (writes nothing):
+#
+# `claude-stack scan`
+#
+# - Turn the rest off in this project's gitignored .claude/settings.local.json:
+#
+# `claude-stack apply`
+#
+# - Keep a plugin on, or turn one off, here until the next reset:
+#
+# `claude-stack apply --keep {{plugin@marketplace}} --off {{plugin@marketplace}}`
+#
+# - Record which tools fit this project (the /project-stack skill writes this file):
+#
+# `claude-stack apply --picks {{path/to/picks.json}}`
+#
+# - Undo it:
+#
+# `claude-stack reset`
+#
+# - Act on another repo:
+#
+# `claude-stack scan {{path/to/repo}}`
+#
+# ---
+# Only plugins in agents/catalog/curated.toml's [stack.signals] can be turned off; the rest are core.
+# Reads ~/.claude/catalog/catalog.json, so run claude-catalog first. Git repos only.
+#
+# License: MIT
+
+set -euo pipefail
+
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+
+if ! command -v mise &> /dev/null; then
+  echo "claude-stack: needs mise for its Python" >&2
+  exit 2
+fi
+
+# -C, because a bare `mise exec` here would resolve the project's Python and may
+# install it. It also moves the working directory, so the caller's travels along.
+export CLAUDE_STACK_CWD="$PWD"
+exec mise -C "$DOTFILES_DIR" exec python -- python3 "$DOTFILES_DIR/agents/catalog/stack.py" "$@"
