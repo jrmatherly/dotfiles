@@ -17,7 +17,7 @@ plugin aspire@aspire-skills
 plugin auto-memory@severity1-marketplace
 plugin azure@claude-plugins-official
 plugin browser-use@claude-plugins-official
-plugin career-ops@career-ops
+plugin career-ops@career-ops disabled
 plugin chrome-devtools-mcp@claude-plugins-official
 plugin claude-code-setup@claude-plugins-official
 plugin claude-docs@claude-code-docs
