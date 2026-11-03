@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.11+ stdlib run through mise, bash wrapper, assert-based self-checks, Claude Code settings.
 
-**Spec:** `docs/superpowers/specs/2026-11-02-project-skill-stack.md`
+**Spec:** `docs/superpowers/specs/completed/2026-11-02-project-skill-stack.md`
 
 ## Global Constraints
 

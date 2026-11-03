@@ -1,6 +1,6 @@
 # Project skill stack: our variation of AAS Core
 
-Status: built, 2026-11-03. Plan: `docs/superpowers/plans/2026-11-02-project-skill-stack.md`.
+Status: built, 2026-11-03. Plan: `docs/superpowers/plans/completed/2026-11-02-project-skill-stack.md`.
 
 ## The decision
 
