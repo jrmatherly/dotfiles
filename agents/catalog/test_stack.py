@@ -1,5 +1,5 @@
 """Checks claude-stack's evidence, decisions, writes and rule. Run: python3 test_stack.py"""
-import json, os, subprocess, tempfile
+import atexit, json, os, shutil, subprocess, tempfile
 from collections import Counter
 from pathlib import Path
 
@@ -9,6 +9,7 @@ os.environ.update(GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_NOSYSTEM="1",
 import stack as s
 
 tmp = Path(tempfile.mkdtemp()).resolve()
+atexit.register(shutil.rmtree, tmp, True)
 
 
 def git(cwd, *args):
@@ -184,6 +185,12 @@ paths(r)[0].write_text("{nope")
 raises(lambda: s.reset_stack(r), "settings.local.json")
 assert paths(r)[0].read_text() == "{nope" and paths(r)[1].exists()
 
+r = stack_repo()
+paths(r)[0].parent.mkdir()
+paths(r)[0].write_text("[]")
+raises(lambda: apply(r), "not a JSON object")
+assert paths(r)[0].read_text() == "[]" and not paths(r)[1].exists()
+
 # refuses to dirty a repo that doesn't ignore these files
 r = stack_repo(ignore=".claude/settings.local.json\n")
 raises(lambda: apply(r), ".claude/skill-stack.json")
@@ -345,6 +352,48 @@ raises(lambda: apply(r, catalog=renamed), "/project-stack")
 s.reset_stack(r)
 assert "cf@m" not in apply(r, catalog=renamed, keep=["cf@m"])["owned"], "the advertised restore works after the way out"
 
+# status sees what a catalog change or a lost settings file did to an applied repo
+r = stack_repo()
+apply(r)
+core_now = {**cat, "signals": {k: v for k, v in cat["signals"].items() if k != "cloudflare@m"}}
+assert "cloudflare@m is no longer selectable" in s.stack_status(r, core_now, empty), s.stack_status(r, core_now, empty)
+assert "cloudflare@m" not in apply(r, catalog=core_now)["owned"], "a plain apply is the way out"
+paths(r)[0].unlink()
+assert "pydantic-ai@m is no longer off" in s.stack_status(r, core_now, empty), s.stack_status(r, core_now, empty)
+
+# the settings entries decide what is on, not only the evidence
+r = stack_repo()
+paths(r)[0].parent.mkdir()
+paths(r)[0].write_text(json.dumps({"enabledPlugins": {"pydantic-ai@m": True}}))
+raises(lambda: apply(r, off=["pydantic-ai@m"]), "pydantic-ai@m is set to true")
+r = stack_repo()
+(r / "KEEPCF").write_text("x")
+git(r, "add", "KEEPCF")
+paths(r)[0].parent.mkdir()
+paths(r)[0].write_text(json.dumps({"enabledPlugins": {"cf@m": False}}))
+raises(lambda: apply(r, catalog=c3, picks=full(deployment=dict(status="covered", tools=["/cf:y"], why="w"))), "off here: /cf:y")
+internal = {**c2, "items": c2["items"] + [dict(kind="skill", name="ai:i", source="ai", use="/ai:i", desc="d", enabled=True, status="internal")]}
+raises(lambda: s.validate_picks(full(testing=dict(status="covered", tools=["/ai:i"], why="w")), internal, dec, root), "internal tool: /ai:i")
+
+# a symlinked settings file stays a symlink, and a failure mid-apply can still be reset
+r = stack_repo()
+real = tmp / f"real-settings-{next(counter)}.json"
+real.write_text('{"permissions": {}}')
+paths(r)[0].parent.mkdir()
+paths(r)[0].symlink_to(real)
+apply(r)
+assert paths(r)[0].is_symlink() and json.loads(real.read_text())["enabledPlugins"], "writes go through the link"
+r = stack_repo()
+paths(r)[2].mkdir(parents=True)
+try:
+    apply(r)
+except OSError:
+    pass
+assert settings(r)["enabledPlugins"], "settings were written before the rule failed"
+paths(r)[2].rmdir()  # a real crash leaves no rule behind
+s.reset_stack(r)
+assert not paths(r)[0].exists(), "the pre-manifest owned them, so reset undoes it"
+
 # --picks through the CLI, relative to the caller's directory
 good3 = tmp / "good3.json"
 good3.write_text(json.dumps(c3))
@@ -360,5 +409,15 @@ for name, body in (("absent.json", None), ("broken.json", "{nope")):
         (r / name).write_text(body)
     p = cli("apply", "--picks", name, catalog=good3, cwd=r)
     assert p.returncode == 2 and name in p.stderr and "Traceback" not in p.stderr, p.stderr
+no_items = tmp / "no-items.json"
+no_items.write_text(json.dumps({k: v for k, v in c3.items() if k != "items"}))
+p = cli("apply", "--picks", "picks.json", catalog=no_items, cwd=r)
+assert p.returncode == 2 and "Traceback" not in p.stderr, p.stderr
+
+# a separate git dir named .git is not the checkout
+work = tmp / "sep-work"
+(tmp / "sep-store").mkdir()
+git(tmp, "init", "-q", f"--separate-git-dir={tmp / 'sep-store/.git'}", str(work))
+assert s.project_root(work) == work.resolve(), s.project_root(work)
 
 print("ok")

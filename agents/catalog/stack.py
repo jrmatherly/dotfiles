@@ -29,7 +29,7 @@ class StackError(Exception):
 
 def git(cwd, *args):
     try:
-        r = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True)
+        r = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, errors="surrogateescape")
     except OSError:
         return None
     return r.stdout.rstrip("\n") if r.returncode == 0 else None
@@ -41,7 +41,9 @@ def project_root(path):
     if common is None:
         raise StackError(f"not a git repository: {path}")
     common = Path(common)
-    if common.name == ".git" and git(common.parent, "rev-parse", "--is-bare-repository") == "false":
+    own = git(path, "rev-parse", "--absolute-git-dir")
+    linked = own is not None and Path(own).resolve() != common.resolve()
+    if linked and common.name == ".git" and git(common.parent, "rev-parse", "--is-bare-repository") == "false":
         return common.parent.resolve()
     top = git(path, "rev-parse", "--show-toplevel")
     if not top:
@@ -188,8 +190,8 @@ def check_tool(use, catalog, decisions, root):
     item = next((i for i in catalog["items"] if i.get("use") == use), None)
     if item is None:
         return f"unknown tool: {use}"
-    if item.get("status") == "retired":
-        return f"retired tool: {use}"
+    if item.get("status") in ("retired", "internal"):
+        return f"{item['status']} tool: {use}"
     if not item.get("enabled", True):
         return f"disabled tool: {use}"
     if item.get("scope") == "project" and item.get("project") != str(root).replace(str(HOME), "~", 1):
@@ -290,18 +292,22 @@ def apply_stack(root, catalog, keep, off, picks=None, projects_dir=PROJECTS):
     check_ignored(root)
     settings = read_json(s_path)
     prev_owned = set(old.get("owned", []))
-    for key in keep:
-        if (settings or {}).get("enabledPlugins", {}).get(key) is False and key not in prev_owned:
-            raise StackError(f"{key} is set to false in {SETTINGS} by you, so --keep can't turn it on. Remove that entry first")
+    mine = (settings or {}).get("enabledPlugins") or {}
+    for flag, keys, value in (("--keep", keep, False), ("--off", off, True)):
+        for key in keys:
+            if mine.get(key) is value and key not in prev_owned:
+                raise StackError(f"{key} is set to {str(value).lower()} in {SETTINGS} by you, so {flag} can't change it. Remove that entry first")
     decisions = evidence(root, catalog, keeps, offs, usage_counts(root, catalog["plugins"], projects_dir))
     new_settings, owned = merge_settings(settings or {}, {k for k, d in decisions.items() if d["state"] == "off"}, prev_owned)
+    # Picks are checked against what will really be on: a user's own false turns a kept plugin off too
+    effective = {k: {**d, "state": "off"} if mine.get(k) is False else d for k, d in decisions.items()}
     if picks is not None:
-        capabilities = validate_picks(picks, catalog, decisions, root)
+        capabilities = validate_picks(picks, catalog, effective, root)
     else:
         # Earlier picks too: this apply may have turned off a plugin one of them needs, or an update renamed a tool
         earlier = old.get("capabilities", [])
         try:
-            capabilities = validate_picks({"capabilities": earlier}, catalog, decisions, root) if earlier else []
+            capabilities = validate_picks({"capabilities": earlier}, catalog, effective, root) if earlier else []
         except StackError as e:
             raise StackError(f"earlier {e}. Rerun /project-stack to choose again, or run `claude-stack reset` to start over")
     rule = render_rule(capabilities, decisions, owned)
@@ -339,6 +345,11 @@ def stack_status(root, catalog, projects_dir=PROJECTS, usage=None):
     now = evidence(root, catalog, manifest.get("keep", []), manifest.get("off", []), usage)
     was = manifest.get("decisions", {})
     changed = [f"{k} is now {now[k]['state']}" for k in sorted(now) if was.get(k, {}).get("state") != now[k]["state"]]
+    # A catalog change or a lost settings file leaves the manifest claiming what is no longer true
+    owned = manifest.get("owned", [])
+    mine = (read_json(Path(root) / SETTINGS) or {}).get("enabledPlugins") or {}
+    changed += [f"{k} is no longer selectable" for k in owned if k not in now]
+    changed += [f"{k} is no longer off in {SETTINGS}" for k in owned if k in now and mine.get(k) is not False]
     return f"stale: {'; '.join(changed)}" if changed else "current"
 
 
@@ -395,6 +406,10 @@ def main(argv=None):
         return 0
     except StackError as e:
         print(f"claude-stack: {e}", file=sys.stderr)
+        return 2
+    except (OSError, ValueError, TypeError, KeyError, re.error) as e:
+        # Malformed settings, picks or catalog, or a write the filesystem refused. Nothing partial is left that reset can't undo
+        print(f"claude-stack: {type(e).__name__}: {e}", file=sys.stderr)
         return 2
 
 

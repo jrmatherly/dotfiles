@@ -48,7 +48,7 @@ Note: the first narrow run read 51,568 because the claude.ai connector had not l
 | `reactive-resume` | 0 | `cloudflare`, `redis-development`, `voltagent-lang`, `core-dev`, `infra`, `data-ai` | 17 of 23 | 23,987 |
 | `ai-kb` | 175 | `qdrant-skills`, `redis-development`, `sentry`, `sentry-cli`, `voltagent-lang`, `core-dev`, `infra`, `data-ai` | 15 of 23 | 21,566 |
 
-The saving column uses catalog estimates, so expect about 75% of it in practice. A throwaway implementation of plan Tasks 1 to 4 in a clone reproduced every keep set, off count and estimate above, with `scan` taking 0.1 s to 13.5 s per repo. Not measured: whether a narrower listing makes skills fire more accurately. The final plan task records the real token number for one repo.
+The saving column uses catalog estimates, so expect about two thirds of it in practice (see Built). A throwaway implementation of plan Tasks 1 to 4 in a clone reproduced every keep set, off count and estimate above, with `scan` taking 0.1 s to 13.5 s per repo. Not measured: whether a narrower listing makes skills fire more accurately.
 
 ## What we take from AAS, and what we leave
 
@@ -60,7 +60,7 @@ The saving column uses catalog estimates, so expect about 75% of it in practice.
 | Durable manifest of the selection | Take, small | `.claude/skill-stack.json` explains each choice and lets `reset` undo exactly what it wrote |
 | Preview before change | Take | `scan` writes nothing and `apply` is separate |
 | Local MCP server, approval digests, content-addressed runtime | Leave | They protect an external download we are not doing |
-| Immutable plan, journal, recovery | Leave | Our only write is one gitignored JSON key, and AAS itself marks apply and recovery as experimental |
+| Immutable plan, journal, recovery | Leave | We write three gitignored files, ordered so a crash leaves nothing `reset` can't undo, and AAS itself marks apply and recovery as experimental |
 | Keyword auto-categorization | Leave | 23 selectable plugins are classified by hand once in `curated.toml`, and `lint` catches drift |
 | Install from the 2,900-skill pool | Leave | Unaudited, and nothing has shown a need. Revisit when real gap reports accumulate |
 
