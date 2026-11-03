@@ -66,6 +66,27 @@ probs = b.lint([], {}, {"group": [{"title": "G", "items": ["anthropic-skills:ppt
 assert probs == ["curated entry for unknown item: x:y",
                  "claude.ai skills not synced to this account: anthropic-skills:docs, anthropic-skills:pptx"], probs
 
+pl = [dict(name="ai", key="pydantic-ai@m", version="1", enabled=True, cost=9)]
+it = [dict(kind="skill", name="ai:x", source="ai", desc="d", path="/p", use="/ai:x", status="grouped", enabled=True)]
+data = b.catalog_data(pl, it, {"stack": {"signals": {"pydantic-ai@m": {"deps": ["pydantic[-_]ai"]}}}})
+assert data["plugins"][0]["key"] == "pydantic-ai@m"
+assert data["items"][0]["path"] == "/p"
+assert data["items"][0]["project"] is None
+assert data["signals"]["pydantic-ai@m"]["deps"] == ["pydantic[-_]ai"]
+assert b.catalog_data([], [], {})["signals"] == {}
+
+
+def stack_cur(key, **sig):
+    return {"stack": {"signals": {key: sig}}}
+
+
+assert b.lint([], {}, stack_cur("nope@m"), pl) == ["curated stack signal for unknown plugin: nope@m"]
+assert b.lint([], {}, stack_cur("ai"), pl) == ["curated stack signal for unknown plugin: ai"]
+assert b.lint([], {}, stack_cur("pydantic-ai@m", paths=["("]), pl) == ["curated stack signal has invalid regex for pydantic-ai@m: ("]
+by = {"ai:x": it[0]}
+cur = {**stack_cur("pydantic-ai@m"), "group": [{"title": "G", "pick": ["ai:x"], "items": ["ai:x"]}]}
+assert b.lint([], by, cur, pl) == ["curated stack signal on a plugin that owns a pick: pydantic-ai@m (ai:x)"]
+
 # an empty CLAUDE_CONFIG_DIR means unset, like the shell's ${VAR:-}, not the cwd
 import importlib
 os.environ["CLAUDE_CONFIG_DIR"] = ""

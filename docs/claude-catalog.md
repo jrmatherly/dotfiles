@@ -36,6 +36,6 @@ From `curated.toml` it adds the task guide and marks each item recommended, alte
 | `agents/catalog/curated.toml` | Groups, picks, notes, retire and duplicate decisions, cleanup thresholds |
 | `agents/catalog/catalog_template.html` | The HTML shell |
 | `agents/catalog/test_build_catalog.py` | Status and cleanup rules; run by `pnpm check` |
-| `~/.claude/catalog/` | Output: `CATALOG.md`, `CATALOG-lite.md`, `catalog.html`, the cost cache and the previous build's item list for the "new since" section |
+| `~/.claude/catalog/` | Output: `CATALOG.md`, `CATALOG-lite.md`, `catalog.html`, `catalog.json` (read by `claude-stack`), the cost cache and the previous build's item list for the "new since" section |
 
 See also `help claude-config` and [`agents/README.md`](../agents/README.md).

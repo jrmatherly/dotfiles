@@ -2,7 +2,7 @@
 #
 # Build the catalog of installed Claude Code skills, commands, subagents and MCP servers (with a task guide, usage and cleanup status).
 #
-# - Rebuild it in ~/.claude/catalog (CATALOG.md, CATALOG-lite.md, catalog.html):
+# - Rebuild it in ~/.claude/catalog (CATALOG.md, CATALOG-lite.md, catalog.html, catalog.json):
 #
 # `claude-catalog`
 #

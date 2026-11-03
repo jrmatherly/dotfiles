@@ -3,7 +3,7 @@
 
 Scans $CLAUDE_CONFIG_DIR or ~/.claude (installed plugins, user skills, claude.ai-synced skills) and
 ~/.claude.json (MCP servers), merges hand-written notes from curated.toml, and
-writes CATALOG.md (for AI assistants) and catalog.html (for people).
+writes CATALOG.md (for AI assistants), catalog.html (for people) and catalog.json (for claude-stack).
 
     python3 build_catalog.py [--out DIR] [--curated FILE]
 
@@ -237,7 +237,7 @@ def merge(items, cur):
     return by_name
 
 
-def lint(items, by_name, cur):
+def lint(items, by_name, cur, plugins=()):
     problems = []
     sources = {i["source"] for i in items}
     mcp_curated = set(cur.get("mcp", {}))
@@ -276,9 +276,30 @@ def lint(items, by_name, cur):
     for n in cur.get("plugin_status", {}):
         if n not in sources:
             problems.append(f"curated plugin_status for unknown plugin: {n}")
+    problems += lint_signals(by_name, cur, plugins)
     for it in items:
         if not it["desc"] and not it.get("note"):
             problems.append(f"no description: {it['kind']} {it['name']}")
+    return problems
+
+
+def lint_signals(by_name, cur, plugins):
+    """claude-stack may turn a signalled plugin off, so it must exist and must not own a task-guide pick."""
+    problems = []
+    names = {p["key"]: p["name"] for p in plugins}
+    picks = [n for g in cur.get("group", []) for n in as_list(g.get("pick"))]
+    for key, sig in cur.get("stack", {}).get("signals", {}).items():
+        if key not in names:
+            problems.append(f"curated stack signal for unknown plugin: {key}")
+            continue
+        for rx in sig.get("paths", []) + sig.get("deps", []):
+            try:
+                re.compile(rx)
+            except re.error:
+                problems.append(f"curated stack signal has invalid regex for {key}: {rx}")
+        for n in picks:
+            if by_name.get(n, {}).get("source") == names[key]:
+                problems.append(f"curated stack signal on a plugin that owns a pick: {key} ({n})")
     return problems
 
 
@@ -444,6 +465,16 @@ def changes(items, state_file):
 
 # ---------- rendering ----------
 
+def catalog_data(plugins, items, cur):
+    """What claude-stack and the project-stack skill read. Keeps `path`, which the HTML strips."""
+    return dict(
+        built=str(date.today()),
+        plugins=[{k: p.get(k) for k in ("key", "name", "version", "enabled", "cost")} for p in plugins],
+        items=[{k: i.get(k) for k in ("kind", "name", "source", "desc", "path", "use", "status", "enabled",
+                                      "scope", "project")} for i in items],
+        signals=cur.get("stack", {}).get("signals", {}))
+
+
 KIND_LABEL = {"skill": "Skills", "command": "Slash commands", "agent": "Subagents", "mcp": "MCP servers"}
 
 
@@ -583,7 +614,8 @@ def main():
     (a.out / "CATALOG.md").write_text(render_md(plugins, items, cur, by_name))
     (a.out / "CATALOG-lite.md").write_text(render_lite(plugins, items, cur, by_name))
     (a.out / "catalog.html").write_text(render_html(plugins, items, cur, extra))
-    probs = lint(items, by_name, cur)
+    (a.out / "catalog.json").write_text(json.dumps(catalog_data(plugins, items, cur), indent=1))
+    probs = lint(items, by_name, cur, plugins)
     kinds = {k: sum(1 for i in items if i["kind"] == k) for k in KIND_LABEL}
     flags = {s: sum(p["status"] == s for p in plugins) for s in ("review", "watch", "retire")}
     print(f"wrote {a.out}/CATALOG.md, CATALOG-lite.md, catalog.html — {kinds}, {len(plugins)} plugins, "

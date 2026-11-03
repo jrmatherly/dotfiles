@@ -4,6 +4,7 @@
 #   [mcp.<name>]    description + tool summary for an MCP server found on disk (one missing here only warns: registration is per machine)
 #   [notes]         extra "use when / don't confuse with" note for any item, by exact name
 #   [[group]]       task guide: overlapping options for one job, with a default pick
+#   [stack.signals.*]  which plugins claude-stack may turn off per project, and the evidence that keeps them
 # The build fails (exit 1) if a group or note names something that isn't installed, except an MCP server
 # (registered per machine) or an anthropic-skills:* skill (synced per claude.ai account): those only warn.
 
@@ -492,3 +493,51 @@ overlap_ratio = 0.8
 #   "two-factor-authentication-best-practices" = "not using Better Auth 2FA"
 [retire]
 
+# ---------- project stack ----------
+# Only plugins named here can be turned off per project by claude-stack. Everything else is core.
+# Keyed by full install key. An empty table means off unless history or --keep says otherwise.
+# Deliberately absent: voltagent-qa-sec owns the pick voltagent-qa-sec:ui-ux-tester, and
+# langfuse-observability is hooks-only at 0 tokens, so turning it off would only stop tracing.
+[stack.signals."azure@claude-plugins-official"]
+paths = ['(^|/)azure\.yaml$', '\.bicep$', '(^|/)azure-pipelines']
+deps = ['@azure/', 'azure-[a-z]+-', 'azure\.']
+[stack.signals."aspire@aspire-skills"]
+paths = ['AppHost']
+deps = ['Aspire\.']
+[stack.signals."cloudflare@claude-plugins-official"]
+paths = ['(^|/)wrangler\.(toml|jsonc?)$']
+deps = ['"wrangler"', '@cloudflare/']
+[stack.signals."qdrant-skills@claude-plugins-official"]
+deps = ['qdrant']
+[stack.signals."redis-development@claude-plugins-official"]
+deps = ['\bredis\b', 'ioredis']
+[stack.signals."logfire@claude-plugins-official"]
+deps = ['\blogfire\b']
+[stack.signals."pydantic-ai@claude-plugins-official"]
+deps = ['pydantic[-_]ai']
+[stack.signals."langfuse@claude-plugins-official"]
+deps = ['langfuse']
+[stack.signals."sentry@claude-plugins-official"]
+deps = ['@sentry/', 'sentry[-_]sdk', 'sentry-go', 'getsentry']
+[stack.signals."sentry-cli@claude-plugins-official"]
+deps = ['@sentry/', 'sentry[-_]sdk', 'sentry-go', 'getsentry']
+[stack.signals."workos@claude-plugins-official"]
+deps = ['workos']
+[stack.signals."preset-cli-skills@claude-plugins-official"]
+paths = ['(^|/)\.preset']
+[stack.signals."voltagent-lang@voltagent-subagents"]
+paths = ['\.(ts|tsx|py|go|rs|ex|swift|java|kt|cs|php|rb|vue)$']
+[stack.signals."voltagent-core-dev@voltagent-subagents"]
+paths = ['\.(tsx|vue|ex)$', '(^|/)openapi\.']
+[stack.signals."voltagent-infra@voltagent-subagents"]
+paths = ['(?i)(^|/)dockerfile', '(^|/)(docker-)?compose[^/]*\.ya?ml$', '\.tf$', 'kustomization\.ya?ml$', 'Chart\.yaml$']
+[stack.signals."voltagent-data-ai@voltagent-subagents"]
+paths = ['\.ipynb$', '\.sql$']
+deps = ['langchain', 'openai', 'anthropic']
+[stack.signals."resume@jrmatherly-skills"]
+[stack.signals."career-ops@career-ops"]
+[stack.signals."voltagent-dev-exp@voltagent-subagents"]
+[stack.signals."voltagent-domains@voltagent-subagents"]
+[stack.signals."voltagent-biz@voltagent-subagents"]
+[stack.signals."voltagent-research@voltagent-subagents"]
+[stack.signals."voltagent-meta@voltagent-subagents"]
