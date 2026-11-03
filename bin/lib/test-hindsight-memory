@@ -20,9 +20,9 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 mkdir -p "$tmp/bin"
-# mise keeps its config-trust records under HOME, so a shim run under the
-# fixture HOME would refuse the global config; keep the real state dir
-export MISE_STATE_DIR="${MISE_STATE_DIR:-$HOME/.local/state/mise}"
+# mise's shims stay off PATH, as on CI: under a fake HOME one starts cold and
+# fetches every tool's versions from the network before it runs anything
+PATH=$(tr ':' '\n' <<< "$PATH" | grep -v '/mise/shims$' | paste -sd: -)
 
 # mktemp's /var/… is a symlink to /private/var/…; use the real path so HOME
 # looks like a shell's

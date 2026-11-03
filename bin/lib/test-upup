@@ -19,9 +19,9 @@ script="$(cd "$(dirname "$0")/.." && pwd -P)/upup"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-# mise shims (jq) refuse the global config under a fake HOME unless mise's
-# trust records stay in the real state dir
-export MISE_STATE_DIR="${MISE_STATE_DIR:-$HOME/.local/state/mise}"
+# mise's shims stay off PATH, as on CI: under a fake HOME one starts cold and
+# fetches every tool's versions from the network before it runs anything
+PATH=$(tr ':' '\n' <<< "$PATH" | grep -v '/mise/shims$' | paste -sd: -)
 # A scratch HOME: upup's rm of a stale REA skill link must never reach the real one.
 # HOMEBREW_PREFIX points nowhere so upup's by-path rustup falls back to the stub
 export HOME="$tmp/home" DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"

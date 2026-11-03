@@ -20,9 +20,9 @@ tmp=$(mktemp -d)
 port=8099
 serve_pid=""
 trap '[ -z "$serve_pid" ] || kill "$serve_pid" 2> /dev/null; rm -rf "$tmp"' EXIT
-# python3 can be a mise shim, which refuses the global config under a fake HOME
-# unless mise's trust records stay in the real state dir
-export MISE_STATE_DIR="${MISE_STATE_DIR:-$HOME/.local/state/mise}"
+# mise's shims stay off PATH, as on CI: under a fake HOME one starts cold and
+# fetches every tool's versions from the network before it runs anything
+PATH=$(tr ':' '\n' <<< "$PATH" | grep -v '/mise/shims$' | paste -sd: -)
 export HOME="$tmp/home" GIT_CONFIG_NOSYSTEM=1
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 mkdir -p "$HOME"

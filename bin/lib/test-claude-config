@@ -28,9 +28,9 @@ fi
 script="$(cd "$(dirname "$0")/.." && pwd -P)/claude-config"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-# jq can be a mise shim, which refuses the global config under a fake HOME
-# unless mise's trust records stay in the real state dir
-export MISE_STATE_DIR="${MISE_STATE_DIR:-$HOME/.local/state/mise}"
+# mise's shims stay off PATH, as on CI: under a fake HOME one starts cold and
+# fetches every tool's versions from the network before it runs anything
+PATH=$(tr ':' '\n' <<< "$PATH" | grep -v '/mise/shims$' | paste -sd: -)
 # The config dir sits under HOME so the warnings have a path to shorten to ~
 export HOME="$tmp/home" CLAUDE_CONFIG_DIR="$tmp/home/.claude" CLAUDE_CONFIG_SAVE_DIR="$tmp/save"
 mkdir -p "$CLAUDE_CONFIG_DIR/plugins" "$CLAUDE_CONFIG_SAVE_DIR"
