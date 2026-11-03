@@ -1,6 +1,6 @@
 # Project skill stack: our variation of AAS Core
 
-Status: proposed, 2026-11-02. Plan: `docs/superpowers/plans/2026-11-02-project-skill-stack.md`.
+Status: built, 2026-11-03. Plan: `docs/superpowers/plans/2026-11-02-project-skill-stack.md`.
 
 ## The decision
 
@@ -86,3 +86,16 @@ The saving column uses catalog estimates, so expect about 75% of it in practice.
 ## Open choice for later, not in this plan
 
 Opt-in at user scope: turn the 23 plugins off in `agents/claude-plugins.txt` and let each project enable what it needs. Unknown repos would then start small too. It changes every session, so it should wait for real use of the opt-out version. `skillListingBudgetFraction` is a second knob if descriptions are still short after selection.
+
+## Built
+
+Measured on this repo on 2026-11-03 with Claude Code 2.1.317, using a first `claude -p` request:
+
+| | Skills / agents / tools | Context tokens (2 runs) |
+| --- | --- | --- |
+| Before `claude-stack apply` | 329 / 201 / 612 | 89,975 / 89,269 |
+| After | 206 / 86 / 446 | 70,514 / 70,514 |
+
+Saving: about 19,100 tokens, 21%, for 22 plugins off. The catalog estimated 29,091, so its `cost` figures overstated this case by about 1.5x, more than the 1.3x in the scratch project above. Expect about two thirds of a `scan` estimate rather than 75%. `pnpm check` passes with the stack applied.
+
+`/project-stack` ran headless in auto mode on `reactive-resume` and applied cleanly: 22 tool picks, one reported gap, and all ten dimensions recorded. Auto mode did not block `apply`. It kept the `cloudflare` plugin but picked no tool from it, reasoning from the repo's `AGENTS.md` that it deploys through Docker and Vercel, and said so. Whether a narrower listing makes skills fire more accurately is still unmeasured.
