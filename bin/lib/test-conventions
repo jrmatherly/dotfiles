@@ -160,7 +160,7 @@ size_limit() {
 }
 size_limit 12000 CLAUDE.md
 size_limit 8000 bin/CLAUDE.md
-size_limit 6000 .claude/rules/*.md tilde/.claude/rules/*.md .claude/agents/*.md .claude/skills/*/SKILL.md
+size_limit 6000 .claude/rules/*.md tilde/.claude/rules/*.md .claude/agents/*.md .claude/skills/*/SKILL.md tilde/.claude/skills/*/SKILL.md
 long=$(awk -v max=1000 'length($0) > max { print FILENAME ":" FNR " (" length($0) ")" }' CLAUDE.md bin/CLAUDE.md .claude/rules/*.md tilde/.claude/rules/*.md)
 [ -z "$long" ] || fail "instruction lines over 1000 bytes: $long"
 

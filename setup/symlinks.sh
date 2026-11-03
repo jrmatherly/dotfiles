@@ -230,6 +230,11 @@ install_dotfiles() {
         for rule in .claude/rules/*.md; do
           symlink_file "$PWD/$rule" "$HOME/$rule"
         done
+        # ~/.claude/skills also holds skills the `skills` CLI installed as symlinks
+        mkdir -p "$HOME/.claude/skills"
+        for skill in .claude/skills/*; do
+          symlink_file "$PWD/$skill" "$HOME/$skill"
+        done
         # Top-level files, e.g. the status line script settings.json points at
         for file in .claude/*; do
           if [ -f "$file" ]; then symlink_file "$PWD/$file" "$HOME/$file"; fi
