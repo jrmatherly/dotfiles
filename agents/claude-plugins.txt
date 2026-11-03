@@ -1,6 +1,7 @@
 # Claude Code marketplaces and user-scope plugins — see bin/claude-config.
 # "disabled" = installed but turned off.
 marketplace aspire-skills microsoft/aspire-skills
+marketplace career-ops career-ops-hq/career-ops
 marketplace claude-code-docs costiash/claude-code-docs
 marketplace claude-code-warp warpdotdev/claude-code-warp
 marketplace claude-plugins-official anthropics/claude-plugins-official
@@ -16,6 +17,7 @@ plugin aspire@aspire-skills
 plugin auto-memory@severity1-marketplace
 plugin azure@claude-plugins-official
 plugin browser-use@claude-plugins-official
+plugin career-ops@career-ops
 plugin chrome-devtools-mcp@claude-plugins-official
 plugin claude-code-setup@claude-plugins-official
 plugin claude-docs@claude-code-docs
