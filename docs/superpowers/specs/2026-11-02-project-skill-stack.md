@@ -48,7 +48,7 @@ Note: the first narrow run read 51,568 because the claude.ai connector had not l
 | `reactive-resume` | 0 | `cloudflare`, `redis-development`, `voltagent-lang`, `core-dev`, `infra`, `data-ai` | 17 of 23 | 23,987 |
 | `ai-kb` | 175 | `qdrant-skills`, `redis-development`, `sentry`, `sentry-cli`, `voltagent-lang`, `core-dev`, `infra`, `data-ai` | 15 of 23 | 21,566 |
 
-The saving column uses catalog estimates, so expect about 75% of it in practice. These numbers come from a throwaway sketch run with `langfuse-observability` still in the set. Dropping it changes only the off count, because it costs 0 tokens. Not measured: whether a narrower listing makes skills fire more accurately. The final plan task records the real token number for one repo.
+The saving column uses catalog estimates, so expect about 75% of it in practice. A throwaway implementation of plan Tasks 1 to 4 in a clone reproduced every keep set, off count and estimate above, with `scan` taking 0.1 s to 13.5 s per repo. Not measured: whether a narrower listing makes skills fire more accurately. The final plan task records the real token number for one repo.
 
 ## What we take from AAS, and what we leave
 
