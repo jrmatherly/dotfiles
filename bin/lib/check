@@ -46,8 +46,10 @@ shellcheck --severity=warning "${shell_scripts[@]}"
 # (Python 3.11+ for tomllib: mise's, not macOS's 3.9 — like bin/claude-catalog)
 if command -v mise > /dev/null; then
   mise exec python -- python3 agents/catalog/test_build_catalog.py > /dev/null
+  mise exec python -- python3 agents/catalog/test_stack.py > /dev/null
 else
   python3 agents/catalog/test_build_catalog.py > /dev/null
+  python3 agents/catalog/test_stack.py > /dev/null
 fi
 # Parse the Brewfile the way brewpick does (`manual` lines stripped: raw
 # `brew bundle` rejects them) so a typo fails here, not on the next install
