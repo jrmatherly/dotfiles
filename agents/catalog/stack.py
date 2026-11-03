@@ -295,9 +295,15 @@ def apply_stack(root, catalog, keep, off, picks=None, projects_dir=PROJECTS):
             raise StackError(f"{key} is set to false in {SETTINGS} by you, so --keep can't turn it on. Remove that entry first")
     decisions = evidence(root, catalog, keeps, offs, usage_counts(root, catalog["plugins"], projects_dir))
     new_settings, owned = merge_settings(settings or {}, {k for k, d in decisions.items() if d["state"] == "off"}, prev_owned)
-    # Earlier picks too: this apply may have turned off a plugin one of them needs
-    earlier = old.get("capabilities", [])
-    capabilities = validate_picks({"capabilities": earlier} if picks is None else picks, catalog, decisions, root) if picks is not None or earlier else []
+    if picks is not None:
+        capabilities = validate_picks(picks, catalog, decisions, root)
+    else:
+        # Earlier picks too: this apply may have turned off a plugin one of them needs, or an update renamed a tool
+        earlier = old.get("capabilities", [])
+        try:
+            capabilities = validate_picks({"capabilities": earlier}, catalog, decisions, root) if earlier else []
+        except StackError as e:
+            raise StackError(f"earlier {e}. Rerun /project-stack to choose again, or run `claude-stack reset` to start over")
     rule = render_rule(capabilities, decisions, owned)
     manifest = dict(schema=1, generated=str(date.today()), decisions=decisions, owned=sorted(owned),
                     keep=keeps, off=offs, capabilities=capabilities)

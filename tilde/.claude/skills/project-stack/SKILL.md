@@ -9,7 +9,7 @@ Choose the installed tools that fit this repo and record the choice with `claude
 
 1. Run `claude-stack scan`. Treat it as evidence, not a verdict. It lists each selectable plugin as `keep` or `off` with the reason, and its last line says whether a selection already exists and is current. It can take about 15 seconds on a repo with a long history. If it says to run `claude-catalog`, do that first.
 
-2. Read the project: README, dependency manifests, CI, top-level layout. Do not read secrets or `.env` files.
+2. Read the project: README, dependency manifests, CI, top-level layout. Do not read secrets or `.env` files. A `keep` line names its evidence. Before you call a kept plugin unused or suggest `--off`, open that evidence and grep the manifest scripts and CI for the plugin's name, because an instructions file like `AGENTS.md` can omit a deploy target the repo still has.
 
 3. Walk all ten dimensions, and mark one `n/a` instead of skipping it: `architecture`, `languages`, `domain`, `data`, `integrations`, `testing`, `security`, `ux`, `deployment`, `maintenance`.
 

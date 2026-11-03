@@ -159,11 +159,11 @@ assert [p.read_bytes() for p in paths(r)] == before, "re-apply is byte-identical
 r = stack_repo()
 s_file, m_file, rule = paths(r)
 s_file.parent.mkdir()
-s_file.write_text(json.dumps({"permissions": {"allow": ["Bash(ls)"]}, "enabledPlugins": {"mine@m": True}}))
+s_file.write_text(json.dumps({"permissions": {"allow": ["Bash(ls)"]}, "enabledPlugins": {"mine@m": True, "theirs@m": False}}))
 apply(r)
 assert settings(r)["enabledPlugins"]["mine@m"] is True and settings(r)["permissions"]["allow"] == ["Bash(ls)"]
 s.reset_stack(r)
-assert settings(r) == {"permissions": {"allow": ["Bash(ls)"]}, "enabledPlugins": {"mine@m": True}}
+assert settings(r) == {"permissions": {"allow": ["Bash(ls)"]}, "enabledPlugins": {"mine@m": True, "theirs@m": False}}
 assert not m_file.exists() and not rule.exists()
 s.reset_stack(r)  # a no-op without a manifest
 r = stack_repo()
@@ -337,6 +337,13 @@ assert paths(r)[2].read_bytes() == before, "a later apply keeps the picks"
 raises(lambda: apply(r, catalog=c3, off=["pydantic-ai@m"]), "/ai:x")
 assert settings(r)["enabledPlugins"] == {"cf@m": False}, "a refused apply writes nothing"
 raises(lambda: apply(stack_repo(), catalog=c3, picks=ok), "/ai:x")
+# earlier picks gone stale block a flag-only apply, so the refusal has to name the way out
+renamed = {**c3, "items": [i for i in c3["items"] if i["use"] != "/ai:x"]}
+raises(lambda: apply(r, catalog=renamed), "unknown tool: /ai:x")
+raises(lambda: apply(r, catalog=renamed), "claude-stack reset")
+raises(lambda: apply(r, catalog=renamed), "/project-stack")
+s.reset_stack(r)
+assert "cf@m" not in apply(r, catalog=renamed, keep=["cf@m"])["owned"], "the advertised restore works after the way out"
 
 # --picks through the CLI, relative to the caller's directory
 good3 = tmp / "good3.json"
