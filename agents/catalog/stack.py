@@ -14,11 +14,12 @@ CATALOG = Path(os.environ.get("CLAUDE_STACK_CATALOG") or HOME / ".claude/catalog
 PROJECTS = Path(os.environ.get("CLAUDE_CONFIG_DIR") or HOME / ".claude") / "projects"  # empty = unset, as in the shell
 MANIFEST = re.compile(r"(^|/)(package\.json|pyproject\.toml|requirements[^/]*\.txt|go\.mod|Cargo\.toml|mix\.exs|[^/]*\.csproj|Gemfile)$")
 MANIFEST_BYTES = 200_000
-# The ':' skips a bare name that equals a plugin's, "input" skips tool definitions, and the
-# </command-message> prefix skips text that only quotes a command
 DIMENSIONS = ("architecture", "languages", "domain", "data", "integrations", "testing", "security", "ux", "deployment", "maintenance")
 MAX_TOOLS, MAX_WHY, MAX_RULE_BYTES = 24, 120, 4000
 SETTINGS, MANIFEST_FILE, RULE = ".claude/settings.local.json", ".claude/skill-stack.json", ".claude/rules/skill-stack.md"
+PATHS = (SETTINGS, MANIFEST_FILE, RULE)
+# The ':' skips a bare name that equals a plugin's, "input" skips tool definitions, and the
+# </command-message> prefix skips text that only quotes a command
 USE = re.compile(rb'"name":"Skill","input":\{"skill":"([a-z0-9-]+):|"subagent_type":"([a-z0-9-]+):|"name":"mcp__plugin_([a-z0-9-]+)_[^"]*","input"|<\\?/command-message>(?:\\n|\s)*<command-name>/([a-z0-9-]+):')
 
 
@@ -122,7 +123,7 @@ def decide(files, text, usage, catalog, keep=(), off=()):
 # ---------- local files ----------
 
 def read_json(path):
-    """A file we must not overwrite if we can't parse it. Missing is None."""
+    """Missing is None. Unlike build_catalog.load_json, bad JSON raises: we must not overwrite what we can't parse."""
     try:
         data = json.loads(path.read_text())
     except FileNotFoundError:
@@ -248,16 +249,16 @@ def render_rule(capabilities, decisions, owned):
     if off:
         lines += ["Plugins turned off here. If you need one, run `claude-stack apply --keep <key>` and start a new session:", "", *off, ""]
     text = "\n".join(lines).rstrip() + "\n"
-    if len(text.encode()) > MAX_RULE_BYTES:
-        raise StackError(f"the rule would exceed 4,000 bytes ({len(text.encode())}), so choose fewer tools")
+    size = len(text.encode())
+    if size > MAX_RULE_BYTES:
+        raise StackError(f"the rule would exceed {MAX_RULE_BYTES:,} bytes ({size}), so choose fewer tools")
     return text
 
 
 # ---------- commands ----------
 
-def evidence(root, catalog, keep, off, projects_dir):
+def evidence(root, catalog, keep, off, usage):
     files = tracked_files(root)
-    usage = usage_counts(root, catalog["plugins"], projects_dir)
     return decide(files, manifest_text(root, files), usage, catalog, keep, off)
 
 
@@ -276,14 +277,14 @@ def sticky(old, catalog, keep, off):
 
 
 def check_ignored(root):
-    for rel in (SETTINGS, MANIFEST_FILE, RULE):
+    for rel in PATHS:
         if git(root, "check-ignore", "-q", rel) is None:
             raise StackError(f"{rel} is tracked or not ignored by git here, so refusing to write it")
 
 
 def apply_stack(root, catalog, keep, off, picks=None, projects_dir=PROJECTS):
     root = Path(root)
-    s_path, m_path, r_path = root / SETTINGS, root / MANIFEST_FILE, root / RULE
+    s_path, m_path, r_path = (root / p for p in PATHS)
     old = read_json(m_path) or {}
     keeps, offs = sticky(old, catalog, keep, off)
     check_ignored(root)
@@ -292,11 +293,11 @@ def apply_stack(root, catalog, keep, off, picks=None, projects_dir=PROJECTS):
     for key in keep:
         if (settings or {}).get("enabledPlugins", {}).get(key) is False and key not in prev_owned:
             raise StackError(f"{key} is set to false in {SETTINGS} by you, so --keep can't turn it on. Remove that entry first")
-    decisions = evidence(root, catalog, keeps, offs, projects_dir)
+    decisions = evidence(root, catalog, keeps, offs, usage_counts(root, catalog["plugins"], projects_dir))
     new_settings, owned = merge_settings(settings or {}, {k for k, d in decisions.items() if d["state"] == "off"}, prev_owned)
-    capabilities = old.get("capabilities", []) if picks is None else picks
-    if capabilities:  # earlier picks too: this apply may have turned off a plugin one of them needs
-        capabilities = validate_picks({"capabilities": capabilities} if picks is None else picks, catalog, decisions, root)
+    # Earlier picks too: this apply may have turned off a plugin one of them needs
+    earlier = old.get("capabilities", [])
+    capabilities = validate_picks({"capabilities": earlier} if picks is None else picks, catalog, decisions, root) if picks is not None or earlier else []
     rule = render_rule(capabilities, decisions, owned)
     manifest = dict(schema=1, generated=str(date.today()), decisions=decisions, owned=sorted(owned),
                     keep=keeps, off=offs, capabilities=capabilities)
@@ -312,7 +313,7 @@ def apply_stack(root, catalog, keep, off, picks=None, projects_dir=PROJECTS):
 
 def reset_stack(root):
     root = Path(root)
-    s_path, m_path, r_path = root / SETTINGS, root / MANIFEST_FILE, root / RULE
+    s_path, m_path, r_path = (root / p for p in PATHS)
     manifest = read_json(m_path)
     if manifest is None:
         return
@@ -323,23 +324,24 @@ def reset_stack(root):
     m_path.unlink(missing_ok=True)
 
 
-def stack_status(root, catalog, projects_dir=PROJECTS):
+def stack_status(root, catalog, projects_dir=PROJECTS, usage=None):
     manifest = read_json(Path(root) / MANIFEST_FILE)
     if manifest is None:
         return "none"
-    now = evidence(root, catalog, manifest.get("keep", []), manifest.get("off", []), projects_dir)
+    if usage is None:
+        usage = usage_counts(root, catalog["plugins"], projects_dir)
+    now = evidence(root, catalog, manifest.get("keep", []), manifest.get("off", []), usage)
     was = manifest.get("decisions", {})
     changed = [f"{k} is now {now[k]['state']}" for k in sorted(now) if was.get(k, {}).get("state") != now[k]["state"]]
     return f"stale: {'; '.join(changed)}" if changed else "current"
 
 
 def load_catalog():
-    data = None
     try:
         data = json.loads(CATALOG.read_text())
     except (OSError, ValueError):
-        pass
-    if not isinstance(data, dict) or "plugins" not in data or "signals" not in data:
+        data = None
+    if not isinstance(data, dict) or not {"plugins", "signals"} <= data.keys():
         raise StackError(f"no usable catalog at {CATALOG}: run claude-catalog first")
     return data
 
@@ -347,13 +349,16 @@ def load_catalog():
 def scan(root, catalog, keep, off):
     old = read_json(Path(root) / MANIFEST_FILE) or {}
     keeps, offs = sticky(old, catalog, keep, off)
-    decisions = evidence(root, catalog, keeps, offs, PROJECTS)
+    usage = usage_counts(root, catalog["plugins"], PROJECTS)
+    decisions = evidence(root, catalog, keeps, offs, usage)
     for key, d in sorted(decisions.items(), key=lambda kv: (kv[1]["state"], kv[0])):
         print(f"{d['state']} {key}  {d['why']}")
     cost = {p["key"]: p.get("cost") or 0 for p in catalog["plugins"]}
     saved = sum(cost.get(k, 0) for k, d in decisions.items() if d["state"] == "off")
     print(f"estimated saving: {saved:,} tokens (catalog figures, which run high)")
-    print(f"applied: {stack_status(root, catalog)}")
+    # Zero on a repo with a long history means the transcript format moved, not that nothing was used
+    print(f"history: {sum(usage.values()):,} plugin tool calls in this repo's sessions")
+    print(f"applied: {stack_status(root, catalog, usage=usage)}")
 
 
 def main(argv=None):
@@ -364,9 +369,6 @@ def main(argv=None):
     ap.add_argument("--off", action="append", default=[], metavar="KEY")
     ap.add_argument("--picks", metavar="FILE")
     a = ap.parse_args(argv)
-    # The wrapper's `mise -C` moves us, so a relative path or --picks resolves from the caller's directory
-    if os.environ.get("CLAUDE_STACK_CWD"):
-        os.chdir(os.environ["CLAUDE_STACK_CWD"])
     try:
         root = project_root(Path(a.path))
         if a.command == "reset":

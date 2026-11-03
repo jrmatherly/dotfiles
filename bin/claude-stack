@@ -42,6 +42,5 @@ if ! command -v mise &> /dev/null; then
 fi
 
 # -C, because a bare `mise exec` here would resolve the project's Python and may
-# install it. It also moves the working directory, so the caller's travels along.
-export CLAUDE_STACK_CWD="$PWD"
-exec mise -C "$DOTFILES_DIR" exec python -- python3 "$DOTFILES_DIR/agents/catalog/stack.py" "$@"
+# install it. Only the lookup moves, so a relative path or --picks stays the caller's.
+exec "$(mise -C "$DOTFILES_DIR" which python3)" "$DOTFILES_DIR/agents/catalog/stack.py" "$@"

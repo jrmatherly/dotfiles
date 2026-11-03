@@ -234,9 +234,7 @@ script = Path(s.__file__)
 
 def cli(*args, catalog=None, cwd=None):
     env = {**os.environ, "CLAUDE_STACK_CATALOG": str(catalog), "CLAUDE_CONFIG_DIR": str(tmp / "cfg")}
-    if cwd:
-        env["CLAUDE_STACK_CWD"] = str(cwd)
-    return subprocess.run(["python3", str(script), *args], capture_output=True, text=True, env=env, cwd=str(tmp))
+    return subprocess.run(["python3", str(script), *args], capture_output=True, text=True, env=env, cwd=str(cwd or tmp))
 
 
 r = stack_repo()
@@ -247,7 +245,7 @@ for bad in (tmp / "absent.json", tmp / "bad.json"):
 good = tmp / "good.json"
 good.write_text(json.dumps({**cat, "plugins": [dict(pl, cost=7) for pl in cat["plugins"]]}))
 p = cli("scan", catalog=good, cwd=r)
-assert p.returncode == 0 and "off cloudflare@m" in p.stdout and "14" in p.stdout and "applied: none" in p.stdout, p.stdout
+assert p.returncode == 0 and "off cloudflare@m" in p.stdout and "14" in p.stdout and "history: 0 plugin" in p.stdout and "applied: none" in p.stdout, p.stdout
 assert not paths(r)[1].exists(), "scan writes nothing"
 p = cli("apply", catalog=good, cwd=r)
 assert p.returncode == 0 and paths(r)[1].exists(), p.stderr
