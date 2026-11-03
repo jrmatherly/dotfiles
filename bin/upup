@@ -339,7 +339,7 @@ else
   # Homebrew carries on after this warning and replaces the app anyway: 1Password
   # aborted when that happened, taking down the SSH agent git needs (2026-11-03)
   while IFS=$'\t' read -r cask app_id; do
-    status notice Homebrew "$cask replaced while running: Homebrew couldn't quit it; check your terminal's Automation access to System Events"
+    status notice Homebrew "$cask replaced while running: Homebrew couldn't quit it"
     actions+=("Reopen $cask if it closed: open -b $app_id")
   done < <(awk '
     /^==> Upgrading / { cask = $3; sub(/.*\//, "", cask) }

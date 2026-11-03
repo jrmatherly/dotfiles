@@ -285,7 +285,7 @@ touch "$STATE/cask-no-quit" "$STATE/shadow-first"
 run
 check_true "shadow: a tool mise doesn't have active isn't shadowed" lacks 'shadowed by'
 check_true "shadow: the caveat stays in the log" grep -q 'uv executables are shadowed' "$DOTFILES"/logs/upup-*.log
-check_true "cask Homebrew couldn't quit is a notice" has "^● Homebrew +1password replaced while running: Homebrew couldn't quit it; check your terminal's Automation access to System Events\$"
+check_true "cask Homebrew couldn't quit is a notice" has "^● Homebrew +1password replaced while running: Homebrew couldn't quit it\$"
 check_true "cask: reopening it is an action" has '^  › Reopen 1password if it closed: open -b com\.1password\.1password$'
 rm -rf "$DOTFILES/logs" "$STATE/shadow-first"
 touch "$STATE/brew-upgrade-fails"
