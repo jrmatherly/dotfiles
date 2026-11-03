@@ -70,7 +70,7 @@ stub brew 'case $1 in
 esac
 exit 0'
 stub mise 'case $1 in
-  which) [ -e "$STATE/mise-uv-active" ] ;;
+  which) [ -n "$2" ] && [ -e "$STATE/mise-uv-active" ] ;;
   ls) if [ -e "$STATE/prune" ]; then
       echo "{\"node\":[{\"version\":\"24.0.0\",\"install_path\":\"$STATE/installs/node/24.0.0\"}],\"github:microsoft/aspire\":[{\"version\":\"13.6.0\",\"install_path\":\"$STATE/installs/aspire/13.6.0\"}],\"npm:node\":[{\"version\":\"1.0.0\",\"install_path\":\"$STATE/installs/npm-node/1.0.0\"},{\"version\":\"2.0.0\",\"install_path\":\"$STATE/installs/npm-node/2.0.0\"}]}"
     else echo "{}"; fi ;;
