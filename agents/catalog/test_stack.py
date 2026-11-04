@@ -274,6 +274,10 @@ assert p.returncode == 0 and "Traceback" not in p.stderr, p.stderr
 p = cli("apply", catalog=good, cwd=tmp / "plain")
 assert p.returncode == 0 and (tmp / "plain" / s.MANIFEST_FILE).exists(), p.stderr
 assert cli("reset", catalog=good, cwd=tmp / "plain").returncode == 0 and not (tmp / "plain" / s.MANIFEST_FILE).exists(), "reset outside git"
+(tmp / "symdir").mkdir()
+(tmp / "symdir/.claude").symlink_to(tmp / "plain")
+p = cli("apply", catalog=good, cwd=tmp / "symdir")
+assert p.returncode == 2 and "symlink" in p.stderr and not (tmp / "plain" / s.MANIFEST_FILE).exists(), p.stderr
 
 # picks: validated against the catalog, because they become an auto-loaded rule
 c2 = {"plugins": [dict(key="pydantic-ai@m", name="ai", enabled=True), dict(key="cf@m", name="cf", enabled=True)],

@@ -294,7 +294,12 @@ def sticky(old, catalog, keep, off):
 
 def check_ignored(root):
     if git(root, "rev-parse", "--git-dir") is None:
-        return  # outside git nothing can commit these files
+        # outside git nothing can commit these files, but a linked folder would send the writes elsewhere,
+        # which git refuses inside a repo ("beyond a symbolic link")
+        for d in (".claude", ".claude/rules"):
+            if (Path(root) / d).is_symlink():
+                raise StackError(f"{d} is a symlink here, so refusing to write through it")
+        return
     for rel in PATHS:
         if git(root, "check-ignore", "-q", rel) is None:
             raise StackError(f"{rel} is tracked or not ignored by git here, so refusing to write it")
