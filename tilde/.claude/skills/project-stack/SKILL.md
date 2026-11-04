@@ -54,4 +54,4 @@ Choose the installed tools that fit this repo and record the choice with `claude
 
 8. Say a new session applies the selection, and that `claude-stack reset` undoes it.
 
-Plugins are the unit: Claude Code can't turn off one skill inside a plugin. `.claude/skill-stack.json` keeps each decision and reason, and `.claude/rules/skill-stack.md` is what later sessions read. Both are gitignored.
+Plugins are the unit: Claude Code can't turn off one skill inside a plugin. `.claude/skill-stack.json` keeps each decision and reason, and `.claude/rules/skill-stack.md` is what later sessions read. In a git repo both are gitignored.

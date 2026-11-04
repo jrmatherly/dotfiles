@@ -28,7 +28,8 @@
 #
 # ---
 # Only plugins in agents/catalog/curated.toml's [stack.signals] can be turned off; the rest are core.
-# Reads ~/.claude/catalog/catalog.json, so run claude-catalog first. Git repos only.
+# Reads ~/.claude/catalog/catalog.json, so run claude-catalog first.
+# Outside git it reads the files on disk, skipping hidden folders, and refuses a folder of over 50,000 files.
 #
 # License: MIT
 

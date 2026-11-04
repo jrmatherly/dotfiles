@@ -2,7 +2,7 @@
 """Select which installed Claude Code plugins a project needs. See bin/claude-stack.
 
 Only plugins named in curated.toml's [stack.signals] can be turned off here. Evidence comes from tracked
-paths, dependency manifests and this project's own session history (tool names only).
+paths (files on disk outside git), dependency manifests and this project's own session history (tool names only).
 """
 import argparse, json, os, re, subprocess, sys, tempfile
 from collections import Counter
@@ -14,6 +14,7 @@ CATALOG = Path(os.environ.get("CLAUDE_STACK_CATALOG") or HOME / ".claude/catalog
 PROJECTS = Path(os.environ.get("CLAUDE_CONFIG_DIR") or HOME / ".claude") / "projects"  # empty = unset, as in the shell
 MANIFEST = re.compile(r"(^|/)(package\.json|pyproject\.toml|requirements[^/]*\.txt|go\.mod|Cargo\.toml|mix\.exs|[^/]*\.csproj|Gemfile)$")
 MANIFEST_BYTES = 200_000
+MAX_WALK = 50_000
 DIMENSIONS = ("architecture", "languages", "domain", "data", "integrations", "testing", "security", "ux", "deployment", "maintenance")
 MAX_TOOLS, MAX_WHY, MAX_RULE_BYTES = 24, 120, 4000
 SETTINGS, MANIFEST_FILE, RULE = ".claude/settings.local.json", ".claude/skill-stack.json", ".claude/rules/skill-stack.md"
@@ -36,10 +37,13 @@ def git(cwd, *args):
 
 
 def project_root(path):
-    """The checkout Claude Code reads local settings from: a linked worktree inherits its main checkout's."""
+    """The checkout Claude Code reads local settings from: a linked worktree inherits its main checkout's.
+    A folder outside git is its own root."""
     common = git(path, "rev-parse", "--path-format=absolute", "--git-common-dir")
     if common is None:
-        raise StackError(f"not a git repository: {path}")
+        if not Path(path).is_dir():
+            raise StackError(f"not a directory: {path}")
+        return Path(path).resolve()
     common = Path(common)
     own = git(path, "rev-parse", "--absolute-git-dir")
     linked = own is not None and Path(own).resolve() != common.resolve()
@@ -52,7 +56,17 @@ def project_root(path):
 
 
 def tracked_files(root):
-    out = git(root, "ls-files", "-z") or ""
+    out = git(root, "ls-files", "-z")
+    if out is None:
+        # outside git: files on disk, skipping hidden folders (.claude, .venv, .remember)
+        files = []
+        for d, dirs, fs in os.walk(root):
+            dirs[:] = [x for x in dirs if not x.startswith(".") and x != "node_modules"]
+            files += [str(Path(d, f).relative_to(root)) for f in fs]
+            # refuse rather than truncate: missing evidence would turn plugins off ($HOME passed 1.2M files in 20s)
+            if len(files) > MAX_WALK:
+                raise StackError(f"more than {MAX_WALK} files outside git here, so run it in a project folder: {root}")
+        return files
     return [f for f in out.split("\0") if f and "node_modules/" not in f]
 
 
@@ -279,6 +293,8 @@ def sticky(old, catalog, keep, off):
 
 
 def check_ignored(root):
+    if git(root, "rev-parse", "--git-dir") is None:
+        return  # outside git nothing can commit these files
     for rel in PATHS:
         if git(root, "check-ignore", "-q", rel) is None:
             raise StackError(f"{rel} is tracked or not ignored by git here, so refusing to write it")

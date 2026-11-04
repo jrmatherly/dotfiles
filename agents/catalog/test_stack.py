@@ -94,7 +94,15 @@ git(tmp, "clone", "-q", "--bare", str(inner), "p/.git")
 git(tmp / "p/.git", "worktree", "add", "-q", str(tmp / "p/wk"))
 assert s.project_root(tmp / "p/wk") == tmp / "p/wk"
 (tmp / "plain").mkdir()
-raises(lambda: s.project_root(tmp / "plain"), "not a git repository")
+assert s.project_root(tmp / "plain") == (tmp / "plain").resolve(), "a folder outside git is its own root"
+(tmp / "plain/sub").mkdir()
+(tmp / "plain/sub/pyproject.toml").write_text("x")
+(tmp / "plain/.hidden").mkdir()
+(tmp / "plain/.hidden/package.json").write_text("x")
+assert s.tracked_files(tmp / "plain") == ["sub/pyproject.toml"], "outside git: files on disk, hidden folders skipped"
+s.MAX_WALK = 0
+raises(lambda: s.tracked_files(tmp / "plain"), "files outside git")
+s.MAX_WALK = 50_000
 raises(lambda: s.project_root(tmp / "b.git"), "no work tree")
 
 # evidence: tracked files only, allowlisted manifests only
@@ -262,7 +270,10 @@ assert p.returncode == 2 and "core@m" in p.stderr and "Traceback" not in p.stder
 assert cli("reset", catalog=tmp / "absent.json", cwd=r).returncode == 0, "reset needs no catalog"
 assert not paths(r)[1].exists()
 p = cli("scan", catalog=good, cwd=tmp / "plain")
-assert p.returncode == 2 and "not a git repository" in p.stderr, p.stderr
+assert p.returncode == 0 and "Traceback" not in p.stderr, p.stderr
+p = cli("apply", catalog=good, cwd=tmp / "plain")
+assert p.returncode == 0 and (tmp / "plain" / s.MANIFEST_FILE).exists(), p.stderr
+assert cli("reset", catalog=good, cwd=tmp / "plain").returncode == 0 and not (tmp / "plain" / s.MANIFEST_FILE).exists(), "reset outside git"
 
 # picks: validated against the catalog, because they become an auto-loaded rule
 c2 = {"plugins": [dict(key="pydantic-ai@m", name="ai", enabled=True), dict(key="cf@m", name="cf", enabled=True)],
