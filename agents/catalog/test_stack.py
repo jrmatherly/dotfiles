@@ -103,6 +103,15 @@ assert s.tracked_files(tmp / "plain") == ["sub/pyproject.toml"], "outside git: f
 s.MAX_WALK = 0
 raises(lambda: s.tracked_files(tmp / "plain"), "files outside git")
 s.MAX_WALK = 50_000
+(tmp / "plain/sub").chmod(0)
+try:
+    raises(lambda: s.tracked_files(tmp / "plain"), "can't read")
+finally:
+    (tmp / "plain/sub").chmod(0o755)
+git(tmp, "init", "-q", "broken")
+(tmp / "broken/sub").mkdir()
+(tmp / "broken/.git/HEAD").write_text("garbage\n")
+raises(lambda: s.project_root(tmp / "broken/sub"), "git can't read the repository")
 raises(lambda: s.project_root(tmp / "b.git"), "no work tree")
 
 # evidence: tracked files only, allowlisted manifests only
@@ -278,6 +287,11 @@ assert cli("reset", catalog=good, cwd=tmp / "plain").returncode == 0 and not (tm
 (tmp / "symdir/.claude").symlink_to(tmp / "plain")
 p = cli("apply", catalog=good, cwd=tmp / "symdir")
 assert p.returncode == 2 and "symlink" in p.stderr and not (tmp / "plain" / s.MANIFEST_FILE).exists(), p.stderr
+(tmp / "symdir/.claude").unlink()
+(tmp / "symdir/.claude").mkdir()
+(tmp / "symdir/.claude/rules").symlink_to(tmp / "plain")
+p = cli("apply", catalog=good, cwd=tmp / "symdir")
+assert p.returncode == 2 and ".claude/rules is a symlink" in p.stderr, p.stderr
 
 # picks: validated against the catalog, because they become an auto-loaded rule
 c2 = {"plugins": [dict(key="pydantic-ai@m", name="ai", enabled=True), dict(key="cf@m", name="cf", enabled=True)],

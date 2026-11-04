@@ -41,9 +41,13 @@ def project_root(path):
     A folder outside git is its own root."""
     common = git(path, "rev-parse", "--path-format=absolute", "--git-common-dir")
     if common is None:
-        if not Path(path).is_dir():
+        p = Path(path).resolve()
+        if not p.is_dir():
             raise StackError(f"not a directory: {path}")
-        return Path(path).resolve()
+        # a repo git can't read (corrupt, not owned by you, no git) must not lose the gitignore guard
+        if any((d / ".git").exists() for d in (p, *p.parents)):
+            raise StackError(f"git can't read the repository here: {path}")
+        return p
     common = Path(common)
     own = git(path, "rev-parse", "--absolute-git-dir")
     linked = own is not None and Path(own).resolve() != common.resolve()
@@ -59,8 +63,11 @@ def tracked_files(root):
     out = git(root, "ls-files", "-z")
     if out is None:
         # outside git: files on disk, skipping hidden folders (.claude, .venv, .remember)
+        def unreadable(e):
+            # a skipped folder is missing evidence, which would turn plugins off
+            raise StackError(f"can't read {e.filename}, so refusing rather than guessing")
         files = []
-        for d, dirs, fs in os.walk(root):
+        for d, dirs, fs in os.walk(root, onerror=unreadable):
             dirs[:] = [x for x in dirs if not x.startswith(".") and x != "node_modules"]
             files += [str(Path(d, f).relative_to(root)) for f in fs]
             # refuse rather than truncate: missing evidence would turn plugins off ($HOME passed 1.2M files in 20s)
