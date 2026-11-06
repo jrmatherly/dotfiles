@@ -244,6 +244,7 @@ cask "royal-tsx" # Remote connection manager (RDP/SSH/VNC)
 cask "syntax-highlight" # Quick Look previews with syntax highlighting (theme in syntax-highlight/)
 cask "terax" # Terminal-first AI workspace (terax.app); its language servers: see tilde/.config/mise/config.toml
 cask "utm" # QEMU-based virtual machines
+cask "vorssaint" # Menu bar toolkit (keep-awake, system monitor, volume mixer); auto-updates itself
 cask "warp" # Agentic terminal
 
 # Manual installs (skipped by `brewpick --all`)
