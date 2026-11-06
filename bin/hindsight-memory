@@ -49,7 +49,7 @@
 set -euo pipefail
 
 # Bumping either pin is a reviewed commit
-CODING_AGENTS_VERSION=0.8.2
+CODING_AGENTS_VERSION=0.8.3
 EMBED_VERSION=1.1.0
 
 cfg=${HINDSIGHT_CONFIG:-$HOME/.hindsight/coding-agent.json}
