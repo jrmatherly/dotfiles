@@ -51,10 +51,12 @@ cat > "$HOME/bin/embed" << 'EOF'
 #!/bin/bash
 echo "$*" >> "$HOME/embed.log"
 EOF
+# the stub answers with the script's own pin by default, so a pin bump keeps the equal-to-pin case covered
+sed -n 's/^CODING_AGENTS_VERSION=//p' "$script" > "$HOME/pin"
 cat > "$HOME/bin/npm" << 'EOF'
 #!/bin/bash
 [ "$1 $2 $3" = 'pack --dry-run --json' ] || { echo "npm stub: unexpected args $*" >&2; exit 2; }
-if [ -e "$HOME/npm-newer" ]; then v=0.9.0; elif [ -e "$HOME/npm-older" ]; then v=0.8.1; else v=0.8.2; fi
+if [ -e "$HOME/npm-newer" ]; then v=99.0.0; elif [ -e "$HOME/npm-older" ]; then v=0.0.1; else v=$(cat "$HOME/pin"); fi
 echo "[{\"version\":\"$v\"}]"
 EOF
 chmod +x "$HOME"/bin/*
@@ -103,7 +105,7 @@ touch "$HOME/npm-older"
 check "no notice when npm's latest is older than the pin" "" "$(hm upgrade | grep 'newer release' || true)"
 rm "$HOME/npm-older"
 touch "$HOME/npm-newer"
-check "upgrade notices a newer release" "newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION" "$(hm upgrade | grep 'newer release')"
+check "upgrade notices a newer release" "newer release 99.0.0 on npm; bump CODING_AGENTS_VERSION" "$(hm upgrade | grep 'newer release')"
 check_true "paths add strips a trailing slash and collapses HOME" hm paths add "$HOME/dev/x/"
 check "stored list" '["~/work","~/dev/x"]' "$(jq -c .optInPaths "$cfg")"
 check_true "paths add is idempotent" hm paths add "$HOME/dev/x"
