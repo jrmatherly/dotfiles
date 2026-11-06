@@ -9,6 +9,8 @@ vscode/**/workspaceStorage/
 vscode/**/syncLocalSettings.json
 vscode/**/globalStorage/
 vscode/**/History/
+# Written by VS Code for the Claude Code extension's agent-sessions window (empty folder list, referenced from workspaceStorage)
+vscode/User/*.code-workspace
 # VS Code Settings Sync's local cache (snapshots of synced state, not config)
 vscode/**/sync/
 # VS Code profiles (per-machine; the Default profile is vscode/User itself)
