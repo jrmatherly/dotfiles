@@ -67,6 +67,11 @@ settings_filter='del(.enabledPlugins, .extraKnownMarketplaces, .hooks,
       and (.key | IN("CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY", "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT") | not)))
       | if .env == {} then del(.env) else . end
     else . end'
+# A sorted, deduplicated rule list with gitignore negations like
+# Read(!.env.example) last: a negation only carves out of the rules before
+# it, and a plain sort puts `!` ahead of `*`
+order='def negation: type == "string" and test("^[^(]*\\(!");
+  def order: unique | map(select(negation | not)) + map(select(negation));'
 # $HOME → ~ only where it starts a path (after start, space, ( = : or a
 # quote, and followed by / or the end); Claude Code's //$HOME/ absolute rule
 # syntax becomes ~/
@@ -210,9 +215,9 @@ save_settings() {
   missing_source "$settings" "$settings_base" && return 0
   valid_json "$settings" "$settings_base" || return 0
   # Sorted permission lists keep the diff stable
-  jq --arg home "$HOME" --argjson retired "$(retired_rules)" "$untilde $settings_filter"' | walk(if type == "string" then untilde($home) else . end)
+  jq --arg home "$HOME" --argjson retired "$(retired_rules)" "$untilde $order $settings_filter"' | walk(if type == "string" then untilde($home) else . end)
     | if .permissions.allow then .permissions.allow -= $retired else . end
-    | if .permissions then .permissions |= with_entries(if (.value | type) == "array" then .value |= sort else . end) else . end' \
+    | if .permissions then .permissions |= with_entries(if (.value | type) == "array" then .value |= order else . end) else . end' \
     "$settings" > "$settings_base.tmp" && mv "$settings_base.tmp" "$settings_base"
 }
 
@@ -220,11 +225,11 @@ restore_settings() {
   local current='{}' merged same='walk(if type == "array" then sort else . end)'
   [ -s "$settings" ] && current=$(cat "$settings")
   # Base first, then what's already here wins; permission lists are unioned
-  if ! merged=$(jq -n --argjson base "$(cat "$settings_base")" --argjson cur "$current" --argjson retired "$(retired_rules)" '
+  if ! merged=$(jq -n --argjson base "$(cat "$settings_base")" --argjson cur "$current" --argjson retired "$(retired_rules)" "$order"'
     ($base * $cur)
     | reduce ("allow", "deny", "ask", "additionalDirectories") as $k (.;
         if ($base.permissions[$k] // $cur.permissions[$k]) then
-          .permissions[$k] = (($base.permissions[$k] // []) + ($cur.permissions[$k] // []) | unique)
+          .permissions[$k] = (($base.permissions[$k] // []) + ($cur.permissions[$k] // []) | order)
         else . end)
     | if .permissions.allow then .permissions.allow -= $retired else . end'); then
     echo "claude-config: couldn't merge $(tildify "$settings_base") into $(tildify "$settings") (invalid JSON?)" >&2

@@ -142,6 +142,13 @@ echo '{"permissions":{"allow":["Bash(local)"]}}' > "$CLAUDE_CONFIG_DIR/settings.
 rm "$CLAUDE_CONFIG_SAVE_DIR/claude-permissions-retired.txt"
 cc save settings > /dev/null 2>&1
 check "no retired list keeps the rules" "jq -e '.permissions.allow | index(\"Bash(local)\")' '$base' > /dev/null"
+negation_last() { jq -e '.permissions.deny == ["Read(**/.env)", "Read(**/.env.*)", "Read(!.env.example)"]' "$1" > /dev/null; }
+echo '{"permissions":{"deny":["Read(**/.env.*)","Read(!.env.example)","Read(**/.env)"]}}' > "$CLAUDE_CONFIG_DIR/settings.json"
+cc save settings > /dev/null 2>&1
+check "save sorts a negation after the rules it carves out of" "negation_last '$base'"
+echo '{}' > "$CLAUDE_CONFIG_DIR/settings.json"
+cc restore settings > /dev/null 2>&1
+check "restore sorts a negation after the rules it carves out of" "negation_last '$CLAUDE_CONFIG_DIR/settings.json'"
 
 cp "$list" "$tmp/list.before"
 for shape in '{"m":{"source":"x"}}' '{"m":"x"}' '{"m":{"source":{"source":"new"}}}'; do

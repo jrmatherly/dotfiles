@@ -86,10 +86,10 @@
       "Bash(npm install -g *)",
       "Read(**/.env)",
       "Read(**/.env.*)",
-      "Read(!.env.example)",
       "Read(~/.aws/**)",
       "Read(~/.config/gh/hosts.yml)",
-      "Read(~/.ssh/**)"
+      "Read(~/.ssh/**)",
+      "Read(!.env.example)"
     ],
     "ask": [
       "Bash(curl *)",
