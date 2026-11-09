@@ -85,7 +85,12 @@
       "Bash(npm install --global *)",
       "Bash(npm install -g *)",
       "Read(**/.env)",
-      "Read(**/.env.*)",
+      "Read(**/.env.local)",
+      "Read(**/.env.*.local)",
+      "Read(**/.env.development)",
+      "Read(**/.env.test)",
+      "Read(**/.env.staging)",
+      "Read(**/.env.production)",
       "Read(~/.aws/**)",
       "Read(~/.config/gh/hosts.yml)",
       "Read(~/.ssh/**)"
