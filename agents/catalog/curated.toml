@@ -266,6 +266,7 @@ tools = "agent_browser_open, agent_browser_snapshot, agent_browser_click, agent_
 "voltagent-dev-exp:visual-asset-generator" = "Needs the prompt-to-asset MCP server, which is NOT installed here, so this agent can't do its main job."
 "skills:setup-ai-tutor" = "Project-specific: sets up the 'AI Tutor' course repo. Only useful inside that project."
 "code-review:code-review" = "Plugin version, different from the built-in /code-review. Prefer the built-in: it has effort levels, ultra, --fix and --comment."
+"coderabbit:code-review" = "CodeRabbit's review skill, not the built-in /code-review: it runs the `coderabbit` CLI, which sends the diff to CodeRabbit. coderabbit:autofix applies CodeRabbit's PR review comments."
 "skill-creator:skill-creator" = "Same skill as anthropic-skills:skill-creator (plugin copy vs claude.ai-synced copy)."
 "anthropic-skills:skill-creator" = "claude.ai-synced copy of skill-creator:skill-creator."
 "skills:piv-run-full-loop" = "'PIV' = plan → implement → validate (from cole-medin's 'skills' plugin). The piv-* skills are steps in that loop; this one chains them."
@@ -284,8 +285,8 @@ tools = "agent_browser_open, agent_browser_snapshot, agent_browser_click, agent_
 [[group]]
 title = "Review code"
 pick = ["code-review", "simplify"]
-guide = "Correctness bugs: /code-review (use 'ultra' before a big merge). Cleanup: /simplify. Over-engineering: ponytail-review. Security: see the Security group. Full multi-agent PR pass: pr-review-toolkit:review-pr."
-items = ["code-review", "simplify", "pr-review-toolkit:review-pr", "code-review:code-review", "ponytail:ponytail-review", "ponytail:ponytail-audit", "skills:piv-review-changes", "skills:piv-review-pr", "superpowers:requesting-code-review", "superpowers:receiving-code-review", "pr-review-toolkit:silent-failure-hunter", "pr-review-toolkit:pr-test-analyzer", "pr-review-toolkit:type-design-analyzer", "pr-review-toolkit:comment-analyzer", "feature-dev:code-reviewer", "voltagent-qa-sec:code-reviewer", "pr-review-toolkit:code-reviewer", "skills:piv-fix-review-findings", "voltagent-qa-sec:architect-reviewer"]
+guide = "Correctness bugs: /code-review (use 'ultra' before a big merge). Cleanup: /simplify. Over-engineering: ponytail-review. Security: see the Security group. Full multi-agent PR pass: pr-review-toolkit:review-pr. External second opinion (CodeRabbit's servers and static analyzers, needs `coderabbit auth login`): coderabbit:coderabbit-review."
+items = ["code-review", "simplify", "pr-review-toolkit:review-pr", "coderabbit:coderabbit-review", "coderabbit:code-review", "coderabbit:autofix", "coderabbit:code-reviewer", "code-review:code-review", "ponytail:ponytail-review", "ponytail:ponytail-audit", "skills:piv-review-changes", "skills:piv-review-pr", "superpowers:requesting-code-review", "superpowers:receiving-code-review", "pr-review-toolkit:silent-failure-hunter", "pr-review-toolkit:pr-test-analyzer", "pr-review-toolkit:type-design-analyzer", "pr-review-toolkit:comment-analyzer", "feature-dev:code-reviewer", "voltagent-qa-sec:code-reviewer", "pr-review-toolkit:code-reviewer", "skills:piv-fix-review-findings", "voltagent-qa-sec:architect-reviewer"]
 
 [[group]]
 title = "Plan and build a feature"

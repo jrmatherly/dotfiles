@@ -111,6 +111,10 @@ brew "actionlint" # GitHub Actions workflow linter
 brew "ansible" # Configuration management / automation
 brew "ast-grep" # Structural code search/lint
 brew "biome" # JS/TS formatter and linter
+# Log in once with `coderabbit auth login`. The cask links only `coderabbit`,
+# not the `cr` alias the vendor's install script adds. The Claude Code plugin
+# is coderabbit@claude-plugins-official in agents/claude-plugins.txt.
+cask "coderabbit" # CodeRabbit AI code review CLI (free on OSS repos)
 brew "go-air" # Live reload for Go apps (`air`); not the `air` formula, an R formatter
 brew "golangci-lint" # Go linters aggregator
 brew "golines" # Go long-line formatter, run on save by VS Code (emeraldwalk.runonsave)

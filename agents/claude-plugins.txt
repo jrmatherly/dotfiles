@@ -26,6 +26,7 @@ plugin claude-security@claude-plugins-official
 plugin cloudflare@claude-plugins-official
 plugin code-review@claude-plugins-official
 plugin code-simplifier@claude-plugins-official
+plugin coderabbit@claude-plugins-official
 plugin commit-commands@claude-plugins-official
 plugin feature-dev@claude-plugins-official
 plugin frontend-design@claude-plugins-official
