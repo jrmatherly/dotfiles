@@ -73,7 +73,7 @@ Decisions the spec left open, fixed here:
 - **mise runs from `$HOME`.** `run_mise` passes `cwd=Path.home()`. Measured on mise 2026.11.5: from a folder holding an untrusted `mise.toml`, `mise set --override` exits 0 but `mise env --json` exits 1 with "not trusted". From `$HOME` both exit 0.
 - **Live refresh covers every file an adapter names.** An adapter may define `watch_paths(self) -> list[Path]`. The TUI polls the mtimes of the union across its adapters.
 - **The VS Code font preset has a file seed.** `bin/vscode-settings` falls back to the preset saved in `~/.config/dotfiles/vscode.env`, not to a shell export. For this one key, when the seed shell does not export it, `EnvAdapter` reads the seed from that file (`env.file_seed`). No registry field is added for it. Task 6 makes the script use an environment preset without saving it, so a reset in the UI hands the choice back to the saved file.
-- **`set`, `reset` and `apply` ask in Claude Code.** In this phase they only write the gitignored override file. From A3 on, `set` on a `macos-default` setting edits a tracked file and changes live preferences, and A5's `apply dotfile` creates links. A permission rule cannot tell kinds apart, so Task 3 adds `ask` rules for all three subcommands now, in the form the repo uses for `sysup` and `set-defaults`. `list`, `get`, `tui` and `serve` do not ask.
+- **`set`, `reset` and `apply` ask in Claude Code, from A7 on.** In this phase they only write the gitignored override file. From A3 on, `set` on a `macos-default` setting edits a tracked file and changes live preferences, and A5's `apply dotfile` creates links. A permission rule cannot tell kinds apart, so all three subcommands get `ask` rules, in the form the repo uses for `sysup` and `set-defaults`. This plan adds none of them: spec decision 7 lands every `ask` rule in the last phase, so A7's Task 8 adds these eighteen, and until then the owner's go-ahead in chat is the guard. `list`, `get`, `tui` and `serve` do not ask.
 - **The Hindsight model variables are read-only** (spec decision 3). `tilde/.zshenv` exports them for shells and `agents/claude-settings.json` sets the same three for Claude Code, so an override would reach shells only. They are shown so the user can see which model runs, with help text naming both files.
 - **The browser page is served from a template copy in the package** (spec decision 4). `GuardedServer` passes `templates_path` to textual-serve, which accepts an absolute path (`base_path / templates_path` in `Server.__init__` keeps an absolute right side). The copy is upstream's `app_index.html` with its four-line Google Fonts `<link>` replaced by an `@font-face` that points at `RobotoMono-VariableFont_wght.ttf`, a file textual-serve already ships in its `static/fonts/` and serves at `/static/fonts/`, so the page keeps the font upstream intends and makes no third-party request. Static files still come from textual-serve's own folder. `test_serve.py` rebuilds the expected copy from the installed upstream template, so a textual-serve upgrade that changes the template fails the gate until the copy is redone.
 - **Later phases add `env` settings to this registry.** A3 adds the macOS security opt-ins (firewall, HiDPI, Time Machine, computer name; spec decision 2) and the four preference-group switches (screenshots, the Time Machine new-disk prompt, TextEdit, Software Update; spec decision 9), and A7 adds `ui.claude_panel`. Nothing in this plan pins the number of `env` settings, a closed list of keys or sections, or the set of read-write settings. `seed_env` takes the keys of whatever `env` settings the registry holds, and the only count, of `Privacy` entries, does not include them.
@@ -376,6 +376,9 @@ bad(table(widget="grid"), "a.b: unknown widget 'grid'")
 short = load_text(table_without("true_value", "choices", "default"))[0]
 assert (short.true_value, short.choices, short.default, short.widget) == ("", (), "", "")
 assert load_text(table(widget="seats"))[0].widget == "seats"
+# a bool may be on by default: A3's switches set default equal to true_value (spec decisions 2 and 9)
+on = load_text(table(type="bool", true_value="1", default="1", section="macOS (this Mac)"))[0]
+assert (on.default, on.true_value, on.section) == ("1", "1", "macOS (this Mac)")
 
 # write_note may be absent, a string or a method
 class Plain: write_note = "note"
@@ -544,6 +547,14 @@ for raw, needle in (("{{ x }}", "{{"), ("{% if %}", "{%"), ("{# c #}", "{#"), ("
     raises(lambda: a.write(S("T_VAL"), raw), InvalidValue, needle)
 assert a.read(S("T_VAL")).value == ""            # a refused write changed nothing
 
+# a switch that is on by default (A3): unset reads as on, off is stored as "" and the key stays, reset restores the default
+ON = S("T_ON", type="bool", default="1", true_value="1")
+assert a.read(ON) == Value("t_on", "1", Source.DEFAULT, "1", False)
+a.write(ON, "")
+assert a.read(ON) == Value("t_on", "", Source.OVERRIDE, "1", False) and env.read_override()["T_ON"] == ""
+a.reset(ON)
+assert a.read(ON).source is Source.DEFAULT and "T_ON" not in env.read_override()
+
 # a key ~/.zsh.local also exports: the override wins, the seed is what reset restores
 a.write(S("T_LOCAL"), "ui")
 assert a.read(S("T_LOCAL")) == Value("t_local", "ui", Source.OVERRIDE, "from-zsh-local", False)
@@ -636,7 +647,7 @@ git commit -m "Read and write env settings through mise's override file"
 
 - Create: `settings/src/dotfiles_settings/cli.py`, `__main__.py`, `bin/dotfiles-settings`
 - Test: `settings/tests/test_cli.py`
-- Modify: `bin/lib/check` (append the test to `settings_tests`), `.claude/settings.json` (the `ask` list), `bin/lib/test-conventions` (the assertion after the `sysup` and `set-defaults` loop near line 120, and the header comment)
+- Modify: `bin/lib/check` (append the test to `settings_tests`). Not `.claude/settings.json` or `bin/lib/test-conventions`: the ask rules are A7's (Step 6)
 
 **Interfaces:**
 
@@ -807,36 +818,9 @@ Expected: the same first line. The folder holds an untrusted `mise.toml` and the
 Run: `help dotfiles-settings`
 Expected: the header renders as a tldr page with no error.
 
-- [ ] **Step 6: Make `set`, `reset` and `apply` ask in Claude Code**
+- [ ] **Step 6: No ask rule in this phase**
 
-This step edits the project's tracked permission file. Show the user the diff before committing it.
-
-In `.claude/settings.json`, append to `permissions.ask`, after the `sysup` rules, six rules for each of `set`, `reset` and `apply`. For `set`:
-
-```json
-"Bash(dotfiles-settings set *)",
-"Bash(bin/dotfiles-settings set*)",
-"Bash(./bin/dotfiles-settings set*)",
-"Bash(*/bin/dotfiles-settings set*)",
-"Bash(bash bin/dotfiles-settings set*)",
-"Bash(sh bin/dotfiles-settings set*)"
-```
-
-In `bin/lib/test-conventions`, after the loop that asserts the `sysup` and `set-defaults` rules, add:
-
-```bash
-# dotfiles-settings set, reset and apply change settings, for some kinds a
-# tracked file and live preferences: every way to start them asks
-for sub in set reset apply; do
-  s="dotfiles-settings $sub"
-  rules .claude/settings.json ask present "Bash($s *)" "Bash(bin/$s*)" "Bash(./bin/$s*)" "Bash(*/bin/$s*)" \
-    "Bash(bash bin/$s*)" "Bash(sh bin/$s*)"
-done
-```
-
-Add the clause to the list in that file's header comment. The rtk probe further down reads every ask rule without a `/`, so it now probes `dotfiles-settings set x`, `reset x` and `apply x`. Checked against the tracked `rtk/config.toml` in a scratch HOME: `rtk rewrite` returns nothing for all three, so no `rtk/config.toml` entry is needed. A call spelled `uv run --project settings dotfiles-settings set ...` is not covered by these rules.
-
-Run: `bash bin/lib/test-conventions`. Expected: exit 0. Remove one of the new rules, run it again, expect `.claude/settings.json ask: ... should be present`, then put the rule back.
+Do not edit `.claude/settings.json` or `bin/lib/test-conventions` here. Spec decision 7 puts every `ask` rule the plans add in the last phase, so A7's Task 8 adds the eighteen rules for `dotfiles-settings set`, `reset` and `apply` (six spellings each, the form the repo uses for `sysup` and `set-defaults`) with their `test-conventions` loop. Until then the owner's go-ahead in chat guards a real `set`, `reset` or `apply` from an agent session. What A7 needs from this plan, measured here: against the tracked `rtk/config.toml` in a scratch HOME, `rtk rewrite` returns nothing for `dotfiles-settings set x`, `reset x` and `apply x`, so those rules need no `rtk/config.toml` entry. A call spelled `uv run --project settings dotfiles-settings set ...` is not covered by them.
 
 - [ ] **Step 7: Verify and commit**
 
@@ -846,7 +830,7 @@ Run: `pnpm check`. Expected: exit 0. The shebang scan in `bin/lib/check` picks t
 
 ```bash
 git add settings/src/dotfiles_settings/cli.py settings/src/dotfiles_settings/__main__.py \
-  settings/tests/test_cli.py bin/dotfiles-settings bin/lib/check .claude/settings.json bin/lib/test-conventions
+  settings/tests/test_cli.py bin/dotfiles-settings bin/lib/check
 git commit -m "Add the dotfiles-settings CLI and its launcher"
 ```
 
@@ -1224,7 +1208,7 @@ Prettier checks it (`printWidth: 70`, `proseWrap: never`). Sections, in this ord
 
 1. What it is, and the three ways in: `dotfiles-settings tui`, `serve`, and the JSON commands.
 2. Where a value comes from: the four sources. Read-only rows: the telemetry opt-outs, and the three Hindsight models, which `tilde/.zshenv` and `agents/claude-settings.json` set together. The seed is what a new interactive zsh exports (`zsh/env.zsh`, `tilde/.zshenv`, `~/.zsh.local`). A variable exported by hand in one terminal is not a seed. A change is written to `config.override.toml` in mise's config dir, which is inside the clone and gitignored, and it beats the seed. Reset removes the override. A change reaches a shell opened afterwards.
-3. The CLI contract table and the exit codes from Task 3, and the eleven JSON keys. In Claude Code, `set`, `reset` and `apply` ask first.
+3. The CLI contract table and the exit codes from Task 3, and the eleven JSON keys. Nothing here about Claude Code asking: A7's Task 8 adds that sentence with the rules that make it true.
 4. Values that are refused: `{{`, `{%`, `{#`, `$` and line breaks, with the one-line reason for each (mise treats the first three as a template and expands the fourth).
 5. Booleans: on means the value equals the setting's `true_value`, and off is written as an empty value. An adapter receives `true_value` or `""`, never the word typed.
 6. The browser UI: loopback only, a random port, a per-run token that becomes a cookie, a `Host` and `Origin` check. The page makes no request outside `127.0.0.1`: `templates/app_index.html` is textual-serve's page with its `fonts.googleapis.com` link replaced by textual-serve's own Roboto Mono file. After upgrading textual-serve in `uv.lock`, `test_serve.py` fails if upstream changed its template. Then copy the new template, make the same one replacement, and rerun the test.

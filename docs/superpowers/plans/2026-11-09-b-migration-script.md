@@ -8,7 +8,7 @@
 
 **Tech Stack:** bash 3.2 (`#!/bin/bash`), `/usr/bin/jq` (ships with macOS, 1.7.1 on this Mac), mise 2026.11.5 or newer, shellcheck, Prettier with `prettier-plugin-sh`.
 
-**Spec:** `docs/superpowers/specs/2026-11-09-mise-first-setup-and-settings-ui.md` ("Two parts", D5, D11, "Verified facts", phase "B. Migration script", Risks, and "Decisions" items 5, 6 and 7: Homebrew is removed only after every Homebrew-managed app is reinstalled or adopted, which P16, P17 and Tasks 4 and 5 enforce; the Codex config is a `merge = "missing"` edit, which Task 6 prepares for; every `ask` permission rule lands in A7, so this plan adds none).
+**Spec:** `docs/superpowers/specs/2026-11-09-mise-first-setup-and-settings-ui.md` ("Two parts", D5, D11, "Verified facts", phase "B. Migration script", Risks, and "Decisions" items 2, 5, 6, 7 and 12: the Time Machine and firewall switches are on by default, so Task 3 warns a Mac that would change at its next `set-defaults`; Homebrew is removed only after every Homebrew-managed app is reinstalled or adopted, which P16, P17 and Tasks 4 and 5 enforce; the Codex config is a `merge = "missing"` edit, which Task 6 prepares for; every `ask` permission rule lands in A7, so this plan adds none; the gate for removing Homebrew is the VM run recorded in plan A6's Task 6, which Task 5 Step 6 checks).
 
 ## Global Constraints
 
@@ -87,7 +87,7 @@ The spec left these open. Each was checked on this Mac on 2026-11-09 unless mark
 | 2 `env` | A2 | Needs `settings/registry.toml`. |
 | 3 `macos` | A3 | |
 | 4 `packages`: mise itself, undeclared packages, casks and leftovers | A4 | A4's `sysup` sends the user here to move mise off Homebrew. |
-| 5 `packages`: Homebrew removal | after A4's fresh-install workflow has passed once. The step itself also refuses until nothing Homebrew installed is left outside mise's package state (P16). | That run is the proof mise needs no Homebrew program. P16 is spec decision 5: every Homebrew-managed app is reinstalled, adopted, declared or dropped first. |
+| 5 `packages`: Homebrew removal | after A6, once the VM run of A6's Task 6 is recorded with no blocking row failing (spec decision 12 c) and the `fresh-install` workflow has passed once (spec decision 5). The step itself also refuses until nothing Homebrew installed is left outside mise's package state (P16). | The VM run is the full proof that a Mac needs no Homebrew program, and the gate. The workflow is the hosted-runner layer under it. P16 is spec decision 5: every Homebrew-managed app is reinstalled, adopted, declared or dropped first. |
 | 6 `dotfiles` | A5, before A5's first `mise dot apply` on this Mac | |
 | 7 `setup` | A6, before A6's first `mise bootstrap` on this Mac. Its old-method-name check (Step 6) lands after A6's last commit. | A6 plan, Task "changes the machine", says so. The check fails until A6 has removed the last old name. |
 | 8 Removal | on or after 2027-02-28 | |
@@ -126,6 +126,7 @@ The script's five `ask` rules come with A7's Task 8, the last task of Part A (P1
   - Each step is a function `step_<name>` returning 0 or 1. Task 1 defines all five as `info "nothing to migrate yet"`.
 - Produces, in `bin/lib/test-migrate`:
   - `tmp` (`tmp=$(cd "$(mktemp -d)" && pwd -P)`: physical, because the script resolves `REPO` with `pwd -P` and macOS's temp folder sits behind the `/var` link), `HOME=$tmp/home`, `STATE=$tmp/state`, `REPO_COPY=$tmp/repo` (holds a copy of `migrate/` plus fixture `tilde/.config/mise/conf.d/` and `settings/`), `HOMEBREW_PREFIX=$tmp/prefix`, `PATH=$tmp/bin:/usr/bin:/bin`.
+  - `set -eu`, without `pipefail`. The cases feed prompts with `yes | "$script" …`, and `yes` is killed by SIGPIPE (status 141) when the script exits. Under `pipefail` that turns every such case whose script exits 0 into a failure (measured: `bash -c 'set -euo pipefail; out=$(yes | head -1) || echo rc=$?'` prints `rc=141`). Without it the pipeline's status is the script's.
   - `stub <name> <body>` as in `bin/lib/test-sysup`.
   - `phase <step>`: creates that step's marker file in `REPO_COPY` (the same five paths as `phase_marker`).
   - `snapshot`: prints `find "$HOME" "$HOMEBREW_PREFIX" "$STATE" -exec ls -ld {} +` with every regular file's `cksum`, sorted, excluding `$STATE/*.log`.
@@ -215,6 +216,8 @@ usage_errors() {
 }
 never_old() {
   for s in env macos packages dotfiles setup; do phase "$s"; done
+  # the cases before this one leave their backup folders and their logged calls behind
+  rm -rf "$HOME/.dotfiles-migration-backup"; : > "$STATE/mise.log"; : > "$STATE/brew.log"; : > "$STATE/claude.log"
   before=$(snapshot)
   out=$("$script" < /dev/null 2>&1) || fail "never-old Mac: exit $?: $out"
   [ "$(snapshot)" = "$before" ] || fail "never-old Mac: something changed"
@@ -236,7 +239,7 @@ helpers_back_up_before_replacing() {
 
 `MIGRATE_SELFTEST` is a test-only hook in the script: when set, it runs `backup_move "$MIGRATE_SELFTEST"`, writes `replaced` to that path and exits. It is the only way to exercise the helper before a step uses it. Task 6 replaces this case with a real one and deletes the hook.
 
-`never_old` runs last in this task because it creates every marker file.
+`never_old` runs last in this task because it creates every marker file. It clears the backup folder and the three logs first: from Task 2 on, the cases before it write overrides, move packages and leave backups, and its own assertions are about this one run.
 
 - [ ] **Step 2: Run the test to see it fail**
 
@@ -349,7 +352,7 @@ A value holding `$` is rejected in every form (P4).
 **Behaviour of `step_env`, in order:**
 
 1. `settings/registry.toml` missing: print `refusing env: settings/registry.toml is not in this checkout (phase A2)` and exit 3.
-2. `~/.zsh.local` missing or holding no export of a registered key: `nothing to migrate`, return 0.
+2. `~/.zsh.local` missing or holding no export of a registered key or of a retired name (point 6): `nothing to migrate`, return 0.
 3. For each registered key with an export, read the current override with `mise set --file "$HOME/.config/mise/config.override.toml" KEY` (exit 1 means none):
    - equal: print `KEY: already an override`.
    - form not accepted: print `KEY: cannot read its value safely. Set it yourself: mise set --override KEY=<value>`.
@@ -357,7 +360,7 @@ A value holding `$` is rejected in every form (P4).
    - different: print both values, `ask "Replace the override for KEY?"`.
 4. Before the first write of the run, `backup_copy` the override file when it exists.
 5. Write with `(cd "$HOME" && run mise set --override "KEY=VALUE")`. One argument, quoted.
-6. Print `KEY: retired, no longer read. Delete its line from ~/.zsh.local yourself.` for each export of `DOTFILES_MACOS_YES`, `DOTFILES_MACOS_NO` or a name starting `HOMEBREW_`, when the phase that retired it is present (`phase_present macos` for the first two, `phase_present packages` for `HOMEBREW_*`).
+6. Print `KEY: retired, no longer read. Delete its line from ~/.zsh.local yourself.` for each export of `DOTFILES_MACOS_YES`, `DOTFILES_MACOS_NO` or a name starting `HOMEBREW_`, when the phase that retired it is present (`phase_present macos` for the first two, `phase_present packages` for `HOMEBREW_*`). With `phase_present macos`, an export of `COMPUTERNAME` or `LOCALHOSTNAME`, the old script's prompt variables, gets `KEY: retired, no longer read. Set it with: dotfiles-settings set macos.computer_name <name>` (`macos.local_hostname <host>` for the second), as the A3 plan asks in "What Part B's `macos` step needs". These two are not registered keys, so nothing is copied.
 7. When at least one override was written or already existed, print this exact text:
 
 ```text
@@ -416,6 +419,14 @@ env_unsafe_values_are_skipped() {
   out=$(yes | "$script" --step env 2>&1) || fail "env unsafe: exit $?"
   [ ! -e "$STATE/override" ] || fail "wrote a value it could not read safely"
   check_out "gives the manual command" 'mise set --override DOTFILES_MAC_PASSWORD_OP=<value>'
+}
+env_names_retired_knobs() {
+  phase macos
+  printf '%s\n' 'export DOTFILES_MACOS_NO=1' "export COMPUTERNAME='Old Mac'" > "$HOME/.zsh.local"
+  out=$("$script" --step env < /dev/null 2>&1) || fail "env retired names: exit $?"
+  check_out "names a dead knob" '^DOTFILES_MACOS_NO: retired, no longer read'
+  check_out "points the old prompt variable at its setting" '^COMPUTERNAME: retired, no longer read\. Set it with: dotfiles-settings set macos\.computer_name'
+  [ ! -e "$STATE/override" ] || fail "wrote an override for a retired name"
 }
 env_dry_run_and_closed_stdin_change_nothing() {
   printf '%s\n' 'export DOTFILES_TRIM_CA_ROOTS=1' > "$HOME/.zsh.local"
@@ -485,7 +496,7 @@ git push
 - Consumes: `mise bootstrap macos defaults status --json`. Shape, from the A3 plan's measurement on mise 2026.11.5: `{"macos_defaults":{"available":true,"entries":[{"domain":"…","host":"…","path":null|["…"],"key":"…","value":<json>,"current":"…","state":"set"|"differs"|"unset"}]}}`. `path` names a value inside a dictionary preference. A3 declares `com.apple.finder DesktopViewSettings` twice, once with `path` `["IconViewSettings","arrangeBy"]` and once with `["IconViewSettings","iconSize"]`, and the same pair for two more keys, so `domain` and `key` alone do not name an entry.
 - Produces: `step_macos`. It changes nothing and always returns 0 when the status command succeeds.
 
-**Output (exact):** one line `macOS defaults: <a> set, <b> differ, <c> unset.`, then one line per `differs` or `unset` entry as `<domain> <key><path>: wants <value>, has <current or "nothing">`, where `<path>` is empty for a null `path` and otherwise a space and the path joined with dots (`com.apple.finder DesktopViewSettings IconViewSettings.arrangeBy: wants grid, has name`). Then one line per leftover that is present and not declared as `<domain> <key>: set by the old script, not declared now. To keep it, declare it in config.local.toml (the comment at the top of conf.d/20-macos.toml shows the table). To drop it: defaults delete <domain> <key>`, then this text:
+**Output (exact):** one line `macOS defaults: <a> set, <b> differ, <c> unset.`, then one line per `differs` or `unset` entry as `<domain> <key><path>: wants <value>, has <current or "nothing">`, where `<path>` is empty for a null `path` and otherwise a space and the path joined with dots (`com.apple.finder DesktopViewSettings IconViewSettings.arrangeBy: wants grid, has name`). Then one line per leftover that is present and not declared as `<domain> <key>: set by the old script, not declared now. To keep it, declare it in config.local.toml (the comment at the top of conf.d/20-macos.toml shows the table). To drop it: defaults delete <domain> <key>`, then the switch warnings below when they apply, then this text:
 
 ```text
 Nothing was changed. The old script already wrote these preferences.
@@ -496,9 +507,23 @@ Declare it in config.local.toml to keep it on purpose, or run its defaults delet
 
 **Leftovers** (from the A3 plan, "What Part B's `macos` step needs"): `com.apple.dock autohide-delay`, `com.apple.dock autohide-time-modifier`, `com.apple.LaunchServices LSQuarantine`, `com.apple.frameworks.diskimages skip-verify`, `com.apple.frameworks.diskimages skip-verify-locked`, `com.apple.frameworks.diskimages skip-verify-remote`. The list is a literal array in the script. The old script set these only when the user opted in, and A3 documents them as `config.local.toml` opt-ins. So one is listed only when `defaults read <domain> <key>` exits 0 and no status entry has that `domain` and `key`. An entry the status lists is declared on purpose and is never called a leftover.
 
+**Switches that are on by default** (spec decision 2, and the last item of the A3 plan's "What Part B's `macos` step needs"). The old script turned Time Machine backups off and the firewall on only after a "yes" to a prompt that defaulted to No. A3's `setup/macos-extras.sh` does both unless the setting is switched off, so a Mac migrated with its backups on loses them at its next `set-defaults`. The step reads the Mac's state without sudo, as the extras script does, and changes nothing:
+
+- A switch counts as left at its default when its variable is not set in the script's environment (`[ -z "${VAR+x}" ]`) and `mise set --file "$HOME/.config/mise/config.override.toml" VAR` exits 1 (P5). An empty value is a switch the owner turned off, and gets no warning.
+- Time Machine, `DOTFILES_MACOS_DISABLE_TIME_MACHINE`. Backups count as on when `defaults read /Library/Preferences/com.apple.TimeMachine AutoBackup 2> /dev/null` prints something other than `0`, or `tmutil destinationinfo 2> /dev/null` prints anything without the words `No destinations configured` (measured on this Mac on 2026-11-09: `0`, and `tmutil: No destinations configured.` with exit 0). A read that fails prints nothing and is not a warning: on a Mac that never set Time Machine up, `tmutil disable` loses nothing. Then print, exact:
+
+  ```text
+  Time Machine backups are on here. set-defaults now turns them off unless told not to (the old script asked first).
+  To keep your backups, run this before set-defaults: dotfiles-settings set macos.disable_time_machine off
+  ```
+
+- The firewall, `DOTFILES_MACOS_FIREWALL`. With `fw=$(command -v socketfilterfw || echo /usr/libexec/ApplicationFirewall/socketfilterfw)`, when `"$fw" --getglobalstate` does not contain `State = 1`, print `The firewall is off here. set-defaults now turns it on with stealth mode and asks for your password. To leave it off: dotfiles-settings set macos.firewall off`.
+
+Not measured: what `tmutil destinationinfo` prints with a destination configured (this Mac has none). The check that settles it is that command on a Mac with a backup disk. A wrong reading there costs a warning that should not print, or one that is missing while `AutoBackup` still reads `1`.
+
 - [ ] **Step 1: Write the failing test**
 
-The fake `mise` gains: `"bootstrap macos defaults status --json") cat "$STATE/defaults.json" ;;`. A `defaults` stub exits 0 for `read com.apple.dock autohide-delay` and `read com.apple.dock autohide-time-modifier` and 1 for every other `read`, and logs any other verb to `$STATE/defaults.log`.
+The fake `mise` gains: `"bootstrap macos defaults status --json") cat "$STATE/defaults.json" ;;`. A `defaults` stub exits 0 for `read com.apple.dock autohide-delay` and `read com.apple.dock autohide-time-modifier`, prints `1` for `read /Library/Preferences/com.apple.TimeMachine AutoBackup` while `$STATE/tm-on` exists, exits 1 for every other `read`, and logs any other verb to `$STATE/defaults.log`. A `tmutil` stub prints `tmutil: No destinations configured.`, and a `socketfilterfw` stub prints `Firewall is disabled. (State = 0)` while `$STATE/fw-off` exists and `Firewall is enabled. (State = 1)` otherwise. Both stay on `PATH` for every later case, `never_old` included, so no case reads the real Mac. The file `unset`s `DOTFILES_MACOS_DISABLE_TIME_MACHINE` and `DOTFILES_MACOS_FIREWALL` at its top, because A1's override cache may export them into the shell that runs `pnpm check`.
 
 ```bash
 macos_reports_only() {
@@ -525,8 +550,28 @@ EOF
     check_out "states the no-delete rule" 'mise never deletes a preference'
   done
   [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] && [ ! -s "$STATE/defaults.log" ] || fail "macos changed something"
+  ! grep -qE 'Time Machine backups are on|The firewall is off' <<< "$out" || fail "warned on a Mac that already matches the defaults"
+}
+macos_warns_before_set_defaults_turns_backups_off() {
+  touch "$STATE/tm-on" "$STATE/fw-off"
+  out=$("$script" --step macos < /dev/null 2>&1) || fail "macos warnings: exit $?"
+  check_out "Time Machine warning" '^Time Machine backups are on here\. set-defaults now turns them off'
+  check_out "gives the command that keeps them" 'dotfiles-settings set macos\.disable_time_machine off$'
+  check_out "firewall note" '^The firewall is off here\..*dotfiles-settings set macos\.firewall off$'
+  # a switch the owner already turned off (an empty override) is not warned about
+  mkdir -p "$STATE/override"; : > "$STATE/override/DOTFILES_MACOS_DISABLE_TIME_MACHINE"
+  out=$("$script" --step macos < /dev/null 2>&1) || fail "macos warnings, switched off: exit $?"
+  ! grep -q 'Time Machine backups are on' <<< "$out" || fail "warned although the switch is off"
+  check_out "the firewall switch is still at its default" '^The firewall is off here'
+  # so is one exported into the environment
+  out=$(DOTFILES_MACOS_FIREWALL= "$script" --step macos < /dev/null 2>&1) || fail "macos warnings, exported: exit $?"
+  ! grep -q 'The firewall is off' <<< "$out" || fail "warned although the variable is set"
+  [ ! -s "$STATE/defaults.log" ] || fail "the warnings changed a preference"
+  rm -rf "$STATE/tm-on" "$STATE/fw-off" "$STATE/override"
 }
 ```
+
+The fake `mise` answers `set --file <file> KEY` with no output and exit 0 for an empty `$STATE/override/KEY` (Task 2's stub: `cat` of an existing file), which is how an override of `""` reads.
 
 - [ ] **Step 2: Run to see it fail.** `bash bin/lib/test-migrate`. Expected: FAIL `counts`.
 - [ ] **Step 3: Implement `step_macos`** with one `jq` call for the counts and one for the lines.
@@ -534,7 +579,7 @@ EOF
 - [ ] **Step 5: Run on this Mac** (read-only): `migrate/legacy-to-mise --step macos`. Expected: the counts line, whose three numbers add up to the entry count of `mise bootstrap macos defaults status --json | jq '.macos_defaults.entries | length'`, and `Changed 0 thing(s).`
 - [ ] **Step 6: Document, gate, commit**
 
-`migrate/README.md`, `macos` section: report only, the leftovers list with the rule that a declared one is not a leftover, the four-line text above.
+`migrate/README.md`, `macos` section: report only, the leftovers list with the rule that a declared one is not a leftover, the two switch warnings with when each prints and that the Time Machine one must be acted on before `set-defaults`, the four-line text above.
 
 ```bash
 pnpm check
@@ -905,7 +950,7 @@ git push
 
 ---
 
-### Task 5: Step `packages`, removing the Homebrew program (lands after A4's fresh-install workflow passes)
+### Task 5: Step `packages`, removing the Homebrew program (lands after A6's VM run is recorded and the fresh-install workflow has passed)
 
 **Files:**
 
@@ -1006,7 +1051,7 @@ homebrew_removal_refuses_while_homebrew_owns_packages() {
   [ -x "$HOMEBREW_PREFIX/bin/brew" ] || fail "removed Homebrew while a cask is still Homebrew's"
   homebrew_owns_nothing
   out=$("$script" --step packages --dry-run 2>&1) || fail "dry run: exit $?"
-  ! grep -q '^  brew' <<< "$out" || fail "still blocks once every cask is mise's and the rest are dropped: $out"
+  ! grep -qE '^  brew(-cask)?:' <<< "$out" || fail "still blocks once every cask is mise's and the rest are dropped: $out"
   rm -rf "$HOMEBREW_PREFIX/Cellar/ack" "$HOMEBREW_PREFIX/Cellar/abseil" "$HOMEBREW_PREFIX/Caskroom/signal" "$HOME/.dotfiles-migration-backup"
 }
 homebrew_removal_is_off_by_default() {
@@ -1058,15 +1103,16 @@ homebrew_removal_restores_itself_when_mise_reads_differently() {
 - [ ] **Step 5: Dry-run on this Mac**
 
 Run: `migrate/legacy-to-mise --step packages --dry-run | sed -n '/Homebrew program/,$p'`
-Expected: preconditions 2-7 with their results, the would-move list (27 top-level names from `git ls-tree`, `bin` excluded, `bin/brew`, `.git`, the completion links, the two cache folders), and `Changed 0 thing(s).` Until the owner has moved every cask, precondition 5 lists packages. Task 4's step offers all 33 declared casks (P17), so each one the owner declined there, or skipped because it was running, shows with its `brew uninstall … && mise bootstrap packages apply …` line until Task 4 is run again or it is moved by hand. Cross-check the formula lines against Homebrew's own list, run from `$HOME`: `comm -23 <(HOMEBREW_NO_ANALYTICS=1 brew list --formula --installed-on-request | sort) <(mise bootstrap packages status --json | /usr/bin/jq -r '(.brew.packages // [])[].package | split("/") | last' | sort)`. Before A4 it printed all 153 names (measured 2026-11-09, `status --json` was `{}`). Every name it prints is a `brew:` line in the refusal, except `mise`, the seven `MOVED_TO_TOOLS` and the drop file's.
+Expected: preconditions 2-7 with their results, the would-move list (27 top-level names from `git ls-tree`, `bin` excluded, `bin/brew`, `.git`, the completion links, the two cache folders), and `Changed 0 thing(s).` Until the owner has moved every cask, precondition 5 lists packages (gate 3 of Step 6 counts them). Task 4's step offers all 33 declared casks (P17), so each one the owner declined there, or skipped because it was running, shows with its `brew uninstall … && mise bootstrap packages apply …` line until Task 4 is run again or it is moved by hand. Cross-check the formula lines against Homebrew's own list, run from `$HOME`: `comm -23 <(HOMEBREW_NO_ANALYTICS=1 brew list --formula --installed-on-request | sort) <(mise bootstrap packages status --json | /usr/bin/jq -r '(.brew.packages // [])[].package | split("/") | last' | sort)`. Before A4 it printed all 153 names (measured 2026-11-09, `status --json` was `{}`). Every name it prints is a `brew:` line in the refusal, except `mise`, the seven `MOVED_TO_TOOLS` and the drop file's.
 
 - [ ] **Step 6: Leave the real run to the user, and say what is unproven (changes this Mac: the user runs it, after an explicit go-ahead)**
 
-Before offering it, check the three gates, in order, and stop at the first that fails:
+Before offering it, check the four gates, in order, and stop at the first that fails:
 
-1. A4's `fresh-install` workflow has passed once. Run: `gh run list --workflow fresh-install.yml --status success --limit 1`. Expected: one row. That run is the proof mise works with no Homebrew program.
-2. Precondition 5 holds. Run: `migrate/legacy-to-mise --step packages --dry-run | grep -c '^  brew'`. Expected: `0`. Any line is a package still Homebrew's: hand the list to the owner (move, declare, uninstall or drop each), not to the removal.
-3. The owner says go in chat, after reading the dry run.
+1. The VM run is recorded (spec decision 12 c, the gate). Run: `grep -n -A 20 '^#### Results' docs/superpowers/plans/completed/2026-11-09-a6-bootstrap-entry-point.md docs/superpowers/plans/2026-11-09-a6-bootstrap-entry-point.md 2> /dev/null`. Expected: the results section A6's Task 6 Step 7 writes, with rows 2 to 8, 10 and 13 (the rows that plan calls blocking) each marked pass, or failed with the fixed rerun that passed. A6 moves its plan to `completed/` in the commit that records them. No section, or a blocking row still failing, stops here: a hosted runner is not a clean Mac, so the workflow alone is not the proof.
+2. The `fresh-install` workflow has passed once (spec decision 5). Run: `gh run list --workflow fresh-install.yml --status success --limit 1`. Expected: one row. After A6 the job runs `./setup.sh`, and a run from before that change counts too.
+3. Precondition 5 holds. Run: `migrate/legacy-to-mise --step packages --dry-run | grep -cE '^  brew(-cask)?:'`. Expected: `0`. The pattern matches only the lines `homebrew_leftovers` prints, not the `  brew uninstall …` lines of the step's own explanations. Any line is a package still Homebrew's: hand the list to the owner (move, declare, uninstall or drop each), not to the removal.
+4. The owner says go in chat, after reading the dry run.
 
 Then tell the user: the run asks for the typed phrase, moving the program is reversible with `sh ~/.dotfiles-migration-backup/<timestamp>/RESTORE.txt`, and a package in the drop file stays installed with nothing to update or remove it. Do not run it for them.
 
@@ -1140,12 +1186,13 @@ The fake models the Codex edit as A5's E9 and E18 measured it, after the file co
 | absent | exit 0 | copies `$src` there, `chmod 600` | exit 1 |
 | a link `-ef "$src"` | exit 0 | replaces it with a copy of `$src` at mode 644, as the real one does, so a script that skips the removal ends at 644 and fails the test | exit 1 |
 | any other link | stderr `mise ERROR edits: cannot apply these entries, fix them manually:` and `  "~/.codex/config.toml" (merge:defaults): target is a symlink; replace it with a copy of the real file before merging`, exit 1 | the same | exit 1 |
-| a regular file whose first line is `model = ` (the fixture's invalid TOML) | the same header and `  "~/.codex/config.toml" (merge:defaults): failed to parse the TOML target: …`, exit 1 | the same, file untouched | exit 1 |
+| a regular file whose first line is exactly `model = `, with nothing after the space (the fixture's invalid TOML; `model = "x"` is valid) | the same header and `  "~/.codex/config.toml" (merge:defaults): failed to parse the TOML target: …`, exit 1 | the same, file untouched | exit 1 |
 | any other regular file | exit 0 | leaves it as it is (the real merge would add missing keys) | no effect |
 
 ```bash
 dotfiles_backs_up_then_applies() {
   phase dotfiles
+  rm -rf "$HOME/.dotfiles-migration-backup"                    # the packages cases left theirs, and $bak below must be one folder
   echo mine > "$HOME/.zshrc"                                   # a real file in the way
   ln -s /etc/hosts "$HOME/.gitconfig"                          # a foreign link
   ln -s "$REPO_COPY/tilde/.old" "$HOME/.old"                   # an old link nothing declares, dangling
@@ -1229,7 +1276,12 @@ dotfiles_replaces_a_codex_config_link() {
   printf 'model = "mine"\n' > "$codex"; mv "$tmp/dot-targets.saved" "$STATE/dot-targets"
 }
 half_way_dotfiles() {
-  # the conflict was backed up by an earlier run but apply never ran: ~/.zprofile is absent
+  # the conflict was backed up by an earlier run but apply never ran: ~/.zprofile is absent.
+  # The earlier cases left ~/.zprofile as a real file and the ~/.claude/skills link with its
+  # target, which stops every run at "resolves into the clone" before the prompt, so both go first
+  rm -f "$HOME/.zprofile" "$HOME/.claude/skills"
+  grep -v '/\.claude/skills/x' "$STATE/dot-targets" > "$STATE/t" && mv "$STATE/t" "$STATE/dot-targets"
+  : > "$STATE/mise.log"
   out=$("$script" --step dotfiles < /dev/null 2>&1) || true
   check_out "closed stdin: tells the user what is left" '^Left as they are\. Finish with: mise dot apply$'
   out=$(echo y | "$script" --step dotfiles 2>&1) || fail "half-way rerun: exit $?"
@@ -1424,11 +1476,12 @@ git push
 | mise adopts an app bundle in place once Homebrew's `Caskroom` record is moved aside | It changes the machine. Read in the source, not run | Task 4 Step 5a, on `freelens` or `utm` |
 | A package declared in `config.local.toml` survives `mise bootstrap packages prune` | Only `status` was measured in a scratch folder (P14). Prune was not run | After Task 4 Step 6: `mise bootstrap packages prune --manager brew --dry-run` no longer lists a formula the user chose to keep |
 | mise upgrades a formula Homebrew installed | No formula was outdated on 2026-11-09 | When `brew outdated --formula` lists one: `mise bootstrap packages upgrade --manager brew --dry-run` names it |
-| mise's brew backend works with `Library/` and `.git` moved out of `/opt/homebrew` | It changes the machine | A4's `fresh-install` workflow passing, then Task 5's own post-check, which restores on failure |
+| mise's brew backend works with `Library/` and `.git` moved out of `/opt/homebrew` | It changes the machine | The VM run in A6's Task 6 (its formulae and casks rows, on a Mac that never had Homebrew) and the `fresh-install` workflow, then Task 5's own post-check, which restores on failure |
 | P16's check finds every package Homebrew still owns: status `package` names match `Caskroom` and `Cellar` folder names by their last `/` part, and a tap cask's status name is tap-qualified | Measured only with nothing declared (`status --json` printed `{}`). The shape with casks declared is A4's measurement, and Task 4 already relies on the same last-part match | After A4 lands: `migrate/legacy-to-mise --step packages --dry-run` lists no `brew-cask:` line for a cask `ls /opt/homebrew/Caskroom` shows and the status reports `managed_by: "mise"`, and the Step 5 `comm` cross-check agrees with the `brew:` lines |
-| Precondition 5 can be cleared on this Mac | Task 4 offers all 33 declared casks (P17), but each one the owner declines, or that is running when the step runs, stays `managed_by: "homebrew"` and blocks the removal. No cask has been moved yet | Task 5 Step 6 gate 2 prints `0` |
+| Precondition 5 can be cleared on this Mac | Task 4 offers all 33 declared casks (P17), but each one the owner declines, or that is running when the step runs, stays `managed_by: "homebrew"` and blocks the removal. No cask has been moved yet | Task 5 Step 6 gate 3 prints `0` |
 | mise adopts a self-updating app in place, with no identity check, once Homebrew's `Caskroom` record is moved aside | Read in the source (P17), not run | Task 4 Step 5a, item 6, on `coteditor` |
-| A self-updating cask reinstalled with `brew uninstall --cask` then a mise apply reads `managed_by: "mise"` | Only a cask that does not update itself is in Task 4 Step 6 | After Step 5a, the first self-updating cask the owner moves: the Step 6 `jq` line with its token prints `mise` || mise converts a whole-directory `~/.claude/rules` link itself | Measured by the A5 plan's author, not here | `ls -ld ~/.claude/rules` after the user's real run shows a folder, not a link |
+| A self-updating cask reinstalled with `brew uninstall --cask` then a mise apply reads `managed_by: "mise"` | Only a cask that does not update itself is in Task 4 Step 6 | After Step 5a, the first self-updating cask the owner moves: the Step 6 `jq` line with its token prints `mise` |
+| mise converts a whole-directory `~/.claude/rules` link itself | Measured by the A5 plan's author, not here | `ls -ld ~/.claude/rules` after the user's real run shows a folder, not a link |
 | A4 and A5 create `30-packages.toml` and `40-dotfiles.toml` | Not built yet. Both plans now name these files | `ls tilde/.config/mise/conf.d/` after each phase lands |
 | `settings/registry.toml` writes `kind`, `key` and `access` one per line as `name = "value"` | A2 is not built | Task 2 Step 5 |
 | `mise bootstrap packages apply --dry-run` and `mise dot apply --dry-run` touch no network | Not measured | Run each with Wi-Fi off |

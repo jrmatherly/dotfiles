@@ -24,7 +24,7 @@
 - Every doc that describes a changed behaviour changes in the same commit (D12).
 - Line numbers in this plan are from commit `9af6244`. An earlier phase may have moved them, so find each quoted text with `grep -n` before editing it.
 - No step in this plan changes this Mac. The steps that touch the live machine are reads (`get`, `status`, opening the TUI and changing nothing). Every write in a test goes to a scratch file. A real `set` or `reset` from the UI is the user's to run.
-- The phase is done when `pnpm check` passes, Task 7's stale-instruction greps pass and Task 8's ask rules are in place (eleven, or six when `migrate/` is gone). `mise bootstrap status --missing` is informational and no step needs it to exit 0.
+- The phase is done when `pnpm check` passes, Task 7's stale-instruction greps pass and Task 8's ask rules are in place (twenty-nine, or twenty-four when `migrate/` is gone). `mise bootstrap status --missing` is informational and no step needs it to exit 0.
 - Commits name their paths. No `git add -A`, no `git add .`, no bare directory. The working tree holds an unrelated uncommitted change to `agents/claude-settings.json` that must never enter a commit of this plan.
 - This plan's tests live in `settings/tests/test_tool.py`, `settings/tests/test_tui_agents.py` and `agents/catalog/test_stack.py`. It does not edit `settings/tests/test_registry.py`, and no test here counts the registry's settings or pins its kinds. A count is scoped to this plan's own rows (the 17 `jstack:` keys).
 - A false bool reaches an adapter as `""` and a true one as the setting's `true_value` (`"true"` for the tool bools, `"1"` for `ui.claude_panel`). The tool writers treat `""` as false. A test of a bool goes through `cli.normalize`.
@@ -36,7 +36,7 @@
 3. `jstack-models.md` holds lines the UI does not know: a hand-added comment, a model-only value such as `opus`, a full model id, a missing role, no final newline. Expected: a read shows the text as it is, and a write changes one line and leaves every other byte alone. Pinned by `test_jstack_round_trip_is_byte_identical` in Task 4.
 4. `~/.claude/settings.json` is not valid JSON, or is missing. Expected: the read shows unset, a write fails with exit 1, and the file is unchanged. Pinned by `test_claude_model_refuses_invalid_json` in Task 3.
 5. The UI is started outside a project, or where `claude-stack` cannot run (no catalog, no mise). Expected: `stack.status` shows unset and every other row still lists. Pinned by `test_stack_status_failure_is_unset` in Task 5.
-6. An agent starts `mise bootstrap` in any form (`--yes`, `--only macos-defaults`, a subcommand), `mise dot apply` / `mise dotfiles apply` / `unapply`, `mise install`, `mise self-update`, `mise plugins link`, or `migrate/legacy-to-mise` by any path. Expected: Claude Code asks first, also when rtk's hook is active. rtk 1.2.0 rewrites `mise install x` to `rtk mise install x` (measured), so that rule holds only with `"mise install"` in rtk's `exclude_commands`. Pinned by the `rules .claude/settings.json ask present` lines and the rtk probe in `bin/lib/test-conventions` (Task 8).
+6. An agent starts `mise bootstrap` in any form (`--yes`, `--only macos-defaults`, a subcommand), `mise dot apply` / `mise dotfiles apply` / `unapply`, `mise install`, `mise self-update`, `mise plugins link`, `dotfiles-settings set`, `reset` or `apply`, or `migrate/legacy-to-mise` by any path. Expected: Claude Code asks first, also when rtk's hook is active, and also for `mise bootstrap status` and `mise bootstrap packages status`, which an allow rule covered during the build (an ask rule wins over an allow rule). rtk 1.2.0 rewrites `mise install x` to `rtk mise install x` (measured), so that rule holds only with `"mise install"` in rtk's `exclude_commands`. Pinned by the `rules .claude/settings.json ask present` lines and the rtk probe in `bin/lib/test-conventions` (Task 8).
 
 ---
 
@@ -68,7 +68,7 @@ Confirmed with the A2 plan's author on 2026-11-09. Check them against the landed
 
 **The plugin stack is per project, so the global UI shows it read-only for the launch directory.** Its storage is that project's gitignored `.claude/settings.local.json`. A global row with a toggle would claim a scope it does not have. The registry holds one `ro` row, `stack.status`. A separate screen lists `claude-stack scan` for the directory the UI was started from, with keep and off as actions that run `claude-stack apply --keep|--off`. `scan` is too slow for `list`, so `claude-stack` gains a `status` subcommand that only reads the manifest.
 
-**Every `ask` rule the plans add lands here, last** (spec decision 7). A3 moved macOS preferences from `setup/macos.sh` to `mise bootstrap`, and A5 moved the links from `setup/symlinks.sh` to `mise dot apply`. The old scripts were guarded by the `Bash(./setup/*)` family of ask rules, and those guards went with the scripts. A4 makes `mise install`, `mise self-update` and `mise plugins link` change the machine, and Part B adds `migrate/legacy-to-mise`. The owner kept every guard but moved them all to the last phase so none prompts during the build. Until Task 8 lands, the owner's go-ahead in chat guards these commands. Task 8 adds eleven rules: `Bash(mise bootstrap*)`, `Bash(mise dot *apply*)` and `Bash(mise dotfiles *apply*)` (the strings A3 and A5 used to carry), `Bash(mise install*)`, `Bash(mise self-update*)` and `Bash(mise plugins link*)` (A4's P15), and Part B's five for `migrate/legacy-to-mise` (its P15). It adds no allow rules: the decision's allow list for the build's read-only and scratch commands is the owner's to approve, and is not in this plan.
+**Every `ask` rule the plans add lands here, last** (spec decision 7). A3 moved macOS preferences from `setup/macos.sh` to `mise bootstrap`, and A5 moved the links from `setup/symlinks.sh` to `mise dot apply`. The old scripts were guarded by the `Bash(./setup/*)` family of ask rules, and those guards went with the scripts. A4 makes `mise install`, `mise self-update` and `mise plugins link` change the machine, and Part B adds `migrate/legacy-to-mise`. The owner kept every guard but moved them all to the last phase so none prompts during the build. Until Task 8 lands, the owner's go-ahead in chat guards these commands. Task 8 adds twenty-nine rules: `Bash(mise bootstrap*)`, `Bash(mise dot *apply*)` and `Bash(mise dotfiles *apply*)` (the strings A3 and A5 used to carry), `Bash(mise install*)`, `Bash(mise self-update*)` and `Bash(mise plugins link*)` (A4's P15), the eighteen for `dotfiles-settings set`, `reset` and `apply` that A2's Task 3 used to add (the decision's list does not name them, but its rule is every `ask` rule the plans add), and Part B's five for `migrate/legacy-to-mise` (its P15). It adds no allow rules. The decision's allow list for the build's read-only and scratch commands is already in `.claude/settings.json` (commits `96ee341` and `1fcb304`), and Task 8 removes the two of its rules that `Bash(mise bootstrap*)` makes dead (Step 3).
 
 **Part B's rules depend on `migrate/` existing.** Part B's Task 1 creates the script before A1, so it is in the checkout when Task 8 runs, and Part B's own plan no longer adds rules. Part B's Task 8 deletes `migrate/` on or after 2027-02-28 and removes these five rules and their check with it. If Task 8 here runs after that removal (or Part B never landed), it leaves the five rules and their block out. The block is guarded by `if [ -e migrate ]`, so it never fails a checkout without the script.
 
@@ -112,7 +112,7 @@ The 17 jstack rows, as `slug` = role: `feature_refactoring` = `feature, refactor
 - Modify `agents/catalog/stack.py`, `agents/catalog/test_stack.py`, `bin/claude-stack` (header), `docs/README.md`.
 - Modify `agents/README.md`, `.claude/rules/claude-config.md`, `tilde/.claude/rules/hindsight.md`.
 - Modify `bin/lib/check` only if A2 lists test files one by one there.
-- Modify `.claude/settings.json` (`permissions.ask`), `bin/lib/test-conventions`, `rtk/config.toml` and `.claude/rules/claude-config.md` (Task 8).
+- Modify `.claude/settings.json` (`permissions.ask`, two rules out of `permissions.allow`), `bin/lib/test-conventions`, `rtk/config.toml`, `.claude/rules/claude-config.md` and `settings/README.md` (Task 8).
 
 ---
 
@@ -839,19 +839,20 @@ git commit -m "Document the agent settings in the settings UI"
 
 ### Task 8: Ask before the commands that change the machine
 
-Spec decision 7: every `ask` rule the plans add lands here. The last task of the last phase, so the rules never prompt during the build. Before this task, the owner's go-ahead in chat is the only guard on these commands. Three groups, one commit:
+Spec decision 7: every `ask` rule the plans add lands here. The last task of the last phase, so the rules never prompt during the build. Before this task, the owner's go-ahead in chat is the only guard on these commands. Four groups, one commit:
 
 | Group | Rules | From | Why |
 | --- | --- | --- | --- |
 | Bootstrap and links | `Bash(mise bootstrap*)`, `Bash(mise dot *apply*)`, `Bash(mise dotfiles *apply*)` | A3, A5 | The old `setup/*` ask rules guarded the scripts these replace. |
 | mise itself | `Bash(mise install*)`, `Bash(mise self-update*)`, `Bash(mise plugins link*)` | A4 (its P15) | The repo's rule for `sysup` and `set-defaults` is that every way to start a command that changes the machine asks. In this repo the global config is the repo's own, so `mise install` installs the tracked tools. `Bash(mise bootstrap*)` already covers every `mise bootstrap packages …` command. |
+| The settings CLI | for each of `set`, `reset` and `apply`: `Bash(dotfiles-settings <sub> *)`, `Bash(bin/dotfiles-settings <sub>*)`, `Bash(./bin/dotfiles-settings <sub>*)`, `Bash(*/bin/dotfiles-settings <sub>*)`, `Bash(bash bin/dotfiles-settings <sub>*)`, `Bash(sh bin/dotfiles-settings <sub>*)` | A2 (its Task 3 Step 6) | From A3 on, `set` on a `macos-default` setting edits a tracked file and changes a live preference, and A5's `apply dotfile` creates links. A rule cannot tell kinds apart, so all three subcommands ask. `list`, `get`, `tui` and `serve` do not. A call spelled `uv run --project settings dotfiles-settings set …` is not covered. |
 | The migration script | `Bash(migrate/legacy-to-mise*)`, `Bash(./migrate/legacy-to-mise*)`, `Bash(*/migrate/legacy-to-mise*)`, `Bash(bash migrate/legacy-to-mise*)`, `Bash(sh migrate/legacy-to-mise*)` | Part B (its P15) | It changes the machine. Every way to start it asks, `--dry-run` included. No bare-name rule, because the script is not on `PATH`. Only while `migrate/legacy-to-mise` exists (see Decisions). |
 
 **Files:**
 - Modify: `bin/lib/test-conventions` (directly after the `done` of the `for s in sysup set-defaults` loop, before the rtk block)
-- Modify: `.claude/settings.json` (`permissions.ask`)
+- Modify: `.claude/settings.json` (`permissions.ask`, and two rules out of `permissions.allow`)
 - Modify: `rtk/config.toml` (`exclude_commands` and its comment)
-- Modify: `.claude/rules/claude-config.md` (the **Permissions** bullet)
+- Modify: `.claude/rules/claude-config.md` (the **Permissions** bullet), `settings/README.md` (one sentence)
 
 **Interfaces:**
 - Consumes: the `rules <file> <list> present|absent <rule>…` helper in `bin/lib/test-conventions`, and its rtk probe block, which reads every `Bash(` ask rule in `.claude/settings.json`, skips a rule holding a `/` (so the five script rules are not probed), and probes a rule's command plus ` x` when the command holds a space.
@@ -866,6 +867,15 @@ In `bin/lib/test-conventions`, directly after the `done` that closes the `for s 
 rules .claude/settings.json ask present 'Bash(mise bootstrap*)' 'Bash(mise dot *apply*)' 'Bash(mise dotfiles *apply*)'
 # mise install, self-update and plugins link change the machine, as mise bootstrap does
 rules .claude/settings.json ask present 'Bash(mise install*)' 'Bash(mise self-update*)' 'Bash(mise plugins link*)'
+# dotfiles-settings set, reset and apply change settings, for some kinds a
+# tracked file and live preferences: every way to start them asks
+for sub in set reset apply; do
+  s="dotfiles-settings $sub"
+  rules .claude/settings.json ask present "Bash($s *)" "Bash(bin/$s*)" "Bash(./bin/$s*)" "Bash(*/bin/$s*)" \
+    "Bash(bash bin/$s*)" "Bash(sh bin/$s*)"
+done
+# an ask rule wins over an allow rule, so these two would be dead under Bash(mise bootstrap*)
+rules .claude/settings.json allow absent 'Bash(mise bootstrap status *)' 'Bash(mise bootstrap packages status *)'
 # migrate/legacy-to-mise changes the machine, so every way to start it asks (temporary: goes with migrate/)
 if [ -e migrate ]; then
   rules .claude/settings.json ask present 'Bash(migrate/legacy-to-mise*)' 'Bash(./migrate/legacy-to-mise*)' \
@@ -873,7 +883,7 @@ if [ -e migrate ]; then
 fi
 ```
 
-Run `ls migrate/legacy-to-mise` before adding them. When it reports no such file (Part B's Task 8 removed it, or Part B never landed), leave out the last five lines here (the comment and the `if` block), the five script rules in Step 3 and their docs words in Step 5, and expect six rules in Step 4.
+Run `ls migrate/legacy-to-mise` before adding them. When it reports no such file (Part B's Task 8 removed it, or Part B never landed), leave out the last five lines here (the comment and the `if` block), the five script rules in Step 3 and their docs words in Step 5, and expect twenty-four rules in Step 4. Add the settings clause to the list in the file's header comment.
 
 - [ ] **Step 2: Run it and see it fail**
 
@@ -893,6 +903,24 @@ In `.claude/settings.json`, append to `permissions.ask`, after the `sysup` rules
       "Bash(mise install*)",
       "Bash(mise self-update*)",
       "Bash(mise plugins link*)",
+      "Bash(dotfiles-settings set *)",
+      "Bash(bin/dotfiles-settings set*)",
+      "Bash(./bin/dotfiles-settings set*)",
+      "Bash(*/bin/dotfiles-settings set*)",
+      "Bash(bash bin/dotfiles-settings set*)",
+      "Bash(sh bin/dotfiles-settings set*)",
+      "Bash(dotfiles-settings reset *)",
+      "Bash(bin/dotfiles-settings reset*)",
+      "Bash(./bin/dotfiles-settings reset*)",
+      "Bash(*/bin/dotfiles-settings reset*)",
+      "Bash(bash bin/dotfiles-settings reset*)",
+      "Bash(sh bin/dotfiles-settings reset*)",
+      "Bash(dotfiles-settings apply *)",
+      "Bash(bin/dotfiles-settings apply*)",
+      "Bash(./bin/dotfiles-settings apply*)",
+      "Bash(*/bin/dotfiles-settings apply*)",
+      "Bash(bash bin/dotfiles-settings apply*)",
+      "Bash(sh bin/dotfiles-settings apply*)",
       "Bash(migrate/legacy-to-mise*)",
       "Bash(./migrate/legacy-to-mise*)",
       "Bash(*/migrate/legacy-to-mise*)",
@@ -900,36 +928,36 @@ In `.claude/settings.json`, append to `permissions.ask`, after the `sysup` rules
       "Bash(sh migrate/legacy-to-mise*)"
 ```
 
-One `mise bootstrap` rule, not `Bash(mise bootstrap)` plus `Bash(mise bootstrap *apply*)`: those two match nothing for `mise bootstrap --yes` or `mise bootstrap --only macos-defaults`. The cost is that the read-only `mise bootstrap … status` and `--dry-run` commands ask too when an agent runs them. The self-checks `pnpm check` runs (A4's `bin/lib/test-packages`, which runs `mise plugins link`, A5's `bin/lib/test-dotfiles`, Part B's `bin/lib/test-migrate`) call mise or the script from inside a script, which no rule matches, and `Bash(pnpm check *)` is allowed. `bash bin/lib/test-migrate` is not matched by the script rules either. `mise dot` and `mise dotfiles` are two rules because `mise dot *` needs the space after `dot`.
+One `mise bootstrap` rule, not `Bash(mise bootstrap)` plus `Bash(mise bootstrap *apply*)`: those two match nothing for `mise bootstrap --yes` or `mise bootstrap --only macos-defaults`. The cost is that the read-only `mise bootstrap … status` and `--dry-run` commands ask too when an agent runs them, and no allow rule can undo that. Claude Code evaluates deny rules, then ask rules, then allow rules, the first match decides, and a matching ask rule prompts even when a narrower allow rule matches the same call (`https://code.claude.com/docs/en/permissions`, "Manage permissions", read from the local docs cache on 2026-11-09). `.claude/settings.json` holds three allow rules added for the build (commits `96ee341` and `1fcb304`): `Bash(mise bootstrap status *)`, `Bash(mise bootstrap packages status *)` and `Bash(mise dot status *)`. The first two match only commands that `Bash(mise bootstrap*)` also matches, so from this commit they never apply. Delete both from `permissions.allow` in this step, so the file does not promise a prompt-free command it no longer gives (the `allow absent` line of Step 1 pins it). `Bash(mise dot status *)` stays and keeps working: `Bash(mise dot *apply*)` matches a `mise dot status` command only when it holds the word `apply`. Not verified: whether the `allowed-tools` grant A6 gives the validate-setup skill (`Bash(mise bootstrap status*)`, `Bash(mise bootstrap --dry-run*)`) still applies under the ask rule. Running `/validate-setup before` after this commit settles it. If it prompts, that is the cost named above, not a fault. The self-checks `pnpm check` runs (A4's `bin/lib/test-packages`, which runs `mise plugins link`, A5's `bin/lib/test-dotfiles`, Part B's `bin/lib/test-migrate`) call mise or the script from inside a script, which no rule matches, and `Bash(pnpm check *)` is allowed. `bash bin/lib/test-migrate` is not matched by the script rules either. `mise dot` and `mise dotfiles` are two rules because `mise dot *` needs the space after `dot`.
 
 - [ ] **Step 4: Run it, see the rtk probe fail, and exclude `mise install` from rtk**
 
 Run: `bash bin/lib/test-conventions`
-Expected: `FAIL: rtk rewrites 'mise install x' to 'rtk mise install x', so its ask rule never matches: add the command to rtk/config.toml`. Measured on 2026-11-09 with rtk 1.2.0 and the tracked `rtk/config.toml` in a scratch `HOME`: `rtk rewrite` rewrites `mise install x` and `mise exec x`, and prints nothing for `mise bootstrap x`, `mise bootstrap status`, `mise dot x`, `mise dot apply`, `mise dotfiles x`, `mise self-update x`, `mise plugins x` and `mise plugins link x`. If the run passes instead, an rtk upgrade stopped rewriting `mise install`: skip the edit below and say so in the commit message.
+Expected: `FAIL: rtk rewrites 'mise install x' to 'rtk mise install x', so its ask rule never matches: add the command to rtk/config.toml`. Measured on 2026-11-09 with rtk 1.2.0 and the tracked `rtk/config.toml` in a scratch `HOME`: `rtk rewrite` rewrites `mise install x` and `mise exec x`, and prints nothing for `mise bootstrap x`, `mise bootstrap status`, `mise dot x`, `mise dot apply`, `mise dotfiles x`, `mise self-update x`, `mise plugins x` and `mise plugins link x`. The eighteen `dotfiles-settings` rules need no entry: A2 measured that `rtk rewrite` prints nothing for `dotfiles-settings set x`, `reset x` and `apply x`. If the run passes instead, an rtk upgrade stopped rewriting `mise install`: skip the edit below and say so in the commit message.
 
 In `rtk/config.toml`, add `"mise install"` to `exclude_commands`, after `"gh"`, and change the comment's `(curl, gh)` to `(curl, gh, mise install)`. The entry is matched as a command prefix: measured in the same scratch `HOME`, with `"mise install"` excluded `rtk rewrite "mise install x"` prints nothing and `mise exec x` is still rewritten. `"mise"` would also work but would stop rtk filtering every other mise command.
 
 Run: `bash bin/lib/test-conventions | tail -1`
 Expected: `conventions: all checks passed`.
 
-Run: `/usr/bin/jq -r '.permissions.ask[] | select(test("^Bash\\(mise (bootstrap|dot |dotfiles |install|self-update|plugins link)|legacy-to-mise"))' .claude/settings.json | sort | uniq -c`
-Expected: the eleven rules, each with count 1.
+Run: `/usr/bin/jq -r '.permissions.ask[] | select(test("^Bash\\(mise (bootstrap|dot |dotfiles |install|self-update|plugins link)|legacy-to-mise|dotfiles-settings (set|reset|apply)"))' .claude/settings.json | sort | uniq -c`
+Expected: the twenty-nine rules, each with count 1.
 
 - [ ] **Step 5: Update the Permissions bullet in `.claude/rules/claude-config.md`**
 
 Find it with `grep -n "asks first, because they change the machine" .claude/rules/claude-config.md`. Stale text (Part A may have changed the command list; keep whatever list is there): "running `setup.sh`, `setup/*`, `set-defaults` or `sysup` asks first, because they change the machine."
 
-Replace with the same list plus the new commands: "running `setup.sh`, `setup/*`, `set-defaults`, `sysup`, `mise bootstrap` (any form, its read-only `status` and `--dry-run` too), `mise dot apply` / `mise dotfiles apply`, `mise install`, `mise self-update`, `mise plugins link` or `migrate/legacy-to-mise` asks first, because they change the machine." Leave the rest of the bullet as it is. The file was 3,369 bytes on 2026-11-09 against the 6,000-byte cap.
+Replace with the same list plus the new commands: "running `setup.sh`, `setup/*`, `set-defaults`, `sysup`, `mise bootstrap` (any form, its read-only `status` and `--dry-run` too), `mise dot apply` / `mise dotfiles apply`, `mise install`, `mise self-update`, `mise plugins link`, `dotfiles-settings set` / `reset` / `apply` or `migrate/legacy-to-mise` asks first, because they change the machine." Leave the rest of the bullet as it is. In `settings/README.md`, after the CLI contract table A2 wrote, add: "In Claude Code, `set`, `reset` and `apply` ask first." The file was 3,369 bytes on 2026-11-09 against the 6,000-byte cap.
 
 - [ ] **Step 6: Gate and commit**
 
 Run: `pnpm check`
 Expected: exit 0.
 
-`.claude/settings.json` may hold other uncommitted edits (decision 7's allow list, once the owner approves it, belongs in its own commit). Run `git diff .claude/settings.json` first. When it shows any hunk other than the eleven lines from Step 3, stop and ask the owner which change goes in this commit. Do not use `git add -p` (interactive) or `git add -A`.
+`.claude/settings.json` may hold other uncommitted edits (decision 7's allow list is already committed). Run `git diff .claude/settings.json` first. When it shows any hunk other than the twenty-nine added lines and the two removed allow rules from Step 3, stop and ask the owner which change goes in this commit. Do not use `git add -p` (interactive) or `git add -A`.
 
 ```bash
-git add bin/lib/test-conventions .claude/settings.json rtk/config.toml .claude/rules/claude-config.md
+git add bin/lib/test-conventions .claude/settings.json rtk/config.toml .claude/rules/claude-config.md settings/README.md
 git diff --cached --name-only | grep -x "agents/claude-settings.json" && echo "STOP: unstage it"
 git commit -m "Ask before the mise commands and the migration script that change the machine"
 ```
