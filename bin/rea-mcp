@@ -24,15 +24,11 @@ set -euo pipefail
 # `brew update` without `brew upgrade` only promises. A JAVA_HOME already in the
 # environment wins, as in that wrapper. Ghidra problems only cost the Ghidra
 # provider: the server still starts for Hopper and the built-in providers.
-# brew is looked up by absolute path too, since an app-launched Claude Code has
-# no Homebrew on PATH.
+# The keg is found by its opt link, since an app-launched Claude Code has no
+# Homebrew prefix on PATH.
 warn() { echo "rea-mcp: $*" >&2; }
 
-brew="$(command -v brew || echo /opt/homebrew/bin/brew)"
-ghidra=""
-if [ -x "$brew" ]; then
-  ghidra="$("$brew" --prefix ghidra 2> /dev/null || true)"
-fi
+ghidra="${HOMEBREW_PREFIX:-/opt/homebrew}/opt/ghidra"
 if [ -d "$ghidra/libexec" ]; then
   export GHIDRA_INSTALL_DIR="$ghidra/libexec"
   if [ -z "${JAVA_HOME:-}" ]; then
@@ -46,7 +42,7 @@ if [ -d "$ghidra/libexec" ]; then
   fi
   [ -n "${JAVA_HOME:-}" ] && export JAVA_HOME
 else
-  warn "Homebrew ghidra not found (brew install ghidra); starting REA without its Ghidra provider"
+  warn "ghidra not found (mise bootstrap packages apply brew:ghidra); starting REA without its Ghidra provider"
 fi
 
 if [ "${1:-}" = --print-env ]; then

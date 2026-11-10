@@ -3,7 +3,6 @@
   // content, and a file full of `#` comments becomes Markdown — markdownlint
   // then reports dozens of problems in it (43 in tilde/.inputrc)
   "files.associations": {
-    "Brewfile": "ruby",
     ".gitconfig.*": "properties",
     ".inputrc": "properties",
     ".curlrc": "properties",

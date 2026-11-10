@@ -8,10 +8,7 @@
 
 set -euo pipefail
 
-# Homebrew may not be installed yet (e.g. `setup.sh --skip-brew` on a fresh Mac)
-if [ -x /opt/homebrew/bin/brew ]; then
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
 
 # tput fails with TERM unset (CI, a launchd job), which would abort this set -e script
 tput() { command tput "$@" 2> /dev/null || true; }

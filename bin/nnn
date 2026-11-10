@@ -15,7 +15,7 @@
 set -euo pipefail
 
 command -v mise &> /dev/null || {
-  echo >&2 "mise is not installed: brew install mise"
+  echo >&2 "mise is not installed: curl -fsSL https://mise.run | sh"
   exit 1
 }
 

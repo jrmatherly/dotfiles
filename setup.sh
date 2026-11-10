@@ -181,10 +181,10 @@ echo
 
 # Install Homebrew and packages/apps
 if [ "$SKIP_BREW" = true ]; then
-  title "🫖 Skipping Homebrew (--skip-brew)…"
+  title "🫖 Skipping packages (--skip-brew)…"
 else
-  title "🫖 Setting up Homebrew…"
-  "$DOTFILES_DIR/setup/brew.sh"
+  title "🫖 Installing packages with mise…"
+  "$DOTFILES_DIR/setup/packages.sh"
 fi
 echo
 

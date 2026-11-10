@@ -5,11 +5,8 @@ set -euo pipefail
 DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 TILDE_DIR="$DOTFILES_DIR/tilde"
 
-# Homebrew may not be installed yet (e.g. `setup.sh --skip-brew` on a fresh Mac);
-# a run outside a login shell needs it for the tools checked below
-if [ -x /opt/homebrew/bin/brew ]; then
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
+# A run outside a login shell needs mise's and the prefix's tools checked below
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
 
 EXCLUDE_FILES=(".DS_Store" "README.md" ".codex" ".ssh")
 

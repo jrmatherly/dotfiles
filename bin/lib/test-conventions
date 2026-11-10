@@ -11,7 +11,7 @@
 # that Prettier ignores every zsh file, that every bin/ script's header renders
 # through help (a header comment on line 2 without tldr), that help cleans up its
 # temp pages, refuses a directory and keeps docs/gui when run through a symlink,
-# that every third-party Brewfile formula or cask is trusted, and that git keeps
+# that the VS Code template pins no mise path, and that git keeps
 # its default file protocol policy and curl its own user agent and no referer,
 # that the tracked Claude Code permissions ask before curl and gh api and
 # deny credential paths, git add -f and VS Code's private state, that no allow
@@ -79,9 +79,9 @@ else
   echo "test-conventions: node not found, skipping the help symlink check" >&2
 fi
 
-while IFS=: read -r line text; do
-  [[ $text == *', trusted: true'* ]] || fail "Brewfile trust: line $line"
-done < <(grep -nE '^(brew|cask) "[^"]+/[^"]+/[^"]+"' setup/Brewfile)
+# mise is at ~/.local/bin on a new Mac and at /opt/homebrew/bin before migration:
+# the extension's default finds it on PATH, a pinned path is wrong on one of them
+! grep -n '"mise.binPath"' vscode/User/settings.json.j2 || fail "the VS Code template pins mise to a path"
 
 # CVE-2022-39253: a malicious repo's file:// submodule can read local files
 ! grep -qE '^[[:space:]]*allow[[:space:]]*=[[:space:]]*always' tilde/.gitconfig || fail "gitconfig: protocol.file.allow = always (CVE-2022-39253)"
@@ -90,7 +90,7 @@ done < <(grep -nE '^(brew|cask) "[^"]+/[^"]+/[^"]+"' setup/Brewfile)
 
 # tput fails with TERM unset (CI, a launchd job), which aborts a set -e script;
 # each setup script shadows it with a guarded wrapper
-for file in setup/brew.sh setup/zsh.sh setup/misc.sh; do
+for file in setup/packages.sh setup/zsh.sh setup/misc.sh; do
   grep -qF 'tput() { command tput "$@" 2> /dev/null || true; }' "$file" || fail "unguarded tput: $file"
 done
 

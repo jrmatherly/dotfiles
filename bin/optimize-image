@@ -34,7 +34,7 @@ function error() {
 
 # Check required tools
 if ! command -v cwebp &> /dev/null; then
-  error "Webp is not installed: brew install webp"
+  error "Webp is not installed: mise bootstrap packages apply brew:webp"
   exit 1
 fi
 

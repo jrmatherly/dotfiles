@@ -72,6 +72,8 @@ if command -v actionlint > /dev/null; then
   actionlint .github/workflows/*.yml
 fi
 prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}" "bin/*" ".github/**/*.yml"
+# setup/packages.sh against stubbed curl, mise, gh and code (nothing is installed)
+bash setup/tests/packages.sh > /dev/null
 # setup/symlinks.sh: ~/.codex/config.toml is seeded as a copy, never linked
 bash setup/tests/codex-config.sh > /dev/null
 # setup/symlinks.sh: a backup never overwrites (or nests into) an earlier one
@@ -96,14 +98,14 @@ bash bin/lib/test-packages > /dev/null
 bash bin/lib/test-override-env > /dev/null
 # bin/serve, bin/git-find and bin/git-tidy under a scratch HOME and git repo
 bash bin/lib/test-bin > /dev/null
-# bin/rea-mcp against a stubbed brew, a fixture Ghidra keg and a fake mise shim (REA never starts)
+# bin/rea-mcp against a fixture Ghidra keg under a temp HOMEBREW_PREFIX and a fake mise shim (REA never starts)
 bash bin/lib/test-rea-mcp > /dev/null
 # the Claude Code hooks against sample payloads
 bash .claude/hooks/test-lint-edited.sh > /dev/null
 bash .claude/hooks/test-lint-bash-edits.sh > /dev/null
 bash .claude/hooks/test-commit-gate.sh > /dev/null
 bash .claude/hooks/test-auditor-readonly.sh > /dev/null
-# Tree invariants CLAUDE.md promises (telemetry pairing, zsh ignored by prettier, bin/ headers, Brewfile trust)
+# Tree invariants CLAUDE.md promises (telemetry pairing, zsh ignored by prettier, bin/ headers, no pinned mise path)
 bash bin/lib/test-conventions > /dev/null
 # VS Code settings are rendered from a minijinja template (bin/vscode-settings):
 # test the renderer, and Prettier-check every preset's render inside

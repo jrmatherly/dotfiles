@@ -5,10 +5,7 @@ set -euo pipefail
 DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 cd "$DOTFILES_DIR"
 
-# Homebrew may not be installed yet (e.g. `setup.sh --skip-brew` on a fresh Mac)
-if [ -x /opt/homebrew/bin/brew ]; then
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
 
 # tput fails with TERM unset (CI, a launchd job), which would abort this set -e script
 tput() { command tput "$@" 2> /dev/null || true; }
@@ -107,7 +104,7 @@ if command_exists minijinja-cli; then
     "$DOTFILES_DIR/bin/vscode-settings" 2>&1 | indent
   fi || warning "VS Code settings not rendered — fix what's shown above, then run: vscode-settings"
 else
-  warning "minijinja-cli not found, so VS Code settings weren't rendered — brew install minijinja-cli, then run: vscode-settings"
+  warning "minijinja-cli not found, so VS Code settings weren't rendered — mise bootstrap packages apply brew:minijinja-cli, then run: vscode-settings"
 fi
 
 # GitHub CLI: authenticate if not logged in already. `gh auth login` asks for
@@ -362,7 +359,7 @@ if [ -x "$rea_shim" ]; then
   "$rea_shim" setup --skill-client shared --skill-client claude_code --skill --yes --format json > /dev/null \
     || warning "REA skill install failed — run it later: rea setup --skill-client shared --skill-client claude_code --skill --yes"
 fi
-if [ -x "$rea_shim" ] && [ -x "$claude_bin" ] && command_exists brew && [ -d "$(brew --prefix ghidra)/libexec" ]; then
+if [ -x "$rea_shim" ] && [ -x "$claude_bin" ] && [ -d /opt/homebrew/opt/ghidra/libexec ]; then
   register_mcp rea REA -- "$DOTFILES_DIR/bin/rea-mcp"
 else
   echo "rea shim or the ghidra formula not found — skipping REA's MCP server" | indent

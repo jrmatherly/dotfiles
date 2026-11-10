@@ -68,7 +68,7 @@ while [ $# -gt 0 ]; do
 done
 
 command -v minijinja-cli > /dev/null || {
-  echo "vscode-settings: minijinja-cli not found — brew install minijinja-cli" >&2
+  echo "vscode-settings: minijinja-cli not found — mise bootstrap packages apply brew:minijinja-cli" >&2
   exit 1
 }
 

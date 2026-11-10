@@ -25,7 +25,7 @@ error() {
 }
 
 command -v rg &> /dev/null || {
-  error "ripgrep is not installed: brew install ripgrep"
+  error "ripgrep is not installed: mise bootstrap packages apply brew:ripgrep"
   exit 1
 }
 
