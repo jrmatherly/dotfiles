@@ -121,7 +121,7 @@ Add one `[[setting]]` table to `registry.toml`. These eight fields are required:
 | `section` | The group the UI shows it under |
 | `label` | The row's name |
 | `help` | One or two sentences under the row |
-| `kind` | The adapter, `env` or `macos-default` |
+| `kind` | The adapter, `env`, `macos-default` or `package` |
 | `key` | For `env`, the variable name (`[A-Z_][A-Z0-9_]*`). For `macos-default`, `<domain>/<key>` |
 | `type` | `bool`, `string`, `int`, `enum` or `path` |
 | `access` | `rw` or `ro` |

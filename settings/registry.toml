@@ -843,3 +843,43 @@ kind = "env"
 key = "DOTFILES_MACOS_LOCAL_HOSTNAME"
 type = "string"
 access = "rw"
+
+[[setting]]
+id = "packages.formulae"
+section = "Packages"
+label = "Formulae"
+help = "Command-line packages mise installs into /opt/homebrew. Edit tilde/.config/mise/conf.d/30-packages.toml to add one. Removing an entry uninstalls nothing until `mise bootstrap packages prune`."
+kind = "package"
+key = "brew"
+type = "string"
+access = "ro"
+
+[[setting]]
+id = "packages.casks"
+section = "Packages"
+label = "Apps and fonts"
+help = "Casks mise installs. No version pins. A cask Homebrew installed is left alone until migrated."
+kind = "package"
+key = "brew-cask"
+type = "string"
+access = "ro"
+
+[[setting]]
+id = "packages.vscode"
+section = "Packages"
+label = "VS Code extensions"
+help = "Installed with the code CLI by the plugin in mise-plugins/vscode."
+kind = "package"
+key = "vscode"
+type = "string"
+access = "ro"
+
+[[setting]]
+id = "packages.tools"
+section = "Packages"
+label = "mise tools"
+help = "Runtimes and CLIs from [tools] in tilde/.config/mise/config.toml."
+kind = "package"
+key = "tools"
+type = "string"
+access = "ro"
