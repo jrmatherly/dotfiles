@@ -88,6 +88,13 @@ if $before; then
   exit 0
 fi
 
+# TextEdit, Preview and Help Viewer keep their preferences in a container that
+# refuses a write from a terminal without Full Disk Access. That must cost only
+# the one preference, not the rest of the run.
+sandboxed() {
+  defaults write "$@" 2> /dev/null || warn "Could not write $1 $2. Give this terminal Full Disk Access (System Settings → Privacy & Security) and run again."
+}
+
 # The groups below are written here, not declared in mise's fragment, because a
 # declared preference cannot be switched off. An empty value is the settings UI's off.
 
@@ -112,9 +119,9 @@ fi
 if [ -n "${DOTFILES_MACOS_TEXTEDIT-1}" ]; then
   # Default TextEdit to plain text and UTF-8. TextEdit is sandboxed, so mise
   # cannot read these back, but the writes are honoured.
-  defaults write com.apple.TextEdit RichText -int 0
-  defaults write com.apple.TextEdit PlainTextEncoding -int 4
-  defaults write com.apple.TextEdit PlainTextEncodingForWrite -int 4
+  sandboxed com.apple.TextEdit RichText -int 0
+  sandboxed com.apple.TextEdit PlainTextEncoding -int 4
+  sandboxed com.apple.TextEdit PlainTextEncodingForWrite -int 4
 fi
 
 if [ -n "${DOTFILES_MACOS_SOFTWARE_UPDATE-1}" ]; then
@@ -134,9 +141,9 @@ defaults write com.apple.finder NewWindowTargetPath -string "file://${HOME}/"
 
 # mise reports these two domains as unset even after a write, so they stay here.
 # Set Help Viewer windows to non-floating mode
-defaults write com.apple.helpviewer DevMode -bool true
+sandboxed com.apple.helpviewer DevMode -bool true
 # Do not open previous previewed files (e.g. PDFs) when opening a new one
-defaults write com.apple.Preview ApplePersistenceIgnoreState YES
+sandboxed com.apple.Preview ApplePersistenceIgnoreState YES
 
 # Show the ~/Library folder
 # First set the attribute if it doesn't exist, then show folder

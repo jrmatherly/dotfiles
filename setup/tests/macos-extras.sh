@@ -19,7 +19,7 @@ stub() {
   chmod +x "$stubs/$1"
 }
 stub sudo
-stub defaults '[ "$1" = read ] || exit 0; f="$reads/${*: -1}"; [ -e "$f" ] || exit 1; cat "$f"'
+stub defaults '[ "$1" = read ] || { [ "$2" != "${DEFAULTS_DENY:-}" ]; exit; }; f="$reads/${*: -1}"; [ -e "$f" ] || exit 1; cat "$f"'
 stub killall
 stub osascript 'exit "${OSASCRIPT_RC:-0}"'
 stub scutil 'case "$1 $2" in
@@ -142,6 +142,9 @@ check "a failed run leaves no snapshot" "[ ! -e '$snapshot' ]"
 OSASCRIPT_RC=1 run --before
 check "--before survives a failing osascript" "[ \$rc = 0 ] && [ -e '$snapshot' ]"
 rm -f "$snapshot"
+
+DEFAULTS_DENY=com.apple.TextEdit run
+check "a refused sandboxed write does not stop the run" "[ \$rc = 0 ] && grep -q 'defaults write com.apple.SoftwareUpdate' '$log' && grep -q '^chflags nohidden' '$log'"
 
 TERM_PROGRAM=Apple_Terminal run --restart
 check "Terminal.app is spared from inside Terminal.app" "! grep -qx 'killall Terminal' '$log' && grep -qx 'killall Finder' '$log'"

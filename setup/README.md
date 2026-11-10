@@ -126,7 +126,7 @@ What changed from the old script:
 - mise never deletes a preference. Removing a line from the fragment leaves the value in place; run `defaults delete <domain> <key>` to return to the macOS default. The old script deleted the Dock timing keys when you declined them.
 - mise never uses sudo. The settings that need it (`pmset`, unhiding `/Volumes`, the opt-ins) are in `setup/macos-extras.sh`, which asks for sudo only when a value differs.
 - mise doesn't restart apps. The extras script force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal when the apply wrote a preference (always under `set-defaults`), and spares Terminal when it is the terminal you ran it from. Key repeat needs a logout to take effect.
-- TextEdit, Preview and Help Viewer are sandboxed, so mise can't read their preferences back; the extras script writes them and `status` doesn't list them. Finder's new-window path holds `$HOME` and is written there too, as are the four switchable groups, since mise applies every preference the fragment declares.
+- TextEdit, Preview and Help Viewer are sandboxed, so mise can't read their preferences back; the extras script writes them and `status` doesn't list them. A terminal without Full Disk Access is refused that write: the script prints a warning for the preference and carries on. Finder's new-window path holds `$HOME` and is written there too, as are the four switchable groups, since mise applies every preference the fragment declares.
 - `mise bootstrap macos defaults status` lists every declared preference as set, differs or unset. `pnpm check` warns about drift and fails only on a type mismatch.
 
 ## dash
