@@ -18,6 +18,13 @@ vscode/**/profiles/
 lazygit/state.yml
 # Written by hunk itself (the last CLI version it saw), not config
 tilde/.config/hunk/state.json
+# mise's machine-local files (overrides from the settings UI, local config):
+# ~/.config/mise links here, so mise writes them inside the clone
+tilde/.config/mise/config.override.toml
+tilde/.config/mise/config.*.override.toml
+tilde/.config/mise/config.local.toml
+tilde/.config/mise/config.*.local.toml
+tilde/.config/mise/miserc.local.toml
 .tlrc/
 private/
 # upup's per-run logs (bin/upup); setup.sh logs under private/setup-logs/

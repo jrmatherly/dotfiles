@@ -1,0 +1,34 @@
+#!/bin/bash
+#
+# Self-check for the mise override layer: the version floor, the gitignored machine-local files and the shell cache.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-override-env`
+#
+# ---
+# Runs zsh against this repo's tilde/.zshenv and tilde/.zshrc through a temp
+# ZDOTDIR, HOME and MISE_CONFIG_DIR, so the live mise config and
+# ~/.cache/dotfiles are never touched. Fails when mise is missing.
+#
+# License: MIT
+
+set -euo pipefail
+
+repo="$(cd "$(dirname "$0")/../.." && pwd -P)"
+tmp=$(cd "$(mktemp -d)" && pwd -P)
+trap 'rm -rf "$tmp"' EXIT
+
+# Print the failed assertion and stop
+fail() {
+  echo "FAIL: $1" >&2
+  exit 1
+}
+
+# ~/.config/mise links into the clone, so mise writes these inside it
+for f in config.override.toml config.work.override.toml config.local.toml config.work.local.toml miserc.local.toml; do
+  git -C "$repo" check-ignore -q "tilde/.config/mise/$f" || fail "not gitignored: tilde/.config/mise/$f"
+done
+[ -z "$(git -C "$repo" check-ignore tilde/.config/mise/config.toml)" ] || fail "tilde/.config/mise/config.toml is gitignored"
+
+echo "override-env: all checks passed"

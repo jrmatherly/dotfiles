@@ -81,6 +81,8 @@ bash bin/lib/test-claude-config > /dev/null
 bash bin/lib/test-upup > /dev/null
 # zsh/ and tilde/.zshrc in interactive agent and user shells, through a temp ZDOTDIR
 bash bin/lib/test-shell > /dev/null
+# mise's override layer: the version floor, the gitignored local files and zsh/override-env.zsh under a temp HOME and MISE_CONFIG_DIR
+bash bin/lib/test-override-env > /dev/null
 # bin/serve, bin/git-find and bin/git-tidy under a scratch HOME and git repo
 bash bin/lib/test-bin > /dev/null
 # bin/rea-mcp against a stubbed brew, a fixture Ghidra keg and a fake mise shim (REA never starts)
