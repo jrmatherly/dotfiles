@@ -1,0 +1,162 @@
+#!/bin/bash
+#
+# Self-check for migrate/legacy-to-mise against a scratch HOME and stubbed brew, mise and claude.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-migrate`
+#
+# ---
+# Never changes this Mac: HOME, HOMEBREW_PREFIX and the clone are temp dirs, and
+# PATH holds only the stubs and /usr/bin:/bin, so no real mise, brew or claude
+# (all under /opt/homebrew or ~/.local/bin) can run. Temporary, like migrate/.
+#
+# License: MIT
+
+# No pipefail: `yes | "$script"` would report SIGPIPE (141) for a script that exits 0
+set -eu
+
+src="$(cd "$(dirname "$0")/../.." && pwd -P)/migrate"
+# Physical: the script resolves REPO with pwd -P, and macOS's temp dir is behind the /var link
+tmp=$(cd "$(mktemp -d)" && pwd -P)
+trap 'rm -rf "$tmp"' EXIT
+
+export HOME="$tmp/home" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/prefix" PATH="$tmp/bin:/usr/bin:/bin"
+unset HOMEBREW_NO_ANALYTICS MISE_CONFIG_DIR
+REPO_COPY="$tmp/repo"
+mkdir -p "$HOME/.config" "$STATE" "$HOMEBREW_PREFIX" "$tmp/bin" "$REPO_COPY/tilde/.config/mise/conf.d" "$REPO_COPY/settings"
+cp -R "$src" "$REPO_COPY/migrate"
+ln -s "$REPO_COPY/tilde/.config/mise" "$HOME/.config/mise"
+: > "$STATE/mise.log"
+: > "$STATE/brew.log"
+: > "$STATE/claude.log"
+script="$REPO_COPY/migrate/legacy-to-mise"
+
+fail() {
+  echo "test-migrate: $1" >&2
+  exit 1
+}
+check() {
+  local description=$1
+  shift
+  "$@" || fail "$description"
+}
+check_out() { grep -qE "$2" <<< "$out" || fail "$1 (output: $out)"; }
+
+stub() {
+  printf '#!/bin/bash\n%s\n' "$2" > "$tmp/bin/$1"
+  chmod +x "$tmp/bin/$1"
+}
+stub mise 'echo "mise $*" >> "$STATE/mise.log"
+case "$*" in
+  --version) echo "${FAKE_MISE_VERSION:-2026.11.5} macos-arm64 (2026-11-08)" ;;
+esac'
+stub brew 'echo "brew $*" >> "$STATE/brew.log"
+[ "${HOMEBREW_NO_ANALYTICS:-}" = 1 ] || { echo "brew ran without HOMEBREW_NO_ANALYTICS=1" >&2; exit 97; }'
+stub claude 'echo "claude $*" >> "$STATE/claude.log"'
+for tool in mise brew claude; do
+  [ "$(command -v "$tool")" = "$tmp/bin/$tool" ] || fail "$tool resolves to $(command -v "$tool"), not the stub"
+done
+
+phase() {
+  local marker
+  case $1 in
+    env) marker=zsh/override-env.zsh ;;
+    macos) marker=tilde/.config/mise/conf.d/20-macos.toml ;;
+    packages) marker=tilde/.config/mise/conf.d/30-packages.toml ;;
+    dotfiles) marker=tilde/.config/mise/conf.d/40-dotfiles.toml ;;
+    setup) marker=tilde/.config/mise/conf.d/50-bootstrap.toml ;;
+  esac
+  mkdir -p "$(dirname "$REPO_COPY/$marker")"
+  touch "$REPO_COPY/$marker"
+}
+snapshot() {
+  find "$HOME" "$HOMEBREW_PREFIX" "$STATE" ! -path "$STATE/*.log" -exec ls -ld {} + | sort
+  find "$HOME" "$HOMEBREW_PREFIX" "$STATE" -type f ! -path "$STATE/*.log" -exec cksum {} + | sort
+}
+mutations() {
+  cat "$STATE/mise.log" "$STATE/brew.log" "$STATE/claude.log" \
+    | grep -vE 'status|--version|--dry-run|set --file|info --json|mcp get' || true
+}
+
+refuses_absent_phase() {
+  for s in env macos packages dotfiles setup; do
+    out=$("$script" --step "$s" 2>&1) && fail "$s ran with its phase absent" || rc=$?
+    [ "$rc" = 3 ] || fail "$s: exit $rc, want 3"
+    check_out "$s names the marker" "refusing $s: [a-z./0-9-]+ is not in this checkout"
+  done
+}
+refuses_old_mise() {
+  phase macos
+  out=$(FAKE_MISE_VERSION=2026.11.4 "$script" --step macos 2>&1) && fail "ran on old mise" || rc=$?
+  [ "$rc" = 3 ] || fail "old mise: exit $rc, want 3"
+  check_out "names the floor" 'mise 2026\.11\.5 or newer'
+  out=$(FAKE_MISE_VERSION=2026.12.0 "$script" --step macos 2>&1) || fail "refused 2026.12.0: $out"
+  out=$(FAKE_MISE_VERSION=2026.11.10 "$script" --step macos 2>&1) || fail "refused 2026.11.10 (compared as text, not as a version): $out"
+}
+refuses_missing_mise() {
+  mv "$tmp/bin/mise" "$tmp/mise.off"
+  out=$("$script" --step macos 2>&1) && fail "ran without mise" || rc=$?
+  mv "$tmp/mise.off" "$tmp/bin/mise"
+  [ "$rc" = 3 ] || fail "no mise: exit $rc, want 3"
+  check_out "no mise names the floor" 'mise 2026\.11\.5 or newer'
+}
+refuses_foreign_mise_config() {
+  rm "$HOME/.config/mise" && mkdir "$HOME/.config/mise"
+  out=$("$script" --step macos 2>&1) && fail "ran with a foreign ~/.config/mise" || rc=$?
+  [ "$rc" = 3 ] || fail "foreign config: exit $rc, want 3"
+  rmdir "$HOME/.config/mise" && ln -s "$REPO_COPY/tilde/.config/mise" "$HOME/.config/mise"
+}
+usage_errors() {
+  "$script" --step nope > /dev/null 2>&1 && fail "accepted --step nope" || [ $? = 2 ] || fail "--step nope: want exit 2"
+  "$script" --frob > /dev/null 2>&1 && fail "accepted --frob" || [ $? = 2 ] || fail "--frob: want exit 2"
+  "$script" --step > /dev/null 2>&1 && fail "accepted --step with no name" || [ $? = 2 ] || fail "--step alone: want exit 2"
+  "$script" --help | grep -q '2027-02-28' || fail "--help does not state the removal date"
+}
+skips_absent_phases() {
+  out=$("$script" < /dev/null 2>&1) || fail "a run with some phases absent: exit $?: $out"
+  check_out "names a skipped step" '^skipped env: its phase is not in this checkout$'
+}
+dry_run_asks_nothing() {
+  out=$("$script" --dry-run < /dev/null 2>&1) || fail "--dry-run: exit $?: $out"
+  check_out "--dry-run ends with the count" '^Changed 0 thing\(s\)\.$'
+}
+helpers_back_up_before_replacing() {
+  # MIGRATE_SELFTEST runs: backup_move "$1"; echo replaced > "$1"
+  echo original > "$HOME/victim"
+  MIGRATE_SELFTEST="$HOME/victim" "$script" > /dev/null 2>&1 || fail "selftest hook failed"
+  bak=$(echo "$HOME"/.dotfiles-migration-backup/*/files"$HOME"/victim)
+  [ "$(cat "$bak")" = original ] || fail "backup does not hold the original"
+  [ "$(cat "$HOME/victim")" = replaced ] || fail "selftest did not replace the file"
+  grep -qF "mv '$bak' '$HOME/victim'" "$HOME"/.dotfiles-migration-backup/*/RESTORE.txt || fail "no restore command"
+  [ "$(stat -f %Lp "$HOME"/.dotfiles-migration-backup/*)" = 700 ] || fail "backup folder is not mode 700"
+  MIGRATE_SELFTEST="$REPO_COPY/migrate/legacy-to-mise" "$script" > /dev/null 2>&1 && fail "backed up a file inside the clone" || true
+  [ -f "$REPO_COPY/migrate/legacy-to-mise" ] || fail "the clone's script was moved"
+  rm -rf "$HOME/.dotfiles-migration-backup" "$HOME/victim"
+}
+never_old() {
+  for s in env macos packages dotfiles setup; do phase "$s"; done
+  # the cases before this one leave their backup folders and their logged calls behind
+  rm -rf "$HOME/.dotfiles-migration-backup"
+  : > "$STATE/mise.log"
+  : > "$STATE/brew.log"
+  : > "$STATE/claude.log"
+  before=$(snapshot)
+  out=$("$script" < /dev/null 2>&1) || fail "never-old Mac: exit $?: $out"
+  [ "$(snapshot)" = "$before" ] || fail "never-old Mac: something changed"
+  [ ! -e "$HOME/.dotfiles-migration-backup" ] || fail "never-old Mac: a backup folder was made"
+  [ -z "$(mutations)" ] || fail "never-old Mac: mutating calls: $(mutations)"
+  check_out "ends with the count" '^Changed 0 thing\(s\)\.$'
+}
+
+refuses_absent_phase
+refuses_old_mise
+refuses_missing_mise
+refuses_foreign_mise_config
+usage_errors
+skips_absent_phases
+dry_run_asks_nothing
+helpers_back_up_before_replacing
+# last: it creates every marker file
+never_old
+echo "test-migrate: ok"

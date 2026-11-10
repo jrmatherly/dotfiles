@@ -16,8 +16,8 @@
 # that the tracked Claude Code permissions ask before curl and gh api and
 # deny credential paths, git add -f and VS Code's private state, that no allow
 # rule is also retired, that rtk's hook rewrites no command with a Bash ask rule,
-# that every setup/*.sh is executable, that nothing calls brew, and that the
-# instruction files stay under their caps.
+# that every setup/*.sh is executable, that nothing calls brew, that migrate/
+# is gone after 2027-02-28, and that the instruction files stay under their caps.
 #
 # License: MIT
 
@@ -87,6 +87,13 @@ fi
 ! grep -qE '^[[:space:]]*allow[[:space:]]*=[[:space:]]*always' tilde/.gitconfig || fail "gitconfig: protocol.file.allow = always (CVE-2022-39253)"
 
 ! grep -qE '^(user-agent|referer)' tilde/.curlrc || fail "curlrc: spoofed user-agent or auto referer"
+
+# migrate/ is temporary (spec Part B). CONVENTIONS_TODAY lets the check be tried before the date
+if [ -e migrate ]; then
+  grep -q '2027-02-28' migrate/legacy-to-mise || fail "migrate/legacy-to-mise must state its removal date, 2027-02-28"
+  [ "${CONVENTIONS_TODAY:-$(date +%Y%m%d)}" -le 20270228 ] \
+    || fail "migrate/ is past its removal date (2027-02-28): delete migrate/, bin/lib/test-migrate, their lines in bin/lib/check and package.json, this check and README.md's 'Migrating an existing machine'"
+fi
 
 # tput fails with TERM unset (CI, a launchd job), which aborts a set -e script;
 # each setup script shadows it with a guarded wrapper

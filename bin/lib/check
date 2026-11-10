@@ -17,6 +17,7 @@ shell_scripts=(
   .claude/skills/*/*.sh
   tilde/.claude/*.sh
   firefox/lib/get-firefox-dev-path
+  migrate/legacy-to-mise
 )
 
 bash_syntax_files=(
@@ -71,7 +72,7 @@ fi
 if command -v actionlint > /dev/null; then
   actionlint .github/workflows/*.yml
 fi
-prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}" "bin/*" ".github/**/*.yml"
+prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}" "bin/*" "migrate/*" ".github/**/*.yml"
 # setup/packages.sh against stubbed curl, mise, gh and code (nothing is installed)
 bash setup/tests/packages.sh > /dev/null
 # setup/symlinks.sh: ~/.codex/config.toml is seeded as a copy, never linked
@@ -100,6 +101,8 @@ bash bin/lib/test-override-env > /dev/null
 bash bin/lib/test-bin > /dev/null
 # bin/rea-mcp against a fixture Ghidra keg under a temp HOMEBREW_PREFIX and a fake mise shim (REA never starts)
 bash bin/lib/test-rea-mcp > /dev/null
+# migrate/legacy-to-mise against a scratch HOME with brew, mise and claude stubbed (temporary: see migrate/README.md)
+bash bin/lib/test-migrate > /dev/null
 # the Claude Code hooks against sample payloads
 bash .claude/hooks/test-lint-edited.sh > /dev/null
 bash .claude/hooks/test-lint-bash-edits.sh > /dev/null

@@ -1,0 +1,197 @@
+#!/bin/bash
+#
+# Move a Mac set up by the old bash and Brewfile method onto the mise-first setup.
+#
+# - Show what every step would change, changing nothing:
+#
+# `migrate/legacy-to-mise --dry-run`
+#
+# - Run one step (env, macos, packages, dotfiles or setup):
+#
+# `migrate/legacy-to-mise --step {{step}}`
+#
+# - Run every step whose phase is in this checkout:
+#
+# `migrate/legacy-to-mise`
+#
+# ---
+# Temporary: delete migrate/ on or after 2027-02-28 (bin/lib/test-conventions fails after that date).
+# The only file that knows the old layout, so it never sources or calls the old scripts.
+# Every change asks first, and what it replaces goes to ~/.dotfiles-migration-backup/<timestamp>/.
+#
+# License: MIT
+
+set -euo pipefail
+# A4 removed the HOMEBREW_* exports from the shell, and brew reports analytics as enabled without one
+export HOMEBREW_NO_ANALYTICS=1
+
+REPO=$(cd "$(dirname "$0")/.." && pwd -P)
+DRY_RUN=false
+# shellcheck disable=SC2034 # read by the packages and setup steps, which later Part B tasks write
+PREFIX="${HOMEBREW_PREFIX:-/opt/homebrew}"
+BACKUP_DIR="$HOME/.dotfiles-migration-backup/$(date +%Y%m%d-%H%M%S)"
+MIN_MISE=2026.11.5
+CHANGED=0
+# Read once: the packages step replaces the mise binary while it runs
+MISE=$(command -v mise || true)
+STEPS=(env macos packages dotfiles setup)
+
+mise() { "$MISE" "$@"; }
+
+# tput fails with TERM unset (CI, a launchd job), which would abort this set -e script
+tput() { command tput "$@" 2> /dev/null || true; }
+bold=$(tput bold)
+reset=$(tput sgr0)
+
+header() { echo "${bold}==> $1${reset}"; }
+info() { echo "$1"; }
+warn() { echo "$(tput setaf 3)$1${reset}"; }
+success() { echo "$(tput setaf 2)$1${reset}"; }
+fail() {
+  echo "$(tput setaf 1)$1${reset}" >&2
+  exit 1
+}
+refuse() {
+  echo "$1" >&2
+  exit 3
+}
+usage_error() {
+  echo "$1 (try --help)" >&2
+  exit 2
+}
+
+# ask <question>: 0 only for y or Y; a closed stdin and --dry-run are "no"
+ask() {
+  local reply
+  if [ "$DRY_RUN" = true ]; then
+    echo "would ask: $1"
+    return 1
+  fi
+  read -r -p "$1 [y/N] " reply || return 1
+  [ "$reply" = y ] || [ "$reply" = Y ]
+}
+
+# ask_typed <phrase> <question>: 0 only when the reply is exactly <phrase>
+ask_typed() {
+  local reply
+  if [ "$DRY_RUN" = true ]; then
+    echo "would ask: $2"
+    return 1
+  fi
+  read -r -p "$2 Type '$1' to go ahead: " reply || return 1
+  [ "$reply" = "$1" ]
+}
+
+run() {
+  if [ "$DRY_RUN" = true ]; then
+    echo "would run: $*"
+    return 0
+  fi
+  echo "→ $*"
+  "$@"
+  CHANGED=$((CHANGED + 1))
+}
+
+# shortcut: a path holding a single quote breaks its restore line; quote with printf %q if one ever needs backing up
+backup_to() {
+  local verb=$1 path=$2 dest real
+  case $path in /*) ;; *) fail "backup needs an absolute path: $path" ;; esac
+  real="$(cd "$(dirname "$path")" && pwd -P)/$(basename "$path")"
+  if [ "$verb" = mv ]; then
+    case $real in "$REPO" | "$REPO"/*) fail "refusing to move $path: it is inside the clone" ;; esac
+  fi
+  if [ "$DRY_RUN" = true ]; then
+    echo "would back up: $path"
+    return 0
+  fi
+  dest="$BACKUP_DIR/files/${path#/}"
+  (umask 077 && mkdir -p "$(dirname "$dest")")
+  if [ "$verb" = mv ]; then
+    mv "$path" "$dest"
+    echo "mv '$dest' '$path'" >> "$BACKUP_DIR/RESTORE.txt"
+  else
+    cp -p "$path" "$dest"
+    echo "cp -p '$dest' '$path'" >> "$BACKUP_DIR/RESTORE.txt"
+  fi
+}
+backup_move() { backup_to mv "$1"; }
+backup_copy() { backup_to cp "$1"; }
+
+# backup_note <file> <line>
+backup_note() {
+  [ "$DRY_RUN" = false ] || return 0
+  (umask 077 && mkdir -p "$BACKUP_DIR" && echo "$2" >> "$BACKUP_DIR/$1")
+}
+
+phase_marker() {
+  case $1 in
+    env) echo zsh/override-env.zsh ;;
+    macos) echo tilde/.config/mise/conf.d/20-macos.toml ;;
+    packages) echo tilde/.config/mise/conf.d/30-packages.toml ;;
+    dotfiles) echo tilde/.config/mise/conf.d/40-dotfiles.toml ;;
+    setup) echo tilde/.config/mise/conf.d/50-bootstrap.toml ;;
+  esac
+}
+phase_present() { [ -e "$REPO/$(phase_marker "$1")" ]; }
+
+step_env() { info "nothing to migrate yet"; }
+step_macos() { info "nothing to migrate yet"; }
+step_packages() { info "nothing to migrate yet"; }
+step_dotfiles() { info "nothing to migrate yet"; }
+step_setup() { info "nothing to migrate yet"; }
+
+summary() {
+  echo "Changed $CHANGED thing(s)."
+  if [ -d "$BACKUP_DIR" ]; then
+    echo "Backup: $BACKUP_DIR"
+    echo "Restore commands: $BACKUP_DIR/RESTORE.txt"
+  fi
+}
+
+only=
+while [ $# -gt 0 ]; do
+  case $1 in
+    --step)
+      [ $# -ge 2 ] || usage_error "--step needs a name: ${STEPS[*]}"
+      case " ${STEPS[*]} " in *" $2 "*) only=$2 ;; *) usage_error "unknown step: $2 (one of ${STEPS[*]})" ;; esac
+      shift
+      ;;
+    --dry-run) DRY_RUN=true ;;
+    -h | --help)
+      # Print the header comment block (everything after the shebang)
+      awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); if ($0 ~ /^License:/) next; print; next } NR > 1 { exit }' "$0"
+      exit 0
+      ;;
+    *) usage_error "unknown option: $1" ;;
+  esac
+  shift
+done
+
+have=
+[ -z "$MISE" ] || have=$(mise --version 2> /dev/null | awk '{ print $1 }')
+[ -n "$have" ] && [ "$(printf '%s\n' "$MIN_MISE" "$have" | sort -V | head -1)" = "$MIN_MISE" ] \
+  || refuse "refusing: this needs mise $MIN_MISE or newer (found: ${have:-no mise on PATH})"
+[ "$HOME/.config/mise" -ef "$REPO/tilde/.config/mise" ] \
+  || refuse "refusing: ~/.config/mise is not this clone's tilde/.config/mise, so mise would report on another config"
+
+if [ -n "${MIGRATE_SELFTEST:-}" ]; then
+  backup_move "$MIGRATE_SELFTEST"
+  echo replaced > "$MIGRATE_SELFTEST"
+  exit 0
+fi
+
+if [ -n "$only" ]; then
+  phase_present "$only" || refuse "refusing $only: $(phase_marker "$only") is not in this checkout"
+fi
+# Steps run bare, not under `||`, which would turn set -e off inside them: a failed
+# step exits 1 at once (a later step may build on it) and the trap still reports
+trap summary EXIT
+for s in "${STEPS[@]}"; do
+  [ -z "$only" ] || [ "$s" = "$only" ] || continue
+  if ! phase_present "$s"; then
+    echo "skipped $s: its phase is not in this checkout"
+    continue
+  fi
+  header "$s"
+  "step_$s"
+done
