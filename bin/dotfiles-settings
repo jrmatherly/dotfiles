@@ -1,0 +1,47 @@
+#!/bin/bash
+#
+# See and change the settings this dotfiles repo manages, in the terminal or a browser.
+#
+# - Open the terminal UI:
+#
+# `dotfiles-settings tui`
+#
+# - Open the same UI in a browser tab (local only, behind a per-run token):
+#
+# `dotfiles-settings serve`
+#
+# - List every setting with its value and where the value comes from:
+#
+# `dotfiles-settings list`
+#
+# - Change a setting, or go back to what the shell files set:
+#
+# `dotfiles-settings set {{updates.trim_ca_roots}} {{on}}`
+# `dotfiles-settings reset {{updates.trim_ca_roots}}`
+#
+# - Read one setting as JSON:
+#
+# `dotfiles-settings get {{shell.editor}} --json`
+#
+# ---
+# Package: settings/ (registry.toml lists the settings). Changes go to mise's
+# config.override.toml and beat exports in zsh/env.zsh and ~/.zsh.local.
+# Exit codes: 0 ok, 1 failure, 2 unknown id or invalid value, 3 read-only.
+#
+# License: MIT
+
+set -euo pipefail
+
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+
+if ! command -v uv &> /dev/null; then
+  echo "dotfiles-settings: needs uv (https://docs.astral.sh/uv/)" >&2
+  exit 1
+fi
+
+# uv run, not a uv tool install: it runs the clone's code and lockfile, so an
+# edit to registry.toml needs no reinstall. Measured 100 ms against 57 ms.
+# From $HOME: uv is often a mise shim, and a shim exits 1 in a folder holding an
+# untrusted mise.toml.
+cd "$HOME"
+exec uv run --quiet --locked --project "$DOTFILES/settings" dotfiles-settings "$@"
