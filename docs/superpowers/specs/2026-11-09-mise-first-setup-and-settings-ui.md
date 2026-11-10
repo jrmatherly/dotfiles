@@ -2,7 +2,7 @@
 
 Date: 2026-11-09. Status: approved for planning. Plans built on this spec are listed in [Plans](#plans).
 
-The eight plans were written against the first draft of this spec and tested its claims in scratch directories. Where they proved the draft wrong, this text was corrected. [Corrections from planning](#corrections-from-planning) lists each change. Where a plan and this spec still differ, the plan is the later and tested statement.
+The eight plans were written against the first draft of this spec and tested its claims in scratch directories. Where they proved the draft wrong, this text was corrected. [Corrections from planning](#corrections-from-planning) lists each change. Four independent reviews then audited the spec and the plans, and [Corrections from review](#corrections-from-review) lists what they changed. Where a plan and this spec still differ, the plan is the later and tested statement.
 
 ## Goal
 
@@ -45,20 +45,27 @@ Checked on this Mac on 2026-11-09 with mise 2026.11.5, Homebrew 7.0.13, uv 0.13.
 - `~/.config/mise` is a symlink to `tilde/.config/mise` in this repo. So `config.override.toml`, `config.local.toml` and `miserc.local.toml` are written inside the clone, and none is gitignored today.
 - Interactive shells run `mise activate zsh` at the first prompt (`zsh/init.zsh`). Agent and other non-interactive shells get shims only, so `[env]` and overrides do not reach a plain script there.
 - `mise env --json` took 23 ms (one run).
-- `mise bootstrap packages import --manager brew` reproduced all 151 Brewfile formulae and 13 taps, plus 2 formulae installed outside the Brewfile (`jrmatherly/ai-kb/ai-kb-lite`, `jrmatherly/ai-kb/aikb`).
+- `mise bootstrap packages import --manager brew` reproduced all 151 Brewfile formulae and the Brewfile's 12 taps, plus 2 formulae and their tap installed outside the Brewfile (`jrmatherly/ai-kb/ai-kb-lite`, `jrmatherly/ai-kb/aikb`).
 - With the 33 Brewfile casks declared as `brew-cask:` entries, a dry-run apply reported all 33 and 152 formulae as already installed. It planned one change: `repair rustup/1.29.3: linked-keg record`.
 - Installing `brew:hello` through mise worked. `brew list` saw it and `brew doctor` did not mention it. After `brew uninstall hello`, an empty `Cellar/hello` holding `.mise-staging.lock` remained and `brew list --versions hello` still printed the name.
-- 15 formulae have no Apple Silicon bottle: `azure/azd/azd`, `azure/functions/azure-functions-core-tools@4`, `azure/kubelogin/kubelogin`, `bramstein/webfonttools/sfnt2woff`, `fluxcd/tap/flux`, `getsentry/tools/sentry`, `jesseduffield/lazydocker/lazydocker`, `jrmatherly/ai-kb/ai-kb-lite`, `jrmatherly/ai-kb/aikb`, `jrmatherly/tap/claude-multipass`, `kubestellar/tap/kubestellar-deploy`, `kubestellar/tap/kubestellar-ops`, `modem-dev/tap/hunk`, `siderolabs/tap/talosctl`, `skyhook-io/tap/radar`.
+- 15 installed formulae have no Apple Silicon bottle, 13 of them in the Brewfile (the two `ai-kb` ones are not): `azure/azd/azd`, `azure/functions/azure-functions-core-tools@4`, `azure/kubelogin/kubelogin`, `bramstein/webfonttools/sfnt2woff`, `fluxcd/tap/flux`, `getsentry/tools/sentry`, `jesseduffield/lazydocker/lazydocker`, `jrmatherly/ai-kb/ai-kb-lite`, `jrmatherly/ai-kb/aikb`, `jrmatherly/tap/claude-multipass`, `kubestellar/tap/kubestellar-deploy`, `kubestellar/tap/kubestellar-ops`, `modem-dev/tap/hunk`, `siderolabs/tap/talosctl`, `skyhook-io/tap/radar`.
 - mise's registry resolves `azd`, `azure-functions-core-tools`, `flux2`, `hunk`, `kubelogin`, `lazydocker`, `sentry`, `talosctl`. Two need an identity check before use: `kubelogin` maps to `int128/kubelogin` (the Brewfile has Azure's), and `sentry` maps to `getsentry/sentry-cli` (the Brewfile has the newer `sentry` CLI).
 - Casks: 2 use pkg installers (`dotnet-sdk`, `git-credential-manager`), 2 generate completions at install time (`codex`, `1password-cli`), 17 self-update, 1 is from a third-party tap (`jrmatherly/tap/claude-multipass-app`), `ghostty` ships a man page.
 - Keg-only formulae in use: `binutils`, `openjdk`, `rustup`, `ssh-copy-id`, `trash-cli` (the Brewfile force-links `trash-cli` with `link: true`).
 - `mise-plugins/mise-vscode-extensions`, the plugin repo mise's docs point at for VS Code extensions, returns 404. The Brewfile holds 183 `vscode` lines.
-- `setup/macos.sh` has 87 `defaults write` lines, 2 of them with `sudo`, and about 15 non-`defaults` commands (`pmset`, `systemsetup` and similar).
+- `setup/macos.sh` has 91 `defaults write` lines, 2 of them with `sudo`, and about 15 non-`defaults` commands (`pmset`, `systemsetup` and similar). `setup.sh` never runs it; only `bin/set-defaults` does.
 - `setup/symlinks.sh` has 2 `sudo` links into `/usr/local/bin` and links three Firefox files as hard links.
 - A Textual 8.2.8 app ran headless and, through textual-serve 1.1.3, answered HTTP 200 on `127.0.0.1`. The browser view is the terminal app drawn in a browser tab.
 - A uv package in a repo subdirectory built a wheel and ran with `uvx --from "git+file://<repo>#subdirectory=settings"`.
 - `dotfiles-settings` is unclaimed on PyPI.
 - CI (`.github/workflows/check.yml`, `macos-26`) installs neither mise nor uv.
+- mise itself is a Homebrew formula here. The keg holds `lib/.disable-self-update`, and every file in `~/.local/share/mise/shims` is a symlink to `/opt/homebrew/bin/mise`.
+- mise evaluates tap definitions with Ruby 3 or newer. macOS ships 2.6, and a Ruby 3 is on PATH here only as a dependency of `ruby-lsp`. With `PATH=/usr/bin:/bin`, `mise bootstrap packages status --json` exits 1.
+- `mise bootstrap --dry-run --skip macos-defaults` drops the part and both of its hooks. mise runs `pre-dotfiles` and `post-dotfiles` hooks on every `mise dotfiles apply` as well as on a bootstrap. A hook's stdin is mise's stdin.
+- Run from a folder holding an untrusted `mise.toml`, `mise bootstrap macos defaults status --json` and `mise dotfiles status --json` exit 1.
+- A `[dotfiles]` source written relative to the config file (`"../../../.ackrc"` in `conf.d/40-dotfiles.toml`) applies and reads back through the `~/.config/mise` symlink.
+- Without `HOMEBREW_NO_ANALYTICS`, `brew analytics state` reports analytics enabled.
+- mise adopts an existing cask artifact only for app bundles, and only when its contents match the download. Fonts are always replaced.
 - Changelog dates: `[dotfiles]` and macOS defaults first appear in mise 2026.6.6, the override file in 2026.10.14.
 
 From mise's docs, not run here:
@@ -80,7 +87,14 @@ From mise's docs, not run here:
 - `~/dotfiles` must be a symlink to the clone. A `[dotfiles]` source is not a template, so sources and hooks find the repo through that path. `setup.sh` creates it and stops when something else is there.
 - A value written to the override file may not contain `{{`, `{%`, `{#`, `$` or a line break. mise treats the first three as a template and expands `$`, and a bad template breaks every later `mise env`.
 - Nothing prunes packages automatically. `prune` removes every undeclared keg, mise's own included on a migrated Mac.
-- Tap resolution calls the GitHub API, and the anonymous limit (60 an hour) is not enough for one run. Setup, `upup` and CI pass `MISE_GITHUB_TOKEN`, so `gh` must be signed in before packages install.
+- Tap resolution calls the GitHub API. A run over the five remaining taps uses about 20 of the 60 anonymous calls an hour. Setup, `upup` and CI pass `MISE_GITHUB_TOKEN` when `gh` is signed in and warn when it is not.
+- Setup never applies macOS preferences. Only `bin/set-defaults` does, as today. `setup.sh` passes `--skip macos-defaults`.
+- No hook may need a terminal or sudo on a routine command. `setup/dotfiles-extras.sh` is run by `setup.sh` after the bootstrap, not from a `post-dotfiles` hook.
+- The telemetry opt-outs stay exported in `setup.sh`, so they cover the package and tool installs.
+- A new script under `setup/` or `migrate/` is committed executable, and `bin/lib/test-conventions` checks it.
+- A plan's commit names its paths. No `git add -A` and no bare directory.
+- No test pins the total number of registry settings, the number of `env` settings, or the set of kinds. Each plan asserts its own entries.
+- `CLAUDE.md` is 10,829 bytes at `9af6244` against a 12,000-byte cap that `bin/lib/test-conventions` enforces. A5 alone adds 524. A plan that edits it runs the size check before committing and trims text that restates code.
 - The browser UI binds to `127.0.0.1` only, on a random free port, behind a per-run token in the URL.
 - Machine-local files never enter git: `config.override.toml`, `config.*.override.toml`, `config.local.toml`, `config.*.local.toml`, `miserc.local.toml` under `tilde/.config/mise/`.
 - Repo conventions hold: bash scripts start with `#!/bin/bash` and a tldr-style header, define their output helpers inline, and pass `pnpm check`. Commit subjects are short, imperative, sentence case.
@@ -123,9 +137,10 @@ help = "Lets upup remove two roots brew doctor warns about. ca-roots restore put
 kind = "env"                       # env | macos-default | package | dotfile | tool
 key = "DOTFILES_TRIM_CA_ROOTS"     # meaning depends on kind
 type = "bool"                      # bool | string | int | enum | path
-true_value = "1"                   # bool only: the string written for true
-choices = []                       # enum only
-default = ""                       # value when nothing sets it; "" means unset
+true_value = "1"                   # optional. bool only: the string written for true
+choices = []                       # optional. enum only
+default = ""                       # optional. value when nothing sets it; "" means unset
+widget = ""                        # optional. "" | "lines" | "seats" (A7 gives the last two their behaviour)
 access = "rw"                      # rw | ro
 ```
 
@@ -144,15 +159,20 @@ class Adapter(Protocol):
     def read(self, s: Setting) -> Value: ...
     def write(self, s: Setting, value: str) -> None: ...
     def reset(self, s: Setting) -> None: ...
+    # optional: apply(settings) -> list[str], watch_paths() -> list[Path], write_note(s) -> str
 ```
+
+The CLI passes a false bool to an adapter as `""` and a true one as the setting's `true_value`. `mise.run_mise` runs mise with `cwd` set to `$HOME`.
 
 Adapters are looked up in a dict keyed by `kind`. A `ro` setting rejects `write` and `reset` in the CLI, before any adapter runs.
 
 ### CLI contract
 
-`dotfiles-settings list [--section S] --json`, `get <id> --json`, `set <id> <value>`, `reset <id>`, `apply <kind>`, `tui`, `serve [--no-open]`. JSON output is the `Value` fields plus the setting's `label`, `section`, `type`, `choices` and `access`. An adapter may also define `apply(settings) -> list[str]`, which `apply <kind>` calls, and a `write_note` string the UI shows before a write that changes a tracked file. A7 adds one optional registry field, `widget` (`""`, `"lines"`, `"seats"`), for the multi-line path list and the jstack role editor. Exit codes: 0 success, 1 failure, 2 unknown id or invalid value, 3 read-only setting. This contract is what the later Claude Code panel uses.
+`dotfiles-settings list [--section S] --json`, `get <id> --json`, `set <id> <value>`, `reset <id>`, `apply <kind>`, `tui`, `serve [--no-open]`. JSON output is the `Value` fields plus the setting's `label`, `section`, `type`, `choices`, `widget` and `access`. An adapter may also define `apply(settings) -> list[str]`, which `apply <kind>` calls, `watch_paths()`, which the TUI polls for changes made elsewhere, and `write_note`, a string or a method taking the setting, which the UI shows once, right after a successful write or reset that changed a tracked file. Exit codes: 0 success, 1 failure, 2 unknown id or invalid value, 3 read-only setting. This contract is what the later Claude Code panel uses.
 
 ## Phases
+
+Build in order: A1, A2, A3, A4, A5, A6, A7. Each Part B task lands with the phase named in that plan's landing table. Line numbers in the plans are from commit `9af6244`; an earlier phase may have moved them, so the builder finds the quoted text with `grep -n`.
 
 Each Part A phase ends with `pnpm check` passing. From A3 on, each phase's self-check fails on a config that mise cannot parse, a dropped entry or a type mismatch, and only warns on value drift. `mise bootstrap status --missing` is not the gate: Finder and other apps rewrite preferences without anyone changing the config, so it can flip without cause.
 
@@ -162,7 +182,7 @@ Gitignore the machine-local mise files. Add `zsh/override-env.zsh`, sourced at t
 
 ### A2. The settings package
 
-`settings/` with the registry, the model, the `env` adapter, the CLI, the Textual app and the serve wrapper. The registry lists 36 env settings: 14 read-write (the `DOTFILES_*` knobs a script still reads, `OBSIDIAN_VAULT`, `VSCODE_FONT_PRESET`, `UPUP_SLOW`, the Hindsight model variables, `EDITOR`, `BAT_THEME`, the npm init values) and the 22 telemetry opt-outs as `ro`. `GHIDRA_INSTALL_DIR` is left out, because `bin/rea-mcp` overwrites it at every launch. `bin/vscode-settings` is changed so the environment's `VSCODE_FONT_PRESET` wins over its saved file. The seed is read from a fresh shell started with overrides off, since the current environment already holds the overridden value. textual-serve has no token and does not check the WebSocket origin, so `serve.py` adds both. The other four kinds have no adapter yet and no registry entries.
+`settings/` with the registry, the model, the `env` adapter, the CLI, the Textual app and the serve wrapper. The registry lists 36 env settings (35 after A4 removes the Homebrew opt-out with its export): 14 read-write (the `DOTFILES_*` knobs a script still reads, `OBSIDIAN_VAULT`, `VSCODE_FONT_PRESET`, `UPUP_SLOW`, the Hindsight model variables, `EDITOR`, `BAT_THEME`, the npm init values) and the 22 telemetry opt-outs as `ro`. `GHIDRA_INSTALL_DIR` is left out, because `bin/rea-mcp` overwrites it at every launch. `bin/vscode-settings` is changed so the environment's `VSCODE_FONT_PRESET` wins over its saved file. The seed is read from a fresh shell started with overrides off, since the current environment already holds the overridden value. textual-serve has no token and does not check the WebSocket origin, so `serve.py` adds both. The other four kinds have no adapter yet and no registry entries.
 
 ### A3. macOS defaults
 
@@ -170,7 +190,7 @@ Gitignore the machine-local mise files. Add `zsh/override-env.zsh`, sourced at t
 
 ### A4. Packages
 
-`conf.d/30-packages.toml` declares every formula and cask. Registry-backed tap formulae move to `[tools]` after an identity check each (D6). VS Code extensions are installed by a package-manager plugin kept in this repo at `mise-plugins/vscode/`, linked with `mise plugins link`. mise itself is installed with its own installer. `brewpick`, `setup/brew.sh` and `setup/Brewfile` are deleted. `upup` gets its mise upgrade steps in this phase, so upgrades never stop between phases. `upup`, `bin/lib/check`, `zsh/path.zsh`, `zsh/init.zsh`, `tilde/.zprofile` and the other `brew` callers stop calling `brew`. The `HOMEBREW_*` exports go. A manually triggered workflow, `.github/workflows/fresh-install.yml`, applies the package config on a clean runner. Add the `package` adapter (status, and apply missing).
+`conf.d/30-packages.toml` declares 144 formulae (the Brewfile's 151, less `mise`, less the 7 that move to `[tools]`, plus `ruby`, which mise needs to read tap definitions), 33 casks and 183 VS Code extensions. `HOMEBREW_PREFIX` stays exported, because `upup`, `ca-roots` and `rea-mcp` read it. The extension plugin installs each extension separately, so one that fails does not stop the rest. Registry-backed tap formulae move to `[tools]` after an identity check each (D6). VS Code extensions are installed by a package-manager plugin kept in this repo at `mise-plugins/vscode/`, linked with `mise plugins link`. mise itself is installed with its own installer. `brewpick`, `setup/brew.sh` and `setup/Brewfile` are deleted. `upup` gets its mise upgrade steps in this phase, so upgrades never stop between phases. `upup`, `bin/lib/check`, `zsh/path.zsh`, `zsh/init.zsh`, `tilde/.zprofile` and the other `brew` callers stop calling `brew`. The `HOMEBREW_*` exports go. A manually triggered workflow, `.github/workflows/fresh-install.yml`, removes the runner's Homebrew and runs `setup/packages.sh`, so mise's own installer, the config-dir export and every package install are exercised. It always installs casks and extensions. Add the `package` adapter (status, and apply missing).
 
 Known gaps to close in this phase: `trash-cli` needs a PATH entry in place of `link: true` (`link = true` is a parse error in mise). `bin/ca-roots trim` runs Homebrew's own script, so `DOTFILES_TRIM_CA_ROOTS` does nothing on a Mac without Homebrew, and its help text says so. `bin/rea-mcp` and `setup/misc.sh` call `brew --prefix ghidra` and get a static path. `hunk` moves from 0.17.0 to the current release, and the git pager is checked against the tracked config. The 2 pkg casks and the 2 completion-generating casks each need an install test. `ghostty`'s man page is not linked. The `rustup` keg repair must be understood before the first real apply.
 
@@ -180,7 +200,7 @@ Known gaps to close in this phase: `trash-cli` needs a PATH entry in place of `l
 
 ### A6. Bootstrap entry point
 
-`setup.sh` becomes a short script: install mise if missing, check its version, create the `~/dotfiles` and `~/.config/mise` links, then run `mise bootstrap` from `$HOME`. `mise bootstrap --adopt` cannot use a repo subdirectory as the config dir, so the wrapper stays. `setup/misc.sh` keeps its name and is the one `[tasks.bootstrap]` (a second definition in another fragment silently replaces the first). `setup/dotfiles-extras.sh` runs from a `post-dotfiles` hook, while sudo is still held. Touch ID for sudo is a `[bootstrap.files]` entry. `upup` gains a prune report that never prunes. `.claude/skills/validate-setup` and `.claude/rules/setup.md` are rewritten for the new order.
+`setup.sh` becomes a short script: install mise if missing, check its version, create the `~/dotfiles` and `~/.config/mise` links, then run `mise bootstrap` from `$HOME`. `mise bootstrap --adopt` cannot use a repo subdirectory as the config dir, so the wrapper stays. `setup/misc.sh` keeps its name and is the one `[tasks.bootstrap]` (a second definition in another fragment silently replaces the first). `setup.sh` installs the packages itself, one manager at a time, warning and carrying on when one fails (mise has no continue-on-failure flag, and a failed part stops every later part). It then runs `mise bootstrap --skip macos-defaults,packages`, then `setup/dotfiles-extras.sh`. It refuses `--only`, which cannot be combined with `--skip`, and names the direct mise command. Touch ID for sudo is a `[bootstrap.files]` entry. `upup` gains a prune report that never prunes. `.claude/skills/validate-setup` and `.claude/rules/setup.md` are rewritten for the new order.
 
 ### A7. Agent tooling
 
@@ -192,7 +212,7 @@ The `tool` adapter and registry entries for: Hindsight on or off, its opt-in pat
 
 - `env`: copy `export` lines for registered keys from `~/.zsh.local` into the override file on request, and leave the file itself alone.
 - `macos`: report drift only. The preferences are already set.
-- `packages`: formulae need no migration, since mise adopts them in place. List the casks Homebrew installed that do not self-update (16 of 33 here). mise skips a cask Homebrew installed, so moving one across needs `brew` still present. First try adoption on one font cask (hide Homebrew's record, let mise adopt the files in place); if that fails, the path is `brew uninstall --cask` then a mise apply, with a warning that a replaced app can lose its macOS privacy permissions. Removing Homebrew is a separate, last task, off by default and behind a typed phrase. Homebrew's own uninstaller deletes `Cellar` and `Caskroom`, which mise uses, so the task moves only the Homebrew program into the backup folder. That procedure is not one Homebrew documents, and it is not run on any Mac before the fresh-install workflow has passed.
+- `packages`: move mise itself off the Homebrew keg first (install to `~/.local/bin/mise`, uninstall the formula, reshim, check a shim resolves), because the keg cannot self-update and every shim points at it. Ask what to do with the formulae and casks installed here that no config declares. Other formulae need no migration, since mise adopts them in place. List the casks Homebrew installed that do not self-update (16 of 33 here). mise skips a cask Homebrew installed, so moving one across needs `brew` still present. First try adoption on one app cask that does not self-update (hide Homebrew's record, let mise adopt the bundle in place); if mise refuses, the path is `brew uninstall --cask` then a mise apply, with a warning that a replaced app can lose its macOS privacy permissions. Removing Homebrew is a separate, last task, off by default and behind a typed phrase. Homebrew's own uninstaller deletes `Cellar` and `Caskroom`, which mise uses, so the task moves only the Homebrew program into the backup folder. That procedure is not one Homebrew documents, and it is not run on any Mac before the fresh-install workflow has passed.
 - `dotfiles`: write this Mac's Mole `.local` entry into `config.local.toml`, find conflicts from `mise dot apply --dry-run`, back up real files in the way, then run `mise dot apply`. Never `--force`.
 - `setup`: back up a hand-edited `/etc/pam.d/sudo_local` (the first bootstrap rewrites it), and re-register the `mise` MCP server when its command still points at Homebrew's path. Nothing is removed: the new method still uses the log folder and `~/dotfiles`.
 
@@ -209,7 +229,7 @@ Each phase rewrites every file below that describes what it changed. A phase is 
 | macOS preferences are TOML. mise never deletes a preference and never uses sudo for one | A3 | `.claude/rules/macos-defaults.md`, `docs/macos settings.md`, `setup/README.md`, `README.md` |
 | No Homebrew. No version pins for casks. Removing an entry needs `prune`. Casks mise installs are its own | A4 | `README.md` (install, "Make it yours"), `setup/README.md`, `.claude/skills/add-tool/SKILL.md`, `.claude/rules/upup.md`, `.claude/rules/telemetry-sync.md`, `.claude/rules/vscode.md`, `bin/CLAUDE.md`, `CLAUDE.md`, `docs/privacy.md`, `docs/gui/*.md` and `docs/rea.md` and `docs/mole.md` where they say `brew install`, `fonts/README.md`, `colors/README.md`, `vscode/README.md` |
 | Link conflicts stop the run; `--force` replaces with no backup; no prompt | A5 | `.claude/rules/symlinks.md`, `tilde/README.md`, `setup/README.md`, `firefox/README.md`, `README.md`, `CLAUDE.md` |
-| mise is installed first; `setup.sh` is a wrapper around `mise bootstrap`; a run is not a transaction; `~/dotfiles` is required; `gh` must be signed in before packages install | A6 | `README.md`, `setup/README.md`, `.claude/rules/setup.md`, `.claude/skills/validate-setup/SKILL.md`, `.claude/agents/docs-auditor.md`, `.claude/skills/docs-audit/SKILL.md`, `CLAUDE.md`, `.serena/memories/core.md` |
+| mise is installed first; `setup.sh` is a wrapper around `mise bootstrap`; a run is not a transaction; `~/dotfiles` is required; macOS preferences come from `set-defaults` only; without a `gh` sign-in, repeated runs can hit GitHub's anonymous limit | A6 | `README.md`, `setup/README.md`, `.claude/rules/setup.md`, `.claude/skills/validate-setup/SKILL.md`, `.claude/agents/docs-auditor.md`, `.claude/skills/docs-audit/SKILL.md`, `CLAUDE.md`, `.serena/memories/core.md` |
 | Agent settings are in the UI | A7 | `agents/README.md`, `.claude/rules/claude-config.md`, `tilde/.claude/rules/hindsight.md` |
 | How to migrate an existing machine, and until when | B | `README.md`, `migrate/README.md` |
 
@@ -227,13 +247,17 @@ Each phase rewrites every file below that describes what it changed. A phase is 
 
 Each has a default the plans already follow. Changing one means editing the named plan.
 
-1. **Does `mise bootstrap` apply macOS preferences?** Today only `bin/set-defaults` does, on purpose. With A3's hook and A6's entry point, every setup run would. Default in the plans: it does. To keep today's behaviour, `setup.sh` passes `--skip macos-defaults` (A6).
+1. **Settled by the review: setup does not apply macOS preferences.** `setup.sh` passes `--skip macos-defaults` (A6), which keeps today's behaviour. A `mise bootstrap` run by hand without that flag does apply them.
 2. **Security opt-ins for macOS** (firewall, HiDPI, Time Machine, computer name) are flags of `setup/macos-extras.sh`, so they are not in the UI. Making them env settings would put them there (A3).
 3. **The Hindsight model settings are read-write but reach shells only.** An app-launched Claude Code reads its own copy in `agents/claude-settings.json`. The help text says so. Marking them read-only is the stricter choice (A2).
 4. **The browser page loads one stylesheet from `fonts.googleapis.com`** (textual-serve's template). Removing it means shipping our own copy of the template (A2).
 5. **Removing Homebrew at all** (B, Task 5). The new method never calls it either way.
 6. **The Codex config** is seeded with `copy` and `create_if_missing`, which drops the old warning about tracked lines the live file lacks. `merge = "missing"` would add those lines for real (A5).
-7. **`ask` permission rules** for `mise bootstrap` and `mise dot apply` were added to `.claude/settings.json` by A3 and A5, replacing the guard on the deleted scripts.
+7. **`ask` permission rules** for `mise bootstrap*` and `mise dot apply` were added to `.claude/settings.json` by A3 and A5, replacing the guard on the deleted scripts.
+8. **Must `~/dotfiles` be required?** A5 writes sources as `~/dotfiles/...` and `setup.sh` stops when that path is not a link to the clone. The review measured that sources relative to the config file also work, which would keep the repo's rule that its location is never assumed, at the cost of link targets that read `~/.config/mise/conf.d/../../../<file>`. Default in the plans: `~/dotfiles` is required (A5, A6).
+9. **Four preference groups that used to ask now apply without asking** when `set-defaults` runs: screenshots, the Time Machine new-disk prompt, TextEdit and Software Update. This Mac already has them. Two switches, both in the settings UI, leave the screenshot folder and TextEdit alone. A managed Mac or a fork removes the Time Machine and Software Update tables (A3).
+10. **Shell completions for `flux` and `talosctl` are lost** when those move from tap formulae to mise tools. The docs give the two commands that regenerate them. A generation step is the alternative (A4).
+11. **`./setup.sh -- --upgrade` upgrades tools only**, because the bootstrap call skips packages. `upup` upgrades packages (A6).
 
 ## Corrections from planning
 
@@ -245,6 +269,28 @@ Each has a default the plans already follow. Changing one means editing the name
 - A6: `--adopt` cannot take a subdirectory. mise must run from `$HOME`. Only one `[tasks.bootstrap]` can exist.
 - A7: no CLI sets the Claude Code model.
 - B: Homebrew's uninstaller would delete mise's packages. mise cannot reinstall a Homebrew cask by itself. There is no `10-env.toml` and no old logs path to remove.
+
+## Corrections from review
+
+Four reviewers on three models audited the spec and plans read-only, each claim checked by a command or a scratch run. The lead reproduced twelve of the findings before any plan was changed.
+
+- Setup would have applied macOS preferences and force-quit six apps on every run (A6).
+- A later phase broke an earlier phase's test in three places: the registry count pinned by A2, the Homebrew opt-out A4 deletes, and a test of a script A6 deletes.
+- No macOS switch could be turned off from the UI: A2 sends an empty string for false and A3 accepted only the word (A3).
+- On a fresh Mac the package step would have installed nothing, because the mise config link is made later in setup (A4).
+- No plan moved mise itself off the Homebrew keg, which cannot self-update and which every shim points at (A4, B).
+- The override cache was named by `$HOME` alone, so a test run with another mise config dir would have written its values into the user's live shells (A1).
+- The mise path fallback was left for a later plan that never changed it (A1).
+- Commands read mise state from the folder they were launched in, which fails in an untrusted folder (A2).
+- A Textual attribute the tests used does not exist in 8.2.8 (A2).
+- The dotfiles hook would have run, and could have asked for sudo, on every re-link (A6).
+- The telemetry opt-outs would not have covered the installs they exist for (A6).
+- New scripts were never made executable, and the tests ran them through `bash`, so the tests passed anyway (A3, A5).
+- The adoption test ran on a font cask, a type mise never adopts (B).
+- One failing VS Code extension stopped every later one (A4).
+- Package status needs a Ruby 3 that nothing declared (A4).
+- Eleven stale references in the repo had no documentation row (A4).
+- Several commits used `git add -A` or a bare directory, which would have swept in unrelated work.
 
 ## Out of scope
 

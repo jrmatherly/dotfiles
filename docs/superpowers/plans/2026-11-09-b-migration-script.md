@@ -22,7 +22,12 @@
 - A closed stdin answers every prompt with "no" (`.claude/rules/setup.md`).
 - Repo conventions: `#!/bin/bash`, tldr-style header, inline output helpers, `set -euo pipefail`, shellcheck clean at `--severity=warning`, `pnpm check` passes.
 - Commit subjects are short, imperative, sentence case, no prefix. On `main`, commit and push once `pnpm check` passes.
-- Tested on this Mac only (D11). Steps that change this Mac are run by the user, never by the implementer.
+- Every commit names its files. No `git add -A`, no `git add .`, no bare directory. The working tree holds an unrelated uncommitted change to `agents/claude-settings.json` that must never enter one of this plan's commits.
+- Tested on this Mac only (D11). Steps that change this Mac are run by the user, never by the implementer. Each such step says so in its title. The implementer runs the script only with `--dry-run`, or against the scratch `HOME` of `bin/lib/test-migrate`.
+- The script exports `HOMEBREW_NO_ANALYTICS=1` before its first `brew` call. A4 deletes the `HOMEBREW_*` exports from `zsh/env.zsh`, and without one `brew analytics state` reports analytics enabled (measured). Every `brew` command this plan or the script tells the user to type carries the same prefix.
+- The script calls mise through one resolved path, `MISE`, never by a fresh `PATH` lookup. The `packages` step replaces the mise binary while it runs (Task 4).
+- A phase gate is `pnpm check` plus `bin/lib/test-migrate`. `mise bootstrap status --missing` and `mise bootstrap packages status --missing` are informational: apps rewrite preferences and a missing package is normal mid-migration, so no step requires either to exit 0.
+- Line numbers are from commit `9af6244`. An earlier phase may have moved them, so find the quoted text with `grep -n` before editing.
 
 ## Review Focus
 
@@ -30,7 +35,8 @@
 2. **A Mac migrated half way.** A second run after an interrupted first run finishes the work and repeats nothing. A cask Homebrew uninstalled that mise did not install shows as `missing`, and the script prints the apply command for it. Tests in Tasks 4 and 6 (`half_way_*`).
 3. **`~/.zsh.local` with a value holding spaces or quotes.** `export K='a b "c"'` reaches `mise set --override` as one argument with the exact value. A value the script cannot read safely is skipped with the manual command. Tests in Task 2 (`env_quoting`).
 4. **A Homebrew-installed cask that is running.** The script skips it, names it and tells the user to quit the app. It never uninstalls a running app. Test in Task 4 (`cask_running`).
-5. **No network.** The `packages` step refuses to uninstall any cask when `curl -fsI --max-time 5 https://formulae.brew.sh/` fails. Every other step works offline. Test in Task 4 (`no_network`).
+5. **No network.** The `packages` step refuses to move mise or uninstall any cask when `curl -fsI --max-time 5 https://formulae.brew.sh/` fails. Every other step works offline. Test in Task 4 (`no_network`).
+6. **mise replaced while the script runs.** The `packages` step uninstalls the mise binary it was started with, and every shim on this Mac is a link to that binary. The shims are repointed before the uninstall, the script never calls the old path afterwards, and a failed installer leaves Homebrew's mise in place. Tests in Task 4 (`mise_move_*`, `half_way_mise_shims`).
 
 ---
 
@@ -47,7 +53,10 @@ The spec left these open. Each was checked on this Mac on 2026-11-09 unless mark
 | P5 | "Is this already an override?" is answered by `mise set --file ~/.config/mise/config.override.toml KEY` (exit 1 when absent). `mise set --override KEY` cannot answer it. It prints the merged value. | Scratch run: `--override ONLYBASE` printed `base` from `conf.d`. |
 | P6 | The cask's self-update flag and its owner come from `mise bootstrap packages status --json` (`auto_updates`, `managed_by`). No `brew` call and no network. | Scratch config with the 33 casks: 17 `auto_updates: true`, 16 without, all `managed_by: "homebrew"`. |
 | P7 | A cask moves to mise with `brew uninstall --cask <token>` then `mise bootstrap packages apply --yes brew-cask:<token>`. So reinstalling needs `brew` still installed. Without `brew` the step only lists. | mise docs: apply does nothing to a Homebrew-installed cask, upgrade and prune skip it, "use Homebrew" to remove it. |
-| P8 | A removed app bundle is not copied to the backup folder (size). The backup records token and version in `casks.tsv`, and the restore command is `brew install --cask <token>`. This is the one exception to "back up what you replace", and the prompt says so. | Casks have no version pins (spec). |
+| P13 | mise itself moves first. The `packages` step installs mise with its own installer to `~/.local/bin/mise`, reshims with the new binary, and only then runs `brew uninstall mise`. Nothing else in the step runs until this is done or declined. | Measured on this Mac: `/opt/homebrew/opt/mise/lib/.disable-self-update` exists, so `mise self-update` refuses. All 149 files in `~/.local/share/mise/shims` are links to `/opt/homebrew/bin/mise`. A prune dry-run lists `remove brew:mise@2026.11.5`. `brew uses --installed mise` prints nothing. Scratch run, mise 2026.11.5: `mise reshim` run by a copy of the binary repoints every shim to that copy, whether the old target still exists or not. `mise ls` does not repoint. |
+| P14 | A package this Mac has that no config declares is offered a line in the gitignored `tilde/.config/mise/config.local.toml`. The script asks only about formulae Homebrew recorded as installed on request and casks in `Caskroom` that the status does not list. It never asks about `mise` or the seven formulae A4 moved to `[tools]`. | Scratch run: a `[bootstrap.packages]` table in `config.local.toml` merges with the one in `conf.d`, and `"brew:jrmatherly/ai-kb/aikb"` and `"brew-cask:signal"` there read `installed`. `INSTALL_RECEIPT.json` has `installed_on_request: true` for `aikb` and `ai-kb-lite` and `false` for the old `openssl@3` keg. A4's P16: mise finds a tap at its default GitHub URL with no taps entry. |
+| P15 | `.claude/settings.json` asks before every way an agent can start `migrate/legacy-to-mise`, `--dry-run` included. | The repo's rule for `upup` and `set-defaults` (`bin/lib/test-conventions`): a command that changes the machine asks. |
+| P8 | A removed app bundle is not copied to the backup folder (size). The backup records token and version in `casks.tsv`, and the restore command is `HOMEBREW_NO_ANALYTICS=1 brew install --cask <token>`. This is the one exception to "back up what you replace", and the prompt says so. | Casks have no version pins (spec). |
 | P9 | Formulae need no migration. mise reads the prefix, so a Homebrew-installed formula counts as installed, and `upgrade` installs the current bottle over it. The step reports `needs_repair` entries and the `prune --dry-run` count. It never prunes. | Scratch run: `brew:jq` `installed`, `brew:rustup` `needs_repair`. mise brew docs. |
 | P10 | Homebrew's documented uninstaller is not used. It deletes `Cellar` and `Caskroom`, where mise's packages live (D5). The step moves only the Homebrew program into the backup folder. | `uninstall.sh` lines 377-378, 423 and 454, cited in Task 5. |
 | P11 | `/etc/pam.d/sudo_local`, `private/setup-logs/` and `~/dotfiles` are all left in place. The new method uses each. The script only copies a `sudo_local` that differs from the declared content into the backup, because the first `mise bootstrap` rewrites it. | A6 plan, "Part B hook". |
@@ -62,7 +71,8 @@ The spec left these open. Each was checked on this Mac on 2026-11-09 unless mark
 | `bin/lib/test-migrate` | Self-check. Scratch `HOME`, stubs, one function per case. | Task 1, grown by Tasks 2-7 |
 | `bin/lib/check` | Lints `migrate/legacy-to-mise`, runs `test-migrate`. | Task 1 |
 | `package.json` | `format` covers `migrate/*`. | Task 1 |
-| `bin/lib/test-conventions` | Removal-date check. Old-method-name check (Task 7). | Tasks 1 and 7 |
+| `bin/lib/test-conventions` | Removal-date check. Permission-rule check. Old-method-name check (Task 7). | Tasks 1 and 7 |
+| `.claude/settings.json` | Five `ask` rules for the script (P15). | Task 1, removed in Task 8 |
 | `README.md` | Section "Migrating an existing machine". | Task 1 |
 
 ## Landing order
@@ -72,10 +82,10 @@ The spec left these open. Each was checked on this Mac on 2026-11-09 unless mark
 | 1 Skeleton | before A1 | Later tasks only add a step function. |
 | 2 `env` | A2 | Needs `settings/registry.toml`. |
 | 3 `macos` | A3 | |
-| 4 `packages`: casks and leftovers | A4 | |
+| 4 `packages`: mise itself, undeclared packages, casks and leftovers | A4 | A4's `upup` sends the user here to move mise off Homebrew. |
 | 5 `packages`: Homebrew removal | after A4's fresh-install workflow has passed once | That run is the proof mise needs no Homebrew program. |
 | 6 `dotfiles` | A5, before A5's first `mise dot apply` on this Mac | |
-| 7 `setup` | A6, before A6's first `mise bootstrap` on this Mac | A6 plan, Task "changes the machine", says so. |
+| 7 `setup` | A6, before A6's first `mise bootstrap` on this Mac. Its old-method-name check (Step 6) lands after A6's last commit. | A6 plan, Task "changes the machine", says so. The check fails until A6 has removed the last old name. |
 | 8 Removal | on or after 2027-02-28 | |
 
 ---
@@ -89,25 +99,28 @@ The spec left these open. Each was checked on this Mac on 2026-11-09 unless mark
 - Create: `bin/lib/test-migrate` (mode 755)
 - Modify: `bin/lib/check` (the `shell_scripts` array, the Prettier globs, one test line)
 - Modify: `package.json` (`scripts.format`)
-- Modify: `bin/lib/test-conventions` (one check and one header sentence)
+- Modify: `bin/lib/test-conventions` (two checks and one header sentence)
+- Modify: `.claude/settings.json` (five `ask` rules)
 - Modify: `README.md` (new section after "Updating")
 
 **Interfaces:**
 
 - Produces, in `migrate/legacy-to-mise`:
-  - Globals: `REPO` (clone root, `cd "$(dirname "$0")/.." && pwd -P`), `DRY_RUN` (`true` or `false`), `PREFIX` (`${HOMEBREW_PREFIX:-/opt/homebrew}`), `BACKUP_DIR` (`$HOME/.dotfiles-migration-backup/$(date +%Y%m%d-%H%M%S)`, not created until first use), `MIN_MISE=2026.11.5`, `CHANGED` (count of changes made).
+  - Globals: `REPO` (clone root, `cd "$(dirname "$0")/.." && pwd -P`), `DRY_RUN` (`true` or `false`), `PREFIX` (`${HOMEBREW_PREFIX:-/opt/homebrew}`), `BACKUP_DIR` (`$HOME/.dotfiles-migration-backup/$(date +%Y%m%d-%H%M%S)`, not created until first use), `MIN_MISE=2026.11.5`, `CHANGED` (count of changes made), `MISE` (the absolute path `command -v mise` prints, read once at start).
+  - `mise() { "$MISE" "$@"; }`. Every `mise` call in the script, `run mise …` included, goes through it, so one action never mixes two binaries. Only Task 4's `move_mise` assigns `MISE` again.
+  - `export HOMEBREW_NO_ANALYTICS=1`, straight after `set -euo pipefail`, with the comment `# A4 removed the HOMEBREW_* exports from the shell, and brew reports analytics as enabled without one`.
   - `header <text>`, `info <text>`, `warn <text>`, `success <text>`, `fail <text>` (prints and exits 1). Inline, `tput` guarded as in `setup/brew.sh`: `tput() { command tput "$@" 2> /dev/null || true; }`.
   - `ask <question>`: returns 0 only for `y` or `Y`. Under `DRY_RUN=true` it prints `would ask: <question>` and returns 1. EOF returns 1.
   - `ask_typed <phrase> <question>`: returns 0 only when the reply equals `<phrase>` exactly. Same dry-run and EOF rules.
   - `run <cmd> [args…]`: under `DRY_RUN=true` prints `would run: <cmd> <args>` and returns 0. Otherwise prints `→ <cmd> <args>`, runs it, adds 1 to `CHANGED`.
   - `backup_move <path>`: moves `<path>` to `$BACKUP_DIR/files/<path without its leading slash>`, creating `BACKUP_DIR` with mode 700. Appends `mv '<backup>' '<path>'` to `$BACKUP_DIR/RESTORE.txt`. Under `DRY_RUN=true` prints `would back up: <path>` and moves nothing. Never called on a path that resolves inside `REPO` (it calls `fail`).
-  - `backup_copy <path>`: same, with `cp -p`, and the restore line is `cp -p '<backup>' '<path>'`.
+  - `backup_copy <path>`: same, with `cp -p`, and the restore line is `cp -p '<backup>' '<path>'`. It copies, so the clone rule does not apply: Tasks 2, 4 and 6 copy the clone's gitignored `config.override.toml` and `config.local.toml`.
   - `backup_note <file> <line>`: appends `<line>` to `$BACKUP_DIR/<file>` (mode 600). No-op under dry-run.
   - `STEPS=(env macos packages dotfiles setup)` and `phase_marker <step>`, a `case` that prints each step's marker path relative to `REPO`: `zsh/override-env.zsh`, `tilde/.config/mise/conf.d/20-macos.toml`, `tilde/.config/mise/conf.d/30-packages.toml`, `tilde/.config/mise/conf.d/40-dotfiles.toml`, `tilde/.config/mise/conf.d/50-bootstrap.toml`.
   - `phase_present <step>`: returns 0 when `$REPO/$(phase_marker <step>)` exists.
   - Each step is a function `step_<name>` returning 0 or 1. Task 1 defines all five as `info "nothing to migrate yet"`.
 - Produces, in `bin/lib/test-migrate`:
-  - `tmp`, `HOME=$tmp/home`, `STATE=$tmp/state`, `REPO_COPY=$tmp/repo` (holds a copy of `migrate/` plus fixture `tilde/.config/mise/conf.d/` and `settings/`), `HOMEBREW_PREFIX=$tmp/prefix`, `PATH=$tmp/bin:/usr/bin:/bin`.
+  - `tmp` (`tmp=$(cd "$(mktemp -d)" && pwd -P)`: physical, because the script resolves `REPO` with `pwd -P` and macOS's temp folder sits behind the `/var` link), `HOME=$tmp/home`, `STATE=$tmp/state`, `REPO_COPY=$tmp/repo` (holds a copy of `migrate/` plus fixture `tilde/.config/mise/conf.d/` and `settings/`), `HOMEBREW_PREFIX=$tmp/prefix`, `PATH=$tmp/bin:/usr/bin:/bin`.
   - `stub <name> <body>` as in `bin/lib/test-upup`.
   - `phase <step>`: creates that step's marker file in `REPO_COPY` (the same five paths as `phase_marker`).
   - `snapshot`: prints `find "$HOME" "$HOMEBREW_PREFIX" "$STATE" -exec ls -ld {} +` with every regular file's `cksum`, sorted, excluding `$STATE/*.log`.
@@ -162,7 +175,8 @@ stub mise 'echo "mise $*" >> "$STATE/mise.log"
 case "$*" in
   --version) echo "${FAKE_MISE_VERSION:-2026.11.5} macos-arm64 (2026-11-08)" ;;
 esac'
-stub brew 'echo "brew $*" >> "$STATE/brew.log"'
+stub brew 'echo "brew $*" >> "$STATE/brew.log"
+[ "${HOMEBREW_NO_ANALYTICS:-}" = 1 ] || { echo "brew ran without HOMEBREW_NO_ANALYTICS=1" >&2; exit 97; }'
 stub claude 'echo "claude $*" >> "$STATE/claude.log"'
 ```
 
@@ -226,7 +240,7 @@ Expected: FAIL, `migrate/legacy-to-mise: No such file or directory`.
 
 - [ ] **Step 3: Write `migrate/legacy-to-mise` to the Interfaces block**
 
-The version test is `[ "$(printf '%s\n' "$MIN_MISE" "$have" | sort -V | head -1)" = "$MIN_MISE" ]`, where `have` is the first field of `mise --version`. `sort -V` exists in macOS `sort` (checked: orders `2026.6.6 2026.11.5 2026.11.10`). `mise` missing from `PATH` is the same refusal (exit 3). `--help` prints the header with the `awk` line from `setup.sh:54`, copied into the script. Then `chmod +x migrate/legacy-to-mise bin/lib/test-migrate`.
+The version test is `[ "$(printf '%s\n' "$MIN_MISE" "$have" | sort -V | head -1)" = "$MIN_MISE" ]`, where `have` is the first field of `mise --version`. `sort -V` exists in macOS `sort` (checked: orders `2026.6.6 2026.11.5 2026.11.10`). `mise` missing from `PATH` is the same refusal (exit 3). The test never exports `HOMEBREW_NO_ANALYTICS`, so the fake `brew` fails any call the script makes without its own export. `--help` prints the header with the `awk` line from `setup.sh:54`, copied into the script. Then `chmod +x migrate/legacy-to-mise bin/lib/test-migrate`.
 
 - [ ] **Step 4: Run the test to see it pass**
 
@@ -258,6 +272,31 @@ fi
 ```
 
 Add to the header's description sentence: "that migrate/ is gone after 2027-02-28,".
+
+Add the permission rules (P15). In `.claude/settings.json`, append to `permissions.ask`, after the `upup` rules:
+
+```json
+      "Bash(migrate/legacy-to-mise*)",
+      "Bash(./migrate/legacy-to-mise*)",
+      "Bash(*/migrate/legacy-to-mise*)",
+      "Bash(bash migrate/legacy-to-mise*)",
+      "Bash(sh migrate/legacy-to-mise*)"
+```
+
+There is no bare-name rule because the script is not on `PATH`. In `bin/lib/test-conventions`, after the `for s in upup set-defaults` loop (the `rules` helper is defined above it):
+
+```bash
+# migrate/legacy-to-mise changes the machine, so every way to start it asks (temporary: goes with migrate/)
+if [ -e migrate ]; then
+  rules .claude/settings.json ask present 'Bash(migrate/legacy-to-mise*)' 'Bash(./migrate/legacy-to-mise*)' \
+    'Bash(*/migrate/legacy-to-mise*)' 'Bash(bash migrate/legacy-to-mise*)' 'Bash(sh migrate/legacy-to-mise*)'
+fi
+```
+
+The rtk probe loop below it skips rules that hold a `/`, so it needs no change. `bash bin/lib/test-migrate` is not matched by these rules and still runs unasked.
+
+Run: `/usr/bin/jq -r '.permissions.ask[] | select(test("legacy-to-mise"))' .claude/settings.json | wc -l`
+Expected: `5`
 
 - [ ] **Step 7: Prove the date check fires**
 
@@ -291,7 +330,8 @@ Run: `pnpm check`
 Expected: exit 0.
 
 ```bash
-git add migrate bin/lib/test-migrate bin/lib/check bin/lib/test-conventions package.json README.md
+git add migrate/legacy-to-mise migrate/README.md bin/lib/test-migrate bin/lib/check bin/lib/test-conventions package.json README.md .claude/settings.json
+git ls-files -s migrate/legacy-to-mise bin/lib/test-migrate   # both lines start 100755
 git commit -m "Add the migration script skeleton and its removal date check"
 git push
 ```
@@ -443,7 +483,7 @@ Replace the `env` line in `migrate/README.md` with the behaviour list above in p
 Run: `pnpm check`
 
 ```bash
-git add migrate bin/lib/test-migrate
+git add migrate/legacy-to-mise migrate/README.md bin/lib/test-migrate
 git commit -m "Add the env step to the migration script"
 git push
 ```
@@ -460,41 +500,46 @@ git push
 
 **Interfaces:**
 
-- Consumes: `mise bootstrap macos defaults status --json`. Shape, checked on mise 2026.11.5: `{"macos_defaults":{"available":true,"entries":[{"domain":"…","key":"…","value":<json>,"current":"…","state":"set"|"differs"|"unset"}]}}`.
+- Consumes: `mise bootstrap macos defaults status --json`. Shape, from the A3 plan's measurement on mise 2026.11.5: `{"macos_defaults":{"available":true,"entries":[{"domain":"…","host":"…","path":null|["…"],"key":"…","value":<json>,"current":"…","state":"set"|"differs"|"unset"}]}}`. `path` names a value inside a dictionary preference. A3 declares `com.apple.finder DesktopViewSettings` twice, once with `path` `["IconViewSettings","arrangeBy"]` and once with `["IconViewSettings","iconSize"]`, and the same pair for two more keys, so `domain` and `key` alone do not name an entry.
 - Produces: `step_macos`. It changes nothing and always returns 0 when the status command succeeds.
 
-**Output (exact):** one line `macOS defaults: <a> set, <b> differ, <c> unset.`, then one line per `differs` or `unset` entry as `<domain> <key>: wants <value>, has <current or "nothing">`, then one line per leftover that is present as `<domain> <key>: set by the old script, no longer declared. Remove it: defaults delete <domain> <key>`, then this text:
+**Output (exact):** one line `macOS defaults: <a> set, <b> differ, <c> unset.`, then one line per `differs` or `unset` entry as `<domain> <key><path>: wants <value>, has <current or "nothing">`, where `<path>` is empty for a null `path` and otherwise a space and the path joined with dots (`com.apple.finder DesktopViewSettings IconViewSettings.arrangeBy: wants grid, has name`). Then one line per leftover that is present and not declared as `<domain> <key>: set by the old script, not declared now. To keep it, declare it in config.local.toml (the comment at the top of conf.d/20-macos.toml shows the table). To drop it: defaults delete <domain> <key>`, then this text:
 
 ```text
 Nothing was changed. The old script already wrote these preferences.
 To write the declared values, run: set-defaults
-mise never deletes a preference. One the old script set that the config no longer declares stays
-until you run its defaults delete command.
+mise never deletes a preference. One the old script set that no config declares stays as it is.
+Declare it in config.local.toml to keep it on purpose, or run its defaults delete command.
 ```
 
-**Leftovers** (from the A3 plan, "What Part B's `macos` step needs"): `com.apple.dock autohide-delay`, `com.apple.dock autohide-time-modifier`, `com.apple.LaunchServices LSQuarantine`, `com.apple.frameworks.diskimages skip-verify`, `com.apple.frameworks.diskimages skip-verify-locked`, `com.apple.frameworks.diskimages skip-verify-remote`. One is present when `defaults read <domain> <key>` exits 0. The list is a literal array in the script.
+**Leftovers** (from the A3 plan, "What Part B's `macos` step needs"): `com.apple.dock autohide-delay`, `com.apple.dock autohide-time-modifier`, `com.apple.LaunchServices LSQuarantine`, `com.apple.frameworks.diskimages skip-verify`, `com.apple.frameworks.diskimages skip-verify-locked`, `com.apple.frameworks.diskimages skip-verify-remote`. The list is a literal array in the script. The old script set these only when the user opted in, and A3 documents them as `config.local.toml` opt-ins. So one is listed only when `defaults read <domain> <key>` exits 0 and no status entry has that `domain` and `key`. An entry the status lists is declared on purpose and is never called a leftover.
 
 - [ ] **Step 1: Write the failing test**
 
-The fake `mise` gains: `"bootstrap macos defaults status --json") cat "$STATE/defaults.json" ;;`. A `defaults` stub exits 0 for `read com.apple.dock autohide-delay` and 1 for every other `read`, and logs any other verb to `$STATE/defaults.log`.
+The fake `mise` gains: `"bootstrap macos defaults status --json") cat "$STATE/defaults.json" ;;`. A `defaults` stub exits 0 for `read com.apple.dock autohide-delay` and `read com.apple.dock autohide-time-modifier` and 1 for every other `read`, and logs any other verb to `$STATE/defaults.log`.
 
 ```bash
 macos_reports_only() {
   phase macos
   cat > "$STATE/defaults.json" << 'EOF'
 {"macos_defaults":{"available":true,"entries":[
- {"domain":"com.apple.dock","key":"autohide","value":true,"current":"true","state":"set"},
- {"domain":"com.apple.dock","key":"tilesize","value":48,"current":"64","state":"differs"},
- {"domain":"NSGlobalDomain","key":"KeyRepeat","value":2,"current":"","state":"unset"}]}}
+ {"domain":"com.apple.dock","host":"any","path":null,"key":"autohide","value":true,"current":"true","state":"set"},
+ {"domain":"com.apple.dock","host":"any","path":null,"key":"autohide-time-modifier","value":0.5,"current":"0.5","state":"set"},
+ {"domain":"com.apple.dock","host":"any","path":null,"key":"tilesize","value":48,"current":"64","state":"differs"},
+ {"domain":"com.apple.finder","host":"any","path":["IconViewSettings","arrangeBy"],"key":"DesktopViewSettings","value":"grid","current":"name","state":"differs"},
+ {"domain":"com.apple.finder","host":"any","path":["IconViewSettings","iconSize"],"key":"DesktopViewSettings","value":48.0,"current":"48","state":"set"},
+ {"domain":"NSGlobalDomain","host":"any","path":null,"key":"KeyRepeat","value":2,"current":"","state":"unset"}]}}
 EOF
   before=$(snapshot)
   for how in "" "--dry-run"; do
     out=$(yes | "$script" --step macos $how 2>&1) || fail "macos $how: exit $?"
-    check_out "counts" '^macOS defaults: 1 set, 1 differ, 1 unset\.$'
+    check_out "counts" '^macOS defaults: 3 set, 2 differ, 1 unset\.$'
     check_out "lists the differing one" '^com\.apple\.dock tilesize: wants 48, has 64$'
+    check_out "names the dictionary path" '^com\.apple\.finder DesktopViewSettings IconViewSettings\.arrangeBy: wants grid, has name$'
     check_out "lists the unset one" '^NSGlobalDomain KeyRepeat: wants 2, has nothing$'
-    check_out "names the leftover that is present" '^com\.apple\.dock autohide-delay: set by the old script.*defaults delete com\.apple\.dock autohide-delay$'
+    check_out "names the leftover that is present" '^com\.apple\.dock autohide-delay: set by the old script.*config\.local\.toml.*defaults delete com\.apple\.dock autohide-delay$'
     ! grep -q 'LSQuarantine' <<< "$out" || fail "listed a leftover that is not set"
+    ! grep -q '^com\.apple\.dock autohide-time-modifier: set by the old script' <<< "$out" || fail "called a declared preference a leftover"
     check_out "states the no-delete rule" 'mise never deletes a preference'
   done
   [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] && [ ! -s "$STATE/defaults.log" ] || fail "macos changed something"
@@ -507,18 +552,18 @@ EOF
 - [ ] **Step 5: Run on this Mac** (read-only): `migrate/legacy-to-mise --step macos`. Expected: the counts line, whose three numbers add up to the entry count of `mise bootstrap macos defaults status --json | jq '.macos_defaults.entries | length'`, and `Changed 0 thing(s).`
 - [ ] **Step 6: Document, gate, commit**
 
-`migrate/README.md`, `macos` section: report only, the leftovers list, the four-line text above.
+`migrate/README.md`, `macos` section: report only, the leftovers list with the rule that a declared one is not a leftover, the four-line text above.
 
 ```bash
 pnpm check
-git add migrate bin/lib/test-migrate
+git add migrate/legacy-to-mise migrate/README.md bin/lib/test-migrate
 git commit -m "Add the macOS defaults report to the migration script"
 git push
 ```
 
 ---
 
-### Task 4: Step `packages`, casks and leftovers (lands with A4)
+### Task 4: Step `packages`: mise itself, undeclared packages, casks and leftovers (lands with A4)
 
 **Files:**
 
@@ -529,9 +574,20 @@ git push
 **Interfaces:**
 
 - Consumes: `mise bootstrap packages status --json`. Shape, checked: `{"brew":{"packages":[{"package","state","installed_version"}]},"brew-cask":{"packages":[{"package","state","installed_version","auto_updates"?,"managed_by"?}]}}`. `state` is `installed`, `missing` or `needs_repair`. `managed_by` is `homebrew`, `mise` or `unknown`. `auto_updates` is present only when true.
+- Consumes: `mise bootstrap packages prune --manager brew --dry-run`, whose lines are `remove brew:<name>@<version>`. The name is the text between `brew:` and the last `@` (`openssl@3@3.5.9` is `openssl@3`).
+- Consumes: `$PREFIX/Cellar/<name>/<version>/INSTALL_RECEIPT.json` and `$PREFIX/Caskroom/<token>/.metadata/INSTALL_RECEIPT.json`, Homebrew's own records, for `.installed_on_request` and `.source.tap`. Read with `/usr/bin/jq`. A missing receipt counts as not on request.
+- Consumes: mise's documented installer, `curl -fsSL https://mise.run | sh`. Read on 2026-11-09: it installs to `${MISE_INSTALL_PATH:-$HOME/.local/bin/mise}`, checks the download against checksums embedded in the script, edits no shell file, and prints its "add this to your shell" hint unless `MISE_INSTALL_HELP=0`.
+- Consumes: `claude mcp get mise`, whose output holds a line `  Command: <path>` (checked on this Mac: `/opt/homebrew/bin/mise`).
 - Consumes, only while `brew` is on `PATH`: `brew info --json=v2 --cask <token>`, for `.casks[0].artifacts[] | .app? // empty | .[] | strings` (the app bundle names, checked: `ghostty` gives `Ghostty.app`, a font cask gives none) and `.pkg?` (checked: present for `dotnet-sdk`).
 - Produces:
   - `packages_status`: prints the status JSON once per run (cached in a variable).
+  - `online`: runs `curl -fsI --max-time 5 https://formulae.brew.sh/ > /dev/null` once per run and returns the cached result.
+  - `move_mise`: the sequence below. Returns 0 when it moved mise, had nothing to move or was declined, 1 when a check failed.
+  - `reregister_mise_mcp`: skipped when `claude` is not on `PATH`, when `claude mcp get mise` fails, or when its `Command:` equals `$MISE`. Otherwise `ask "Re-register the mise MCP server with $MISE?"`, `backup_note mcp.txt "<old command>"`, append `claude mcp remove mise -s user && claude mcp add --scope user mise -- '<old command>' mcp` to `RESTORE.txt`, then `run claude mcp remove mise -s user` and `run claude mcp add --scope user mise -- "$MISE" mcp`. Task 7 calls it again.
+  - `MOVED_TO_TOOLS=(azd azure-functions-core-tools@4 flux hunk kubelogin lazydocker talosctl)`: the seven formulae A4 moved to `[tools]`, as the prune dry-run names them. A literal, because the Brewfile that listed them is gone.
+  - `undeclared_formulae`: prints `name<TAB>version<TAB>kind` for each prune line. `kind` is `mise` for the name `mise`, `tools` for a name in `MOVED_TO_TOOLS`, `request` when the receipt has `installed_on_request == true`, else `dependency`.
+  - `undeclared_casks`: prints each directory name under `$PREFIX/Caskroom` that is not the last `/`-separated part of any cask `package` in the status.
+  - `local_toml_add <table> <key> <value>`: adds `"<key>" = <value>` under `[<table>]` in `$REPO/tilde/.config/mise/config.local.toml`. A file that already holds `"<key>" =` is left alone. Before the first write of the run it calls `backup_copy` on the file when it exists. With no line equal to `[<table>]` it appends a blank line, the header and the entry. With one, it inserts the entry on the line after the header (one `awk` pass to a temp file, then `mv`), because TOML does not allow the same table twice. Each write adds 1 to `CHANGED`.
   - `homebrew_casks`: prints `token<TAB>version<TAB>self-updates(true|false)` for each cask with `managed_by == "homebrew"`.
   - `cask_apps <token>`: prints the app bundle names, empty without `brew`.
   - `app_running <App.app>`: `pgrep -f "${MIGRATE_APPDIR:-/Applications}/$1/Contents/MacOS/" > /dev/null`.
@@ -541,10 +597,20 @@ git push
 
 **What `step_packages` prints and does, in order:**
 
-1. **Formulae.** `Formulae: nothing to migrate. mise reads /opt/homebrew, so a formula Homebrew installed counts as installed, and "mise bootstrap packages upgrade" replaces it with the current bottle.` Then one line per `brew` package with `state == "needs_repair"`: `<name>: needs repair (mise bootstrap packages apply restores the link, nothing is reinstalled)`. Then `Not declared in the config: <n> formulae ("mise bootstrap packages prune --dry-run" lists them; this script never prunes)`, where `<n>` is `mise bootstrap packages prune --manager brew --dry-run | grep -c '^remove brew:'`.
-2. **Half-way casks.** For each cask with `state == "missing"`: `<token>: declared but not installed. Install it: mise bootstrap packages apply brew-cask:<token>`. No prompt.
-3. **Self-updating Homebrew casks.** One line: `Left alone (they update themselves): <tokens>`.
-4. **Homebrew casks that do not self-update.** A table of token, version and kind (`app`, `pkg`, or `other`). Then this text, exact:
+1. **mise itself.** `move_mise`. When it returns 1 the step stops with exit 1. Nothing below uninstalls anything before this point has run.
+2. **Formulae.** `Formulae: nothing to migrate. mise reads /opt/homebrew, so a formula Homebrew installed counts as installed, and "mise bootstrap packages upgrade" replaces it with the current bottle.` Then one line per `brew` package with `state == "needs_repair"`: `<name>: needs repair (mise bootstrap packages apply restores the link, nothing is reinstalled)`.
+3. **Packages no config declares.** `Not declared in the config: <n> formulae ("mise bootstrap packages prune --dry-run" lists them; this script never prunes)`, where `<n>` is the number of lines `undeclared_formulae` prints. That function filters the dry-run with `grep '^remove brew:' || true`: `grep` exits 1 on zero matches, which would end the script under `set -euo pipefail`. Then one line per formula, `  <name> <version>: <reason>`, the reason by kind: `Homebrew's mise, moved at the start of this step` (`mise`), `moved to mise tools, this keg is no longer used` (`tools`), `installed by hand` (`request`), `a dependency nothing declared needs` (`dependency`). With `<n>` above 0, this text, exact:
+
+   ```text
+   Any "mise bootstrap packages prune" removes every formula listed above.
+   mise keeps a formula that any config it has tracked still declares (<t> tracked, in <dir>),
+   so this list can be shorter than what is really undeclared.
+   ```
+
+   `<dir>` is `${MISE_STATE_DIR:-$HOME/.local/state/mise}/tracked-configs` and `<t>` the number of entries in it (0 when it is absent; 106 on this Mac). Then, for each `request` formula: `ask "Keep <name> by declaring it in config.local.toml?"`. On yes, `local_toml_add bootstrap.packages "brew:<tap>/<name>" '"latest"'` when the receipt's `.source.tap` is set and is not `homebrew/core`, else `"brew:<name>"`. On no, `<name>: left undeclared. A prune removes it.` Then, when `undeclared_casks` prints any: `Casks Homebrew installed that no config declares: <tokens>` and `mise never upgrades or removes these. Once declared, one that does not update itself can be moved to mise by this step. To remove one instead, while brew exists: HOMEBREW_NO_ANALYTICS=1 brew uninstall --cask <token>`, and for each `ask "Declare <token> in config.local.toml?"` with `local_toml_add bootstrap.packages "brew-cask:<token>" '"latest"'` (tap-qualified by the same rule against `homebrew/cask`). After any write: `Declared <n> package(s) in tilde/.config/mise/config.local.toml (gitignored, this Mac only). Run this step again to see them in the lists below.` The status is read once per run, so a package declared here joins the lists on the next run.
+4. **Half-way casks.** For each cask with `state == "missing"`: `<token>: declared but not installed. Install it: mise bootstrap packages apply brew-cask:<token>`. No prompt.
+5. **Self-updating Homebrew casks.** One line: `Left alone (they update themselves): <tokens>`.
+6. **Homebrew casks that do not self-update.** A table of token, version and kind (`app`, `pkg`, or `other`). Then this text, exact:
 
 ```text
 Nothing upgrades these any more: mise leaves a cask Homebrew installed alone.
@@ -554,20 +620,49 @@ Reinstalling one through mise runs, for each cask you pick:
 and then checks that mise reports it installed and managed by mise.
 The app bundle is replaced, not copied to the backup folder. macOS can drop the privacy
 permissions (Accessibility, Full Disk Access, Screen Recording and the like) of a replaced app,
-so check System Settings > Privacy & Security afterwards. Way back: brew install --cask <token>.
+so check System Settings > Privacy & Security afterwards.
+Way back: HOMEBREW_NO_ANALYTICS=1 brew install --cask <token>.
 ```
 
-5. Without `brew` on `PATH`: `brew is not installed, so these cannot be moved by this script. To move one by hand, delete the app and /opt/homebrew/Caskroom/<token>, then run the apply command.` Return.
-6. Network probe once: `curl -fsI --max-time 5 https://formulae.brew.sh/ > /dev/null`. On failure: `No network: not reinstalling anything.` Skip to 8.
-7. For each cask in the table: when any of its apps is running, print `<token>: <App.app> is running. Quit it and run this step again.` and skip it. Otherwise `ask "Reinstall <token> <version> through mise?"`. On yes, `reinstall_cask`.
-8. `clean_staging_leftovers`.
+7. Without `brew` on `PATH`: `brew is not installed, so these cannot be moved by this script. To move one by hand, delete the app and /opt/homebrew/Caskroom/<token>, then run the apply command.` Return.
+8. `online` fails: `No network: not reinstalling anything.` Skip to 10.
+9. For each cask in the table: when any of its apps is running, print `<token>: <App.app> is running. Quit it and run this step again.` and skip it. Otherwise `ask "Reinstall <token> <version> through mise?"`. On yes, `reinstall_cask`.
+10. `clean_staging_leftovers`.
+
+**`move_mise`:** `new` is `$HOME/.local/bin/mise` and `shims` is `${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims`. Every `find` below runs only when `shims` is a directory, and counts as printing nothing otherwise.
+
+1. `$MISE` is not under `$PREFIX/`: mise is already outside Homebrew. When `find "$shims" -type l ! -exec test -e {} \; -print` lists any link (an earlier run stopped between the uninstall and the reshim), print the count and `ask "Rebuild the mise shims with $MISE?"`, then `run mise reshim`. Otherwise print `mise: $MISE, not Homebrew's. Nothing to move.` Return 0.
+2. Print this text, exact, with `<n>` the number of links in `shims`:
+
+   ```text
+   mise is Homebrew's (<path>). The new setup installs mise with mise's own installer, and
+   Homebrew's copy refuses "mise self-update", so nothing upgrades it any more.
+   Moving it runs:
+     curl -fsSL https://mise.run | sh     installs ~/.local/bin/mise and checks its checksum
+     ~/.local/bin/mise reshim             points the <n> shims at the new binary
+     brew uninstall mise
+   and checks that every shim still resolves. Way back: HOMEBREW_NO_ANALYTICS=1 brew install mise
+   ```
+
+3. Without `brew` on `PATH`: `brew is not installed, so its mise cannot be uninstalled by this script.` Return 0. `online` fails: `No network: not moving mise.` Return 0.
+4. `ask "Move mise from Homebrew to ~/.local/bin/mise?"`. On no: `mise stays Homebrew's. upup reports it until this step moves it.` Return 0.
+5. When `$new` is not executable or its version is below `MIN_MISE`: `run env MISE_INSTALL_PATH="$new" MISE_INSTALL_HELP=0 sh -c 'curl -fsSL https://mise.run | sh' || true`. The pipeline's exit status proves nothing either way (a failed `curl` hands `sh` an empty script), so point 6 decides.
+6. `"$new" --version` meets `MIN_MISE` (the Task 1 test). Otherwise `The new mise did not install. Homebrew's mise is untouched.` Return 1.
+7. `backup_note mise.tsv "<old path><TAB><old version>"` and append `HOMEBREW_NO_ANALYTICS=1 brew install mise && $PREFIX/bin/mise reshim` to `RESTORE.txt`.
+8. `old=$MISE`, `MISE=$new`, `hash -r`. From here every call in the script uses the new binary. `run mise reshim`. When `find "$shims" -type l -lname "$old"` still prints a link: set `MISE=$old`, print `The shims still point at Homebrew's mise. Nothing was uninstalled.` Return 1.
+9. `run brew uninstall mise`. On failure: `brew could not uninstall mise. Both are installed and the shims use the new one. Run this step again.` Return 1. A rerun finds `$new` in place, skips the installer and finishes.
+10. `run mise reshim` again, then check: the `find` from point 1 prints nothing, and when `$shims/node` exists `"$shims/node" --version` exits 0. Otherwise print `A mise shim does not resolve. Put Homebrew's mise back with: HOMEBREW_NO_ANALYTICS=1 brew install mise && $PREFIX/bin/mise reshim` and return 1.
+11. `reregister_mise_mcp`.
+12. Print `mise now runs from ~/.local/bin/mise. Open a new terminal: this one still remembers the old path.` When `command -v mise` is not `$new`, also `warn "~/.local/bin is not on PATH in this shell. The new shell startup files put it there."`
+
+The reshim comes before the uninstall on purpose. Agent and GUI shells reach node, python and jq only through the shims, and a shim is a link to the mise binary, so uninstalling first would leave every one of them dangling until the reshim. Reshimming first means there is no such moment (P13). The second reshim costs nothing and covers a shim something recreated in between.
 
 **`reinstall_cask <token>`:**
 
-1. `backup_note casks.tsv "<token><TAB><version>"` and append `brew install --cask <token>` to `RESTORE.txt`.
+1. `backup_note casks.tsv "<token><TAB><version>"` and append `HOMEBREW_NO_ANALYTICS=1 brew install --cask <token>` to `RESTORE.txt`.
 2. `run brew uninstall --cask "<token>"`. On failure, stop the step with exit 1. Nothing was replaced.
 3. `run mise bootstrap packages apply --yes "brew-cask:<token>"`.
-4. Read the status again. Pass when the cask has `state == "installed"` and `managed_by == "mise"`, and each app `cask_apps` named before the uninstall exists under `${MIGRATE_APPDIR:-/Applications}`. On failure print `<token> is not installed. Put it back with: brew install --cask <token>` and stop the step with exit 1. The remaining casks are not touched.
+4. Read the status again. Pass when the cask has `state == "installed"` and `managed_by == "mise"`, and each app `cask_apps` named before the uninstall exists under `${MIGRATE_APPDIR:-/Applications}`. On failure print `<token> is not installed. Put it back with: HOMEBREW_NO_ANALYTICS=1 brew install --cask <token>` and stop the step with exit 1. The remaining casks are not touched.
 
 **`clean_staging_leftovers`:** for each directory `d` directly under `$PREFIX/Cellar` where `ls -A "$d"` prints exactly `.mise-staging.lock`: list it, `ask "Remove <n> empty Cellar folder(s) that hold only mise's staging lock?"`, then `backup_move "$d"` for each. The spec's "Verified facts" records how one arises (`brew uninstall` of a formula mise installed).
 
@@ -578,7 +673,9 @@ The fake `mise` and `brew` gain:
 ```bash
 # mise
 "bootstrap packages status --json") cat "$STATE/status.json" ;;
-"bootstrap packages prune --manager brew --dry-run") printf 'remove brew:abseil@1\nremove brew:ack@3\n' ;;
+"bootstrap packages prune --manager brew --dry-run") [ -e "$STATE/prune-empty" ] || printf 'remove brew:abseil@1\nremove brew:ack@3\n' ;;
+reshim)  # as the real one: every shim becomes a link to the binary that ran
+  for s in "${MISE_DATA_DIR:-$HOME/.local/share/mise}"/shims/*; do if [ -L "$s" ]; then ln -sfn "$0" "$s"; fi; done ;;
 "bootstrap packages apply --yes brew-cask:"*)
   [ ! -e "$STATE/apply-fails" ] || exit 1
   t=${*##*brew-cask:}
@@ -586,16 +683,102 @@ The fake `mise` and `brew` gain:
   for a in $(cat "$STATE/apps/$t" 2> /dev/null); do mkdir -p "$MIGRATE_APPDIR/$a"; done ;;
 # brew
 "info --json=v2 --cask "*) cat "$STATE/cask-info/${*##* }.json" ;;
+"uninstall mise")  # fails while a shim still links to this mise, so the test pins reshim-before-uninstall
+  if find "$HOME/.local/share/mise/shims" -type l -lname "$HOMEBREW_PREFIX/bin/mise" | grep -q .; then echo "shims still use this mise" >&2; exit 1; fi
+  rm "$HOMEBREW_PREFIX/bin/mise" ;;
 "uninstall --cask "*)
   t=${*##* }
   jq --arg t "$t" '(."brew-cask".packages[] | select(.package == $t)) |= (.state = "missing" | del(.managed_by))' "$STATE/status.json" > "$STATE/s" && mv "$STATE/s" "$STATE/status.json" ;;
 ```
 
-The script reads the applications folder from `${MIGRATE_APPDIR:-/Applications}`, and the test exports `MIGRATE_APPDIR="$tmp/apps"`. `curl` and `pgrep` are stubs too: `curl` exits 1 when `$STATE/offline` exists, `pgrep` exits 0 when its last argument contains a name listed in `$STATE/running`.
+The script reads the applications folder from `${MIGRATE_APPDIR:-/Applications}`, and the test exports `MIGRATE_APPDIR="$tmp/apps"`. `curl` and `pgrep` are stubs too: `curl` exits 1 when `$STATE/offline` exists, `pgrep` exits 0 when its last argument contains a name listed in `$STATE/running`. For a URL holding `mise.run` the `curl` stub prints a one-line installer, `mkdir -p "$(dirname "$MISE_INSTALL_PATH")" && cp <the fake mise> "$MISE_INSTALL_PATH"`, or `exit 1` when `$STATE/installer-fails` exists.
+
+The fake `claude` answers `mcp get mise` from `$STATE/mcp-command` (`mise:` then `  Command: <content>`), exits 1 when the file is absent, and on `mcp add --scope user mise -- <path> mcp` writes `<path>` to that file.
+
+The mise cases run first, with `PATH="$HOMEBREW_PREFIX/bin:$HOME/.local/bin:$PATH"` (`brewpath` below) and a copy of the fake `mise` at `$HOMEBREW_PREFIX/bin/mise`. That is this Mac's layout: Homebrew's mise first on `PATH`, the new one behind it. Every other case keeps the plain `PATH`, where mise is `$tmp/bin/mise`, outside the prefix, so `move_mise` has nothing to do and asks nothing.
 
 Fixture `status.json`: formulae `jq` (`installed`) and `rustup` (`needs_repair`). Casks `ghostty` (`homebrew`, `auto_updates: true`), `font-hack-nerd-font` (`homebrew`), `utm` (`homebrew`, app `UTM.app`), `freelens` (`homebrew`, app `Freelens.app`), `raycast` (`mise`).
 
 ```bash
+shims="$HOME/.local/share/mise/shims"
+brewpath="$HOMEBREW_PREFIX/bin:$HOME/.local/bin:$PATH"
+homebrew_mise() {  # this Mac before the move
+  phase packages
+  mkdir -p "$HOMEBREW_PREFIX/bin" "$shims"; cp "$tmp/bin/mise" "$HOMEBREW_PREFIX/bin/mise"
+  ln -sfn "$HOMEBREW_PREFIX/bin/mise" "$shims/node"
+  echo "$HOMEBREW_PREFIX/bin/mise" > "$STATE/mcp-command"
+}
+mise_move_declined_or_dry_run_changes_nothing() {
+  homebrew_mise
+  for how in "--dry-run" ""; do
+    before=$(snapshot); : > "$STATE/mise.log"; : > "$STATE/brew.log"
+    out=$(PATH="$brewpath" "$script" --step packages $how < /dev/null 2>&1) || fail "mise move $how: exit $?: $out"
+    [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] || fail "mise move $how with closed stdin changed something"
+    check_out "explains the move" "^mise is Homebrew's"
+  done
+  check_out "closed stdin leaves it" "^mise stays Homebrew's"
+}
+mise_move_stops_when_the_installer_fails() {
+  touch "$STATE/installer-fails"; : > "$STATE/brew.log"
+  out=$({ echo y; yes n; } | PATH="$brewpath" "$script" --step packages 2>&1) && fail "a failed installer must exit 1" || [ $? = 1 ] || fail "failed installer: want exit 1"
+  check_out "says what is untouched" "Homebrew's mise is untouched"
+  [ -x "$HOMEBREW_PREFIX/bin/mise" ] && ! grep -q 'uninstall mise' "$STATE/brew.log" || fail "uninstalled mise without a working replacement"
+  [ "$(readlink "$shims/node")" = "$HOMEBREW_PREFIX/bin/mise" ] || fail "repointed the shims without a working replacement"
+  rm "$STATE/installer-fails"; rm -rf "$HOME/.dotfiles-migration-backup"
+}
+mise_moves_off_homebrew() {
+  # answers: move mise y, re-register the MCP server y, everything after n
+  out=$({ printf 'y\ny\n'; yes n; } | PATH="$brewpath" "$script" --step packages 2>&1) || fail "mise move: exit $?: $out"
+  [ -x "$HOME/.local/bin/mise" ] || fail "the installer did not put mise at ~/.local/bin/mise"
+  [ ! -e "$HOMEBREW_PREFIX/bin/mise" ] || fail "Homebrew's mise is still installed"
+  [ "$(readlink "$shims/node")" = "$HOME/.local/bin/mise" ] || fail "shim not repointed: $(readlink "$shims/node")"
+  [ "$(cat "$STATE/mcp-command")" = "$HOME/.local/bin/mise" ] || fail "mise MCP server still names Homebrew's path"
+  grep -qF 'HOMEBREW_NO_ANALYTICS=1 brew install mise' "$HOME"/.dotfiles-migration-backup/*/RESTORE.txt || fail "no way back recorded"
+  check_out "tells the user to open a new terminal" 'Open a new terminal'
+}
+mise_move_second_run_changes_nothing() {
+  before=$(snapshot); : > "$STATE/mise.log"; : > "$STATE/brew.log"; : > "$STATE/claude.log"
+  out=$(yes n | PATH="$brewpath" "$script" --step packages 2>&1) || fail "mise move rerun: exit $?"
+  [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] || fail "mise move rerun changed something"
+  check_out "reports and skips" "not Homebrew's\. Nothing to move\.$"
+}
+half_way_mise_shims() {
+  # an earlier run uninstalled Homebrew's mise and stopped before the second reshim
+  ln -sfn "$HOMEBREW_PREFIX/bin/mise" "$shims/node"
+  out=$({ echo y; yes n; } | PATH="$brewpath" "$script" --step packages 2>&1) || fail "dangling shims: exit $?"
+  [ "$(readlink "$shims/node")" = "$HOME/.local/bin/mise" ] || fail "dangling shim not rebuilt"
+  rm -rf "$HOME/.local" "$HOME/.dotfiles-migration-backup" "$STATE/mcp-command"
+}
+undeclared_packages_are_offered() {
+  local_toml="$REPO_COPY/tilde/.config/mise/config.local.toml"
+  mkdir -p "$HOMEBREW_PREFIX/Cellar/ack/3" "$HOMEBREW_PREFIX/Cellar/abseil/1" "$HOMEBREW_PREFIX/Caskroom/signal/8/.metadata"
+  echo '{"installed_on_request":true,"source":{"tap":"me/tap"}}' > "$HOMEBREW_PREFIX/Cellar/ack/3/INSTALL_RECEIPT.json"
+  echo '{"installed_on_request":false,"source":{"tap":"homebrew/core"}}' > "$HOMEBREW_PREFIX/Cellar/abseil/1/INSTALL_RECEIPT.json"
+  printf '[bootstrap.packages]\n"brew:other" = "latest"\n' > "$local_toml"
+  before=$(cksum < "$local_toml")
+  out=$("$script" --step packages < /dev/null 2>&1) || fail "undeclared, closed stdin: exit $?"
+  check_out "says what a no means" '^ack: left undeclared\. A prune removes it\.$'
+  [ "$(cksum < "$local_toml")" = "$before" ] || fail "closed stdin declared a package"
+  # answers: keep ack y, declare signal y, everything after n
+  out=$({ printf 'y\ny\n'; yes n; } | "$script" --step packages 2>&1) || fail "undeclared: exit $?: $out"
+  check_out "names the dependency without asking" '^  abseil 1: a dependency nothing declared needs$'
+  ! grep -q 'Keep abseil' <<< "$out" || fail "asked about a dependency"
+  check_out "prune caveat" 'mise keeps a formula that any config it has tracked still declares \(0 tracked'
+  grep -qxF '"brew:me/tap/ack" = "latest"' "$local_toml" || fail "tap formula not declared with its tap"
+  grep -qxF '"brew-cask:signal" = "latest"' "$local_toml" || fail "cask not declared"
+  grep -qxF '"brew:other" = "latest"' "$local_toml" || fail "lost an entry that was already there"
+  [ "$(grep -c '^\[bootstrap\.packages\]' "$local_toml")" = 1 ] || fail "wrote a second [bootstrap.packages] table"
+  ls "$HOME"/.dotfiles-migration-backup/*/files"$local_toml" > /dev/null 2>&1 || fail "config.local.toml not backed up before the write"
+  before=$(cksum < "$local_toml"); out=$({ printf 'y\ny\n'; yes n; } | "$script" --step packages 2>&1) || fail "undeclared rerun: exit $?"
+  [ "$(cksum < "$local_toml")" = "$before" ] || fail "declared a package twice"
+  rm -rf "$local_toml" "$HOMEBREW_PREFIX/Cellar" "$HOMEBREW_PREFIX/Caskroom" "$HOME/.dotfiles-migration-backup"
+}
+no_prune_candidates() {
+  touch "$STATE/prune-empty"
+  out=$("$script" --step packages < /dev/null 2>&1) || fail "no prune candidates: exit $?: $out"
+  check_out "zero is a count, not a failure" 'Not declared in the config: 0 formulae'
+  rm "$STATE/prune-empty"
+}
 packages_lists_and_reinstalls_only_the_picked() {
   phase packages
   # answers in table order: font-hack-nerd-font n, utm y, freelens n, then the leftovers prompt n
@@ -609,7 +792,7 @@ packages_lists_and_reinstalls_only_the_picked() {
   [ "$(grep -c '^brew uninstall' "$STATE/brew.log")" = 1 ] && grep -qx 'brew uninstall --cask utm' "$STATE/brew.log" || fail "uninstalled something other than the one pick"
   grep -qx 'mise bootstrap packages apply --yes brew-cask:utm' "$STATE/mise.log" || fail "did not apply the pick through mise"
   grep -q '^utm' "$HOME"/.dotfiles-migration-backup/*/casks.tsv || fail "pick not recorded before the uninstall"
-  grep -qx 'brew install --cask utm' "$HOME"/.dotfiles-migration-backup/*/RESTORE.txt || fail "no way back recorded"
+  grep -qx 'HOMEBREW_NO_ANALYTICS=1 brew install --cask utm' "$HOME"/.dotfiles-migration-backup/*/RESTORE.txt || fail "no way back recorded"
 }
 packages_second_run_changes_nothing() {
   before=$(snapshot); : > "$STATE/mise.log"; : > "$STATE/brew.log"
@@ -634,7 +817,7 @@ no_network() {
 half_way_cask() {
   touch "$STATE/apply-fails"
   out=$(printf 'n\ny\n' | "$script" --step packages 2>&1) && fail "a failed apply must exit 1" || [ $? = 1 ] || fail "failed apply: want exit 1"
-  check_out "way back" 'Put it back with: brew install --cask freelens'
+  check_out "way back" 'Put it back with: HOMEBREW_NO_ANALYTICS=1 brew install --cask freelens'
   rm "$STATE/apply-fails"
   out=$("$script" --step packages < /dev/null 2>&1) || fail "rerun after a failed apply: exit $?"
   check_out "the missing cask gets its command" '^freelens: declared but not installed\. Install it: mise bootstrap packages apply brew-cask:freelens$'
@@ -661,43 +844,68 @@ staging_leftovers() {
 }
 ```
 
-Count the prompts in each case against the fixture when writing them: the cask prompts come in status order, and a cask mise took over in an earlier case is no longer asked.
+Count the prompts in each case against the fixture when writing them: the cask prompts come in status order, and a cask mise took over in an earlier case is no longer asked. The undeclared-package prompts come before the cask prompts, and outside `undeclared_packages_are_offered` there are none, because the fake prefix holds no receipt and no `Caskroom` folder. `never_old` keeps the plain `PATH`, so it also proves `move_mise` does nothing for a mise outside Homebrew.
 
-- [ ] **Step 2: Run to see them fail.** `bash bin/lib/test-migrate`. Expected: FAIL `formulae need nothing`.
-- [ ] **Step 3: Implement** `packages_status`, `homebrew_casks`, `cask_apps`, `app_running`, `reinstall_cask`, `clean_staging_leftovers`, `step_packages`.
+- [ ] **Step 2: Run to see them fail.** `bash bin/lib/test-migrate`. Expected: FAIL `explains the move`.
+- [ ] **Step 3: Implement** `packages_status`, `online`, `move_mise`, `reregister_mise_mcp`, `undeclared_formulae`, `undeclared_casks`, `local_toml_add`, `homebrew_casks`, `cask_apps`, `app_running`, `reinstall_cask`, `clean_staging_leftovers`, `step_packages`.
 - [ ] **Step 4: Run to see them pass.** Expected: `test-migrate: ok`.
 - [ ] **Step 5: Dry-run on this Mac**
 
 Run: `migrate/legacy-to-mise --step packages --dry-run`
-Expected: `Left alone` names 17 casks. The table holds 16: the 7 `font-*-nerd-font` casks, `jrmatherly/tap/claude-multipass-app`, `codex`, `azure-cli`, `dotnet-sdk`, `freelens`, `coderabbit`, `1password-cli`, `git-credential-manager`, `utm`. 16 `would ask:` lines. `Changed 0 thing(s).`
+Expected, in order:
 
-- [ ] **Step 5a: Try adoption on one font cask first (needs the user's go-ahead)**
+- The `mise is Homebrew's (/opt/homebrew/bin/mise)` text with 149 shims, and `would ask: Move mise from Homebrew to ~/.local/bin/mise?`.
+- The undeclared formulae. A4 measured 11 with a clean state folder: `mise`, the seven in `MOVED_TO_TOOLS`, `openssl@3` as a dependency, and `aikb` and `ai-kb-lite` as installed by hand. This Mac has 106 tracked configs, so fewer may show. That is the caveat the step prints. `would ask: Keep aikb …` and `would ask: Keep ai-kb-lite …` when they are listed.
+- `Casks Homebrew installed that no config declares: gcloud-cli signal t3-code` and three `would ask: Declare …` lines.
+- `Left alone` names 17 casks. The table holds 16: the 7 `font-*-nerd-font` casks, `jrmatherly/tap/claude-multipass-app`, `codex`, `azure-cli`, `dotnet-sdk`, `freelens`, `coderabbit`, `1password-cli`, `git-credential-manager`, `utm`. 16 `would ask: Reinstall …` lines.
+- `Changed 0 thing(s).`
 
-  Reinstalling replaces the app bundle, which can drop its macOS privacy permissions. mise's docs say `adopt = true` (set in A4's `[bootstrap.brew]`) takes over an existing artifact whose contents match the download, and that adoption applies only to a cask mise does not see as installed. That suggests a gentler path: hide Homebrew's record and let mise adopt the files in place. This is not tested. Settle it on a cask where a failure costs nothing.
+- [ ] **Step 5a: Try adoption on one app cask (changes this Mac: the user runs it, after an explicit go-ahead)**
 
-  1. Record the font file's inode: `stat -f %i ~/Library/Fonts/TinosNerdFont-Regular.ttf`.
-  2. Move Homebrew's record aside, leaving the font files: `mv /opt/homebrew/Caskroom/font-tinos-nerd-font "$backup/Caskroom-font-tinos-nerd-font"`.
-  3. From `$HOME`: `mise bootstrap packages apply --dry-run brew-cask:font-tinos-nerd-font`, read what it plans, then the same without `--dry-run`.
-  4. Check: the status JSON reports `managed_by: mise` for the cask, and the inode from 1 is unchanged.
+  Reinstalling replaces the app bundle, which can drop its macOS privacy permissions. `adopt = true` (set in A4's `[bootstrap.brew]`) offers a gentler path: hide Homebrew's record and let mise take over the bundle in place. This is not tested. What mise's source says, read at tag `v2026.11.5` in `crates/mise-system-packages/src/brew/cask/mod.rs`:
 
-  If both hold, `reinstall_cask` uses this sequence (move the Caskroom record to the backup, apply, check) in place of `brew uninstall --cask`, the privacy warning is dropped from the prompt, and the tests and README are changed to match before Step 6. If the inode changed or mise refused, restore with `mv "$backup/Caskroom-font-tinos-nerd-font" /opt/homebrew/Caskroom/font-tinos-nerd-font`, keep the uninstall-then-apply sequence, and record the result in `migrate/README.md`.
+  - Adoption applies only when mise does not see the cask as installed (`adopt = adopt_requested && installed_version.is_none()`).
+  - It exists only for app bundles. The check and the takeover both run over `artifacts.apps`.
+  - For a cask that does not update itself, the bundle on disk must be identical to the download. Otherwise mise stops with `cannot adopt '<path>': existing artifact is not identical to the declared artifact`. `validate_adoptable_apps` runs after the download and before mise takes its locks or touches the `Caskroom` or the app.
+  - A font is never adopted. `link_font` renames the existing file aside, copies the new one and deletes the old. So a font cask cannot show whether adoption works, and its inode always changes. A font has no privacy permission to lose, so that is harmless.
 
-- [ ] **Step 6: Hand the first real run to the user**
+  So the trial runs on an app cask from the Step 5 table that does not update itself: `freelens` (`/Applications/Freelens.app`), or `utm` (`/Applications/UTM.app`). The implementer does not run it. Give the user these commands for the chosen cask:
 
-The reinstall path has never run on a real machine (it changes the machine). Ask the user to run `migrate/legacy-to-mise --step packages`, answer `y` for `font-tinos-nerd-font` only, and confirm afterwards:
+  1. Quit the app. Bring the installed bundle up to the current download, or the identity check fails for the wrong reason: `HOMEBREW_NO_ANALYTICS=1 brew upgrade --cask freelens`.
+  2. Record the bundle's inode: `stat -f %i /Applications/Freelens.app`.
+  3. Move Homebrew's record aside, leaving the app: `backup=~/.dotfiles-migration-backup/adopt-trial && mkdir -p "$backup" && mv /opt/homebrew/Caskroom/freelens "$backup/Caskroom-freelens"`.
+  4. From `$HOME`: `mise bootstrap packages apply --dry-run brew-cask:freelens`, read what it plans, then the same without `--dry-run`.
+  5. Read the result. It is one of two:
+     - **Adopted.** The apply exits 0, the inode from 2 is unchanged, and `mise bootstrap packages status --json | /usr/bin/jq -r '."brew-cask".packages[] | select(.package == "freelens") | .managed_by'` prints `mise`.
+     - **Refused.** The apply prints the `cannot adopt … not identical` line, and the inode from 2 is unchanged. Nothing was changed.
 
-Run: `mise bootstrap packages status --json | jq -r '."brew-cask".packages[] | select(.package == "font-tinos-nerd-font") | .managed_by'`
+     An inode that changed means mise replaced the bundle. Then adoption does not do what this step hoped. Record that as a third result.
+
+  Put the record back after a refusal: `mv "$backup/Caskroom-freelens" /opt/homebrew/Caskroom/freelens`. First check `ls /opt/homebrew/Caskroom/freelens`. When that folder exists, mise made a new record, and a plain `mv` would nest the backup inside it. Move the new record aside first: `mv /opt/homebrew/Caskroom/freelens "$backup/Caskroom-freelens.mise"`.
+
+  If the cask was adopted, `reinstall_cask` uses this sequence for casks of kind `app` (move the `Caskroom` record to the backup with `backup_move`, apply, check) in place of `brew uninstall --cask`, the privacy warning is dropped from the prompt for them, and the tests and README are changed to match before Step 6. Font casks may take the same record-aside path, with no privacy risk either way. If mise refused, keep the uninstall-then-apply sequence and record the result in `migrate/README.md`. A refusal on a bundle Homebrew has just upgraded means identical content cannot be relied on.
+
+- [ ] **Step 6: Hand the first real run to the user (changes this Mac: the user runs it, after an explicit go-ahead)**
+
+Neither the mise move nor the reinstall path has run on a real machine. Ask the user to run `migrate/legacy-to-mise --step packages`, answer `y` to moving mise and to re-registering the MCP server, `n` to every package and cask question except `font-tinos-nerd-font`, and then, in a new terminal:
+
+Run: `command -v mise; readlink ~/.local/share/mise/shims/node; node --version; ls /opt/homebrew/opt/mise; claude mcp get mise | grep Command`
+Expected: `mise` resolves to `~/.local/bin/mise`. The shim link reads the same path. `node --version` prints a version. `ls` reports no such folder (it held `lib/.disable-self-update`). The MCP command is `~/.local/bin/mise` written in full.
+
+If a shim does not resolve, the way back is in `RESTORE.txt`: `HOMEBREW_NO_ANALYTICS=1 brew install mise && /opt/homebrew/bin/mise reshim`. Stop and fix `move_mise` before anything else.
+
+Run: `mise bootstrap packages status --json | /usr/bin/jq -r '."brew-cask".packages[] | select(.package == "font-tinos-nerd-font") | .managed_by'`
 Expected: `mise`
 
 If it prints `homebrew` or the apply fails, stop. P7 is wrong and this task needs a new design before any app cask is touched.
 
 - [ ] **Step 7: Document, gate, commit**
 
-`migrate/README.md`, `packages` section: the eight points above, P8's exception, and that pkg casks (`dotnet-sdk`, `git-credential-manager`) ask for the password twice, once from each tool.
+`migrate/README.md`, `packages` section: the ten points above, the `move_mise` sequence with why the reshim comes first, what declaring a package in `config.local.toml` does and that the file is this Mac's own, the tracked-config caveat, P8's exception, and that pkg casks (`dotnet-sdk`, `git-credential-manager`) ask for the password twice, once from each tool.
 
 ```bash
 pnpm check
-git add migrate bin/lib/test-migrate
+git add migrate/legacy-to-mise migrate/README.md bin/lib/test-migrate
 git commit -m "Add the packages step to the migration script"
 git push
 ```
@@ -716,7 +924,8 @@ git push
 
 **Interfaces:**
 
-- Consumes: `packages_status`, `homebrew_casks`, `ask_typed`, `backup_move`, `PREFIX`.
+- Consumes: `packages_status`, `homebrew_casks`, `ask_typed`, `backup_move`, `PREFIX`, `MISE`.
+- Produces: `packages_fingerprint`: runs `mise bootstrap packages status --json` afresh (not the cached copy) and prints one sorted line per formula and cask, `<manager> <package> <state> <managed_by or "-">`. Returns the status call's exit code.
 - Produces: `offer_homebrew_removal`. Returns 0 when it did nothing or succeeded, 1 when it had to restore.
 
 **What it moves** (to `$BACKUP_DIR/files$PREFIX/…`, each with its `mv` line in `RESTORE.txt`):
@@ -733,9 +942,9 @@ git push
 
 1. Under `DRY_RUN=true` the function prints the result of preconditions 2-6 and the list it would move, then returns.
 2. `$PREFIX/bin/brew` exists and `$PREFIX/.git` is a directory. Otherwise `Homebrew is not installed here in the layout this script knows.`
-3. `mise bootstrap packages status --missing` exits 0. Otherwise `Packages differ from the config. Fix that first: mise bootstrap packages status`.
-4. No cask has `managed_by == "unknown"`.
-5. `command -v mise` does not resolve through `$PREFIX/Library`. (It never should. The check is one `case`.)
+3. `$MISE` is not under `$PREFIX/`. Otherwise `mise is still Homebrew's. Move it first: answer yes at the start of this step.` Without the Homebrew program nothing can uninstall that keg cleanly, and `$PREFIX/bin/mise` is the binary every shim links to.
+4. `packages_fingerprint` exits 0, and its output is kept as `before`. Otherwise `mise cannot read the package status. Fix that first: mise bootstrap packages status`. The call needs a Ruby 3 on `PATH` to read tap definitions. macOS ships 2.6, and A4 declares `brew:ruby` for this, so a failure here usually means that formula is missing. `--missing` is not used: a declared package that is not installed is normal half way through and does not make removing Homebrew unsafe.
+5. No cask has `managed_by == "unknown"`.
 6. `df -P "$PREFIX" "$HOME" | awk 'NR > 1 { print $1 }' | sort -u | wc -l` is 1, so each move is a rename. Otherwise `The backup folder is on another volume.`
 
 **The prompt.** It lists every remaining `managed_by == "homebrew"` cask with this text, then asks with `ask_typed "remove homebrew"`:
@@ -746,16 +955,17 @@ This moves only the Homebrew program (brew, Library with its taps, the Git check
 These casks stay installed and stay recorded as Homebrew's. They update themselves, or nothing updates them.
 Without brew, removing one later means deleting the app and its Caskroom folder by hand:
   <tokens>
+"ca-roots trim" (the opt-in DOTFILES_TRIM_CA_ROOTS step in upup) runs a script inside Library and stops working.
 Lines in your own files that call "brew shellenv" or set HOMEBREW_ variables (not edited):
   <file>:<line number> for each match in ~/.zsh.local, ~/.zprofile, ~/.zshrc, ~/.bash_profile, ~/.profile that is a real file, not a link into this clone
 Type "remove homebrew" to continue. Anything else leaves Homebrew installed.
 ```
 
-**After the moves:** run `hash -r`, then `mise bootstrap packages status --missing`. Exit 0: print `Homebrew program moved to <dir>. Put it back with the mv lines in RESTORE.txt.` Non-zero: run the recorded `mv` lines for this function in reverse, print `mise reported drift without Homebrew, so it was put back.` and return 1.
+**After the moves:** run `hash -r`, then `packages_fingerprint` again. Exit 0 and output equal to `before` (so the same packages are installed, and the same number of casks are `managed_by: homebrew`): print `Homebrew program moved to <dir>. Put it back with the mv lines in RESTORE.txt.` A non-zero exit or any differing line: run the recorded `mv` lines for this function in reverse, print `mise reads the packages differently without Homebrew, so it was put back.` and the differing lines, and return 1.
 
 - [ ] **Step 1: Write the failing tests**
 
-The test builds a fake prefix: `git init -q "$HOMEBREW_PREFIX"`, tracked `bin/brew`, `Library/Homebrew/x`, `Library/Taps/a/b/x`, `README.md`, committed with the flags `bin/lib/test-upup` uses. Untracked `Cellar/jq/1.8.2/bin/jq`, `Caskroom/ghostty/1.4.0/x`, `var/homebrew/linked/jq`, `bin/jq`. `git` and `df` are the real ones (`PATH` keeps `/usr/bin`). The fake `mise` answers `bootstrap packages status --missing` with exit 1 when `$STATE/drift` exists, and with exit 1 when `$STATE/drift-without-brew` exists and `$HOMEBREW_PREFIX/bin/brew` does not.
+The test builds a fake prefix: `git init -q "$HOMEBREW_PREFIX"`, tracked `bin/brew`, `Library/Homebrew/x`, `Library/Taps/a/b/x`, `README.md`, committed with the flags `bin/lib/test-upup` uses. Untracked `Cellar/jq/1.8.2/bin/jq`, `Caskroom/ghostty/1.4.0/x`, `var/homebrew/linked/jq`, `bin/jq`. `git` and `df` are the real ones (`PATH` keeps `/usr/bin`). The tracked `bin/brew` is a copy of the `brew` stub. The fake `mise` touches `$STATE/status-read` on each `bootstrap packages status --json`, and exits 1 instead when that file already exists and `$STATE/status-fails-later` does too. So a case can fail the fresh read `packages_fingerprint` makes while the step's first, cached read succeeds. When `$STATE/differs-without-brew` exists and `$HOMEBREW_PREFIX/bin/brew` does not, it prints the status with every `managed_by` of `homebrew` changed to `unknown`.
 
 ```bash
 homebrew_removal_is_off_by_default() {
@@ -766,12 +976,19 @@ homebrew_removal_is_off_by_default() {
   [ -x "$HOMEBREW_PREFIX/bin/brew" ] || fail "closed stdin removed Homebrew"
   check_out "explains why the uninstaller is not used" "uninstaller is not used: it deletes Cellar and Caskroom"
 }
-homebrew_removal_refuses_on_drift() {
-  touch "$STATE/drift"
+homebrew_removal_refuses_when_status_fails() {
+  touch "$STATE/status-fails-later"; rm -f "$STATE/status-read"
   out=$({ printf 'n\n%.0s' 1 2; echo "remove homebrew"; } | "$script" --step packages 2>&1) || fail "exit $?"
-  check_out "reason" '^Packages differ from the config'
-  [ -x "$HOMEBREW_PREFIX/bin/brew" ] || fail "removed Homebrew despite drift"
-  rm "$STATE/drift"
+  check_out "reason" '^mise cannot read the package status'
+  [ -x "$HOMEBREW_PREFIX/bin/brew" ] || fail "removed Homebrew although mise could not read the status"
+  rm "$STATE/status-fails-later"
+}
+homebrew_removal_refuses_while_mise_is_homebrews() {
+  cp "$tmp/bin/mise" "$HOMEBREW_PREFIX/bin/mise"
+  out=$(yes n | PATH="$HOMEBREW_PREFIX/bin:$PATH" "$script" --step packages 2>&1) || fail "exit $?"   # n declines the mise move too
+  check_out "reason" "^mise is still Homebrew's\. Move it first"
+  [ -x "$HOMEBREW_PREFIX/bin/brew" ] || fail "removed Homebrew from under its own mise"
+  rm "$HOMEBREW_PREFIX/bin/mise"
 }
 homebrew_removal_moves_only_the_program() {
   out=$({ printf 'n\n%.0s' 1 2; echo "remove homebrew"; } | "$script" --step packages 2>&1) || fail "exit $?: $out"
@@ -783,12 +1000,12 @@ homebrew_removal_moves_only_the_program() {
   sh "${bak%/files*}/RESTORE.txt"
   [ -x "$HOMEBREW_PREFIX/bin/brew" ] && [ -d "$HOMEBREW_PREFIX/.git" ] || fail "RESTORE.txt did not restore Homebrew"
 }
-homebrew_removal_restores_itself_when_mise_drifts() {
-  touch "$STATE/drift-without-brew"
+homebrew_removal_restores_itself_when_mise_reads_differently() {
+  touch "$STATE/differs-without-brew"
   out=$({ printf 'n\n%.0s' 1 2; echo "remove homebrew"; } | "$script" --step packages 2>&1) && fail "want exit 1" || [ $? = 1 ] || fail "want exit 1"
   [ -x "$HOMEBREW_PREFIX/bin/brew" ] && [ -d "$HOMEBREW_PREFIX/Library" ] || fail "did not put Homebrew back"
   check_out "says so" 'so it was put back'
-  rm "$STATE/drift-without-brew"
+  rm "$STATE/differs-without-brew"
 }
 ```
 
@@ -802,17 +1019,17 @@ Set the `n` count in each `printf` to the number of cask prompts the fixture pro
 Run: `migrate/legacy-to-mise --step packages --dry-run | sed -n '/Homebrew program/,$p'`
 Expected: preconditions 2-6 with their results, the would-move list (27 top-level names from `git ls-tree`, `bin` excluded, `bin/brew`, `.git`, the completion links, the two cache folders), and `Changed 0 thing(s).`
 
-- [ ] **Step 6: Leave the real run to the user, and say what is unproven**
+- [ ] **Step 6: Leave the real run to the user, and say what is unproven (changes this Mac: the user runs it, after an explicit go-ahead)**
 
 Tell the user: moving the program is reversible with `sh ~/.dotfiles-migration-backup/<timestamp>/RESTORE.txt`, and the proof that mise works with no Homebrew program is A4's `fresh-install` workflow, which must have passed. Do not run it for them.
 
 - [ ] **Step 7: Document, gate, commit**
 
-`migrate/README.md`, under `packages`: a subsection "Removing Homebrew" with the "why not the uninstaller" paragraph and its two links, the moved and left lists, the preconditions, the typed phrase, and the restore command.
+`migrate/README.md`, under `packages`: a subsection "Removing Homebrew" with the "why not the uninstaller" paragraph and its two links, the moved and left lists, the preconditions, that `ca-roots trim` stops working, the typed phrase, and the restore command.
 
 ```bash
 pnpm check
-git add migrate bin/lib/test-migrate
+git add migrate/legacy-to-mise migrate/README.md bin/lib/test-migrate
 git commit -m "Offer to move the Homebrew program aside in the migration script"
 git push
 ```
@@ -833,7 +1050,8 @@ git push
 - Consumes: `mise dot apply --dry-run`. Checked: with a real file in the way it exits 1 and prints `mise ERROR files: refusing to overwrite existing files (use --force):` on stderr, followed by one line per conflict, two spaces then `~/path`. That list is complete across `symlink` and `symlink-each` entries. With no conflict it exits 0 and prints one `ln -sf` line per entry, not per file.
 - Consumes: `mise dot apply --yes`, `mise dot status --missing` (exit 1 on any entry not in its desired state).
 - Checked behaviour the step relies on: one conflict makes the whole `mise dot apply` fail, and nothing else in that run is applied. A link that points elsewhere is repointed without `--force` and without a copy, and neither the status nor the dry run lists it under a `symlink-each` entry.
-- From the A5 plan's "Part B hook" (measured there, not here): mise turns a whole-directory `~/.claude/rules` link into a real folder of links by itself. An old link to the clone's physical path already reads `applied`. `~/.codex/config.toml` as a symlink reads `applied` and stays a link. An entry in `tilde/.config/mise/config.local.toml` replaces the `conf.d` entry with the same key.
+- From the A5 plan's "Part B hook" (measured there, not here): mise turns a whole-directory `~/.claude/rules` link into a real folder of links by itself. An old link to the clone's physical path already reads `applied`. `~/.codex/config.toml` as a symlink reads `applied` and stays a link.
+- Verified twice: a `[dotfiles]` entry in `tilde/.config/mise/config.local.toml` replaces the `conf.d` entry with the same key. The A5 plan measured it (its E12, pinned by `test-dotfiles`), and the review re-measured it on 2026-11-09 in a fresh scratch folder.
 - Produces: `dot_conflicts` (prints the absolute path of each conflict from the dry run), `dot_foreign_links` (prints `target<TAB>old path`), `step_dotfiles`. `step_dotfiles` returns the exit status of the final `mise dot status --missing`.
 
 **`dot_foreign_links`:** for each status entry with mode `symlink`, the target when it is a symlink and not `-ef` its `source`. For each entry with mode `symlink-each`, the same test for every file `find "$source" -type f` prints, mapped onto the target folder. A link whose `readlink` starts with `$REPO/` or `$HOME/dotfiles/` is an old-style link, not a foreign one. It is counted and not listed.
@@ -959,7 +1177,7 @@ Expected: no conflict lines (A5's author measured 37 of its 38 entries `applied`
 
 ```bash
 pnpm check
-git add migrate bin/lib/test-migrate
+git add migrate/legacy-to-mise migrate/README.md bin/lib/test-migrate
 git commit -m "Add the dotfiles step to the migration script"
 git push
 ```
@@ -977,7 +1195,7 @@ git push
 
 **Interfaces:**
 
-- Consumes: `backup_copy`, `backup_move`, `backup_note`, `ask`, `run`. `claude mcp get mise`, whose output holds a line `  Command: <path>` (checked on this Mac: `/opt/homebrew/bin/mise`).
+- Consumes: `backup_copy`, `backup_move`, `backup_note`, `ask`, `run`, and `reregister_mise_mcp` from Task 4.
 - Produces: `step_setup`. Returns 0.
 
 **What only the old method left, and the decision for each:**
@@ -988,14 +1206,14 @@ git push
 | `/etc/pam.d/sudo_local` with exactly that content | Print `sudo_local: as declared, kept`. | The new method owns it. |
 | `${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/rust` | `ask "Forget mise's old rust install so its shims stop shadowing rustup?"`, `backup_move` it, `run mise reshim`. | Moved here from `setup/misc.sh:189-199` by A6 (inventory M16). |
 | `~/.cargo/bin/rustup` that differs (`cmp -s`) from `$PREFIX/opt/rustup/bin/rustup` | Print the old script's hint: `rm -rf ~/.cargo/bin ~/.rustup && /opt/homebrew/opt/rustup/bin/rustup default stable`. Report only. | A6 inventory M17. The toolchain is the owner's call. |
-| The `mise` MCP server registered with a command other than `$(command -v mise)` | `ask "Re-register the mise MCP server with <new path>?"`, `backup_note mcp.txt "<old command>"`, append `claude mcp remove mise -s user && claude mcp add --scope user mise -- '<old command>' mcp` to `RESTORE.txt`, then `run claude mcp remove mise -s user` and `run claude mcp add --scope user mise -- "$(command -v mise)" mcp`. Skipped when `claude` is not on `PATH` or the server is not registered. | A4 installs mise with its own installer, so Homebrew's path goes stale. The new `misc.sh` only warns. |
+| The `mise` MCP server registered with a command other than `$MISE` | `reregister_mise_mcp` (Task 4, which runs it straight after moving mise). Here it catches a Mac where mise moved some other way. | A4 installs mise with its own installer, so Homebrew's path goes stale. The new `misc.sh` only warns. |
 | `private/setup-logs/` | Print `setup logs: kept (the new setup.sh still writes them)`. | A6 keeps the log path. |
-| `~/dotfiles` | Print `~/dotfiles: kept (lazygit's config cannot expand variables)`. | A6's `setup.sh` still makes it. |
+| `~/dotfiles` | Print `~/dotfiles: kept (every [dotfiles] source in the mise config resolves through it)`. | After A5 each `[dotfiles]` source is written as `~/dotfiles/…`, so the link is required, not a convenience. A6's `setup.sh` still makes it. |
 | `/etc/shells` entry and the login shell | Not mentioned. | Unchanged by the new method. |
 
 - [ ] **Step 1: Write the failing tests**
 
-The fake `claude` answers `mcp get mise` from `$STATE/mcp-command` (`mise:` then `  Command: <content>`), exits 1 when the file is absent, and on `mcp add --scope user mise -- <path> mcp` writes `<path>` to that file. The fake `mise` gains `reshim) : ;;`.
+The fake `claude` and the fake `mise reshim` are the ones Task 4 added.
 
 ```bash
 setup_backs_up_a_hand_edited_sudo_local() {
@@ -1038,11 +1256,11 @@ setup_second_run_and_dry_run_change_nothing() {
 - [ ] **Step 5: Dry-run on this Mac**
 
 Run: `migrate/legacy-to-mise --step setup --dry-run`
-Expected: `sudo_local: as declared, kept` (this Mac's file is the one line). No rust line (`~/.local/share/mise/installs/rust` does not exist here). One `would ask: Re-register the mise MCP server` line if A4 moved mise off `/opt/homebrew/bin/mise`, none otherwise. The two `kept` lines. `Changed 0 thing(s).`
+Expected: `sudo_local: as declared, kept` (this Mac's file is the one line). No rust line (`~/.local/share/mise/installs/rust` does not exist here). No `Re-register the mise MCP server` line once Task 4's step has moved mise and re-registered the server, one while the server still names another path. The two `kept` lines. `Changed 0 thing(s).`
 
 - [ ] **Step 6: Add the old-method-name check to `bin/lib/test-conventions`**
 
-Part A's phases delete these names from every doc and script. This check keeps them deleted. After the removal-date check:
+Part A's phases delete these names from every doc and script. This check keeps them deleted. It lands after A6's last commit, as its own commit if Steps 1-5 landed earlier: A6 regenerates the last files that name the old method (`setup/bootstrap-runtime.archify.json` and its `.svg`). After the removal-date check:
 
 ```bash
 # Only the migration script may name what Part A deleted (spec: Part A carries no knowledge of the old method)
@@ -1051,7 +1269,7 @@ old=$(git grep -lE 'Brewfile|brewpick|setup/(brew|symlinks|macos)\.sh' -- . ':!m
 ```
 
 Run: `bash bin/lib/test-conventions | tail -1`
-Expected: `conventions: all checks passed`. A failure names the files a Part A phase missed. Fix those docs in this commit (D12), not the check. On 2026-11-09, before Part A, `git grep -lE 'Brewfile|brewpick' -- . ':!migrate' ':!docs/superpowers' | wc -l` printed 41, so the check must not land before A6.
+Expected: `conventions: all checks passed`. A failure names the files a Part A phase missed. Fix those docs in this commit (D12), not the check. The four exclusions are the only ones: `migrate/` and `bin/lib/test-migrate` hold the old layout by design, `bin/lib/test-conventions` holds this pattern, and `docs/superpowers` holds the plans and the spec. Nothing under `.claude/` is excluded. A4 rewrites `.claude/hooks/test-auditor-readonly.sh:40` (`allow 'grep -n Brewfile README.md'` becomes `grep -n mise`) for this check, since no doc pass would touch a test fixture. If that line still names the Brewfile here, make A4's edit. On 2026-11-09, before Part A, the check's own `git grep` listed 53 files, so it must not land before A6.
 
 Add to the header's description sentence: "that only migrate/ names the old setup method,".
 
@@ -1061,17 +1279,17 @@ Add to the header's description sentence: "that only migrate/ names the old setu
 
 ```bash
 pnpm check
-git add migrate bin/lib/test-migrate bin/lib/test-conventions
+git add migrate/legacy-to-mise migrate/README.md bin/lib/test-migrate bin/lib/test-conventions
 git commit -m "Add the setup step to the migration script"
 git push
 ```
 
-- [ ] **Step 8: Hand the real runs to the user**
+- [ ] **Step 8: Hand the real runs to the user (changes this Mac: the user runs it, after an explicit go-ahead)**
 
 With every phase landed, ask the user to run `migrate/legacy-to-mise --dry-run`, read it, then run `migrate/legacy-to-mise`. The implementer does not run it without `--dry-run`. Afterwards:
 
 Run: `mise bootstrap status --missing; echo "exit $?"`
-Expected: `exit 0`
+Expected: informational, not a gate. `exit 1` with only macOS preferences listed is an app rewriting its own settings. Any dotfile or package it lists is this script's to explain: run the matching step again.
 Run: `migrate/legacy-to-mise --dry-run | tail -1`
 Expected: `Changed 0 thing(s).`
 
@@ -1085,11 +1303,13 @@ Expected: `Changed 0 thing(s).`
 - Delete: `bin/lib/test-migrate`
 - Modify: `bin/lib/check` (remove `migrate/legacy-to-mise` from `shell_scripts`, `"migrate/*"` from the Prettier globs, and the `test-migrate` line with its comment)
 - Modify: `package.json` (remove `\"migrate/*\"` from `scripts.format`)
-- Modify: `bin/lib/test-conventions` (remove the removal-date check and its header words; in the old-method-name check drop the `':!migrate'` and `':!bin/lib/test-migrate'` exclusions)
+- Modify: `bin/lib/test-conventions` (remove the removal-date check and its header words, and the `if [ -e migrate ]` permission-rule check; in the old-method-name check drop the `':!migrate'` and `':!bin/lib/test-migrate'` exclusions)
+- Modify: `.claude/settings.json` (remove the five `legacy-to-mise` rules from `permissions.ask`)
 - Modify: `README.md` (remove the section "Migrating an existing machine")
+- Modify: `bin/upup`, `bin/lib/test-upup` (remove A4's two notices that end `run: migrate/legacy-to-mise --step packages`, for a Homebrew mise and for Homebrew casks, and their assertions. Find them with `grep -n legacy-to-mise bin/upup bin/lib/test-upup`)
 - Modify: `docs/superpowers/specs/2026-11-09-mise-first-setup-and-settings-ui.md` only by `git mv` to `specs/completed/` when every other plan built on it is completed
 
-**Interfaces:** none. Nothing outside these files refers to `migrate/` (the name check in Task 7 guarantees it).
+**Interfaces:** none. Step 3 proves nothing outside these files refers to `migrate/`.
 
 - [ ] **Step 1: Confirm no machine still needs it.** Ask the user whether every Mac set up the old way has been migrated. `~/.dotfiles-migration-backup/` on a Mac is the sign it ran there. Stop if any has not.
 - [ ] **Step 2: Delete and edit** the files above.
@@ -1104,7 +1324,8 @@ Run: `pnpm check`
 Expected: exit 0.
 
 ```bash
-git add -A migrate bin/lib/test-migrate bin/lib/check bin/lib/test-conventions package.json README.md
+git rm -q migrate/legacy-to-mise migrate/README.md bin/lib/test-migrate
+git add bin/lib/check bin/lib/test-conventions bin/upup bin/lib/test-upup package.json README.md .claude/settings.json
 git commit -m "Remove the migration script"
 git push
 ```
@@ -1118,9 +1339,12 @@ git push
 | Claim | Why it is unverified | Command |
 | --- | --- | --- |
 | After `brew uninstall --cask X`, `mise bootstrap packages apply --yes brew-cask:X` installs it and status reports `managed_by: "mise"` | It changes the machine | Task 4 Step 6, on `font-tinos-nerd-font` |
+| The installer, `reshim` and `brew uninstall mise` leave this Mac with working shims. `brew uninstall mise` touches nothing under `~/.local/share/mise` | It changes the machine. The reshim behaviour itself was measured in a scratch folder (P13) | Task 4 Step 6, the first command |
+| mise adopts an app bundle in place once Homebrew's `Caskroom` record is moved aside | It changes the machine. Read in the source, not run | Task 4 Step 5a, on `freelens` or `utm` |
+| A package declared in `config.local.toml` survives `mise bootstrap packages prune` | Only `status` was measured in a scratch folder (P14). Prune was not run | After Task 4 Step 6: `mise bootstrap packages prune --manager brew --dry-run` no longer lists a formula the user chose to keep |
 | mise upgrades a formula Homebrew installed | No formula was outdated on 2026-11-09 | When `brew outdated --formula` lists one: `mise bootstrap packages upgrade --manager brew --dry-run` names it |
 | mise's brew backend works with `Library/` and `.git` moved out of `/opt/homebrew` | It changes the machine | A4's `fresh-install` workflow passing, then Task 5's own post-check, which restores on failure |
-| An entry in `config.local.toml` replaces the `conf.d` entry with the same key, and mise converts a whole-directory `~/.claude/rules` link itself | Measured by the A5 plan's author, not here | Task 6 Step 5, then `mise dot status --verbose` after the user's real run shows `~/.config/mole/whitelist` as `applied` |
-| A4 and A5 create `30-packages.toml` and `40-dotfiles.toml` | Their plans were not written when this one was. A1, A3 and A6 were checked | `ls tilde/.config/mise/conf.d/` after each phase lands |
+| mise converts a whole-directory `~/.claude/rules` link itself | Measured by the A5 plan's author, not here | `ls -ld ~/.claude/rules` after the user's real run shows a folder, not a link |
+| A4 and A5 create `30-packages.toml` and `40-dotfiles.toml` | Not built yet. Both plans now name these files | `ls tilde/.config/mise/conf.d/` after each phase lands |
 | `settings/registry.toml` writes `kind`, `key` and `access` one per line as `name = "value"` | A2 is not built | Task 2 Step 5 |
 | `mise bootstrap packages apply --dry-run` and `mise dot apply --dry-run` touch no network | Not measured | Run each with Wi-Fi off |

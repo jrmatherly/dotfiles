@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-09-mise-first-setup-and-settings-ui.md`, phase "A1. Env settings on mise".
 
+**Line numbers** are from commit `9af6244`. An earlier phase may have moved them, so find the quoted text with `grep -n` before editing.
+
 ## Global Constraints
 
 - Minimum mise version: 2026.11.5. Setup fails with a clear message below it.
@@ -30,10 +32,11 @@ The spec leaves these open. Each was run in a scratch copy of the repo on 2026-1
 1. **Two source sites.** The spec names `tilde/.zshenv` only. `zsh/env.zsh` and `~/.zsh.local` export after `.zshenv`, so in `zsh -ic` a seed beat the override (measured: `local`, expected `over`). The file is sourced again as the last line of `tilde/.zshrc`. The second source costs two `stat` calls.
 2. **Cache format.** `mise env --dotenv` prints values raw and unquoted (`SP=a b "q"`). The cache holds `export KEY='value'` lines requoted with zsh `${(qq)}`. Known limits: a multi-line value keeps its first line, and `KEY = false` (mise's unset) is not carried.
 3. **Staleness test** is `[[ ! $cache -nt $override ]]`. It is true for a missing cache and for equal timestamps.
-4. **mise path.** `.zshenv` runs before `.zprofile` puts Homebrew on PATH, so the file falls back to `/opt/homebrew/bin/mise`. A4 changes this fallback when mise moves.
-5. **Failure keeps the last good cache.** When `mise env` fails (bad TOML, bad template) or mise is not found, the old cache is still sourced. Interactive shells print one warning line.
+4. **mise path.** `.zshenv` runs before `.zprofile` puts mise on PATH. The file takes the first executable of `${commands[mise]}`, `~/.local/bin/mise` (where mise lives after A4) and `${HOMEBREW_PREFIX:-/opt/homebrew}/bin/mise` (where it lives today). No later plan needs to touch this. `HOMEBREW_PREFIX` is read, as `zsh/init.zsh` reads it, so the self-check can point it at an empty folder and reach the no-mise branch on a Mac that has Homebrew's mise.
+5. **Failure keeps the last good cache.** When `mise env` fails (bad TOML, bad template) or mise is not found, the old cache is still sourced. An interactive shell prints one warning line, although it sources the file twice (a shell-local flag, `_override_env_warned`).
 6. **`DOTFILES_NO_OVERRIDE_ENV`** set to anything makes the file do nothing. A2's env adapter uses it to read a seed.
-7. **The floor lives in `setup/mise-floor.sh`**, called from `setup/misc.sh`. The value `2026.11.5` appears in that file only. CI pins mise to the same value and the self-check asserts they match.
+7. **The floor lives in `setup/mise-floor.sh`**, called from `setup/misc.sh`. Shell code reads the value `2026.11.5` from that file only. CI pins mise to the same value and the self-check asserts they match. A2's settings package carries its own copy as `FLOOR`, so raising the floor means editing both.
+11. **One cache per override file.** The cache file name carries the override file's path with every character outside `A-Za-z0-9` replaced by `_`. Two mise config dirs under one `HOME` (a later plan's test with a scratch `MISE_CONFIG_DIR` and the real `HOME`) then never read each other's values.
 8. **`bin/lib/check` keeps CI's Python.** With mise on the runner, `mise exec python` would download a Python. The guard becomes "mise has a python installed".
 9. **Docs describe the mechanism, not the UI.** The UI arrives in A2. A1 documents `mise set --override` and `mise unset --override`.
 10. **The self-check fails, not skips, without mise.** The spec wants it on every `pnpm check`.
@@ -45,7 +48,8 @@ Each line names its test in `bin/lib/test-override-env`.
 1. A value with spaces and quotes survives the cache unchanged. Test: `SP`, Task 3.
 2. An interactive shell where `~/.zsh.local` re-exports the key still shows the override. Test: "interactive shell", Task 3.
 3. A hand-edited override file that mise cannot parse keeps the last good values and does not break shell startup. Test: "unreadable override file", Task 3.
-4. A new terminal window runs `.zshenv` with no mise on PATH. Startup prints nothing. Test: "stale cache without mise on PATH", Task 3.
+4. A new terminal window runs `.zshenv` with no mise on PATH. When mise is at none of the three places, a shell that never prompts prints nothing and an interactive shell prints the warning once. Both keep the last good values. Tests: "stale cache without mise", Task 3.
+6. A shell started with another `MISE_CONFIG_DIR` under the same `HOME` does not change what the first config dir's shells see. Test: "a second mise config dir", Task 3.
 5. Resetting the last key leaves an `[env]` table with no keys. The cache empties and the seed returns. Test: "resetting every key", Task 3.
 
 ---
@@ -294,7 +298,7 @@ Expected: the `check` run passes. This is the first run with mise on the runner.
 
 **Interfaces:**
 - Consumes: Task 2's block in the self-check, which has already failed the run when mise is missing or below the floor.
-- Produces: `zsh/override-env.zsh`, sourced with no arguments. Reads `${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/config.override.toml`. Writes `$HOME/.cache/dotfiles/override-env.zsh`, one `export KEY='value'` line per key in the override file's `[env]` table. Does nothing when `DOTFILES_NO_OVERRIDE_ENV` is non-empty or the override file is absent.
+- Produces: `zsh/override-env.zsh`, sourced with no arguments. Reads `${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/config.override.toml`. Writes `$HOME/.cache/dotfiles/override-env.<override file path with every character outside A-Za-z0-9 as _>.zsh` (for the default config dir, `override-env._Users_<you>__config_mise_config_override_toml.zsh`), one `export KEY='value'` line per key in the override file's `[env]` table. Does nothing when `DOTFILES_NO_OVERRIDE_ENV` is non-empty or the override file is absent.
 - Part B hook. The migration plan's `env` step needs only this from A1: it writes with `mise set --override KEY=VALUE` run from `$HOME` and never edits the cache. The next shell sees a newer override file and rebuilds the cache. To list keys already overridden it reads the `[env]` table of the override file at the path above. A key is a line matching `^[[:space:]]*"?([A-Za-z_][A-Za-z0-9_]*)"?[[:space:]]*=` between the `[env]` header and the next line that starts with `[`. `mise set` with no arguments prints the same keys with their source file.
 
 - [ ] **Step 1: Write the failing test**
@@ -309,7 +313,8 @@ printf '#!/bin/bash\necho "$*" >> "%s/mise.log"\nexec "%s" "$@"\n' "$tmp" "$real
 chmod +x "$tmp/bin/mise"
 printf 'source %q\n' "$repo/tilde/.zshenv" > "$tmp/zd/.zshenv"
 printf 'source "$DOTFILES/tilde/.zshrc"\n' > "$tmp/zd/.zshrc"
-cache="$tmp/home/.cache/dotfiles/override-env.zsh"
+override="$tmp/cfg/config.override.toml"
+cache="$tmp/home/.cache/dotfiles/override-env.${override//[^A-Za-z0-9]/_}.zsh"
 
 # Run a command with nothing inherited but the temp HOME, mise config and ZDOTDIR
 iso() { env -i HOME="$tmp/home" MISE_CONFIG_DIR="$tmp/cfg" ZDOTDIR="$tmp/zd" PATH="$tmp/bin:/usr/bin:/bin" "$@"; }
@@ -337,10 +342,18 @@ m set --override K=over "SP=a b 'q' \"d\"" > /dev/null
 m set --override K=again > /dev/null
 [ "$(val K)" = again ] && [ "$(calls)" = 1 ] || fail "a changed override file does not refresh the cache once"
 
+# Another mise config dir under the same HOME gets its own cache
+mkdir -p "$tmp/cfgB"
+printf '[env]\nK = "other"\n' > "$tmp/cfgB/config.override.toml"
+[ "$(val K MISE_CONFIG_DIR="$tmp/cfgB")" = other ] || fail "a second mise config dir: its override is not applied"
+[ "$(val K)" = again ] || fail "a second mise config dir changed the first one's values"
+
 # A broken override file keeps the last good values
 cp "$tmp/cfg/config.override.toml" "$tmp/good.toml"
 echo '[env' > "$tmp/cfg/config.override.toml"
 [ "$(val K)" = again ] || fail "unreadable override file: last good value lost"
+out=$(iso zsh -i -c : < /dev/null 2>&1)
+[ "$(grep -c '^override-env: mise could not read ' <<< "$out")" = 1 ] || fail "unreadable override file, interactive: expected one warning, got: $out"
 cp "$tmp/good.toml" "$tmp/cfg/config.override.toml"
 
 m unset --override K > /dev/null
@@ -353,10 +366,16 @@ echo 'export K=local' > "$tmp/home/.zsh.local"
 out=$(iso PATH="$tmp/bin:/opt/homebrew/bin:/usr/bin:/bin" zsh -i -c 'print -r -- $K' < /dev/null 2> /dev/null)
 [ "$out" = over ] || fail "interactive shell: ~/.zsh.local beat the override ($out)"
 
-# A new terminal window runs .zshenv before PATH has mise: no error, whatever the cache
+# A new terminal window runs .zshenv before PATH has mise. With mise at none of
+# the fallback paths either (HOME is the temp one, HOMEBREW_PREFIX an empty
+# folder), a stale cache keeps its values: silently, or with one warning at a prompt
 touch "$tmp/cfg/config.override.toml"
-out=$(iso PATH=/usr/bin:/bin zsh -c : 2>&1)
-[ -z "$out" ] || fail "stale cache without mise on PATH printed: $out"
+nomise() { iso K=seed PATH=/usr/bin:/bin HOMEBREW_PREFIX="$tmp/none" "$@"; }
+out=$(nomise zsh -c 'print -r -- $K' 2>&1)
+[ "$out" = over ] || fail "stale cache without mise: expected only the last good value, got: $out"
+out=$(nomise zsh -i -c 'print -r -- $K' < /dev/null 2>&1)
+[ "$(grep -c '^override-env: mise could not read ' <<< "$out")" = 1 ] || fail "stale cache without mise, interactive: expected one warning, got: $out"
+[ "$(tail -1 <<< "$out")" = over ] || fail "stale cache without mise, interactive: last good value lost: $out"
 
 # Resetting the last key empties the cache
 m unset --override K SP > /dev/null
@@ -384,11 +403,15 @@ The whole file. It ran against the test above in a scratch copy of the repo.
   # Lets the settings package read a seed without the override on top
   [[ -z ${DOTFILES_NO_OVERRIDE_ENV:-} ]] || return 0
   local override=${MISE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/mise}/config.override.toml
-  local cache=$HOME/.cache/dotfiles/override-env.zsh
+  # One cache per override file, so another MISE_CONFIG_DIR never reads this one's values
+  local cache=$HOME/.cache/dotfiles/override-env.${override//[^A-Za-z0-9]/_}.zsh
   [[ -f $override ]] || return 0
   if [[ ! $cache -nt $override ]]; then
-    # .zshenv runs before .zprofile puts Homebrew on PATH
-    local mise=${commands[mise]:-/opt/homebrew/bin/mise} line out in_env=0
+    # .zshenv runs before .zprofile puts mise on PATH, so try where it installs
+    local mise line out in_env=0
+    for mise in ${commands[mise]:-} $HOME/.local/bin/mise ${HOMEBREW_PREFIX:-/opt/homebrew}/bin/mise; do
+      [[ ! -x $mise ]] || break
+    done
     local -a keys match mbegin mend
     for line in "${(@f)$(<$override)}"; do
       if [[ $line == \[* ]]; then
@@ -401,8 +424,10 @@ The whole file. It ran against the test above in a scratch copy of the repo.
     if [[ -x $mise ]] && out=$("$mise" env --dotenv -C $HOME 2> /dev/null) && mkdir -p ${cache:h}; then
       for line in "${(@f)out}"; do
         if (( ${keys[(Ie)${line%%=*}]} )); then print -r -- "export ${line%%=*}=${(qq)${line#*=}}"; fi
-      done >| $cache.$$ && mv -f $cache.$$ $cache
-    elif [[ -o interactive ]]; then
+      done >| $cache.$$ && command mv -f $cache.$$ $cache
+    elif [[ -o interactive && -z ${_override_env_warned:-} ]]; then
+      # Sourced twice per interactive shell; warn once
+      typeset -g _override_env_warned=1
       print -u2 "override-env: mise could not read $override; keeping the last good values"
     fi
   fi
@@ -413,6 +438,8 @@ The whole file. It ran against the test above in a scratch copy of the repo.
 Keep the `if … fi` form inside the output loop. With `(( … )) && print`, a last line that is not an override key makes the loop return 1 and the `mv` never runs (found in the scratch run).
 
 `mise env --dotenv` and the global `-C` flag are in `mise env --help`. `.prettierignore` needs no edit: its `*.zsh` line (line 8) already covers the file, and `bin/lib/test-conventions` checks every `zsh/*.zsh`. `bin/lib/check` already runs `zsh -n` on `zsh/*.zsh`.
+
+Keep `command mv`. The second source runs after `zsh/aliases.zsh` has defined `alias mv='mv -iv'`, and a bare `mv` then prints `old -> new` to stdout on every refresh from `.zshrc` (found when the review fixes were run: the first source could not find mise, the second could).
 
 - [ ] **Step 4: Source it from `tilde/.zshenv` and `tilde/.zshrc`**
 
@@ -443,7 +470,7 @@ Expected: `config.toml` only, and `No such file or directory`. No override file 
 
 - [ ] **Step 7: Update the docs this task makes stale**
 
-- `.claude/rules/zsh.md:12`. The load order ends "→ `~/.zsh.local`. `tilde/.zprofile` activates mise shims for GUI apps." Change that tail to: "→ `~/.zsh.local` → `override-env.zsh`. `tilde/.zprofile` activates mise shims for GUI apps." Add one bullet: "**Overrides** (`zsh/override-env.zsh`, sourced by `tilde/.zshenv` and last in `tilde/.zshrc`): exports of the keys in mise's `config.override.toml`, read from `~/.cache/dotfiles/override-env.zsh`. mise runs only when the override file is newer than the cache, so a fresh start runs no process. It is sourced twice because `env.zsh` and `~/.zsh.local` are seeds that export after `.zshenv`." Keep the file under 6000 bytes.
+- `.claude/rules/zsh.md:12`. The load order ends "→ `~/.zsh.local`. `tilde/.zprofile` activates mise shims for GUI apps." Change that tail to: "→ `~/.zsh.local` → `override-env.zsh`. `tilde/.zprofile` activates mise shims for GUI apps." Add one bullet: "**Overrides** (`zsh/override-env.zsh`, sourced by `tilde/.zshenv` and last in `tilde/.zshrc`): exports of the keys in mise's `config.override.toml`, read from a cache under `~/.cache/dotfiles/` named after the override file's path. mise runs only when the override file is newer than the cache, so a fresh start runs no process. It is sourced twice because `env.zsh` and `~/.zsh.local` are seeds that export after `.zshenv`." Keep the file under 6000 bytes.
 - `tilde/README.md:19`. Replace "Runs for every zsh. Exports `$DOTFILES`, the repo's location" with "Runs for every zsh. Exports `$DOTFILES`, the repo's location, then the values set with `mise set --override`".
 - `tilde/README.md:21`. Replace "loads everything in [`zsh/`](../zsh/), then `~/.zsh.local` if it exists" with "loads everything in [`zsh/`](../zsh/), then `~/.zsh.local` if it exists, then the `mise set --override` values again so they win".
 
@@ -487,6 +514,8 @@ Current: "If this file exists, it's sourced near the end of `~/.zshrc` (after `z
 Add a second paragraph below it:
 
 "An `export` here is a starting value. `mise set --override KEY=value`, run from your home directory, beats it in every new shell, and `mise unset --override KEY` hands the variable back to the export. Overrides are stored in `tilde/.config/mise/config.override.toml` inside the clone (`~/.config/mise` is a link to that folder), which git ignores."
+
+A2 replaces this paragraph with one that names `dotfiles-settings`. Write it as a paragraph of its own so that edit stays a clean swap.
 
 - [ ] **Step 3: `README.md:284`, undoing the CA roots opt-in**
 

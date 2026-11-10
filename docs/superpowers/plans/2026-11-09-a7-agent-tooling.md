@@ -22,7 +22,12 @@
 - `dotfiles-settings list` must stay fast. No reader may run `hindsight-memory status` (1.5 s measured) or `claude-stack scan` (2.9 s measured).
 - Bash scripts keep their tldr-style header and pass `pnpm check`. Commit subjects are short, imperative, sentence case, with no prefix.
 - Every doc that describes a changed behaviour changes in the same commit (D12).
-- Line numbers in this plan are from commit `9af6244`. Find each quoted sentence with `grep -n` before editing it.
+- Line numbers in this plan are from commit `9af6244`. An earlier phase may have moved them, so find each quoted text with `grep -n` before editing it.
+- No step in this plan changes this Mac. The steps that touch the live machine are reads (`get`, `status`, opening the TUI and changing nothing). Every write in a test goes to a scratch file. A real `set` or `reset` from the UI is the user's to run.
+- The phase is done when `pnpm check` passes and Task 7's stale-instruction greps pass. `mise bootstrap status --missing` is informational and no step needs it to exit 0.
+- Commits name their paths. No `git add -A`, no `git add .`, no bare directory. The working tree holds an unrelated uncommitted change to `agents/claude-settings.json` that must never enter a commit of this plan.
+- This plan's tests live in `settings/tests/test_tool.py`, `settings/tests/test_tui_agents.py` and `agents/catalog/test_stack.py`. It does not edit `settings/tests/test_registry.py`, and no test here counts the registry's settings or pins its kinds. A count is scoped to this plan's own rows (the 17 `jstack:` keys).
+- A false bool reaches an adapter as `""` and a true one as the setting's `true_value` (`"true"` for the tool bools, `"1"` for `ui.claude_panel`). The tool writers treat `""` as false. A test of a bool goes through `cli.normalize`.
 
 ## Review Focus
 
@@ -38,16 +43,19 @@
 
 Confirmed with the A2 plan's author on 2026-11-09. Check them against the landed code before Task 1 and adapt names if they moved.
 
-- `model.py`: `Setting` is a frozen dataclass with `id, section, label, help, kind, key, type, true_value, choices, default, access`. All `str` except `choices: tuple[str, ...]`. `Value` and `Source` are the spec's. `SettingsError` means exit 1. `InvalidValue(SettingsError)` means exit 2.
+- `model.py`: `Setting` is a frozen dataclass with `id, section, label, help, kind, key, type, true_value, choices, default, widget, access`. All `str` except `choices: tuple[str, ...]`. `true_value`, `choices`, `default` and `widget` are optional in `registry.toml` and default to `""`, `[]`, `""` and `""`. A2 defines `widget`, lets it be `""`, `"lines"` or `"seats"`, rejects any other value, and emits it in JSON. This plan gives the two non-empty values their behaviour. `Value` and `Source` are the spec's. `SettingsError` means exit 1. `InvalidValue(SettingsError)` means exit 2.
 - `adapters/__init__.py`: `ADAPTERS: dict[str, Adapter]` holds class instances. `registry.KINDS` lists the allowed kinds. `registry.py` rejects an unknown field in a `[[setting]]` table.
-- `cli.normalize(s, raw) -> str` validates bool, int, enum and path before the adapter runs. An adapter raises `InvalidValue` only for its own rules.
-- `tui.py`: `SettingsApp(settings=None, adapters=None)`. `widget_for(s: Setting, v: Value) -> Widget` picks the widget. A widget's id is `"w-" + s.id.replace(".", "-")`.
+- `cli.normalize(s, raw) -> str` validates bool, int, enum and path before the adapter runs. For a bool it returns the setting's `true_value` or `""`. An adapter raises `InvalidValue` only for its own rules.
+- `list --json` and `get --json` emit the `Value` fields plus `label`, `section`, `type`, `choices`, `widget`, `access`.
+- Optional adapter members. `write_note(self, s: Setting) -> str` returns the note the CLI and the TUI show after a write or reset of that setting, or `""` for none. `watch_paths(self) -> list[Path]` returns the files the adapter's settings read. The TUI polls the mtimes of the union across adapters.
+- `mise.run_mise(...)` runs from `$HOME`. This plan does not call it. `tool.run` is a separate runner with its own `cwd` rule (Task 5).
+- `tui.py`: `SettingsApp(settings=None, adapters=None)`. `None` loads the real registry and adapters. An empty list or dict means empty and is never replaced. `widget_for(s: Setting, v: Value) -> Widget` picks the widget. A widget's id is `"w-" + s.id.replace(".", "-")`.
 - Tests are script-assert files, `settings/tests/test_<module>.py`. Each starts with `sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))` and prints `ok`. Core tests run with `python3 settings/tests/test_x.py`. Textual tests run with `uv run --project settings python settings/tests/test_x.py`.
 - The repo root is `os.environ["DOTFILES"]`. A2 has no helper for it.
 
 ## Decisions
 
-**No new `type`. One new optional registry field, `widget`.** This changes the shared data shape, so it is called out here. The Hindsight path list is a `string` whose value is one path per line, the form `hindsight-memory paths list` prints. A jstack role is a `string` whose value is the text after the colon in the rule file, such as `opus medium` or `fable medium, opus medium`. `widget = "lines"` and `widget = "seats"` tell the TUI how to draw those two. The field defaults to `""` and nothing else reads it. A `list` type was rejected because it would touch `cli.normalize`, the JSON contract and every adapter for one setting.
+**No new `type`. The two list-shaped settings use A2's optional `widget` field.** The Hindsight path list is a `string` whose value is one path per line, the form `hindsight-memory paths list` prints. A jstack role is a `string` whose value is the text after the colon in the rule file, such as `opus medium` or `fable medium, opus medium`. `widget = "lines"` and `widget = "seats"` tell the TUI how to draw those two. A2 defines the field, validates it and emits it. This plan adds only the two widgets that draw it. A `list` type was rejected because it would touch `cli.normalize`, the JSON contract and every adapter for one setting.
 
 **Reads come from the tool's own file. Writes go through its CLI where one exists.** `hindsight-memory` has no cheap "get". Its `status` took 1.5 s here because it starts `uvx`. Reading the three keys from `coding-agent.json` is not a copy, so D4 holds. Writes use `hindsight-memory on|off`, `survey on|off` and `paths add|remove`, which were run against a scratch `HINDSIGHT_CONFIG` on 2026-11-09.
 
@@ -70,10 +78,10 @@ All `kind = "tool"` unless noted. Section is `Agents` for every row. "Config" me
 | `hindsight.enabled` | `hindsight:enabled` | bool | rw | `true` | Config key `disabled`. `"true"` unless it is JSON `true`. | `hindsight-memory on` for `"true"`, else `hindsight-memory off` | Seed is `default`. `SEED` when equal to it, else `OVERRIDE`. `UNSET` with value `None` when Config is missing. Drift false. |
 | `hindsight.survey` | `hindsight:survey` | bool | rw | `""` | Config key `codebaseSurvey`. `"true"` only when JSON `true`. | `hindsight-memory survey on` or `survey off` | As above. |
 | `hindsight.paths` | `hindsight:paths` | string, `widget = "lines"` | rw | `~/dev` | Config key `optInPaths`, joined with `\n`. | For each wanted line not stored: `hindsight-memory paths add <line>`. Then for each stored line not wanted: `hindsight-memory paths remove <line>`. | As above. |
-| `hindsight.daemon` | `hindsight:daemon` | string | ro | `""` | `running` when `GET http://127.0.0.1:<apiPort or 9077>/health` answers 200 within 1 s, else `down`. `uninstalled` when Config is missing and `<Config>.uninstalled` exists. `not installed` when neither exists. | none | Source `DEFAULT`, seed `None`, drift false. |
+| `hindsight.daemon` | `hindsight:daemon` | string | ro | `""` | `running` when `GET http://127.0.0.1:<port>/health` answers 200 within 1 s, else `down`. `<port>` is Config key `apiPort`, or 9077 when the key is absent or JSON `null` (this Mac's config holds `"apiPort": null`, read 2026-11-09). `uninstalled` when Config is missing and `<Config>.uninstalled` exists. `not installed` when neither exists. | none | Source `DEFAULT`, seed `None`, drift false. |
 | `claude.model` | `claude:model` | string | rw | `""` | Key `model` of `${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json`. | `edit_file` sets `model` in that file. | Seed is key `model` of `${CLAUDE_CONFIG_SAVE_DIR:-$DOTFILES/agents}/claude-settings.json`. `SEED` when equal, `OVERRIDE` when different, `UNSET` when the live key is absent. Drift is `value != seed`. |
 | `jstack.<slug>` (17 rows) | `jstack:<role>` | string, `widget = "seats"` | rw | `""` | The text after `<role>: ` in `${CLAUDE_CONFIG_DIR:-~/.claude}/rules/jstack-models.md`. | `edit_file` replaces or appends that one line. | Seed equals the value. `SEED` when the line exists, `UNSET` with value `None` when it does not. Drift false. Reset deletes the line. |
-| `stack.status` | `stack:status` | string | ro | `""` | Stdout of `claude-stack status` run in the current directory. | none | Source `DEFAULT`. `UNSET` with value `None` when the command fails. |
+| `stack.status` | `stack:status` | string | ro | `""` | Stdout of `claude-stack status` run in the directory the UI was launched from, never `$HOME`. | none | Source `DEFAULT`. `UNSET` with value `None` when the command fails. |
 | `ui.claude_panel` | `DOTFILES_UI_CLAUDE_PANEL` (`kind = "env"`) | bool, `true_value = "1"` | rw | `""` | A2's `env` adapter | `mise set --override` | A2's rules. |
 
 Labels and help text, fixed copy:
@@ -82,7 +90,7 @@ Labels and help text, fixed copy:
 - `hindsight.survey`: "Hindsight codebase survey". Help: "Lets a claude -p agent sample each repo to seed memory. It reads untracked files too."
 - `hindsight.paths`: "Hindsight opt-in paths". Help: "Memory is active only under these folders. One per line."
 - `hindsight.daemon`: "Hindsight daemon". Help: "Whether the local coding-agent daemon answers. hindsight-memory status shows more."
-- `claude.model`: "Claude Code default model". Help: "Changes ~/.claude/settings.json only. The tracked agents/claude-settings.json is the seed. claude-config save copies a change into the repo. A --model flag, ANTHROPIC_MODEL or a project setting can still override it for a session."
+- `claude.model`: "Claude Code default model". Help: "Changes ~/.claude/settings.json only. The tracked agents/claude-settings.json is the seed. claude-config save copies a change into the repo. A --model flag, ANTHROPIC_MODEL, or a model set in project or managed settings outranks it." The last sentence is from Claude Code's model configuration page (`https://code.claude.com/docs/en/model-config`, "Setting your model", read 2026-11-09): the priority order is `/model`, `--model`, `ANTHROPIC_MODEL`, then the `model` settings field, and a `model` in project or managed settings applies again at every launch.
 - `jstack.<slug>`: label "jstack: `<role>`". Help: "Model and effort for this jstack role. Edits the tracked rule file, so commit the change. Reset deletes the line and jstack uses its default. New sessions pick it up."
 - `stack.status`: "Project plugin stack". Help: "Per project. Shows the folder the UI was started from. Press p to see and change it."
 - `ui.claude_panel`: "Claude Code settings panel". Help: "Turns the planned Claude Code panel on. Nothing reads this yet."
@@ -95,25 +103,25 @@ The 17 jstack rows, as `slug` = role: `feature_refactoring` = `feature, refactor
 - Create `settings/tests/test_tool.py`. Readers and writers against scratch files.
 - Create `settings/src/dotfiles_settings/tui_agents.py`. `LinesEditor`, `SeatsEditor`, `StackScreen`.
 - Create `settings/tests/test_tui_agents.py`. Pilot tests.
-- Modify `settings/src/dotfiles_settings/model.py`, `registry.py`, `adapters/__init__.py`, `tui.py`, `settings/registry.toml`.
+- Modify `settings/src/dotfiles_settings/registry.py` (only `KINDS`), `adapters/__init__.py`, `tui.py`, `settings/registry.toml`.
 - Modify `agents/catalog/stack.py`, `agents/catalog/test_stack.py`, `bin/claude-stack` (header), `docs/README.md`.
 - Modify `agents/README.md`, `.claude/rules/claude-config.md`, `tilde/.claude/rules/hindsight.md`.
 - Modify `bin/lib/check` only if A2 lists test files one by one there.
 
 ---
 
-### Task 1: The `tool` kind, the `widget` field and the atomic edit
+### Task 1: The `tool` kind and the atomic edit
 
 **Files:**
-- Modify: `settings/src/dotfiles_settings/model.py`, `settings/src/dotfiles_settings/registry.py`, `settings/src/dotfiles_settings/adapters/__init__.py`, `settings/registry.toml`
+- Modify: `settings/src/dotfiles_settings/registry.py`, `settings/src/dotfiles_settings/adapters/__init__.py`, `settings/registry.toml`
 - Create: `settings/src/dotfiles_settings/adapters/tool.py`
 - Test: `settings/tests/test_tool.py`
 
 **Interfaces:**
-- Consumes: `Setting`, `Value`, `Source`, `SettingsError`, `InvalidValue`, `ADAPTERS`, `registry.KINDS`.
+- Consumes: `Setting` (with A2's `widget`), `Value`, `Source`, `SettingsError`, `InvalidValue`, `ADAPTERS`, `registry.KINDS`.
 - Produces:
-  - `Setting.widget: str = ""`. Allowed values `""`, `"lines"`, `"seats"`. The loader rejects any other.
-  - `tool.run(argv: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]`. Runs with `capture_output=True, text=True`. `argv[0]` is a script name resolved as `$DOTFILES/bin/<name>`. Raises `SettingsError("DOTFILES is not set")` when the variable is missing. Tests replace it by assignment.
+  - `"tool"` in `registry.KINDS`.
+  - `tool.run(argv: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]`. Runs with `capture_output=True, text=True`. `cwd=None` keeps the process's own directory. `argv[0]` is a script name resolved as `$DOTFILES/bin/<name>`. Raises `SettingsError("DOTFILES is not set")` when the variable is missing. Tests replace it by assignment.
   - `tool.edit_file(path: Path, change: Callable[[str], str]) -> None`.
   - `tool.TOOLS: dict[str, tuple[Reader, Writer | None, Resetter | None]]`, keyed by the part of `Setting.key` before the first `:`. `Reader = Callable[[str, Setting], Value]`, `Writer = Callable[[str, Setting, str], None]`, `Resetter = Callable[[str, Setting], None]`. The first argument is the part of the key after the `:`.
   - `class ToolAdapter` with `read`, `write`, `reset`. `reset` calls the tool's resetter when it has one, else `write(s, read(s).seed or "")`. Registered as `ADAPTERS["tool"]`.
@@ -121,10 +129,9 @@ The 17 jstack rows, as `slug` = role: `feature_refactoring` = `feature, refactor
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-def test_registry_accepts_widget_and_tool_kind():
+def test_registry_accepts_the_tool_kind():
     s = load_one('kind = "tool"\nkey = "jstack:bug-fix"\ntype = "string"\nwidget = "seats"')
     assert (s.kind, s.widget) == ("tool", "seats")
-    assert raises(lambda: load_one('kind = "tool"\nkey = "x:y"\ntype = "string"\nwidget = "grid"'), "widget")
 
 def test_edit_file_keeps_mode_and_symlink():
     real = tmp / "real.json"; real.write_text("a\n"); real.chmod(0o600)
@@ -151,6 +158,7 @@ def test_unknown_tool_key_is_a_settings_error():
 Helpers at the top of the test file, used by every later task:
 
 - `tmp`: a temp dir removed at exit. `repo`: `Path(__file__).resolve().parents[2]`.
+- `cli`: `from dotfiles_settings import cli`, for `cli.normalize`.
 - `load_one(fragment)`: wraps the fragment in a full `[[setting]]` table and calls A2's registry loader on a temp file.
 - `setting(**fields)`: a `Setting` with filler for the fields not given.
 - `all_settings()`: the real `settings/registry.toml`, loaded. `by_id(id)`: one of them.
@@ -163,7 +171,9 @@ Helpers at the top of the test file, used by every later task:
 Run: `python3 settings/tests/test_tool.py`
 Expected: FAIL, `No module named 'dotfiles_settings.adapters.tool'`.
 
-- [ ] **Step 3: Add `widget` to `Setting` and the loader, and `"tool"` to `registry.KINDS`**
+- [ ] **Step 3: Add `"tool"` to `registry.KINDS`**
+
+Do not touch `Setting` or the loader. A2 already defines `widget` and validates it. If `Setting` has no `widget` field, stop: A2 has not landed as agreed.
 
 - [ ] **Step 4: Implement `run`, `edit_file`, `TOOLS` (empty) and `ToolAdapter` in `tool.py`**
 
@@ -209,8 +219,8 @@ Expected: `ok`.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add settings/
-git commit -m "Add the tool adapter skeleton and the widget field"
+git add settings/src/dotfiles_settings/registry.py settings/src/dotfiles_settings/adapters/__init__.py settings/src/dotfiles_settings/adapters/tool.py settings/registry.toml settings/tests/test_tool.py
+git commit -m "Add the tool adapter skeleton"
 ```
 
 ### Task 2: Hindsight settings
@@ -221,7 +231,7 @@ git commit -m "Add the tool adapter skeleton and the widget field"
 
 **Interfaces:**
 - Consumes: `tool.run`, `tool.TOOLS`, `ToolAdapter` from Task 1.
-- Produces: `TOOLS["hindsight"]`. The four `hindsight.*` registry rows.
+- Produces: `TOOLS["hindsight"]`. The four `hindsight.*` registry rows. `tool.hindsight_port(config: dict) -> int`: the config's `apiPort`, or 9077 when the key is absent or `None`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -232,13 +242,18 @@ def test_hindsight_flags_round_trip():
     cfg.write_text('{"optInPaths": ["~/dev"]}')
     v = A.read(by_id("hindsight.enabled"))
     assert (v.value, v.source, v.seed, v.drift) == ("true", Source.SEED, "true", False)
-    A.write(by_id("hindsight.enabled"), "")
+    s = by_id("hindsight.enabled")
+    assert (cli.normalize(s, "off"), cli.normalize(s, "on")) == ("", "true")
+    A.write(s, cli.normalize(s, "off"))         # a false bool arrives as ""
     assert json.loads(cfg.read_text())["disabled"] is True
     assert A.read(by_id("hindsight.enabled")).source is Source.OVERRIDE
     A.reset(by_id("hindsight.enabled"))
     assert json.loads(cfg.read_text())["disabled"] is False
-    A.write(by_id("hindsight.survey"), "true")
+    s = by_id("hindsight.survey")
+    A.write(s, cli.normalize(s, "yes"))
     assert json.loads(cfg.read_text())["codebaseSurvey"] is True
+    A.write(s, cli.normalize(s, "no"))
+    assert json.loads(cfg.read_text())["codebaseSurvey"] is False
 
 def test_hindsight_paths_add_then_remove():
     cfg.write_text('{"optInPaths": ["~/dev", "/opt/old"]}')
@@ -263,6 +278,11 @@ def test_hindsight_daemon_probe():
         cfg.write_text(json.dumps({"apiPort": port}))
         assert A.read(by_id("hindsight.daemon")).value == "running"
 
+def test_hindsight_port_treats_null_as_the_default():
+    assert tool.hindsight_port({"apiPort": None}) == 9077     # the live config holds null
+    assert tool.hindsight_port({}) == 9077
+    assert tool.hindsight_port({"apiPort": 1}) == 1
+
 def test_registry_defaults_match_the_script():
     src = (repo / "bin/hindsight-memory").read_text()
     assert '"optInPaths": ["~/dev"]' in src and '"codebaseSurvey": false' in src and '"disabled"' not in src.split("defaults()")[1].split("EOF")[1]
@@ -278,7 +298,7 @@ Expected: FAIL on `by_id("hindsight.enabled")`, no such setting.
 
 - [ ] **Step 4: Implement `_read_hindsight(name, s) -> Value` and `_write_hindsight(name, s, value) -> None`**
 
-One `json.loads` of the config serves all four names. A reader never raises: a missing or unparsable config gives `Value(value=None, source=UNSET, seed=s.default, drift=False)`. A writer raises `SettingsError(<the script's stderr, stripped>)` when a command exits non-zero. The path writer splits on newlines, strips each line, drops empty ones, and runs every `add` before any `remove`. It passes each path as one argv element. The daemon probe uses `urllib.request.urlopen(url, timeout=1)` and treats any exception as `down`.
+One `json.loads` of the config serves all four names. A reader never raises: a missing or unparsable config gives `Value(value=None, source=UNSET, seed=s.default, drift=False)`. A writer raises `SettingsError(<the script's stderr, stripped>)` when a command exits non-zero. The path writer splits on newlines, strips each line, drops empty ones, and runs every `add` before any `remove`. It passes each path as one argv element. The bool writers run `on` for the setting's `true_value` and `off` for anything else, `""` included. The daemon probe takes its port from `hindsight_port`, which is `config.get("apiPort") or 9077`, the same rule as the script's `jq -r '.apiPort // 9077'`. It must not be `config.get("apiPort", 9077)`, which returns `None` for a stored null. The probe uses `urllib.request.urlopen(url, timeout=1)` and treats any exception as `down`. `test_hindsight_port_treats_null_as_the_default` does not probe port 9077, so it gives the same result whether or not a daemon runs.
 
 - [ ] **Step 5: Run the tests**
 
@@ -296,7 +316,7 @@ Expected: `"value": "running"` while the daemon is up (`/health` answered 200 on
 - [ ] **Step 7: Commit**
 
 ```bash
-git add settings/
+git add settings/src/dotfiles_settings/adapters/tool.py settings/registry.toml settings/tests/test_tool.py
 git commit -m "Show and change Hindsight memory in the settings UI"
 ```
 
@@ -382,7 +402,7 @@ Expected: `"value"` equals `jq -r .model ~/.claude/settings.json`, and `"seed"` 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add settings/
+git add settings/src/dotfiles_settings/adapters/tool.py settings/registry.toml settings/tests/test_tool.py
 git commit -m "Show the Claude Code model with its tracked seed and drift"
 ```
 
@@ -400,6 +420,7 @@ git commit -m "Show the Claude Code model with its tracked seed and drift"
   - `tool.LIST_ROLES = frozenset({"arena runners", "arena cross-judge pool", "architect runners", "interrogate reviewers"})`.
   - `tool.CODEX_ROLES = frozenset({"arena cross-judge pool", "reflect tooling"})`.
   - `tool.parse_seats(role: str, value: str) -> list[tuple[str, str]]`. Each seat is `(model, effort)`. `inherit` and `codex` give `("inherit", "")` and `("codex", "")`. Raises `InvalidValue`.
+  - `ToolAdapter.write_note(self, s: Setting) -> str`. Returns `tool.JSTACK_NOTE` for a `jstack:` key and `""` for every other. `JSTACK_NOTE = "Edited tilde/.claude/rules/jstack-models.md, a tracked file. Commit it to keep the change."`
 
 Grammar, from the `setup-jstack` skill: a value is seats joined by `, `. A seat is `inherit`, or `codex` (only in `CODEX_ROLES`), or `<model> <effort>` with the model in `MODELS` or matching `^claude-[a-z0-9.-]+$` and the effort in `EFFORTS`. More than one seat is allowed only in `LIST_ROLES`. The reader does not validate, so a hand-written value such as `opus` still shows.
 
@@ -449,12 +470,23 @@ def test_jstack_missing_file_is_not_created():
     assert raises(lambda: A.write(by_id("jstack.bug_fix"), "opus high"), "setup-jstack")
     assert not tracked.exists()
 
-def test_registry_roles_match_the_tracked_rule():
+def test_tracked_rule_roles_are_known_and_parse():
     lines = (repo / "tilde/.claude/rules/jstack-models.md").read_text().splitlines()
-    roles = {l.split(": ", 1)[0] for l in lines if not l.startswith("#") and ": " in l}
-    assert roles == {s.key.split(":", 1)[1] for s in all_settings() if s.key.startswith("jstack:")}
-    assert len(roles) == 17
+    held = dict(l.split(": ", 1) for l in lines if not l.startswith("#") and ": " in l)
+    known = {s.key.split(":", 1)[1] for s in all_settings() if s.key.startswith("jstack:")}
+    assert set(held) <= known, set(held) - known      # a subset: Reset deletes a line
+    for role, value in held.items():
+        tool.parse_seats(role, value)                 # every line the file holds is valid
+    assert len(known) == 17
+
+def test_write_note_only_for_jstack_roles():
+    assert A.write_note(by_id("jstack.bug_fix")) == tool.JSTACK_NOTE
+    assert "tracked file" in tool.JSTACK_NOTE
+    for other in ("hindsight.enabled", "hindsight.paths", "claude.model"):
+        assert A.write_note(by_id(other)) == ""
 ```
+
+The role test reads the live tracked file, so it must hold after the UI's own Reset and after a `/jstack:setup-jstack` run. Reset deletes a role's line, and the file's header allows deleting one by hand. So the file's roles are a subset of the registry's, not equal to them. A role the registry does not know fails the test, and the fix is a new registry row. The count of 17 is of this plan's own registry rows.
 
 - [ ] **Step 2: Run the tests and see them fail**
 
@@ -465,9 +497,9 @@ Expected: FAIL on `by_id("jstack.feature_refactoring")`.
 
 Use the slug and role list under the Settings table. Each has `key = "jstack:<role>"`, `type = "string"`, `widget = "seats"`, `default = ""`.
 
-- [ ] **Step 4: Implement `parse_seats`, `_read_jstack`, `_write_jstack`, `_reset_jstack`**
+- [ ] **Step 4: Implement `parse_seats`, `_read_jstack`, `_write_jstack`, `_reset_jstack` and `write_note`**
 
-A role's line is the first line that does not start with `#` and whose text before the first `": "` equals the role. Work on `text.splitlines(keepends=True)` so every other line keeps its bytes and its line ending. A replaced line keeps its own line ending. An appended line goes at the end, after adding a `\n` to a last line that lacks one. The writer calls `parse_seats` first. A missing file raises `SettingsError("no jstack-models.md. Run /jstack:setup-jstack first")`.
+A role's line is the first line that does not start with `#` and whose text before the first `": "` equals the role. Work on `text.splitlines(keepends=True)` so every other line keeps its bytes and its line ending. A replaced line keeps its own line ending. An appended line goes at the end, after adding a `\n` to a last line that lacks one. The writer calls `parse_seats` first. A missing file raises `SettingsError("no jstack-models.md. Run /jstack:setup-jstack first")`. `write_note` is one line: the note when `s.key` starts with `jstack:`, else `""`. The rule file is a symlink into the repo, so a role write or reset leaves a tracked file modified, the same case A3's note covers.
 
 - [ ] **Step 5: Run the tests**
 
@@ -477,7 +509,7 @@ Expected: `ok`.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add settings/
+git add settings/src/dotfiles_settings/adapters/tool.py settings/registry.toml settings/tests/test_tool.py
 git commit -m "Edit jstack model roles one line at a time"
 ```
 
@@ -496,6 +528,7 @@ git commit -m "Edit jstack model roles one line at a time"
   - `tool.StackRow(NamedTuple)`: `state: str`, `key: str`, `why: str`.
   - `tool.stack_scan(cwd: Path) -> list[StackRow]`. Raises `SettingsError` with the command's stderr on a non-zero exit.
   - `tool.stack_apply(cwd: Path, keep: list[str], off: list[str]) -> str`. Returns the command's stdout line. Raises `SettingsError` with its stderr.
+  - `ToolAdapter.watch_paths(self) -> list[Path]`. The files the tool settings read: `${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json`, `${CLAUDE_CONFIG_SAVE_DIR:-$DOTFILES/agents}/claude-settings.json` (the model's seed, which decides drift), `${HINDSIGHT_CONFIG:-~/.hindsight/coding-agent.json}`, `${CLAUDE_CONFIG_DIR:-~/.claude}/rules/jstack-models.md`, and `Path.cwd() / ".claude/skill-stack.json"` (the stack manifest of the launch directory). A path that does not exist is still returned. The seed path is left out when `DOTFILES` and `CLAUDE_CONFIG_SAVE_DIR` are both unset.
 
 - [ ] **Step 1: Write the failing `status` test in `agents/catalog/test_stack.py`**
 
@@ -524,7 +557,7 @@ Expected: `ok`.
 
 - [ ] **Step 5: Document the subcommand**
 
-In `bin/claude-stack`, add after the `scan` entry (line 7):
+In `bin/claude-stack`, add after the blank `#` that follows the `scan` entry (after line 8, so the new entry sits between two `#` lines like its neighbours):
 
 ```bash
 # - Say whether a stack is applied here, without scanning:
@@ -536,11 +569,11 @@ In `bin/claude-stack`, add after the `scan` entry (line 7):
 In `docs/README.md:161`, add `` `claude-stack status` `` after `` `claude-stack scan` `` in the first cell.
 
 Run: `help claude-stack`
-Expected: the page renders and lists `claude-stack status`.
+Expected: the page renders and lists `claude-stack status`. `bin/lib/test-conventions` renders every `bin/` header through `help`, so this is the same check `pnpm check` makes. The header with this entry was rendered in a scratch copy on 2026-11-09 and passed.
 
 - [ ] **Step 6: Write the failing adapter tests**
 
-These stub `tool.run` by assignment.
+These stub `tool.run` by assignment. `live`, `cfg` and `rule` are the scratch paths from Tasks 2 to 4, and `tracked_settings` is `tmp/save/claude-settings.json`, all still named by `CLAUDE_CONFIG_DIR`, `CLAUDE_CONFIG_SAVE_DIR` and `HINDSIGHT_CONFIG`. `rule` is compared unresolved: `watch_paths` returns the link's path, and a stat of it follows the link to the tracked file.
 
 ```python
 SCAN = ("keep a@m  path: x.py\noff b@m  no signal\n"
@@ -552,6 +585,24 @@ def test_stack_status_reads_the_fast_command():
     v = A.read(by_id("stack.status"))
     assert (v.value, v.source) == ("applied: 21 off, 2026-11-03", Source.DEFAULT)
     assert calls == [["claude-stack", "status"]]
+
+def test_stack_status_runs_in_the_launch_directory():
+    seen = []
+    tool.run = lambda argv, cwd=None: seen.append(cwd) or subprocess.CompletedProcess(argv, 0, "none\n", "")
+    here = Path.cwd(); os.chdir(tmp)
+    try:
+        A.read(by_id("stack.status"))
+    finally:
+        os.chdir(here)
+    assert seen == [tmp.resolve()] and tmp.resolve() != Path.home()
+
+def test_watch_paths_name_the_files_the_settings_read():
+    here = Path.cwd(); os.chdir(tmp)
+    try:
+        paths = A.watch_paths()
+    finally:
+        os.chdir(here)
+    assert set(paths) == {live, tracked_settings, cfg, rule, tmp.resolve() / ".claude/skill-stack.json"}
 
 def test_stack_status_failure_is_unset():
     stub_run(returncode=2, stderr="claude-stack: needs mise for its Python\n")
@@ -573,9 +624,9 @@ def test_stack_scan_and_apply():
 Run: `python3 settings/tests/test_tool.py`
 Expected: FAIL on `by_id("stack.status")`.
 
-- [ ] **Step 8: Add the `stack.status` row and implement `_read_stack`, `stack_scan`, `stack_apply`**
+- [ ] **Step 8: Add the `stack.status` row and implement `_read_stack`, `stack_scan`, `stack_apply`, `watch_paths`**
 
-`_read_stack` runs `["claude-stack", "status"]` with `cwd=Path.cwd()`. `stack_scan` keeps only lines matching `^(keep|off) (\S+)  (.*)$`. That is the format `claude-stack scan` printed on 2026-11-09 (two spaces before the reason).
+`_read_stack` runs `["claude-stack", "status"]` with `cwd=Path.cwd()`. That is on purpose and differs from `mise.run_mise`, which runs from `$HOME` because mise refuses an untrusted folder. The stack is per project, and the project is the folder the UI was launched from. Do not change this `cwd` to `$HOME`: the row would then report the home folder's stack for every project. `test_stack_status_runs_in_the_launch_directory` pins it. `watch_paths` builds its list from the same path helpers the readers use, so the two cannot disagree. `stack_scan` keeps only lines matching `^(keep|off) (\S+)  (.*)$`. That is the format `claude-stack scan` printed on 2026-11-09 (two spaces before the reason).
 
 - [ ] **Step 9: Run the tests**
 
@@ -588,7 +639,7 @@ Expected: `applied: 21 off, 2026-11-03` on this Mac (the manifest held 21 owned 
 - [ ] **Step 10: Commit**
 
 ```bash
-git add agents/catalog/ bin/claude-stack docs/README.md settings/
+git add agents/catalog/stack.py agents/catalog/test_stack.py bin/claude-stack docs/README.md settings/src/dotfiles_settings/adapters/tool.py settings/registry.toml settings/tests/test_tool.py
 git commit -m "Report the project plugin stack in the settings UI"
 ```
 
@@ -605,7 +656,7 @@ git commit -m "Report the project plugin stack in the settings UI"
   - `LinesEditor(TextArea)`. Property `value -> str`: its lines, stripped, empty ones dropped, joined with `\n`. Posts `LinesEditor.Submitted(value: str)` on blur when `value` differs from the value it was built with.
   - `SeatsEditor(Widget)`, built as `SeatsEditor(role: str, value: str, id=...)`. One row per seat, each with a model `Select` (id `model-<n>`) and an effort `Select` (id `effort-<n>`). Property `value -> str` in the rule file's form. Posts `SeatsEditor.Changed(value: str)` after any change. For a role in `LIST_ROLES` it has buttons `#add-seat` and `#remove-seat`. It never removes the last seat.
   - `StackScreen(Screen)`, built as `StackScreen(cwd: Path)`. A `DataTable` (id `stack`) with columns state, plugin, why. Keys `k` (keep) and `o` (off) act on the highlighted row, then rescan. `escape` closes it.
-  - `SettingsApp` binding `p`, "Project plugins", which pushes `StackScreen(Path.cwd())`.
+  - `SettingsApp` binding `p`, "Project plugins", which pushes `StackScreen(Path.cwd())`. The launch directory again, never `$HOME` (see Task 5 Step 8).
 
 Widget rules the tests do not fix:
 
@@ -667,8 +718,11 @@ async def test_stack_screen_keep_and_off():
     tool.stack_scan = lambda cwd: [tool.StackRow("off", "b@m", "no signal")]
     applied = []
     tool.stack_apply = lambda cwd, keep, off: applied.append((keep, off)) or "applied"
-    app = SettingsApp(settings=[], adapters={})
+    ran = []
+    tool.run = lambda argv, cwd=None: ran.append(argv)      # any real tool reader would land here
+    app = SettingsApp(settings=[], adapters={})             # empty means empty, not the real registry
     async with app.run_test() as pilot:
+        assert ran == [] and not app.query("#w-stack-status")   # no real adapter ran, no real row drawn
         await pilot.press("p"); await pilot.pause(0.2)
         table = app.screen.query_one("#stack", DataTable)
         assert table.row_count == 1
@@ -677,6 +731,8 @@ async def test_stack_screen_keep_and_off():
         await pilot.press("escape"); await pilot.pause()
         assert not isinstance(app.screen, StackScreen)
 ```
+
+`test_stack_screen_keep_and_off` relies on A2's rule that an empty list or dict is never replaced by the real registry and adapters. With the real registry the `stack.status` row would exist and its reader would call `tool.run`, so the first assertion inside the pilot fails if that rule breaks.
 
 The file ends with a runner that awaits each test and prints `ok`, as A2's `test_tui.py` does.
 
@@ -705,7 +761,7 @@ Expected: an Agents section with the Hindsight switches, a multi-line path box, 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add settings/
+git add settings/src/dotfiles_settings/tui_agents.py settings/src/dotfiles_settings/tui.py settings/tests/test_tui_agents.py
 git commit -m "Add the path list, seat and plugin stack views to the settings TUI"
 ```
 
@@ -721,7 +777,7 @@ git commit -m "Add the path list, seat and plugin stack views to the settings TU
 - [ ] **Step 1: Make `pnpm check` run the two new test files**
 
 Run: `grep -n "settings/tests" bin/lib/check`
-If A2 loops over `settings/tests/test_*.py`, change nothing. If it lists files, add `settings/tests/test_tool.py` beside the core tests and `settings/tests/test_tui_agents.py` beside `test_tui.py`, in the same form as their neighbours.
+A2 lists files. Append `settings/tests/test_tool.py` to the `settings_tests` array (the core tests, which fail on a missing file), and add `settings/tests/test_tui_agents.py` as one more line in the `uv run` block beside `test_tui.py`.
 
 - [ ] **Step 2: `tilde/.claude/rules/hindsight.md` line 7**
 
@@ -769,7 +825,9 @@ Expected: exit 0. `bin/lib/test-conventions` caps instruction file sizes. If it 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add bin/lib/check agents/README.md .claude/rules/claude-config.md tilde/.claude/rules/hindsight.md
+git add agents/README.md .claude/rules/claude-config.md tilde/.claude/rules/hindsight.md
+git diff --quiet bin/lib/check || git add bin/lib/check      # only when Step 1 changed it
+git diff --cached --name-only | grep -x "agents/claude-settings.json" && echo "STOP: unstage it"
 git commit -m "Document the agent settings in the settings UI"
 ```
 
@@ -783,7 +841,7 @@ No task here builds the panel (D9). This records what it will stand on.
 - **Known.** A Claude Code mod can run a process. The jstack plugin's module calls `$.process.run`, `$.fs.read`, `$.store.get` and `$.ui.toast` (`hooks/register.tsx` in the installed jstack plugin, read 2026-11-09).
 - **Unknown: whether a mod can add a panel beside the chat that the user can toggle, and with which call.** The `plugin-authoring` skill (`/plugin-authoring`) is the doc that settles it.
 - **Unknown: the PATH a mod's `$.process.run` gets.** `uv tool install` puts `dotfiles-settings` in `~/.local/bin`. A mod that runs `$.process.run` with `command -v dotfiles-settings` settles it.
-- **Gap in the JSON contract.** The spec's JSON carries `type` but not `choices` or `widget`. A panel cannot draw an enum or a seat editor without them. Decide when the panel is planned whether `list --json` gains both fields.
+- **The JSON is enough to draw every row.** `list --json` carries `type`, `choices` and `widget` for each setting. A panel can draw an enum from `choices`, the path list from `widget = "lines"` and a seat editor from `widget = "seats"`. The seat grammar and the role lists (`LIST_ROLES`, `CODEX_ROLES`) are not in the JSON. A panel that offers seat pickers copies them or sends free text and reads exit code 2.
 
 ## Not in this plan
 

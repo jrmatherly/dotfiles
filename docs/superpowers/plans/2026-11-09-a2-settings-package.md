@@ -10,18 +10,21 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-09-mise-first-setup-and-settings-ui.md`, phase "A2. The settings package". Phase A1 has landed before this plan starts.
 
+**Line numbers** are from commit `9af6244`. An earlier phase may have moved them, so find the quoted text with `grep -n` before editing.
+
 ## Global Constraints
 
 - Minimum mise version: 2026.11.5. The package fails with a clear message below it.
 - Python 3.11 or newer. Dependencies: `textual>=8.2,<9`, `textual-serve>=1.1,<2`. No others.
 - The core (registry, model, mise helper, adapters, CLI) imports nothing outside the standard library, so its tests run with plain `python3`.
 - The browser UI binds to `127.0.0.1` only, on a random free port, behind a per-run token in the URL.
-- Tests that isolate mise set `MISE_CONFIG_DIR` only. Never set `MISE_GLOBAL_CONFIG_FILE`: it turns override files off.
-- Names and signatures of `Setting`, `Value`, `Source`, `Adapter` and the CLI contract (subcommands, JSON fields, exit codes 0, 1, 2, 3) are the spec's. Five later plans add adapters against them.
+- Tests that isolate mise set `MISE_CONFIG_DIR` and `HOME` to temp dirs. `run_mise` runs mise from `$HOME`, so a test that kept the real `HOME` would let mise read whatever config sits under it. Never set `MISE_GLOBAL_CONFIG_FILE`: it turns override files off.
+- Names and signatures of `Setting`, `Value`, `Source`, `Adapter` and the CLI contract (subcommands, JSON fields, exit codes 0, 1, 2, 3) are the spec's, plus what the 2026-11-09 review settled: four optional registry fields, the `widget` field, `watch_paths`, and `write_note` as a string or a method. Five later plans add adapters against them. The Interfaces blocks below are the reference.
 - A `ro` setting rejects `set` and `reset` in the CLI, before any adapter runs.
 - Bash scripts start with `#!/bin/bash` and a tldr-style header, define their output helpers inline, and pass `pnpm check`. Each header line is one sentence on one line.
 - House Python style (`agents/catalog/stack.py`): small functions, an error class the CLI reports without a traceback, test files that are plain scripts with module-level asserts and a final `print("ok")`.
 - Commit subjects are short, imperative, sentence case, with no prefix. Every task ends with `pnpm check` passing.
+- A commit names each path it adds. No `git add -A`, no `git add .`, no bare directory. The working tree holds an unrelated uncommitted change to `agents/claude-settings.json` that must not enter any commit of this plan.
 
 ## Review Focus
 
@@ -61,7 +64,12 @@ Decisions the spec left open, fixed here:
 - **`default` means the consumer's own fallback.** No file applies a registry default for an env setting (spec D3), so `default` is non-empty only when the script that reads the variable falls back to that value itself. Otherwise it is `""` and an unset variable reads as `unset`.
 - **A bool set to false is written as the empty string.** `upup` tests `DOTFILES_TRIM_CA_ROOTS` with `-n` and `setup/misc.sh` tests `DOTFILES_SKIP_CODEGRAPH` with `= true`. An empty override reads as false for both and still beats a seed of `1`. A bool is shown as on when its value equals `true_value`.
 - **`apply <kind>`** calls an optional adapter method `apply(self, settings: list[Setting]) -> list[str]` and prints the returned lines. `EnvAdapter` has none, and the CLI prints `env: nothing to apply`.
-- **`write_note`** is an optional adapter class attribute. The CLI prints it to stderr and the TUI shows it after a successful write or reset.
+- **`write_note`** is optional on an adapter. It is either a string, or a method `write_note(self, s: Setting) -> str` for an adapter whose settings differ (A7's jstack roles edit a tracked file, its other settings do not). An empty string means no note. Callers never read the attribute themselves. They call `model.note_for(adapter, s)`, which handles a missing attribute, a string and a method. The note is shown with the write: once, right after a `set` or `reset` succeeds. The CLI prints it to stderr. The TUI shows it with `notify`. It is not shown before the write, there is no confirmation prompt, and a refused or failed write shows the error alone.
+- **Four registry fields are optional.** `true_value`, `choices`, `default` and `widget` default to `""`, `[]`, `""` and `""`. The other eight are required. `Setting` is a keyword-only dataclass, so every `Setting(...)` call names its fields and the field order cannot matter. `widget` is one of `""`, `"lines"`, `"seats"`. This plan defines the field, validates it and emits it in JSON. A7 gives the two non-empty values their behaviour, and until then the TUI draws every setting by its `type`.
+- **mise runs from `$HOME`.** `run_mise` passes `cwd=Path.home()`. Measured on mise 2026.11.5: from a folder holding an untrusted `mise.toml`, `mise set --override` exits 0 but `mise env --json` exits 1 with "not trusted". From `$HOME` both exit 0.
+- **Live refresh covers every file an adapter names.** An adapter may define `watch_paths(self) -> list[Path]`. The TUI polls the mtimes of the union across its adapters.
+- **The VS Code font preset has a file seed.** `bin/vscode-settings` falls back to the preset saved in `~/.config/dotfiles/vscode.env`, not to a shell export. For this one key, when the seed shell does not export it, `EnvAdapter` reads the seed from that file (`env.file_seed`). No registry field is added for it. Task 6 makes the script use an environment preset without saving it, so a reset in the UI hands the choice back to the saved file.
+- **`set`, `reset` and `apply` ask in Claude Code.** In this phase they only write the gitignored override file. From A3 on, `set` on a `macos-default` setting edits a tracked file and changes live preferences, and A5's `apply dotfile` creates links. A permission rule cannot tell kinds apart, so Task 3 adds `ask` rules for all three subcommands now, in the form the repo uses for `upup` and `set-defaults`. `list`, `get`, `tui` and `serve` do not ask.
 - **Registry entries left out on purpose:** `DOTFILES_MACOS_YES` and `DOTFILES_MACOS_NO` (deleted by A3), `DOTFILES_GIT_NAME`, `DOTFILES_GIT_EMAIL`, `DOTFILES_GIT_SIGN_METHOD`, `DOTFILES_GIT_SIGNINGKEY` (read once, only while `~/.gitconfig.local` is missing; A5 keeps them and moves the prompt that reads them into `setup/dotfiles-extras.sh`), `DOTFILES_SUDO_KEPT`, `DOTFILES_SETUP_LOG`, `DOTFILES_DIR` (internal), and `GHIDRA_INSTALL_DIR` (`bin/rea-mcp` overwrites it from the Homebrew keg at every launch, so an override has no effect).
 
 ---
@@ -86,10 +94,11 @@ class InvalidValue(SettingsError): ...       # CLI exit 2
 class Source(Enum):
     OVERRIDE = "override"; SEED = "seed"; DEFAULT = "default"; UNSET = "unset"
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Setting:
     id: str; section: str; label: str; help: str; kind: str; key: str
-    type: str; true_value: str; choices: tuple[str, ...]; default: str; access: str
+    type: str; access: str                                  # the eight required fields
+    true_value: str = ""; choices: tuple[str, ...] = (); default: str = ""; widget: str = ""
 
 @dataclass(frozen=True)
 class Value:
@@ -99,13 +108,23 @@ class Adapter(Protocol):
     def read(self, s: Setting) -> Value: ...
     def write(self, s: Setting, value: str) -> None: ...
     def reset(self, s: Setting) -> None: ...
+    # optional, looked up with getattr:
+    #   apply(self, settings: list[Setting]) -> list[str]
+    #   watch_paths(self) -> list[Path]
+    #   write_note: str, or write_note(self, s: Setting) -> str
+
+def note_for(adapter: object, s: Setting) -> str   # "" when the adapter has no note for s
 ```
+
+`write` receives a value the CLI has already normalized. A false bool arrives as `""` and a true bool as `s.true_value`, so every adapter accepts `""` as false.
 
 - Produces, in `registry.py`:
 
 ```python
 KINDS = ("env",)                      # later plans append their kind
 TYPES = ("bool", "string", "int", "enum", "path")
+WIDGETS = ("", "lines", "seats")      # A7 gives "lines" and "seats" their behaviour
+REQUIRED = ("id", "section", "label", "help", "kind", "key", "type", "access")
 def default_path() -> Path
 def load(path: Path | None = None) -> list[Setting]
 ```
@@ -136,7 +155,7 @@ packages = ["src/dotfiles_settings"]
 
 - [ ] **Step 2: Write `settings/registry.toml`**
 
-Every table carries all eleven fields. `true_value` is `""` unless `type = "bool"`. `choices` is `[]` unless `type = "enum"`.
+A table has eight required fields: `id`, `section`, `label`, `help`, `kind`, `key`, `type`, `access`. Four are optional: `true_value` (default `""`), `choices` (`[]`), `default` (`""`) and `widget` (`""`). A `bool` needs a `true_value` and an `enum` needs `choices`. The entries below write the first three optional fields out. A later plan may leave them off.
 
 ```toml
 [[setting]]
@@ -234,7 +253,7 @@ access = "rw"
 id = "apps.vscode_font_preset"
 section = "Apps"
 label = "VS Code font preset"
-help = "Beats the preset saved by vscode-settings --choose. Run vscode-settings afterwards to render settings.json."
+help = "Beats the preset saved by vscode-settings --choose, without replacing it. Reset goes back to the saved preset. Run vscode-settings in a new shell afterwards to render settings.json."
 kind = "env"
 key = "VSCODE_FONT_PRESET"
 type = "enum"
@@ -292,17 +311,21 @@ Add the telemetry opt-outs. Each is `section = "Privacy"`, `kind = "env"`, `type
 | `ASPIRE_DASHBOARD_TELEMETRY_OPTOUT` | Aspire dashboard |
 | `JFROG_CLI_REPORT_USAGE` | JFrog CLI |
 | `DISABLE_ERROR_REPORTING` | Claude Code error reports |
-| `HOMEBREW_NO_ANALYTICS` | Homebrew (A4 removes this entry with the export) |
+| `HOMEBREW_NO_ANALYTICS` | Homebrew |
+
+That makes 36 entries, all `kind = "env"`, 22 of them in `Privacy`. A4 deletes `privacy.homebrew_no_analytics` together with the export, and lowers the `Privacy` count in `test_registry.py` by one in the same commit.
 
 - [ ] **Step 3: Write the failing test `settings/tests/test_registry.py`**
 
-The file starts with `sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))`, as every test file in this plan does. A helper `bad(toml_text, needle)` writes the text to a temp file named `registry.toml` and asserts `registry.load(path)` raises `SettingsError` containing `needle`.
+The file starts with `sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))`, as every test file in this plan does. A helper `load_text(toml_text)` writes the text to a temp file named `registry.toml` and returns `registry.load(path)`. `bad(toml_text, needle)` asserts that `load_text` raises `SettingsError` containing `needle`. `table(**fields)` renders one valid string-typed table with id `a.b`, with the given fields replaced, and `table_without(*names)` leaves fields out.
+
+No assertion pins the total number of settings or the exact set of kinds. A3, A4, A5 and A7 append entries and test their own in their own files. The one count below, of `Privacy` entries, is the one this plan owns. It does not count `env` entries, because A3 and A7 add `env` entries of their own. A plan that adds or removes an `env` entry or a `Privacy` entry changes the number in the same commit: A4 removes one of each, and A7 adds the `env` entry `ui.claude_panel`.
 
 ```python
 settings = registry.load()
 ids = [s.id for s in settings]
-assert len(ids) == len(set(ids)) == 36
-assert {s.kind for s in settings} == {"env"}
+assert len(ids) == len(set(ids))                         # unique ids, no total: later plans append
+assert {s.kind for s in settings} <= set(registry.KINDS)
 by_id = {s.id: s for s in settings}
 assert by_id["updates.trim_ca_roots"].true_value == "1"
 assert by_id["apps.vscode_font_preset"].choices == ("iosevka", "warp", "warp-terminal", "fira")
@@ -324,7 +347,21 @@ bad(table(access="wo"), "a.b: access must be rw or ro")
 bad(table(key="lower case"), "a.b: env key must match [A-Z_][A-Z0-9_]*")
 bad(table(default="x", type="enum", choices=["y"]), "a.b: default 'x' is not one of the choices")
 bad(table_without("label"), "a.b: missing field 'label'")
+bad(table_without("access"), "a.b: missing field 'access'")
 bad(table(extra=1), "a.b: unknown field 'extra'")
+bad(table(widget="grid"), "a.b: unknown widget 'grid'")
+
+# a short entry: the four optional fields take their defaults
+short = load_text(table_without("true_value", "choices", "default"))[0]
+assert (short.true_value, short.choices, short.default, short.widget) == ("", (), "", "")
+assert load_text(table(widget="seats"))[0].widget == "seats"
+
+# write_note may be absent, a string or a method
+class Plain: write_note = "note"
+class PerSetting:
+    def write_note(self, s): return "tracked" if s.id == "a.b" else ""
+assert [model.note_for(a, short) for a in (object(), Plain(), PerSetting())] == ["", "note", "tracked"]
+assert model.note_for(PerSetting(), by_id["shell.editor"]) == ""
 bad(table(id="Bad Id"), "id must be dotted lowercase: 'Bad Id'")
 bad("not toml [", "registry.toml")           # the message names the file
 bad("", "no settings")
@@ -338,7 +375,7 @@ Expected: `ModuleNotFoundError: No module named 'dotfiles_settings'`
 
 - [ ] **Step 5: Implement `model.py` and `registry.py`**
 
-`default_path()` returns `$DOTFILES_SETTINGS_REGISTRY` when set, else `registry.toml` beside `registry.py` (installed wheel), else `Path(__file__).resolve().parents[2] / "registry.toml"` (source tree and editable install). `load` reports the first problem it finds as `SettingsError`, with the messages in Step 3. An id must match `[a-z0-9_]+(\.[a-z0-9_]+)+`. The `KINDS` check is the only place a kind is validated, so a later plan adds its kind to `KINDS` and its adapter to `ADAPTERS` together.
+`default_path()` returns `$DOTFILES_SETTINGS_REGISTRY` when set, else `registry.toml` beside `registry.py` (installed wheel), else `Path(__file__).resolve().parents[2] / "registry.toml"` (source tree and editable install). `load` reports the first problem it finds as `SettingsError`, with the messages in Step 3. A table missing any name in `REQUIRED` is `missing field`. A missing optional field takes its default. `widget` must be in `WIDGETS`. `Setting` objects are built by keyword. `note_for` is `note = getattr(adapter, "write_note", "")`, then `note(s)` when it is callable, else `note`. An id must match `[a-z0-9_]+(\.[a-z0-9_]+)+`. The `KINDS` check is the only place a kind is validated, so a later plan adds its kind to `KINDS` and its adapter to `ADAPTERS` together.
 
 - [ ] **Step 6: Run the test**
 
@@ -359,14 +396,34 @@ settings/dist/
 
 Prettier reads `.gitignore`, so `settings/.venv` needs no `.prettierignore` line. `__pycache__/` is already ignored.
 
-In `bin/lib/check`, after the two `agents/catalog` test lines, add a loop over `settings/tests/test_registry.py settings/tests/test_env.py settings/tests/test_cli.py` that runs each file that exists, through `mise exec python -- python3` when mise is present and plain `python3` otherwise, output to `/dev/null`. Later tasks create the other two files. Keep the comment style of the lines above it.
+In `bin/lib/check`, the catalog tests sit in an `if` that A1 changed to `if command -v mise > /dev/null && mise where python > /dev/null 2>&1; then`. CI has mise but no mise-installed Python, and `mise exec python` would download one there. Reuse that guard. Do not write a second one. Above the `if`, add the list:
+
+```bash
+# dotfiles-settings core tests (settings/): stdlib only, same Python as the catalog tests.
+# A listed file that is missing fails the gate.
+settings_tests=(settings/tests/test_registry.py)
+```
+
+Then add one line to each branch, after the catalog lines:
+
+```bash
+  for t in "${settings_tests[@]}"; do mise exec python -- python3 "$t" > /dev/null; done
+```
+
+```bash
+  for t in "${settings_tests[@]}"; do python3 "$t" > /dev/null; done
+```
+
+There is no `[ -f ]` test. `python3` exits 2 on a missing file and `set -e` stops the gate, so a deleted or renamed test cannot be skipped silently. Each later task and plan appends its core test to `settings_tests` in the commit that creates the file.
 
 - [ ] **Step 8: Verify and commit**
 
 Run: `pnpm check`. Expected: exit 0.
 
 ```bash
-git add settings .gitignore bin/lib/check
+git add settings/pyproject.toml settings/uv.lock settings/registry.toml \
+  settings/src/dotfiles_settings/__init__.py settings/src/dotfiles_settings/model.py \
+  settings/src/dotfiles_settings/registry.py settings/tests/test_registry.py .gitignore bin/lib/check
 git commit -m "Add the dotfiles-settings package with its registry"
 ```
 
@@ -378,6 +435,7 @@ git commit -m "Add the dotfiles-settings package with its registry"
 
 - Create: `settings/src/dotfiles_settings/mise.py`, `adapters/__init__.py`, `adapters/env.py`
 - Test: `settings/tests/test_env.py`
+- Modify: `bin/lib/check` (append the test to `settings_tests`)
 
 **Interfaces:**
 
@@ -386,7 +444,7 @@ git commit -m "Add the dotfiles-settings package with its registry"
 
 ```python
 FLOOR = (2026, 11, 5)
-def run_mise(args: list[str], stdin: str | None = None) -> str   # stdout; SettingsError on failure
+def run_mise(args: list[str], stdin: str | None = None) -> str   # stdout; runs from $HOME; SettingsError on failure
 def config_dir() -> Path          # $MISE_CONFIG_DIR, else ~/.config/mise
 def check_version() -> None       # SettingsError below FLOOR or when mise is missing
 ```
@@ -397,11 +455,14 @@ def check_version() -> None       # SettingsError below FLOOR or when mise is mi
 def override_path() -> Path                     # config_dir() / "config.override.toml"
 def read_override() -> dict[str, str]           # the file's [env] table, {} when the file is absent
 def seed_env(keys: set[str]) -> dict[str, str]  # what a new interactive shell exports, overrides excluded
+def vscode_env_path() -> Path                   # $VSCODE_SETTINGS_ENV, else ~/.config/dotfiles/vscode.env
+def file_seed(key: str) -> str | None           # VSCODE_FONT_PRESET from vscode_env_path(); None for any other key
 class EnvAdapter:
     write_note = "Open a new shell to pick this up."
     def read(self, s: Setting) -> Value
     def write(self, s: Setting, value: str) -> None
     def reset(self, s: Setting) -> None
+    def watch_paths(self) -> list[Path]         # [override_path(), vscode_env_path()]
 ```
 
 - Produces, in `adapters/__init__.py`: `ADAPTERS: dict[str, Adapter] = {"env": EnvAdapter()}`. It holds instances.
@@ -421,8 +482,9 @@ A consequence to state in the README: a variable exported by hand in one termina
 
 | Condition | `source` | `value` | `seed` |
 | --- | --- | --- | --- |
-| key in `read_override()` | `OVERRIDE` | the override string | seed shell value, else `default` if non-empty, else `None` |
+| key in `read_override()` | `OVERRIDE` | the override string | seed shell value, else `file_seed(key)`, else `default` if non-empty, else `None` |
 | key in the seed shell | `SEED` | the seed value | same as value |
+| `file_seed(key)` is not `None` | `SEED` | the file's value | same as value |
 | `default != ""` | `DEFAULT` | `default` | same as value |
 | otherwise | `UNSET` | `None` | `None` |
 
@@ -432,11 +494,13 @@ For `type = "path"`, a `default` is passed through `os.path.expanduser`. `drift`
 
 `read_override` raises `SettingsError(f"{path}: {error}")` on `tomllib.TOMLDecodeError`, and ignores `[env]` entries whose value is not a string.
 
-`run_mise` runs `os.environ.get("DOTFILES_SETTINGS_MISE", "mise")`. `FileNotFoundError` becomes `SettingsError("dotfiles-settings needs mise 2026.11.5 or newer, and mise is not on PATH")`. `check_version` parses the first whitespace-separated token of `mise --version` (output on this Mac: `2026.11.5 macos-arm64 (2026-11-08)`) into a tuple of ints and raises `SettingsError(f"dotfiles-settings needs mise 2026.11.5 or newer, found {token}")` below `FLOOR`.
+**The file seed.** `file_seed("VSCODE_FONT_PRESET")` returns the text after `=` on the `VSCODE_FONT_PRESET=` line of `vscode_env_path()`, with one pair of surrounding quotes removed. It returns `None` when the file or the line is missing, and for every other key. It reads the file on each call, so a `vscode-settings --choose` run shows up on the next poll. The path honours `VSCODE_SETTINGS_ENV` because `bin/vscode-settings` does. Without this, a user who saved `warp` would see `iosevka, default` while VS Code renders `warp`.
+
+`run_mise` runs `os.environ.get("DOTFILES_SETTINGS_MISE", "mise")` with `cwd=Path.home()`, so the folder the UI was started in never decides whether mise works. A non-zero exit becomes `SettingsError` carrying mise's stderr. `FileNotFoundError` becomes `SettingsError("dotfiles-settings needs mise 2026.11.5 or newer, and mise is not on PATH")`. `check_version` parses the first whitespace-separated token of `mise --version` (output on this Mac: `2026.11.5 macos-arm64 (2026-11-08)`) into a tuple of ints and raises `SettingsError(f"dotfiles-settings needs mise 2026.11.5 or newer, found {token}")` below `FLOOR`.
 
 - [ ] **Step 1: Write the failing test `settings/tests/test_env.py`**
 
-The test sets `MISE_CONFIG_DIR` to a temp dir and `os.chdir`s to another temp dir before importing the package. It builds `Setting` objects by hand with a helper `S(key, type="string", default="", true_value="")`, whose `id` is `key.lower()`. Part one stubs `env.seed_env` and uses real mise. It runs only when `shutil.which("mise")` finds mise, and prints `skipped: mise not found` otherwise. Part two needs no mise.
+The test sets `MISE_CONFIG_DIR` and `HOME` to two temp dirs and `os.chdir`s to a third before importing the package. It writes `mise.toml` with `[env]` and `T_PROJECT = "x"` into that third dir and never trusts it, so every mise call in the test is made from a folder holding an untrusted config. It points `VSCODE_SETTINGS_ENV` at a path in the temp tree that does not exist yet. It builds `Setting` objects by hand with a helper `S(key, type="string", default="", true_value="")`, whose `id` is `key.lower()`. Part one stubs `env.seed_env` and uses real mise. It runs only when `shutil.which("mise")` finds mise, and prints `skipped: mise not found` otherwise. Part two needs no mise.
 
 ```python
 # part one: real mise, stubbed seed shell
@@ -445,6 +509,10 @@ a = env.EnvAdapter()
 assert a.read(S("T_NONE")) == Value("t_none", None, Source.UNSET, None, False)
 assert a.read(S("T_DEF", default="10")) == Value("t_def", "10", Source.DEFAULT, "10", False)
 assert a.read(S("T_SEEDED")).source is Source.SEED
+
+# run_mise runs from $HOME: the untrusted mise.toml in the cwd is never read.
+# Measured without cwd=Path.home(): `mise env --json` exits 1 here with "not trusted".
+assert "T_PROJECT" not in json.loads(mise.run_mise(["env", "--json"]))
 
 for raw in ("hello world", "a=b=c", "it's \"q\" \\ back", "`id` ; rm -rf / | #c", "--help -x", "café ☕", ""):
     a.write(S("T_VAL"), raw)
@@ -461,6 +529,18 @@ assert a.read(S("T_LOCAL")) == Value("t_local", "ui", Source.OVERRIDE, "from-zsh
 a.reset(S("T_LOCAL"))
 assert a.read(S("T_LOCAL")) == Value("t_local", "from-zsh-local", Source.SEED, "from-zsh-local", False)
 a.reset(S("T_LOCAL"))                             # resetting twice is fine
+
+# the VS Code preset: the saved file is the seed when no shell exports the key
+P = S("VSCODE_FONT_PRESET", default="iosevka")
+assert a.read(P) == Value("vscode_font_preset", "iosevka", Source.DEFAULT, "iosevka", False)
+env.vscode_env_path().write_text("VSCODE_FONT_PRESET=warp\n")
+assert a.read(P) == Value("vscode_font_preset", "warp", Source.SEED, "warp", False)
+a.write(P, "fira")
+assert a.read(P) == Value("vscode_font_preset", "fira", Source.OVERRIDE, "warp", False)
+a.reset(P)
+assert a.read(P).value == "warp"
+assert env.file_seed("T_VAL") is None
+assert a.watch_paths() == [env.override_path(), env.vscode_env_path()]
 
 # a second writer between our write and our re-read is reported
 real = mise.run_mise
@@ -517,10 +597,13 @@ Expected: `ok`, and A1's self-check still passes.
 
 - [ ] **Step 6: Verify and commit**
 
+In `bin/lib/check`, append `settings/tests/test_env.py` to `settings_tests`.
+
 Run: `pnpm check`. Expected: exit 0.
 
 ```bash
-git add settings
+git add settings/src/dotfiles_settings/mise.py settings/src/dotfiles_settings/adapters/__init__.py \
+  settings/src/dotfiles_settings/adapters/env.py settings/tests/test_env.py bin/lib/check
 git commit -m "Read and write env settings through mise's override file"
 ```
 
@@ -532,10 +615,11 @@ git commit -m "Read and write env settings through mise's override file"
 
 - Create: `settings/src/dotfiles_settings/cli.py`, `__main__.py`, `bin/dotfiles-settings`
 - Test: `settings/tests/test_cli.py`
+- Modify: `bin/lib/check` (append the test to `settings_tests`), `.claude/settings.json` (the `ask` list), `bin/lib/test-conventions` (the assertion after the `upup` and `set-defaults` loop near line 120, and the header comment)
 
 **Interfaces:**
 
-- Consumes: `registry.load`, `ADAPTERS`, `mise.check_version`, the model.
+- Consumes: `registry.load`, `ADAPTERS`, `mise.check_version`, `model.note_for`, the model.
 - Produces:
 
 ```python
@@ -550,13 +634,17 @@ def main(argv: list[str] | None = None) -> None # raises SystemExit with the con
 | --- | --- | --- |
 | `list [--section S] [--json]` | JSON array, or one `id<TAB>value<TAB>source` line per setting | 0 |
 | `get <id> [--json]` | JSON object, or the value alone (empty line when unset) | 0, or 2 for an unknown id |
-| `set <id> <value>` | nothing on stdout, `write_note` on stderr | 0, 2 unknown id or invalid value, 3 read-only |
-| `reset <id>` | nothing on stdout, `write_note` on stderr | 0, 2 unknown id, 3 read-only |
+| `set <id> <value>` | nothing on stdout, the note on stderr | 0, 2 unknown id or invalid value, 3 read-only |
+| `reset <id>` | nothing on stdout, the note on stderr | 0, 2 unknown id, 3 read-only |
 | `apply <kind>` | the adapter's lines, or `<kind>: nothing to apply` | 0, 2 unknown kind |
 | `tui` | runs `tui.run()` | 0 |
 | `serve [--no-open]` | runs `serve.run(open_browser)` | 0 |
 
-A JSON object has exactly these keys: `setting_id`, `value`, `source`, `seed`, `drift`, `label`, `section`, `type`, `access`. `source` is the lowercase enum value. `value` and `seed` are strings or `null`.
+A JSON object has exactly these eleven keys: `setting_id`, `value`, `source`, `seed`, `drift`, `label`, `section`, `type`, `choices`, `widget`, `access`. `source` is the lowercase enum value. `value` and `seed` are strings or `null`. `choices` is an array of strings, empty unless the type is `enum`. `widget` is `""`, `"lines"` or `"seats"`.
+
+The note is `model.note_for(adapter, s)`. It is printed to stderr once, after the adapter's `write` or `reset` returned, and only when it is not empty. A failed or refused command prints its error and no note.
+
+`set` passes the adapter the value `normalize` returned. For a bool that is the setting's `true_value` for true and `""` for false, whatever word the user typed. An adapter never sees `on`, `off`, `true` or `false` from the CLI or the TUI. A test of a bool in a later plan goes through `cli.normalize`, not straight to an adapter's converter.
 
 `main` calls `mise.check_version()` first for every subcommand. Any `InvalidValue` exits 2, any other `SettingsError` exits 1, each printing `dotfiles-settings: <message>` to stderr with no traceback. A `ro` setting exits 3 with `dotfiles-settings: <id> is read-only` before `normalize` or any adapter runs. argparse's own usage errors already exit 2. `--section` matches the section name case-insensitively, and an unknown section exits 2.
 
@@ -572,20 +660,22 @@ A JSON object has exactly these keys: `setting_id`, `value`, `source`, `seed`, `
 
 - [ ] **Step 1: Write the failing test `settings/tests/test_cli.py`**
 
-The test sets `MISE_CONFIG_DIR` and the cwd to temp dirs, points `DOTFILES_SETTINGS_REGISTRY` at a five-entry fixture registry (`t.flag` bool with `true_value = "1"`, `t.count` int with `default = "10"`, `t.pick` enum of `a`/`b`, `t.dir` path, `t.locked` string `ro`), and stubs `env.seed_env = lambda keys: {"T_LOCKED": "1"}`. `run(*argv)` calls `cli.main(list(argv))` with stdout and stderr captured and returns `(code, out, err)`. The mise-backed part is skipped when mise is not found, as in Task 2.
+The test sets `MISE_CONFIG_DIR`, `HOME` and the cwd to temp dirs, points `DOTFILES_SETTINGS_REGISTRY` at a five-entry fixture registry (`t.flag` bool with `true_value = "1"`, `t.count` int with `default = "10"`, `t.pick` enum of `a`/`b`, `t.dir` path, `t.locked` string `ro`), and stubs `env.seed_env = lambda keys: {"T_LOCKED": "1"}`. `run(*argv)` calls `cli.main(list(argv))` with stdout and stderr captured and returns `(code, out, err)`. The mise-backed part is skipped when mise is not found, as in Task 2.
 
 ```python
 code, out, _ = run("list", "--json")
 rows = json.loads(out)
 assert code == 0 and [r["setting_id"] for r in rows] == ["t.flag", "t.count", "t.pick", "t.dir", "t.locked"]
-assert set(rows[0]) == {"setting_id", "value", "source", "seed", "drift", "label", "section", "type", "access"}
+assert set(rows[0]) == {"setting_id", "value", "source", "seed", "drift", "label", "section", "type",
+                        "choices", "widget", "access"}
+assert rows[2]["choices"] == ["a", "b"] and rows[0]["choices"] == [] and rows[0]["widget"] == ""
 assert rows[1]["value"] == "10" and rows[1]["source"] == "default"
 assert rows[0]["value"] is None and rows[0]["source"] == "unset"
 
 assert run("set", "t.flag", "on")[0] == 0
 assert json.loads(run("get", "t.flag", "--json")[1]) == {
     "setting_id": "t.flag", "value": "1", "source": "override", "seed": None, "drift": False,
-    "label": "Flag", "section": "One", "type": "bool", "access": "rw"}
+    "label": "Flag", "section": "One", "type": "bool", "choices": [], "widget": "", "access": "rw"}
 assert run("set", "t.flag", "off")[0] == 0 and run("get", "t.flag")[1] == "\n"
 code, _, err = run("reset", "t.flag")
 assert code == 0 and "Open a new shell" in err
@@ -678,7 +768,7 @@ fi
 exec uv run --quiet --locked --project "$DOTFILES_DIR/settings" dotfiles-settings "$@"
 ```
 
-Then `chmod +x bin/dotfiles-settings`. `--project` does not change the working directory. The first run creates `settings/.venv` and downloads the dependencies.
+Then `chmod +x bin/dotfiles-settings`. `--project` does not change the working directory, which is why `run_mise` sets its own. The first run creates `settings/.venv` (gitignored in Task 1) and downloads the dependencies, so it needs the network and takes several seconds. Later runs take the times below.
 
 Launcher choice, measured on this Mac with the same wrapper around each command (three runs each): `uv run --project` 101 to 113 ms, the venv's console script directly 57 ms, a plain `python3 -m` of a stdlib-only module 55 ms. `uv run` costs about 45 ms and is the one that cannot drift from the clone.
 
@@ -688,17 +778,54 @@ Run: `mise exec python -- python3 settings/tests/test_cli.py`
 Expected: `ok`
 
 Run: `bin/dotfiles-settings list | head -3`
-Expected: three tab-separated lines, the first starting `updates.trim_ca_roots`.
+Expected: three tab-separated lines, the first starting `updates.trim_ca_roots`. This is the first run, so uv creates `settings/.venv` and downloads the dependencies before the lines appear.
+
+Run: `cd "$(mktemp -d)" && printf '[env]\nX = "1"\n' > mise.toml && "$OLDPWD/bin/dotfiles-settings" list | head -1; cd "$OLDPWD"`
+Expected: the same first line. The folder holds an untrusted `mise.toml` and the command still works.
 
 Run: `help dotfiles-settings`
 Expected: the header renders as a tldr page with no error.
 
-- [ ] **Step 6: Verify and commit**
+- [ ] **Step 6: Make `set`, `reset` and `apply` ask in Claude Code**
+
+This step edits the project's tracked permission file. Show the user the diff before committing it.
+
+In `.claude/settings.json`, append to `permissions.ask`, after the `upup` rules, six rules for each of `set`, `reset` and `apply`. For `set`:
+
+```json
+"Bash(dotfiles-settings set *)",
+"Bash(bin/dotfiles-settings set*)",
+"Bash(./bin/dotfiles-settings set*)",
+"Bash(*/bin/dotfiles-settings set*)",
+"Bash(bash bin/dotfiles-settings set*)",
+"Bash(sh bin/dotfiles-settings set*)"
+```
+
+In `bin/lib/test-conventions`, after the loop that asserts the `upup` and `set-defaults` rules, add:
+
+```bash
+# dotfiles-settings set, reset and apply change settings, for some kinds a
+# tracked file and live preferences: every way to start them asks
+for sub in set reset apply; do
+  s="dotfiles-settings $sub"
+  rules .claude/settings.json ask present "Bash($s *)" "Bash(bin/$s*)" "Bash(./bin/$s*)" "Bash(*/bin/$s*)" \
+    "Bash(bash bin/$s*)" "Bash(sh bin/$s*)"
+done
+```
+
+Add the clause to the list in that file's header comment. The rtk probe further down reads every ask rule without a `/`, so it now probes `dotfiles-settings set x`, `reset x` and `apply x`. Checked against the tracked `rtk/config.toml` in a scratch HOME: `rtk rewrite` returns nothing for all three, so no `rtk/config.toml` entry is needed. A call spelled `uv run --project settings dotfiles-settings set ...` is not covered by these rules.
+
+Run: `bash bin/lib/test-conventions`. Expected: exit 0. Remove one of the new rules, run it again, expect `.claude/settings.json ask: ... should be present`, then put the rule back.
+
+- [ ] **Step 7: Verify and commit**
+
+In `bin/lib/check`, append `settings/tests/test_cli.py` to `settings_tests`.
 
 Run: `pnpm check`. Expected: exit 0. The shebang scan in `bin/lib/check` picks the launcher up for `bash -n` and shellcheck.
 
 ```bash
-git add settings bin/dotfiles-settings
+git add settings/src/dotfiles_settings/cli.py settings/src/dotfiles_settings/__main__.py \
+  settings/tests/test_cli.py bin/dotfiles-settings bin/lib/check .claude/settings.json bin/lib/test-conventions
 git commit -m "Add the dotfiles-settings CLI and its launcher"
 ```
 
@@ -714,7 +841,7 @@ git commit -m "Add the dotfiles-settings CLI and its launcher"
 
 **Interfaces:**
 
-- Consumes: `registry.load`, `ADAPTERS`, `cli.normalize`, `env.override_path`.
+- Consumes: `registry.load`, `ADAPTERS`, `cli.normalize`, `model.note_for`, each adapter's optional `watch_paths`.
 - Produces:
 
 ```python
@@ -724,21 +851,23 @@ class SettingsApp(App):
 def run() -> None            # SettingsApp().run()
 ```
 
+`None` for `settings` means `registry.load()`, and `None` for `adapters` means the real `ADAPTERS`. An empty list or dict means empty and is used as given. The constructor tests `is None`, never truthiness, so a test that passes `[]` or `{}` cannot be handed the real registry.
+
 **Layout and behaviour.** Checked against Textual 8.2.8.
 
 - A `ListView` with id `sections` on the left, one `ListItem` per section in registry order. Highlighting a section shows its rows in a `VerticalScroll` with id `rows`. A `Footer` shows the bindings.
 - A row is the label, the widget, a `Static` marker and the help text. With `slug = s.id.replace(".", "-")`, the ids are `w-<slug>` for the widget, `m-<slug>` for the marker and `r-<slug>` for the reset `Button`.
-- `widget_for`: `bool` gives `Switch(value=v.value == s.true_value)`, `enum` gives `Select([(c, c) for c in s.choices], allow_blank=True)` with the current value selected when it is a choice, `int` gives `Input(type="integer")`, `string` and `path` give `Input`. `access == "ro"` sets `disabled=True` and the row gets no reset button.
+- `widget_for`: `bool` gives `Switch(value=v.value == s.true_value)`, `enum` gives `Select([(c, c) for c in s.choices], allow_blank=True)` with the current value selected when it is a choice (an empty `Select` reads `Select.NULL` on 8.2.8), `int` gives `Input(type="integer")`, `string` and `path` give `Input`. `access == "ro"` sets `disabled=True` and the row gets no reset button.
 - The marker text is `override` with the class `-override` when `v.source is Source.OVERRIDE`, and the lowercase source name otherwise. On an overridden row the marker is followed by `seed: <seed>` (or `seed: unset`) and the reset button.
-- A change is committed on `Switch.Changed`, `Select.Changed` and `Input.Submitted` (Enter). The handler passes the widget's value through `cli.normalize` and calls the adapter's `write`. It does nothing when the normalized value equals the row's current value. That check is required: `Select.Changed` fires once on mount with the initial value.
+- A change is committed on `Switch.Changed`, `Select.Changed` and `Input.Submitted` (Enter). The handler passes the widget's value through `cli.normalize` and calls the adapter's `write`. A `Switch` is passed as `"on"` or `"off"`, so the adapter receives `true_value` or `""`, the same as from the CLI. It does nothing when the normalized value equals the row's current value. That check is required: `Select.Changed` fires once on mount with the initial value, and a redraw that sets a widget's value fires its `Changed` event too (both measured on 8.2.8).
 - Reset is the row's button and the binding `ctrl+r` on the focused row. A plain `r` would be typed into an `Input`.
-- After a write or reset the row is re-read and redrawn, and the adapter's `write_note`, when it has one, is shown with `self.notify(note)`. A `SettingsError` is shown with `self.notify(str(error), severity="error")` and the row is redrawn from a fresh read, so a refused value does not stay on screen.
-- `set_interval(2.0, ...)` re-reads every value when the mtime of `env.override_path()` has changed (or the file appeared or vanished). This is how a change from a second UI or a hand edit shows up.
+- After a write or reset succeeds, the row is re-read and redrawn, and `model.note_for(adapter, s)`, when not empty, is shown with `self.notify(note)`. Nothing is shown before the write. A `SettingsError` is shown with `self.notify(str(error), severity="error")` and the row is redrawn from a fresh read, so a refused value does not stay on screen.
+- `set_interval(2.0, ...)` re-reads every value when any watched file's mtime has changed (or a file appeared or vanished). The watched files are the union of `watch_paths()` over the app's adapters that define it. This is how a change from a second UI, a hand edit or another tool shows up.
 - When a read raises `SettingsError`, a `Static` with id `error` shows the message, every row widget is disabled, and the next successful poll clears both.
 
 - [ ] **Step 1: Write the failing test `settings/tests/test_tui.py`**
 
-The test builds a `FakeAdapter` holding a dict of overrides and a dict of seeds, with the spec's three methods, a `write_note = "noted"`, a `fail: str | None` that makes `read` raise `SettingsError(fail)`, and a `writes` list. Settings: `t.flag` (bool, `true_value="1"`), `t.name` (string, seed `"seeded"`), `t.pick` (enum `a`/`b`), `t.locked` (string, `ro`), all in section `One`, and `u.other` in section `Two`.
+The test builds a `FakeAdapter` holding a dict of overrides and a dict of seeds, with the spec's three methods, a `write_note = "noted"`, a `watch_paths()` that returns one temp file, a `touch()` that rewrites that file, a `fail: str | None` that makes `read` raise `SettingsError(fail)`, a `refuse: str | None` that makes `write` raise `SettingsError(refuse)`, and a `writes` list. Settings: `t.flag` (bool, `true_value="1"`), `t.name` (string, seed `"seeded"`), `t.pick` (enum `a`/`b`), `t.locked` (string, `ro`), all in section `One`, and `u.other` in section `Two`.
 
 ```python
 async def main():
@@ -746,18 +875,18 @@ async def main():
     app = SettingsApp(SETTINGS, {"env": fake})
     async with app.run_test(size=(120, 40), notifications=True) as pilot:
         await pilot.pause()
-        assert [str(i.query_one(Label).renderable) for i in app.query_one("#sections", ListView).children] == ["One", "Two"]
+        assert [str(i.query_one(Label).content) for i in app.query_one("#sections", ListView).children] == ["One", "Two"]
         assert isinstance(app.query_one("#w-t-flag"), Switch)
         assert isinstance(app.query_one("#w-t-pick"), Select)
         assert isinstance(app.query_one("#w-t-name"), Input) and app.query_one("#w-t-name", Input).value == "seeded"
         assert app.query_one("#w-t-locked").disabled and not app.query("#r-t-locked")
         assert fake.writes == []                               # mounting wrote nothing
-        assert "seed" in str(app.query_one("#m-t-name", Static).renderable)
+        assert "seed" in str(app.query_one("#m-t-name", Static).content)
 
         app.query_one("#w-t-flag").focus(); await pilot.press("enter"); await pilot.pause()
         assert fake.writes == [("T_FLAG", "1")]
         assert app.query_one("#m-t-flag").has_class("-override")
-        assert "override" in str(app.query_one("#m-t-flag", Static).renderable)
+        assert "override" in str(app.query_one("#m-t-flag", Static).content)
         assert any("noted" in str(n.message) for n in app._notifications)
 
         await pilot.press("ctrl+r"); await pilot.pause()        # reset the focused row
@@ -783,16 +912,23 @@ async def main():
 
         fake.fail = "config.override.toml: bad"; fake.touch()   # hand-edited to invalid TOML
         await pilot.pause(2.5)
-        assert "config.override.toml" in str(app.query_one("#error", Static).renderable)
+        assert "config.override.toml" in str(app.query_one("#error", Static).content)
         assert app.query_one("#w-t-flag").disabled
         fake.fail = None; fake.touch()
         await pilot.pause(2.5)
         assert not app.query("#error") and not app.query_one("#w-t-flag").disabled
+
+    empty = SettingsApp([], {})                                 # empty means empty, not "load the real ones"
+    async with empty.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        assert not empty.query("#sections ListItem")
 asyncio.run(main())
 print("ok")
 ```
 
-`fake.touch()` rewrites a temp file that the test has made `env.override_path` return, so the poll sees a new mtime.
+`fake.touch()` rewrites the temp file `fake.watch_paths()` returns, so the poll sees a new mtime. The test does not patch `env.override_path`.
+
+Attribute names checked on Textual 8.2.8 with a scratch app: `Static("hello").renderable` raises `AttributeError` and `.content` returns `hello` (a `Label` is a `Static`). `App._notifications` holds objects with `.message` and `.severity`, and `severity` is `"error"` after `notify(..., severity="error")`. `Enter` on a focused `Switch` toggles it. `ctrl+r` reaches an app binding while an `Input` has focus. An empty `query()` is falsy.
 
 - [ ] **Step 2: Run it to see it fail**
 
@@ -810,14 +946,14 @@ Run: `bin/dotfiles-settings tui`, change `updates.slow_step_seconds` to 5, confi
 
 - [ ] **Step 5: Wire into the gate**
 
-In `bin/lib/check`, after the loop from Task 1, add a block guarded by `command -v uv` that runs `uv run --quiet --locked --project settings python settings/tests/test_tui.py > /dev/null`, and the same for `test_serve.py` once Task 5 creates it (guard each with `[ -f ]`). Without uv, print `check: uv not found, skipping the dotfiles-settings UI tests` to stderr, as the minijinja block does.
+In `bin/lib/check`, after the loop from Task 1, add a block guarded by `command -v uv` that runs `uv run --quiet --locked --project settings python settings/tests/test_tui.py > /dev/null`. Task 5 adds the line for `test_serve.py`. No `[ -f ]` guard: a listed file that is missing fails the gate. Without uv, print `check: uv not found, skipping the dotfiles-settings UI tests` to stderr, as the minijinja block does.
 
 - [ ] **Step 6: Verify and commit**
 
 Run: `pnpm check`. Expected: exit 0.
 
 ```bash
-git add settings bin/lib/check
+git add settings/src/dotfiles_settings/tui.py settings/tests/test_tui.py bin/lib/check
 git commit -m "Add the dotfiles-settings terminal UI"
 ```
 
@@ -829,6 +965,7 @@ git commit -m "Add the dotfiles-settings terminal UI"
 
 - Create: `settings/src/dotfiles_settings/serve.py`
 - Test: `settings/tests/test_serve.py`
+- Modify: `bin/lib/check` (one line in the uv block from Task 4)
 
 **Interfaces:**
 
@@ -919,10 +1056,12 @@ Run: `bin/dotfiles-settings serve`. Expected: a browser tab opens showing the sa
 
 - [ ] **Step 5: Verify and commit**
 
+In `bin/lib/check`, in the uv block from Task 4, add the same `uv run` line for `settings/tests/test_serve.py`.
+
 Run: `pnpm check`. Expected: exit 0, and it now runs `test_serve.py`.
 
 ```bash
-git add settings
+git add settings/src/dotfiles_settings/serve.py settings/tests/test_serve.py bin/lib/check
 git commit -m "Serve the settings UI to a browser behind a token and an Origin check"
 ```
 
@@ -930,21 +1069,31 @@ git commit -m "Serve the settings UI to a browser behind a token and an Origin c
 
 ### Task 6: Make `vscode-settings` honour `VSCODE_FONT_PRESET`
 
-`bin/vscode-settings` reads the preset only from `~/.config/dotfiles/vscode.env` (line 73). An environment value is ignored today, so the registry entry would change nothing. After this task the order is: `--preset` flag, then `VSCODE_FONT_PRESET` from the environment, then the saved file, then `iosevka`.
+`bin/vscode-settings` reads the preset from `~/.config/dotfiles/vscode.env` (line 73) and saves whatever it rendered back to that file (line 141). An environment value reaches it today only by accident, when the file exists without the line. So the registry entry would change nothing. After this task the order is: `--preset` or `--choose`, then `VSCODE_FONT_PRESET` from the environment, then the saved file, then `iosevka`.
+
+A preset that came from the environment is used but never saved. If it were saved, a reset in the UI would remove the override while `vscode.env` still held its value, and VS Code would keep the preset the user had just reset. With this rule the saved file only ever holds a choice made with `--preset` or `--choose`, and it is the seed the UI shows (`env.file_seed`, Task 2).
 
 **Files:**
 
-- Modify: `bin/vscode-settings` (the `saved=` block near line 71, and the header)
+- Modify: `bin/vscode-settings` (the `saved=` block near line 71, the `preset=` line near line 97, the save near line 141, and the header)
+- Modify: `vscode/README.md:24`
 - Test: `vscode/test-vscode-settings.sh`
 
 **Interfaces:**
 
 - Consumes: nothing from earlier tasks.
-- Produces: the behaviour `apps.vscode_font_preset` documents.
+- Produces: the behaviour `apps.vscode_font_preset` documents, and the saved file `env.file_seed` reads.
 
 - [ ] **Step 1: Add the failing checks to `vscode/test-vscode-settings.sh`**
 
-Follow the file's existing `check "<name>" "<command>"` form and its fixture variables. Add three cases after "saves the choice": with the saved file holding `warp`, a run with `VSCODE_FONT_PRESET=fira` in the environment renders `fira` and saves `VSCODE_FONT_PRESET=fira`. A run with `VSCODE_FONT_PRESET=fira` and `--preset iosevka` renders `iosevka`. A run with `VSCODE_FONT_PRESET=nope` exits non-zero and leaves `settings.json` unchanged.
+Follow the file's existing `check "<name>" "<command>"` form and its fixture variables. Add these cases after "reuses the saved choice", where the saved file holds `warp`:
+
+1. A run with `VSCODE_FONT_PRESET=fira` in the environment renders `fira`, and the saved file still holds `VSCODE_FONT_PRESET=warp`.
+2. The next run with no variable renders `warp` again. This is the reset path.
+3. A run with `VSCODE_FONT_PRESET=fira` and `--preset iosevka` renders `iosevka` and saves `VSCODE_FONT_PRESET=iosevka`. Run `--preset warp` afterwards so the checks that follow see the state they expect.
+4. A run with `VSCODE_FONT_PRESET=nope` exits non-zero and leaves `settings.json` and the saved file unchanged.
+
+The test must not inherit a preset from the shell that runs it: add `unset VSCODE_FONT_PRESET` beside the file's `export VSCODE_SETTINGS_DIR=...` line.
 
 - [ ] **Step 2: Run it to see it fail**
 
@@ -953,15 +1102,21 @@ Expected: the first new check fails.
 
 - [ ] **Step 3: Change `bin/vscode-settings`**
 
-Capture the environment's value before the saved file is sourced, and let it replace `saved` when non-empty. Add one header line under the `--preset` example: ``# - Render the preset named by the environment (dotfiles-settings sets `VSCODE_FONT_PRESET`):`` with the command `` `VSCODE_FONT_PRESET={{fira}} vscode-settings` ``.
+Capture the environment's value in a variable before the saved file is sourced. In the `preset=${preset:-${saved:-iosevka}}` line, put it between the flag and `saved`. Write `vscode.env` at the end only when the preset did not come from the environment, that is when `--preset` or `--choose` set it or the environment's value was empty. Add one header line under the `--preset` example: ``# - Render the preset named by the environment, without saving it (dotfiles-settings sets `VSCODE_FONT_PRESET`):`` with the command `` `VSCODE_FONT_PRESET={{fira}} vscode-settings` ``.
 
-- [ ] **Step 4: Verify and commit**
+- [ ] **Step 4: Update `vscode/README.md:24`**
+
+Current: "`vscode/presets.toml` defines the font presets; `vscode-settings --choose` (also offered during setup) picks one, saves it in `~/.config/dotfiles/vscode.env`, and renders:"
+
+Add one sentence after the table that follows it: "`VSCODE_FONT_PRESET` in the environment, which `dotfiles-settings set apps.vscode_font_preset` sets for new shells, beats the saved preset for that render and is not saved. `--preset` and `--choose` beat both."
+
+- [ ] **Step 5: Verify and commit**
 
 Run: `bash vscode/test-vscode-settings.sh && help vscode-settings > /dev/null && pnpm check`
 Expected: exit 0.
 
 ```bash
-git add bin/vscode-settings vscode/test-vscode-settings.sh
+git add bin/vscode-settings vscode/test-vscode-settings.sh vscode/README.md
 git commit -m "Let VSCODE_FONT_PRESET in the environment pick the VS Code font preset"
 ```
 
@@ -972,7 +1127,7 @@ git commit -m "Let VSCODE_FONT_PRESET in the environment pick the VS Code font p
 **Files:**
 
 - Create: `settings/README.md`
-- Modify: `docs/README.md`, `README.md`, `bin/upup` (header lines 6 and 7, the notice text near line 393), `bin/ca-roots` (the message near line 107), `CLAUDE.md` (the Architecture block)
+- Modify: `docs/README.md`, `README.md`, `bin/upup` (header lines 6 and 7, the comment near line 274, the notice text near line 393), `bin/ca-roots` (the message near line 107), `bin/lib/test-ca-roots` (the assertion near line 108 that quotes that message), `.claude/rules/telemetry-sync.md`, `CLAUDE.md` (the Architecture block)
 
 **Interfaces:**
 
@@ -985,14 +1140,14 @@ Prettier checks it (`printWidth: 70`, `proseWrap: never`). Sections, in this ord
 
 1. What it is, and the three ways in: `dotfiles-settings tui`, `serve`, and the JSON commands.
 2. Where a value comes from: the four sources. The seed is what a new interactive zsh exports (`zsh/env.zsh`, `tilde/.zshenv`, `~/.zsh.local`). A variable exported by hand in one terminal is not a seed. A change is written to `config.override.toml` in mise's config dir, which is inside the clone and gitignored, and it beats the seed. Reset removes the override. A change reaches a shell opened afterwards.
-3. The CLI contract table and the exit codes from Task 3, and the nine JSON keys.
+3. The CLI contract table and the exit codes from Task 3, and the eleven JSON keys. In Claude Code, `set`, `reset` and `apply` ask first.
 4. Values that are refused: `{{`, `{%`, `{#`, `$` and line breaks, with the one-line reason for each (mise treats the first three as a template and expands the fourth).
-5. Booleans: on means the value equals the setting's `true_value`, and off is written as an empty value.
+5. Booleans: on means the value equals the setting's `true_value`, and off is written as an empty value. An adapter receives `true_value` or `""`, never the word typed.
 6. The browser UI: loopback only, a random port, a per-run token that becomes a cookie, a `Host` and `Origin` check. State that textual-serve's page requests a font stylesheet from `fonts.googleapis.com`.
-7. Adding a setting: one `[[setting]]` table, the eleven fields, and the validation errors. Adding a kind: a module in `adapters/`, an entry in `ADAPTERS` and in `registry.KINDS`, with the optional `apply` and `write_note`.
-8. Tests: the two run commands, and that `pnpm check` runs them.
+7. Adding a setting: one `[[setting]]` table, the eight required fields, the four optional ones with their defaults (`true_value`, `choices`, `default`, `widget`), and the validation errors. Adding a kind: a module in `adapters/`, an entry in `ADAPTERS` and in `registry.KINDS`, with the optional `apply`, `watch_paths` and `write_note` (a string, or a method taking the setting). The VS Code font preset is the one setting whose seed comes from a file, `~/.config/dotfiles/vscode.env`.
+8. Tests: the two run commands, that `pnpm check` runs them, and the layout. One script per module in `settings/tests/`. A core test is listed in `settings_tests` in `bin/lib/check`, a Textual test in the uv block. Each plan asserts its own registry entries in its own file.
 9. Installing without the clone: `uv tool install "git+<repo>#subdirectory=settings"`.
-10. Requirements: mise 2026.11.5, Python 3.11, uv.
+10. Requirements: mise 2026.11.5, Python 3.11, uv. The first run of `bin/dotfiles-settings` creates `settings/.venv` and downloads the dependencies.
 
 - [ ] **Step 2: Add the alias index entry**
 
@@ -1005,10 +1160,14 @@ In `docs/README.md`, in the table that holds the `claude-stack` and `vscode-sett
 - [ ] **Step 3: Rewrite the knob instructions that say "add this to `~/.zsh.local`"**
 
 - `README.md`, the `DOTFILES_MAC_PASSWORD_OP` step: the instruction becomes `dotfiles-settings set updates.mac_password_op 'op://Private/Mac login/password'`, with one sentence that an export in `~/.zsh.local` still works and is the seed an override beats.
-- `README.md`, the eMudhra section: `dotfiles-settings set updates.trim_ca_roots on`, and to undo, `dotfiles-settings reset updates.trim_ca_roots` in place of deleting the line.
-- `README.md`, the `~/.zsh.local` section: add one sentence that a setting changed in `dotfiles-settings` beats an export of the same variable in this file.
-- `bin/upup` header lines 6 and 7 and the `brew doctor` notice near line 393: name `dotfiles-settings set updates.mac_password_op` and `dotfiles-settings set updates.trim_ca_roots on`. Keep each header line one sentence on one line.
-- `bin/ca-roots` near line 107: `Run dotfiles-settings reset updates.trim_ca_roots (or remove the export from ~/.zsh.local), or the next upup removes them again.`
+- `README.md`, the eMudhra section: `dotfiles-settings set updates.trim_ca_roots on`. The undo sentence ends, as A1 left it, "and delete the line from `~/.zsh.local` (run `mise unset --override DOTFILES_TRIM_CA_ROOTS` too if you set it that way)." Replace that ending with "and run `dotfiles-settings reset updates.trim_ca_roots` (delete the line from `~/.zsh.local` too if you exported it there)."
+- `README.md`, the `~/.zsh.local` section: A1 added a second paragraph that starts "An `export` here is a starting value. `mise set --override KEY=value`". Replace that whole paragraph. Do not add a second one beside it. New text: "An `export` here is a starting value. A setting changed with [`dotfiles-settings`](settings/README.md) beats an export of the same variable in every new shell, and `dotfiles-settings reset <id>` hands the variable back to the export. The changes are stored in `tilde/.config/mise/config.override.toml` inside the clone (`~/.config/mise` is a link to that folder), which git ignores." Afterwards `grep -c 'mise set --override' README.md` prints 0.
+- `bin/upup` header lines 6 and 7. As A1 leaves them, line 6 reads "Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` (or with `mise set --override`) to a 1Password secret reference" and line 7 reads "Set `DOTFILES_TRIM_CA_ROOTS=1` in `~/.zsh.local` (or with `mise set --override`) to let it remove". On line 6, keep the first sentence and replace the second with "Run `dotfiles-settings set updates.mac_password_op 'op://vault/item/password'` (a 1Password secret reference) to supply it with a fingerprint instead." On line 7, replace the quoted start with "Run `dotfiles-settings set updates.trim_ca_roots on` to let it remove" and leave the rest of the line as it is. Each header line stays on one line: tlrc rejects a wrapped line.
+- `bin/upup` near line 274, the comment that says "Optional: set DOTFILES_MAC_PASSWORD_OP in ~/.zsh.local to a 1Password secret reference". Change "set DOTFILES_MAC_PASSWORD_OP in ~/.zsh.local to" to "set DOTFILES_MAC_PASSWORD_OP (dotfiles-settings set updates.mac_password_op) to". Re-wrap the comment at the width of its neighbours.
+- `bin/upup` near line 393, the `brew doctor` notice. A1 does not touch it. Current: `(set DOTFILES_TRIM_CA_ROOTS=1 in ~/.zsh.local to let upup remove them)`. New: `(run dotfiles-settings set updates.trim_ca_roots on to let upup remove them)`. A4 later deletes this notice with the `brew doctor` step, so A4 has nothing of this edit to carry over.
+- `bin/ca-roots` near line 107. Current: `Remove DOTFILES_TRIM_CA_ROOTS from ~/.zsh.local, or the next upup removes them again.` New: `Run dotfiles-settings reset updates.trim_ca_roots (or remove the export from ~/.zsh.local), or the next upup removes them again.`
+- `bin/lib/test-ca-roots` near line 108, the check named "restore names the opt-in to remove". It compares the last output line with the old sentence, word for word. Put the new sentence there in the same commit.
+- `.claude/rules/telemetry-sync.md`: add one sentence at the end. "Each opt-out exported by `zsh/env.zsh` is also a read-only entry in `settings/registry.toml`, and `settings/tests/test_registry.py` fails the gate when an entry's variable is no longer exported there, so add, rename or remove the registry entry in the same change." Add `'settings/registry.toml'` to the file's `paths:` list. `bin/lib/test-conventions` caps the size of instruction files, so keep it to that one sentence.
 - `CLAUDE.md`, the Architecture block: add the line `settings/          uv package dotfiles-settings: registry.toml + adapters, CLI, Textual UI (bin/dotfiles-settings)`.
 
 - [ ] **Step 4: Check nothing still gives the old instruction**
@@ -1017,13 +1176,14 @@ Run: `grep -rn "in \`~/.zsh.local\` to\|add this to \[\`~/.zsh.local\`\]\|Add it
 Expected: no output.
 
 Run: `bash bin/lib/test-upup && bash bin/lib/test-ca-roots && help upup > /dev/null && help dotfiles-settings > /dev/null`
-Expected: exit 0. If a self-check asserts the old message text, update that assertion in the same commit.
+Expected: exit 0. `bin/lib/test-ca-roots` passes only with the assertion from Step 3 updated. `bin/lib/test-upup` asserts none of the changed text (checked with `grep -n zsh.local bin/lib/test-upup`: no match).
 
 - [ ] **Step 5: Verify and commit**
 
 Run: `pnpm check`. Expected: exit 0.
 
 ```bash
-git add settings/README.md docs/README.md README.md bin/upup bin/ca-roots bin/lib CLAUDE.md
+git add settings/README.md docs/README.md README.md bin/upup bin/ca-roots bin/lib/test-ca-roots \
+  .claude/rules/telemetry-sync.md CLAUDE.md
 git commit -m "Document dotfiles-settings and point the knob instructions at it"
 ```
