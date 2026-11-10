@@ -10,6 +10,7 @@ cmd="$DOTFILES_DIR/bin/vscode-settings"
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 export VSCODE_SETTINGS_DIR="$work/User" VSCODE_SETTINGS_ENV="$work/vscode.env"
+unset VSCODE_FONT_PRESET
 mkdir -p "$VSCODE_SETTINGS_DIR"
 target="$VSCODE_SETTINGS_DIR/settings.json"
 fails=0
@@ -31,6 +32,21 @@ check "keeps VS Code's own \${version}" "grep -q '\${version}' '$target'"
 
 "$cmd" > /dev/null 2>&1
 check "reuses the saved choice" "grep -q 'ProFont IIx Nerd Font Mono' '$target'"
+
+VSCODE_FONT_PRESET=fira "$cmd" > /dev/null 2>&1
+check "environment preset beats the saved one" "grep -q 'FiraCode' '$target' && ! grep -qE 'ProFont|IosevkaCode' '$target'"
+check "environment preset is not saved" "grep -qx 'VSCODE_FONT_PRESET=warp' '$VSCODE_SETTINGS_ENV'"
+"$cmd" > /dev/null 2>&1
+check "without the variable the saved preset returns" "grep -q 'ProFont IIx Nerd Font Mono' '$target'"
+VSCODE_FONT_PRESET=fira "$cmd" --preset iosevka > /dev/null 2>&1
+check "--preset beats the environment" "grep -q 'IosevkaCode Nerd Font' '$target'"
+check "--preset over the environment is saved" "grep -qx 'VSCODE_FONT_PRESET=iosevka' '$VSCODE_SETTINGS_ENV'"
+"$cmd" --preset warp > /dev/null 2>&1
+before=$(shasum -a 256 "$target" "$VSCODE_SETTINGS_ENV")
+VSCODE_FONT_PRESET=nope "$cmd" > /dev/null 2>&1
+status=$?
+check "unknown environment preset: fails" "[ $status -ne 0 ]"
+check "unknown environment preset: nothing written" "[ \"\$(shasum -a 256 '$target' '$VSCODE_SETTINGS_ENV')\" = \"$before\" ]"
 "$cmd" --check > /dev/null 2>&1
 check "--check passes when up to date" "[ $? -eq 0 ]"
 

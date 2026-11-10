@@ -14,6 +14,10 @@
 #
 # `vscode-settings --preset {{warp}}`
 #
+# - Render the preset named by the environment, without saving it (dotfiles-settings sets `VSCODE_FONT_PRESET`):
+#
+# `VSCODE_FONT_PRESET={{fira}} vscode-settings`
+#
 # - Check whether settings.json matches a fresh render, without writing:
 #
 # `vscode-settings --check`
@@ -68,6 +72,7 @@ command -v minijinja-cli > /dev/null || {
   exit 1
 }
 
+from_env=${VSCODE_FONT_PRESET:-}
 saved=
 # shellcheck disable=SC1090
 [ -f "$env_file" ] && saved=$(. "$env_file" && echo "${VSCODE_FONT_PRESET:-}")
@@ -94,7 +99,10 @@ if [ "$choose" = true ]; then
     preset=$pick
   fi
 fi
-preset=${preset:-${saved:-iosevka}}
+# An environment preset is used but not saved, so the saved file only holds --preset or --choose.
+save=true
+[ -z "$preset" ] && [ -n "$from_env" ] && save=false
+preset=${preset:-${from_env:-${saved:-iosevka}}}
 
 render=$(mktemp)
 trap 'rm -f "$render"' EXIT
@@ -138,5 +146,5 @@ done
 mkdir -p "$dir" "$(dirname "$env_file")"
 mv "$render" "$target"
 shasum -a 256 < "$target" | cut -d' ' -f1 > "$stamp"
-echo "VSCODE_FONT_PRESET=$preset" > "$env_file"
+[ "$save" = false ] || echo "VSCODE_FONT_PRESET=$preset" > "$env_file"
 echo "rendered settings.json (preset $preset)"
