@@ -60,6 +60,7 @@ fi
 # The dotfiles-settings UI tests need Textual, so they run in the package's locked uv env
 if command -v uv > /dev/null; then
   uv run --quiet --locked --project settings python settings/tests/test_tui.py > /dev/null
+  uv run --quiet --locked --project settings python settings/tests/test_serve.py > /dev/null
 else
   echo "check: uv not found, skipping the dotfiles-settings UI tests" >&2
 fi
