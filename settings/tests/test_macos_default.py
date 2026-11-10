@@ -193,10 +193,8 @@ status([{**entry, "value": 99}])
 raises(SettingsError, lambda: adapter.write(dock, "51"), contains="config.local.toml")
 assert written == [] and killed == [] and fragment_path().read_text() == before
 
-# apply is the only whole-fragment path
-status([entry])
-assert adapter.apply([dock]) == ["macOS preferences applied"]
-assert ["bootstrap", "macos", "defaults", "apply", "--yes"] in calls
+# No whole-fragment path: set-defaults owns that, with mise's prompt and the extras script
+assert not hasattr(adapter, "apply")
 
 # reset returns to the committed value
 fragment_path().write_text(FRAGMENT.replace("tilesize = 38", "tilesize = 44"))

@@ -41,7 +41,8 @@ command -v mise > /dev/null || {
 }
 # A declined prompt or a failed apply must not leave --before's snapshot behind
 trap 'rm -f "${TMPDIR:-/tmp}/dotfiles-macos-defaults-before"' EXIT
-"$DOTFILES/setup/macos-extras.sh" --before
+# The flags go along so a mistyped one stops the run before mise applies anything
+"$DOTFILES/setup/macos-extras.sh" --before "$@"
 # Shows the planned writes and asks before making them
 mise bootstrap macos defaults apply
 # The part command runs no hooks, so the extras script is called here

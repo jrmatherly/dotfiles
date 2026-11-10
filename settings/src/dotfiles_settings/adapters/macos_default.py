@@ -237,7 +237,3 @@ class MacosDefaultAdapter:
             return
         fragment_path().write_text(remove_key(read_fragment(), domain, key))
         print(f'mise never deletes a preference. Run: defaults delete {domain} "{key}"', file=sys.stderr)
-
-    def apply(self, settings: list[Setting]) -> list[str]:
-        mise.run_mise(["bootstrap", "macos", "defaults", "apply", "--yes"])
-        return ["macOS preferences applied"]

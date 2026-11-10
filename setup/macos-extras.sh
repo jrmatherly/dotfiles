@@ -204,13 +204,15 @@ if [ -n "$hidpi" ] && [ "$(defaults read /Library/Preferences/com.apple.windowse
 fi
 
 # Enable macOS Firewall + Stealth Mode. socketfilterfw is not on PATH; the
-# command -v lets the self-check put a stub there.
+# command -v lets the self-check stub the two reads. sudo always gets the
+# system path, so a file of that name on PATH never runs as root.
 if [ -n "$firewall" ]; then
-  fw=$(command -v socketfilterfw || echo /usr/libexec/ApplicationFirewall/socketfilterfw)
-  if [[ "$("$fw" --getglobalstate 2> /dev/null || true)" != *"State = "[1-9]* ]]; then
+  fw=/usr/libexec/ApplicationFirewall/socketfilterfw
+  fw_read=$(command -v socketfilterfw || echo "$fw")
+  if [[ "$("$fw_read" --getglobalstate 2> /dev/null || true)" != *"State = "[1-9]* ]]; then
     sudo "$fw" --setglobalstate on
   fi
-  if [[ "$("$fw" --getstealthmode 2> /dev/null || true)" != *"mode is on"* ]]; then
+  if [[ "$("$fw_read" --getstealthmode 2> /dev/null || true)" != *"mode is on"* ]]; then
     sudo "$fw" --setstealthmode on
   fi
 fi

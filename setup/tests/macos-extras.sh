@@ -80,6 +80,7 @@ check "a group switched on is written" "grep -q 'defaults write com.apple.Softwa
 
 run
 check "the firewall is turned on by default" "grep -q '^sudo .*socketfilterfw --setglobalstate on$' '$log' && grep -q '^sudo .*socketfilterfw --setstealthmode on$' '$log'"
+check "sudo runs the system socketfilterfw, never one found on PATH" "! grep '^sudo .*socketfilterfw' '$log' | grep -qv '^sudo /usr/libexec/ApplicationFirewall/socketfilterfw '"
 check "Time Machine is turned off by default" "grep -qx 'sudo tmutil disable' '$log'"
 check "HiDPI and the name are left alone by default" "! grep -q 'scutil --set\|windowserver' '$log'"
 
