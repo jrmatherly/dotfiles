@@ -336,6 +336,10 @@ reregister_mise_mcp() {
 }
 
 # 0: moved, nothing to move, or declined. 1: a check failed
+# mise links each shim to the first mise on PATH, not to the binary that runs, and
+# rewrites an existing link only with --force (measured on 2026.11.5)
+reshim() { run env PATH="$(dirname "$MISE"):$PATH" "$MISE" reshim --force; }
+
 move_mise() {
   local new="$HOME/.local/bin/mise" shims="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims" old n=0
   case $MISE in
@@ -344,7 +348,7 @@ move_mise() {
       n=$(dangling_shims "$shims" | wc -l | tr -d ' ')
       if [ "$n" -gt 0 ]; then
         info "$n mise shim(s) point at a mise that is gone."
-        ! ask "Rebuild the mise shims with $MISE?" || run mise reshim
+        ! ask "Rebuild the mise shims with $MISE?" || reshim
       else
         info "mise: $MISE, not Homebrew's. Nothing to move."
       fi
@@ -357,7 +361,7 @@ mise is Homebrew's ($MISE). The new setup installs mise with mise's own installe
 Homebrew's copy refuses "mise self-update", so nothing upgrades it any more.
 Moving it runs:
   curl -fsSL https://mise.run | sh     installs ~/.local/bin/mise and checks its checksum
-  ~/.local/bin/mise reshim             points the $n shims at the new binary
+  ~/.local/bin/mise reshim --force     points the $n shims at the new binary
   brew uninstall mise
 and checks that every shim still resolves. Way back: HOMEBREW_NO_ANALYTICS=1 brew install mise
 EOF
@@ -381,13 +385,13 @@ EOF
     return 1
   fi
   backup_note mise.tsv "$MISE	$(mise_version "$MISE")"
-  backup_note RESTORE.txt "HOMEBREW_NO_ANALYTICS=1 brew install mise && $PREFIX/bin/mise reshim"
+  backup_note RESTORE.txt "HOMEBREW_NO_ANALYTICS=1 brew install mise && PATH=\"$PREFIX/bin:\$PATH\" mise reshim --force"
   # Reshim before the uninstall: every shim is a link to the mise binary, so uninstalling
   # first would leave node, python and jq dangling for agent and GUI shells
   old=$MISE
   MISE=$new
   hash -r
-  run mise reshim || true
+  reshim || true
   if [ -d "$shims" ] && find "$shims" -type l -lname "$old" | grep -q .; then
     MISE=$old
     info "The shims still point at Homebrew's mise. Nothing was uninstalled."
@@ -397,9 +401,9 @@ EOF
     info "brew could not uninstall mise. Both are installed and the shims use the new one. Run this step again."
     return 1
   fi
-  run mise reshim || true
+  reshim || true
   if [ -n "$(dangling_shims "$shims")" ] || { [ -e "$shims/node" ] && ! "$shims/node" --version > /dev/null 2>&1; }; then
-    info "A mise shim does not resolve. Put Homebrew's mise back with: HOMEBREW_NO_ANALYTICS=1 brew install mise && $PREFIX/bin/mise reshim"
+    info "A mise shim does not resolve. Put Homebrew's mise back with: HOMEBREW_NO_ANALYTICS=1 brew install mise && PATH=\"$PREFIX/bin:\$PATH\" mise reshim --force"
     return 1
   fi
   reregister_mise_mcp

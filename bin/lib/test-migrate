@@ -56,8 +56,9 @@ case "$*" in
     cat "$STATE/status.json"
     ;;
   "bootstrap packages prune --manager brew --dry-run") [ -e "$STATE/prune-empty" ] || printf "remove brew:abseil@1\nremove brew:ack@3\n" ;;
-  reshim) # as the real one: every shim becomes a link to the binary that ran
-    for s in "${MISE_DATA_DIR:-$HOME/.local/share/mise}"/shims/*; do if [ -L "$s" ]; then ln -sfn "$0" "$s"; fi; done ;;
+  reshim) ;; # as the real one: without --force an existing shim keeps its link
+  "reshim --force") # as the real one: every shim becomes a link to the first mise on PATH, not to the binary that ran
+    for s in "${MISE_DATA_DIR:-$HOME/.local/share/mise}"/shims/*; do if [ -L "$s" ]; then ln -sfn "$(command -v mise)" "$s"; fi; done ;;
   "bootstrap packages apply --yes brew-cask:"*)
     [ ! -e "$STATE/apply-fails" ] || exit 1
     for t; do :; done
