@@ -67,15 +67,6 @@ if command -v uv > /dev/null; then
 else
   echo "check: uv not found, skipping the dotfiles-settings UI tests" >&2
 fi
-# Parse the Brewfile the way brewpick does (`manual` lines stripped: raw
-# `brew bundle` rejects them) so a typo fails here, not on the next install
-if command -v brew > /dev/null; then
-  brewfile=$(mktemp)
-  grep -v '^manual' setup/Brewfile > "$brewfile"
-  HOMEBREW_NO_AUTO_UPDATE=1 brew bundle list --all --file="$brewfile" > /dev/null \
-    || { rm -f "$brewfile"; echo "setup/Brewfile failed to parse" >&2; exit 1; }
-  rm -f "$brewfile"
-fi
 # Lint the GitHub Actions workflows (expressions, runner labels, embedded shell)
 if command -v actionlint > /dev/null; then
   actionlint .github/workflows/*.yml
@@ -99,6 +90,8 @@ bash bin/lib/test-claude-config > /dev/null
 bash bin/lib/test-sysup > /dev/null
 # zsh/ and tilde/.zshrc in interactive agent and user shells, through a temp ZDOTDIR
 bash bin/lib/test-shell > /dev/null
+# conf.d/30-packages.toml: key shape, tap list, no pins; the flux2 and talosctl completion hooks
+bash bin/lib/test-packages > /dev/null
 # mise's override layer: the version floor, the gitignored local files and zsh/override-env.zsh under a temp HOME and MISE_CONFIG_DIR
 bash bin/lib/test-override-env > /dev/null
 # bin/serve, bin/git-find and bin/git-tidy under a scratch HOME and git repo

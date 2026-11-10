@@ -1,0 +1,96 @@
+#!/bin/bash
+#
+# Self-check for the package fragment: key shape, the tap list and no version pins.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-packages`
+#
+# ---
+# Reads tilde/.config/mise/conf.d/30-packages.toml with tomllib. Installs
+# nothing and never runs mise against the live config.
+#
+# License: MIT
+
+set -euo pipefail
+
+cd "$(dirname "$0")/../.."
+
+# Print the failed assertion and stop
+fail() {
+  echo "FAIL: $1" >&2
+  exit 1
+}
+
+# Python 3.11+ for tomllib: mise's, not macOS's 3.9 (the same switch as bin/lib/check)
+if command -v mise > /dev/null && mise where python > /dev/null 2>&1; then
+  py=(mise exec python -- python3)
+else
+  py=(python3)
+fi
+
+"${py[@]}" - << 'PY' || fail "conf.d/30-packages.toml"
+import re
+import tomllib
+from pathlib import Path
+
+doc = tomllib.loads(Path("tilde/.config/mise/conf.d/30-packages.toml").read_text())
+pk = doc["bootstrap"]["packages"]
+brew = doc["bootstrap"]["brew"]
+taps = brew["taps"]
+assert brew.get("adopt") is True, "[bootstrap.brew] adopt must be true"
+assert "homebrew_metadata" not in brew, "homebrew_metadata hands casks back to Homebrew"
+assert all(v == "latest" for v in pk.values()), "every package value is \"latest\": no pins, no inline tables"
+managers = {k.split(":", 1)[0] for k in pk}
+assert managers == {"brew", "brew-cask", "vscode"}, managers
+for key in pk:
+    manager, name = key.split(":", 1)
+    if manager != "vscode" and name.count("/") == 2:
+        owner, tap, _ = name.split("/")
+        assert taps.get(f"{owner}/{tap}") == f"https://github.com/{owner}/homebrew-{tap}.git", f"undeclared tap for {key}"
+    if manager == "vscode":
+        assert name == name.lower() and re.fullmatch(r"[a-z0-9-]+\.[a-z0-9-]+", name), key
+used = {"/".join(k.split(":", 1)[1].split("/")[:2]) for k in pk if k.count("/") == 2}
+assert set(taps) == used, f"tap declared but unused, or used but undeclared: {set(taps) ^ used}"
+assert len(taps) <= 5, "more than 5 taps: a new Mac runs out of anonymous GitHub API calls (Review Focus 1)"
+assert "brew:mise" not in pk, "mise is installed by its own installer"
+assert "brew:ruby" in pk, "mise needs Ruby 3+ to read the claude-multipass-app tap cask; macOS ships 2.6"
+count = lambda m: sum(k.startswith(m + ":") for k in pk)
+assert (count("brew"), count("brew-cask"), count("vscode")) == (144, 33, 183), "counts changed: update this line with the entry you added or removed"
+PY
+
+# The flux2 and talosctl postinstall hooks write their zsh completions (P13)
+hooks=$(
+  "${py[@]}" - << 'PY'
+import tomllib
+from pathlib import Path
+
+tools = tomllib.loads(Path("tilde/.config/mise/config.toml").read_text())["tools"]
+for tool, binary in (("flux2", "flux"), ("talosctl", "talosctl")):
+    entry = tools.get(tool)
+    ok = isinstance(entry, dict) and entry.get("version") == "latest" and entry.get("postinstall", {}).get("when") == "always"
+    assert ok, f"{tool} has no postinstall that writes its completion (P13)"
+    print(f"{binary}\t{entry['postinstall']['run']}")
+PY
+) || fail "config.toml completion hooks"
+
+repo=$PWD
+tmp=$(cd "$(mktemp -d)" && pwd -P)
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$tmp/fakebin" "$tmp/home" "$tmp/empty"
+comp="$tmp/home/.cache/dotfiles/completions"
+while IFS=$'\t' read -r binary run; do
+  printf '#!/bin/sh\n[ "$*" = "completion zsh" ] || exit 1\necho "#compdef %s"\n' "$binary" > "$tmp/fakebin/$binary"
+  chmod +x "$tmp/fakebin/$binary"
+  for _ in 1 2; do
+    env -i HOME="$tmp/home" PATH="$tmp/fakebin:/usr/bin:/bin" /bin/sh -c "$run" \
+      || fail "$binary postinstall exited non-zero"
+  done
+  [ "$(cat "$comp/_$binary" 2> /dev/null)" = "#compdef $binary" ] \
+    || fail "$comp/_$binary is not exactly '#compdef $binary' after two runs"
+done <<< "$hooks"
+
+first=$(env -i HOME="$tmp/home" DOTFILES="$repo" /bin/zsh -fc 'source "$DOTFILES/zsh/completion.zsh"; print -r -- $fpath[1]')
+[ "$first" = "$comp" ] || fail "zsh/completion.zsh does not put $comp first in fpath (got $first)"
+first=$(env -i HOME="$tmp/empty" DOTFILES="$repo" /bin/zsh -fc 'source "$DOTFILES/zsh/completion.zsh"; print -r -- $fpath[1]')
+case $first in "$tmp/empty"*) fail "zsh/completion.zsh adds a completions dir that does not exist" ;; esac

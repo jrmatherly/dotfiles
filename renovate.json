@@ -16,6 +16,11 @@
     },
     {
       "matchManagers": ["mise"],
+      "matchDepNames": ["azure-functions-core-tools"],
+      "allowedVersions": "<5"
+    },
+    {
+      "matchManagers": ["mise"],
       "matchDepNames": ["node", "python"],
       "enabled": false
     }

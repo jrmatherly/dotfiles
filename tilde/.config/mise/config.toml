@@ -21,8 +21,8 @@ node = ["24", "22", "26"]
 # a manual step.
 "npm:@colbymchenry/codegraph" = "latest"
 # REA (https://github.com/morluto/rea) — reverse-engineering MCP server and
-# CLI (`rea`) that drives the Brewfile's Ghidra and Hopper; setup/misc.sh
-# registers `rea mcp` with Claude Code. It ships several releases a day, so
+# CLI (`rea`) that drives Ghidra and Hopper (conf.d/30-packages.toml);
+# setup/misc.sh registers `rea mcp` with Claude Code. It ships several releases a day, so
 # mise's default 24 h release-age cutoff would hold `latest` a version or two
 # behind; shortened to 6 h for this tool. The cutoff also screens the tool's
 # transitive dependencies (mise passes it to its embedded npm client), which
@@ -33,8 +33,9 @@ node = ["24", "22", "26"]
 # switching the default Node and upgrade with `mise upgrade` (within the major).
 "npm:serverless" = "4"
 "npm:@antfu/ni" = "30"
-# Language servers for Terax's editor (Brewfile cask `terax`; the non-npm ones,
-# rust-analyzer, zls, lua-language-server and ruby-lsp, are formulae there).
+# Language servers for Terax's editor (cask `terax` in conf.d/30-packages.toml;
+# the non-npm ones, rust-analyzer, zls, lua-language-server and ruby-lsp, are
+# formulae there).
 # Terax looks each preset's executable up on the PATH of a non-interactive
 # login shell (`$SHELL -l -c '/usr/bin/env -0'`, 10 s timeout, else the bare
 # GUI PATH), which tilde/.zprofile seeds with mise's shims; each preset is
@@ -44,7 +45,7 @@ node = ["24", "22", "26"]
 # by Node resolution from its own install dir, which walks up to mise's data
 # dir; setup/misc.sh and bin/sysup link the `npm:typescript` above there.
 "npm:typescript-language-server" = "6"
-"npm:pyright" = "1" # `pyright-langserver`; Terax's Ruff preset uses the Brewfile's `ruff server`
+"npm:pyright" = "1" # `pyright-langserver`; Terax's Ruff preset uses the `ruff server` formula
 "npm:intelephense" = "1"
 "npm:yaml-language-server" = "2"
 "npm:bash-language-server" = "5"
@@ -61,10 +62,23 @@ node = ["24", "22", "26"]
 # with no user-side opt-out. Installed this way the Aspire CLI runs
 # "sidecar-less" (microsoft/aspire install-routes.md): Aspire home stays
 # ~/.aspire and `aspire update --self` is off, so mise owns upgrades. Move
-# back to Brewfile casks once microsoft/homebrew-aspire#23 and
-# goreleaser/goreleaser#6873 have landed.
+# back to casks in conf.d/30-packages.toml once microsoft/homebrew-aspire#23
+# and goreleaser/goreleaser#6873 have landed.
 "github:microsoft/aspire" = "latest" # .NET Aspire CLI; setup/misc.sh runs `aspire certs trust`
 "github:home-operations/flate" = "latest" # Render and diff Flux GitOps repos offline
+# Formulae that used to come from third-party Homebrew taps. Those taps ship
+# no Apple Silicon bottle, and mise's registry carries the same upstream
+# release binaries (identity checked 2026-11-09: spec D6, plan A4).
+# The taps' flux and talosctl formulae also installed zsh completions. The
+# postinstall writes them from the tool after every install and upgrade (with
+# "always", on every `mise install` too); zsh/completion.zsh puts the dir first
+# in fpath
+azd = "latest" # Azure Developer CLI (aqua:Azure/azure-dev)
+"aqua:Azure/kubelogin" = "latest" # Azure AD login for kubectl; the short name `kubelogin` is int128's, a different tool
+flux2 = { version = "latest", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && flux completion zsh > "$HOME/.cache/dotfiles/completions/_flux"', when = "always" } } # `flux`, the Flux CD CLI
+hunk = "latest" # Git pager used by tilde/.gitconfig, lazygit and gh
+lazydocker = "latest" # Full Docker management app (zsh `lzd` alias)
+talosctl = { version = "latest", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && talosctl completion zsh > "$HOME/.cache/dotfiles/completions/_talosctl"', when = "always" } } # Talos Linux/Kubernetes CLI
 # Python for VS Code and scripts — Homebrew's python@3.x only exists as a
 # dependency of other formulae (pipx, awscli…), so don't rely on it. Projects
 # pin their own with `.python-version` / `mise.toml`; uv manages their venvs.
