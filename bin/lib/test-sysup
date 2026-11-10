@@ -1,13 +1,13 @@
 #!/bin/bash
 #
-# Self-check for upup's report against stubbed tools.
+# Self-check for sysup's report against stubbed tools.
 #
 # - Run it (pnpm check does too); exits 1 naming the first failed assertion:
 #
-# `test-upup`
+# `test-sysup`
 #
 # ---
-# Never upgrades anything: every external command upup calls is a stub on
+# Never upgrades anything: every external command sysup calls is a stub on
 # PATH, HOME is a temp dir, DOTFILES a throwaway git repo and CLAUDE_CONFIG_DIR
 # a fixture.
 #
@@ -15,15 +15,15 @@
 
 set -euo pipefail
 
-script="$(cd "$(dirname "$0")/.." && pwd -P)/upup"
+script="$(cd "$(dirname "$0")/.." && pwd -P)/sysup"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 # mise's shims stay off PATH, as on CI: under a fake HOME one starts cold and
 # fetches every tool's versions from the network before it runs anything
 PATH=$(tr ':' '\n' <<< "$PATH" | grep -v '/mise/shims$' | paste -sd: -)
-# A scratch HOME: upup's rm of a stale REA skill link must never reach the real one.
-# HOMEBREW_PREFIX points nowhere so upup's by-path rustup falls back to the stub
+# A scratch HOME: sysup's rm of a stale REA skill link must never reach the real one.
+# HOMEBREW_PREFIX points nowhere so sysup's by-path rustup falls back to the stub
 export HOME="$tmp/home" DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
 unset DOTFILES_MAC_PASSWORD_OP DOTFILES_TRIM_CA_ROOTS
 mkdir -p "$HOME" "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
@@ -163,16 +163,16 @@ check_true() {
 has() { grep -Eq -- "$1" <<< "$screen"; }
 lacks() { ! has "$1"; }
 lacks_settings_restore() { ! grep -v -- --dry-run "$STATE/claude-config.log" | grep -q 'restore settings'; }
-log_lacks() { ! grep -q -- "$1" "$DOTFILES"/logs/upup-*.log; }
+log_lacks() { ! grep -q -- "$1" "$DOTFILES"/logs/sysup-*.log; }
 run() {
   local rc=0
   screen=$("$script" < /dev/null 2>&1) || rc=$?
-  check_true "upup exited $rc" [ "$rc" -eq 0 ]
+  check_true "sysup exited $rc" [ "$rc" -eq 0 ]
   check_true "no colors off a terminal" lacks $'\x1b'
 }
 
 run
-check_true "off HOME: the log path stays absolute" has "^Logging to $DOTFILES/logs/upup-[0-9]{8}-[0-9]{6}\\.log\$"
+check_true "off HOME: the log path stays absolute" has "^Logging to $DOTFILES/logs/sysup-[0-9]{8}-[0-9]{6}\\.log\$"
 check_true "any directory: mise runs from HOME, not the caller's project" [ "$(cat "$STATE/mise-pwd")" = "$(cd "$HOME" && pwd -P)" ]
 check_true "up to date: Homebrew is ok" has '^✔ Homebrew +up to date$'
 check_true "up to date: cleanup reports what it freed" has '^✔ brew cleanup +freed 29.5MB$'
@@ -182,7 +182,7 @@ check_true "up to date: a connected mise MCP server gets a line" has '^✔ mise 
 check_true "up to date: config left dirty before the run is unchanged" has '^✔ Claude config +unchanged$'
 retire_then_save() { [ "$(grep -E '^(retire|save)' "$STATE/claude-config.log" | tr '\n' ,)" = 'retire,save,' ]; }
 check_true "retired rules go before save" retire_then_save
-check_true "upup never merges settings unasked" lacks_settings_restore
+check_true "sysup never merges settings unasked" lacks_settings_restore
 check_true "up to date: no settings line when nothing was retired" lacks 'Claude settings'
 check_true "up to date: plugins counted" has '^✔ plugins +2 plugins up to date$'
 check_true "up to date: Claude Code version" has '^✔ Claude Code +2\.1\.310 up to date$'
@@ -193,22 +193,22 @@ check_true "up to date: Rust is ok" has '^✔ Rust +up to date$'
 check_true "up to date: nothing for mise prune" has '^✔ mise prune +nothing unused$'
 check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
 check_true "up to date: one-line summary" has '^Everything up to date\.$'
-check_true "up to date: log is a file:// link" has "^Log +file://$DOTFILES/logs/upup-[0-9]{8}-[0-9]{6}\\.log\$"
+check_true "up to date: log is a file:// link" has "^Log +file://$DOTFILES/logs/sysup-[0-9]{8}-[0-9]{6}\\.log\$"
 check_true "up to date: no step slow enough for a time" lacks '\([0-9]+s\)$'
 [ ! -x /Applications/SnippetsLab.app/Contents/Helpers/lab ] || check_true "up to date: SnippetsLab unchanged" has '^✔ SnippetsLab skill +unchanged$'
 check_true "up to date: summary links the catalog" has '^Catalog +file:///tmp/cat/catalog\.html$'
-check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/upup-*.log
+check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/sysup-*.log
 # The header promises one status line per step: a step whose branch forgot its
 # line shows as a heading with nothing under it (the summary has none by design)
 silent_steps=$(awk '
   /^== / { if (step && !seen) print step; step = $0; seen = 0; next }
   /^[✔↻●✖›] / { seen = 1 }
-  END { if (step != "== summary ==" && !seen) print step }' "$DOTFILES"/logs/upup-*.log)
+  END { if (step != "== summary ==" && !seen) print step }' "$DOTFILES"/logs/sysup-*.log)
 check_true "up to date: every step has a status line${silent_steps:+ (silent: $silent_steps)}" [ -z "$silent_steps" ]
 
 rm -rf "$DOTFILES/logs"
 screen=$(HOME="$tmp" "$script" < /dev/null 2>&1) || true
-check_true "under HOME: the log path is the ~/ form" has '^Logging to ~/dotfiles/logs/upup-[0-9]{8}-[0-9]{6}\.log$'
+check_true "under HOME: the log path is the ~/ form" has '^Logging to ~/dotfiles/logs/sysup-[0-9]{8}-[0-9]{6}\.log$'
 rm -rf "$DOTFILES/logs"
 mkdir -p "$STATE/installs/node/24.0.0" "$STATE/installs/aspire/13.6.0"
 head -c 2048 /dev/zero > "$STATE/installs/node/24.0.0/bin"
@@ -235,13 +235,13 @@ check_true "changes: a shadow caveat is one line" has '^    uv: uv, uvx shadowed
 check_true "changes: a wrapped sentence shows whole" has '^    openssh: Default host keys are regenerated once to replace keys previously distributed in bottles\. This also replaces locally generated keys\. \(more in the log\)$'
 check_true "changes: no reopen action without the cask warning" lacks 'Reopen'
 check_true "changes: the Docker plugin caveat stays off screen" lacks 'is a Docker plugin'
-check_true "changes: the Docker plugin caveat stays in the log" grep -q 'is a Docker plugin' "$DOTFILES"/logs/upup-*.log
+check_true "changes: the Docker plugin caveat stays in the log" grep -q 'is a Docker plugin' "$DOTFILES"/logs/sysup-*.log
 check_true "changes: catalog names what it gained" has '^    added    p:new$'
 check_true "changes: catalog names what it lost" has '^    removed  p:one, p:two$'
-check_true "changes: a spinner is only its last frame in the log" grep -qx '◇  Repository cloned' "$DOTFILES"/logs/upup-*.log
+check_true "changes: a spinner is only its last frame in the log" grep -qx '◇  Repository cloned' "$DOTFILES"/logs/sysup-*.log
 check_true "changes: no spinner frames in the log" log_lacks 'Cloning'
 check_true "changes: no cursor or color codes in the log" log_lacks $'\x1b'
-check_true "changes: full caveats kept in the log" grep -qx 'Second line' "$DOTFILES"/logs/upup-*.log
+check_true "changes: full caveats kept in the log" grep -qx 'Second line' "$DOTFILES"/logs/sysup-*.log
 check_true "changes: a brew doctor warning names what it found" has '^● brew doctor +Warning: Some installed formulae or casks are missing dependencies: gcloud-cli: python@3.13$'
 check_true "changes: each brew doctor warning is its own notice, items joined" has '^● brew doctor +Warning: You have unlinked kegs in your Cellar. openssl@3, python@3.12$'
 check_true "changes: brew doctor prose stays in the log" lacks 'Leaving kegs unlinked'
@@ -257,9 +257,9 @@ check_true "changes: mise prune counts and sizes what it removed" has '^↻ mise
 check_true "changes: mise prune names each tool in a row" has '^    aspire      13\.6\.0$'
 check_true "changes: a tool pruned from one backend keeps its short name" has '^    node        24\.0\.0$'
 check_true "changes: two backends of one tool stay apart" has '^    node \(npm\)  1\.0\.0, 2\.0\.0$'
-check_true "changes: prune ran before the upgrade" grep -q 'mise prune.*mise ' <<< "$(grep -oE '^== mise( prune)? ==' "$DOTFILES"/logs/upup-*.log | tr '\n' ' ')"
+check_true "changes: prune ran before the upgrade" grep -q 'mise prune.*mise ' <<< "$(grep -oE '^== mise( prune)? ==' "$DOTFILES"/logs/sysup-*.log | tr '\n' ' ')"
 check_true "changes: mise held release is a notice" has '^● mise +aspire 13.6.3 held until 2026-10-24 14:17 EDT by minimum_release_age$'
-check_true "changes: mise reinstall failure is a notice" has '^● mise +failed to reinstall pipx tools; the next upup.s mise prune removes a version no config pins$'
+check_true "changes: mise reinstall failure is a notice" has '^● mise +failed to reinstall pipx tools; the next sysup.s mise prune removes a version no config pins$'
 check_true "changes: uv failure names the command" has '^✖ uv +run: uv tool upgrade --all$'
 check_true "changes: uv failure output shown" has '^    error: network down$'
 check_true "changes: Claude Code failure names the command" has '^✖ Claude Code +run: claude update$'
@@ -276,15 +276,15 @@ check_true "changes: new terminal action" has '^  › Open a new terminal: dotfi
 check_true "changes: action banner counts the items" has '^ ▶ ACTION NEEDED \([0-9]+ items\) $'
 check_true "changes: headline counts each kind" has '^Done in [0-9]+s · [0-9]+ changed · [0-9]+ notices · [0-9]+ failed · [0-9]+ actions$'
 check_true "changes: not everything up to date" lacks 'Everything up to date'
-check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/upup-*.log
-check_true "changes: log keeps the status lines and the table" grep -q -e '^↻ Homebrew  *2 packages upgraded$' -e '^    gh  ' "$DOTFILES"/logs/upup-*.log
+check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/sysup-*.log
+check_true "changes: log keeps the status lines and the table" grep -q -e '^↻ Homebrew  *2 packages upgraded$' -e '^    gh  ' "$DOTFILES"/logs/sysup-*.log
 
 # A warning alone (no newer release) must still replace the ok line
 rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/brew-doctor" "$STATE/mise-uv-active" "$STATE/catalog-delta"
 touch "$STATE/cask-no-quit" "$STATE/shadow-first"
 run
 check_true "shadow: a tool mise doesn't have active isn't shadowed" lacks 'shadowed by'
-check_true "shadow: the caveat stays in the log" grep -q 'uv executables are shadowed' "$DOTFILES"/logs/upup-*.log
+check_true "shadow: the caveat stays in the log" grep -q 'uv executables are shadowed' "$DOTFILES"/logs/sysup-*.log
 check_true "cask Homebrew couldn't quit is a notice" has "^● Homebrew +1password replaced while running: Homebrew couldn't quit it\$"
 check_true "cask: reopening it is an action" has '^  › Reopen 1password if it closed: open -b com\.1password\.1password$'
 rm -rf "$DOTFILES/logs" "$STATE/shadow-first"
@@ -306,7 +306,7 @@ check_true "warned: installer warning still a notice" has '^● Hindsight memory
 rm -rf "$DOTFILES/logs"
 touch "$STATE/brew-doctor-roots"
 run
-check_true "roots: the notice joins the two CA names and names the opt-in" has '^● brew doctor +Warning: Root certificates in /etc/ssl/cert\.pem can trust compromised CAs\. AAA Certificate Services, emSign ECC Root CA - G3 \(set DOTFILES_TRIM_CA_ROOTS=1 in ~/\.zsh\.local to let upup remove them\)$'
+check_true "roots: the notice joins the two CA names and names the opt-in" has '^● brew doctor +Warning: Root certificates in /etc/ssl/cert\.pem can trust compromised CAs\. AAA Certificate Services, emSign ECC Root CA - G3 \(set DOTFILES_TRIM_CA_ROOTS=1 in ~/\.zsh\.local to let sysup remove them\)$'
 check_true "roots: no ca-roots without the opt-in" test ! -e "$STATE/ca-roots.log"
 rm -rf "$DOTFILES/logs"
 export DOTFILES_TRIM_CA_ROOTS=1
@@ -347,7 +347,7 @@ check_true "update: a failing cargo is a notice" has "^● Rust +cargo --version
 check_true "update: uv names the upgraded tool and the one whose dependencies moved" has '^↻ uv +serena-agent v0\.1\.4 -> v0\.1\.5, scrapling dependencies$'
 check_true "update: uv rows name the tool and what moved" has '^    scrapling     sse-starlette 3\.5\.0 → 3\.5\.1$'
 check_true "update: an upgraded uv tool gets a row too" has '^    serena-agent  serena-agent 0\.1\.4 → 0\.1\.5$'
-check_true "update: uv's raw output stays in the log" grep -qx 'Modified scrapling environment' "$DOTFILES"/logs/upup-*.log
+check_true "update: uv's raw output stays in the log" grep -qx 'Modified scrapling environment' "$DOTFILES"/logs/sysup-*.log
 check_true "update: uv's raw output stays off screen" lacks '^    Modified scrapling environment$'
 check_true "update: no unrecognized uv output" lacks 'unrecognized output'
 check_true "update: Claude Code updated" has '^↻ Claude Code +2\.1\.310 → 2\.1\.311$'
@@ -378,7 +378,7 @@ check_true "macOS: the 1Password fingerprint is announced" has '^› macOS +1Pas
 check_true "macOS: with the stored password the install stays in the log" lacks '^Downloaded:'
 check_true "macOS: the stored password was accepted" has '^↻ macOS +macOS 27\.2-26B123 downloaded, not installed yet$'
 rm -rf "$DOTFILES/logs"
-# A real terminal: the typed password must not echo. The delay lets upup's
+# A real terminal: the typed password must not echo. The delay lets sysup's
 # read turn echo off before the keys arrive
 screen=$({
   sleep 2
@@ -393,7 +393,7 @@ run
 check_true "macOS: an update needing no restart installs quietly" lacks '^Downloaded:'
 check_true "macOS: no install action for it" lacks 'Software Update → Restart Now'
 rm -rf "$DOTFILES/logs" "$STATE/macos" "$STATE/rea" "$STATE/prune" "$HOME/.local/share/mise"
-screen=$(UPUP_SLOW=0 "$script" < /dev/null 2>&1) || true
+screen=$(SYSUP_SLOW=0 "$script" < /dev/null 2>&1) || true
 check_true "slow: a step's line names its time" has '^✔ brew doctor +ready to brew \([0-9]+s\)$'
 check_true "slow: the summary leaves the time out" lacks '^  [↻●✖›] .*\([0-9]+s\)$'
 
@@ -429,23 +429,23 @@ check_true "pending config: one notice" has '^● Claude config +the repo has pl
 check_true "pending config: the choice is an action" has 'claude-config restore; or drop it from the repo: claude-config save'
 no_save() { ! grep -qx save "$STATE/claude-config.log"; }
 check_true "pending config: save would erase it, so it doesn't run" no_save
-check_true "pending config: upup still merges nothing" lacks_settings_restore
+check_true "pending config: sysup still merges nothing" lacks_settings_restore
 rm -f "$STATE/config-pending"
 
 rm -rf "$DOTFILES/logs"
 touch "$STATE/bad-byte"
 run
 check_true "a byte sed can't decode: the step still reports" has '^✔ agent skills'
-check_true "a byte sed can't decode: the output after it still reaches the log" grep -qx 'after the bad byte' "$DOTFILES"/logs/upup-*.log
+check_true "a byte sed can't decode: the output after it still reaches the log" grep -qx 'after the bad byte' "$DOTFILES"/logs/sysup-*.log
 rm -f "$STATE/bad-byte"
 
 rm -rf "$DOTFILES/logs"
 rc=0
 screen=$(TERM=xterm-256color script -q /dev/null "$script" < /dev/null | tr -d '\r') || rc=$?
-check_true "terminal: upup exited $rc" [ "$rc" -eq 0 ]
+check_true "terminal: sysup exited $rc" [ "$rc" -eq 0 ]
 check_true "terminal: status lines colored" has $'\x1b\\[[0-9;]*m✔'
 check_true "terminal: a running step shows a … line" has '… Homebrew'
 check_true "terminal: summary colored" has $'^  \x1b\\[[0-9;]*m✖'
-check_true "terminal: the log link is an OSC 8 hyperlink" has $'\x1b]8;;file://'"$DOTFILES"$'/logs/upup-[0-9-]+\\.log\x1b\\\\'
+check_true "terminal: the log link is an OSC 8 hyperlink" has $'\x1b]8;;file://'"$DOTFILES"$'/logs/sysup-[0-9-]+\\.log\x1b\\\\'
 check_true "terminal: action banner colored" has $'\x1b\\[[0-9;]*m ▶ ACTION NEEDED'
 check_true "terminal: log has no color codes" log_lacks $'\x1b'

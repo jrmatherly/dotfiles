@@ -25,17 +25,17 @@
       "Bash(*/dotfiles/setup.sh*)",
       "Bash(*/dotfiles/setup/*)",
       "Bash(set-defaults *)",
-      "Bash(upup *)",
+      "Bash(sysup *)",
       "Bash(bash bin/set-defaults*)",
       "Bash(sh bin/set-defaults*)",
       "Bash(bin/set-defaults*)",
-      "Bash(bash bin/upup*)",
-      "Bash(sh bin/upup*)",
-      "Bash(bin/upup*)",
+      "Bash(bash bin/sysup*)",
+      "Bash(sh bin/sysup*)",
+      "Bash(bin/sysup*)",
       "Bash(./bin/set-defaults*)",
-      "Bash(./bin/upup*)",
+      "Bash(./bin/sysup*)",
       "Bash(*/bin/set-defaults*)",
-      "Bash(*/bin/upup*)"
+      "Bash(*/bin/sysup*)"
     ],
     "deny": [
       "Edit(/obsidian/.obsidian/plugins/**)",

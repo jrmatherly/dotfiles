@@ -6,7 +6,7 @@
 #
 # `hindsight-memory init`
 #
-# - Re-run the pinned installer and report a newer npm release (`upup` runs this):
+# - Re-run the pinned installer and report a newer npm release (`sysup` runs this):
 #
 # `hindsight-memory upgrade`
 #
@@ -128,7 +128,7 @@ merge_defaults() {
 
 need_config() { [ -f "$cfg" ] || fail "no config at $cfg; run: hindsight-memory init"; }
 
-# upup treats the config's presence as "installed", so uninstall keeps it aside
+# sysup treats the config's presence as "installed", so uninstall keeps it aside
 aside=$cfg.uninstalled
 
 # The harnesses init wires; rollback and uninstall unwire only these
@@ -207,7 +207,7 @@ cmd_paths() {
 }
 
 # shellcheck disable=SC2016 # $k and $v are jq variables
-# Only init creates the config: upup treats its presence as "installed"
+# Only init creates the config: sysup treats its presence as "installed"
 set_flag() {
   need_config
   write_cfg '.[$k] = $v' --arg k "$1" --argjson v "$2"

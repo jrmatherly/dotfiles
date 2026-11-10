@@ -115,9 +115,9 @@ both=$(grep -v '^#' agents/claude-permissions-retired.txt | jq -Rnc --slurpfile 
 # a single leading / anchors at the project root in project settings
 rules .claude/settings.json deny present 'Read(/vscode/User/History/**)' 'Read(/vscode/User/workspaceStorage/**)' \
   'Read(/vscode/User/globalStorage/**)'
-# upup and set-defaults change the machine: every way to start them asks,
-# `bash bin/upup` included (it once ran unasked)
-for s in upup set-defaults; do
+# sysup and set-defaults change the machine: every way to start them asks,
+# `bash bin/sysup` included (it once ran unasked)
+for s in sysup set-defaults; do
   rules .claude/settings.json ask present "Bash($s *)" "Bash(bin/$s*)" "Bash(./bin/$s*)" "Bash(*/bin/$s*)" \
     "Bash(bash bin/$s*)" "Bash(sh bin/$s*)"
 done

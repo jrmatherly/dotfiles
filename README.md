@@ -17,7 +17,7 @@ Jason's personal dotfiles for configuring macOS with Zsh and Homebrew — a pers
 
 - Custom color scheme: [Squirrelsong](colors/).
 - Handy [CLI scripts](bin/), including [`brewpick`](bin/brewpick) — the Brewfile installer used by `setup/brew.sh` (`brewpick --all`), which can also run as an fzf checklist to install just a subset of the formulae/casks/VS Code extensions.
-- [`upup`](bin/upup): one command to update macOS, Homebrew, runtimes and the rest (see [Updating](#updating)).
+- [`sysup`](bin/sysup): one command to update macOS, Homebrew, runtimes and the rest (see [Updating](#updating)).
 - Coding agents [config automation](agents/): shared instructions for Amp and Codex, plus Claude Code's plugins, settings and skills, restored by setup along with a catalog of everything installed, and opt-in per-repo [Hindsight](https://github.com/vectorize-io/hindsight) memory for Claude Code and Codex (`hindsight-memory`).
 - [Custom zsh theme](tilde/.starship.toml) with Git status, etc. using [Starship](https://starship.rs/).
 - Runtime versions (Node, Python, etc.) managed by [mise](https://mise.jdx.dev/), activated in [`tilde/.zprofile`](tilde/.zprofile) (shims, for GUI apps) and [`zsh/init.zsh`](zsh/init.zsh) (full shell integration).
@@ -218,10 +218,10 @@ If this file exists, it will be automatically included after the configurations 
 ## Updating
 
 ```shell
-upup
+sysup
 ```
 
-[`upup`](bin/upup) is the routine update command, and it works from any directory. It prints one status line per step (green ✔ up to date, cyan ↻ changed with what changed, yellow ● a notice such as a release held back, red ✖ a failed step with the command to rerun) and ends with a summary: a `Done in <time> · <n> changed · …` headline, then what changed, notices and failures in aligned columns, the actions you still have to take (restart Claude Code after plugin updates, review the tracked config, open a new terminal, reopen an app Homebrew replaced while it ran) under a highlighted `▶ ACTION NEEDED` banner, and clickable links to the rebuilt catalog and the log (shown as `~/…` paths). A list such as Homebrew's or mise's upgraded versions, the versions `mise prune` removed or the plugins updated prints as a two-column table under its step, and long lines wrap under the detail column. Each run's full tool output goes to `logs/upup-<timestamp>.log` (git-ignored); only a step that changed something or failed shows its output on screen. On a terminal, the step in progress shows as a `…` line, and a step that took 10 seconds or more names its time. It:
+[`sysup`](bin/sysup) is the routine update command, and it works from any directory. It prints one status line per step (green ✔ up to date, cyan ↻ changed with what changed, yellow ● a notice such as a release held back, red ✖ a failed step with the command to rerun) and ends with a summary: a `Done in <time> · <n> changed · …` headline, then what changed, notices and failures in aligned columns, the actions you still have to take (restart Claude Code after plugin updates, review the tracked config, open a new terminal, reopen an app Homebrew replaced while it ran) under a highlighted `▶ ACTION NEEDED` banner, and clickable links to the rebuilt catalog and the log (shown as `~/…` paths). A list such as Homebrew's or mise's upgraded versions, the versions `mise prune` removed or the plugins updated prints as a two-column table under its step, and long lines wrap under the detail column. Each run's full tool output goes to `logs/sysup-<timestamp>.log` (git-ignored); only a step that changed something or failed shows its output on screen. On a terminal, the step in progress shows as a `…` line, and a step that took 10 seconds or more names its time. It:
 
 - pulls the latest dotfiles (`git pull` in the clone)
 - installs macOS software updates (a macOS update asks for your login password: see [below](#macos-update-password-from-1password-optional)); one that needs a restart, such as a new macOS version, is only downloaded, and the summary tells you to install it from System Settings → General → Software Update → Restart Now or with `sudo softwareupdate -ia --restart`, since a plain restart doesn't install it
@@ -244,15 +244,15 @@ It doesn't re-apply the dotfiles. When a pull brings new symlinks, tools or conf
 "$DOTFILES/setup.sh" --skip-brew # drop --skip-brew to also install new Brewfile entries
 ```
 
-`setup.sh` installs what's missing but doesn't upgrade what's already there, except PowerShell (`dotnet tool update`), the dependencies `brew bundle` upgrades on its own and the Iosevka Code font; the rest is `upup`'s job.
+`setup.sh` installs what's missing but doesn't upgrade what's already there, except PowerShell (`dotnet tool update`), the dependencies `brew bundle` upgrades on its own and the Iosevka Code font; the rest is `sysup`'s job.
 
-The repo's own pins get update PRs from [Renovate](https://docs.renovatebot.com/) (config in [`renovate.json`](renovate.json)): `package.json` and its `packageManager` pnpm, the single-version tools in the global mise config, and the action pins and `setup-python` version in `.github/workflows/`. It waits 7 days after a release, like `pnpm-workspace.yaml`'s `minimumReleaseAge`, opens or refreshes the daily `@ampcode/plugin` snapshots only early on Monday (New York time), and keeps mise's `npm:typescript` on major 6. It skips mise's `node` and `python`: its mise manager reads only the first entry of a version list, so it would rewrite the default and leave the rest. Those, like `.nvmrc`'s `lts/*`, stay manual. The `check` workflow ([`.github/workflows/check.yml`](.github/workflows/check.yml)) runs `pnpm check` on macOS for every PR, its PRs included, and every push to `main`. Its Dependency Dashboard issue lists held and pending updates; tick a PR's rebase box there to re-run the check on a PR opened before a workflow change. The Brewfile, VS Code extensions and mise's `latest` entries stay with `upup`.
+The repo's own pins get update PRs from [Renovate](https://docs.renovatebot.com/) (config in [`renovate.json`](renovate.json)): `package.json` and its `packageManager` pnpm, the single-version tools in the global mise config, and the action pins and `setup-python` version in `.github/workflows/`. It waits 7 days after a release, like `pnpm-workspace.yaml`'s `minimumReleaseAge`, opens or refreshes the daily `@ampcode/plugin` snapshots only early on Monday (New York time), and keeps mise's `npm:typescript` on major 6. It skips mise's `node` and `python`: its mise manager reads only the first entry of a version list, so it would rewrite the default and leave the rest. Those, like `.nvmrc`'s `lts/*`, stay manual. The `check` workflow ([`.github/workflows/check.yml`](.github/workflows/check.yml)) runs `pnpm check` on macOS for every PR, its PRs included, and every push to `main`. Its Dependency Dashboard issue lists held and pending updates; tick a PR's rebase box there to re-run the check on a PR opened before a workflow change. The Brewfile, VS Code extensions and mise's `latest` entries stay with `sysup`.
 
 An update of VS Code replaces the files the SpaceBox UI Enhancer patched, so run **SpaceBox Enable UI Enhancer** again afterwards (see [vscode](vscode/README.md#spacebox-ui-enhancer)).
 
 ### macOS update password from 1Password (optional)
 
-`upup` starts with a fingerprint for `sudo`, but a macOS update still stops at `Password:`. That prompt comes from `softwareupdate` itself: on Apple Silicon only the account password authorizes an OS update, and neither `sudo` nor Touch ID counts. If you keep that password in 1Password, `upup` can fetch it with a fingerprint instead. Without this setup nothing changes and you type the password as before.
+`sysup` starts with a fingerprint for `sudo`, but a macOS update still stops at `Password:`. That prompt comes from `softwareupdate` itself: on Apple Silicon only the account password authorizes an OS update, and neither `sudo` nor Touch ID counts. If you keep that password in 1Password, `sysup` can fetch it with a fingerprint instead. Without this setup nothing changes and you type the password as before.
 
 1. In 1Password, save your Mac login password as an item (a Login or Password item; any vault).
 1. Turn on **Settings → Developer → Integrate with 1Password CLI**. The `op` command comes from the Brewfile (`1password-cli`).
@@ -269,19 +269,19 @@ An update of VS Code replaces the files the SpaceBox UI Enhancer patched, so run
    op read "$DOTFILES_MAC_PASSWORD_OP" > /dev/null && echo ok
    ```
 
-`upup` only asks 1Password when a macOS update is actually pending. If `op` is missing or the variable is unset, it asks for the password at its own `Password:` prompt, which hides what you type, and passes it to `softwareupdate` the same way. A password `softwareupdate` rejects fails the macOS step; there is no retry. Update the 1Password item when you change your login password.
+`sysup` only asks 1Password when a macOS update is actually pending. If `op` is missing or the variable is unset, it asks for the password at its own `Password:` prompt, which hides what you type, and passes it to `softwareupdate` the same way. A password `softwareupdate` rejects fails the macOS step; there is no retry. Update the 1Password item when you change your login password.
 
 ### Removing the compromised eMudhra roots (optional)
 
-Keys of eMudhra intermediate CAs were compromised ([Apple](https://support.apple.com/en-us/149555)). Apple's frameworks already block them, but `/etc/ssl/cert.pem`, which Apple's bundled `curl`, `python3`, `git` and `openssl` read, still carries the two roots that trust them, `emSign ECC Root CA - G3` and `AAA Certificate Services`. Homebrew's `curl` verifies through Apple's trust store and its `openssl` and `git` through Homebrew's own `ca-certificates`, so they don't read it. `brew doctor` warns about this, and `upup` shows that warning as a notice.
+Keys of eMudhra intermediate CAs were compromised ([Apple](https://support.apple.com/en-us/149555)). Apple's frameworks already block them, but `/etc/ssl/cert.pem`, which Apple's bundled `curl`, `python3`, `git` and `openssl` read, still carries the two roots that trust them, `emSign ECC Root CA - G3` and `AAA Certificate Services`. Homebrew's `curl` verifies through Apple's trust store and its `openssl` and `git` through Homebrew's own `ca-certificates`, so they don't read it. `brew doctor` warns about this, and `sysup` shows that warning as a notice.
 
-To let `upup` remove the roots, add this to [`~/.zsh.local`](#zshlocal):
+To let `sysup` remove the roots, add this to [`~/.zsh.local`](#zshlocal):
 
 ```shell
 export DOTFILES_TRIM_CA_ROOTS=1
 ```
 
-`upup` then runs `ca-roots trim` each run, before `brew doctor`; while a root is present it runs Homebrew's own script with `sudo`, otherwise it does nothing. The script keeps a backup in `/etc/ssl/cert.pem.bak` (and the first original in `.orig`). A macOS update can put the roots back, so while the variable is set each `upup` after one removes them again. `ca-roots status` shows whether they're there.
+`sysup` then runs `ca-roots trim` each run, before `brew doctor`; while a root is present it runs Homebrew's own script with `sudo`, otherwise it does nothing. The script keeps a backup in `/etc/ssl/cert.pem.bak` (and the first original in `.orig`). A macOS update can put the roots back, so while the variable is set each `sysup` after one removes them again. `ca-roots status` shows whether they're there.
 
 To undo it, run `ca-roots restore` (it copies the backup back with `sudo`; it does nothing if the roots are already back, and refuses if the bundle is no longer the backup minus the roots, as after a macOS update) and delete the line from `~/.zsh.local` (run `mise unset --override DOTFILES_TRIM_CA_ROOTS` too if you set it that way). Removing the roots can break HTTPS connections to some websites.
 

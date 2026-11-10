@@ -14,8 +14,8 @@ User CLI scripts, all on `PATH`. `zsh/path.zsh` prepends both `$DOTFILES/bin` an
 
 - `bin/<name>`: an executable with no extension. Most are bash; a few use node, python3, perl or swift, depending on what the task needs.
 - `git-*` scripts (`git-find`, `git-pr`, `git-setup`, `git-tidy`) also work as git subcommands (`git tidy`).
-- `bin/lib/` holds helpers that are also on PATH: `check` (the `pnpm check` gate), `get-tldr-md` (the header → tldr renderer used by `help`), `starship-git-simple` (the prompt segment) and the `test-*` self-checks that `check` runs. Each self-check's header says what it covers. One that fakes `HOME` and calls a tool a mise shim can provide takes the shims off `PATH`, since a shim under a fake `HOME` starts cold and fetches every tool's versions from the network, which made `test-upup` fail on timing.
-- Long-script details load with the script: `.claude/rules/upup.md`, `claude-config-tool.md`, `claude-catalog.md`, `hindsight-wiring.md`.
+- `bin/lib/` holds helpers that are also on PATH: `check` (the `pnpm check` gate), `get-tldr-md` (the header → tldr renderer used by `help`), `starship-git-simple` (the prompt segment) and the `test-*` self-checks that `check` runs. Each self-check's header says what it covers. One that fakes `HOME` and calls a tool a mise shim can provide takes the shims off `PATH`, since a shim under a fake `HOME` starts cold and fetches every tool's versions from the network, which made `test-sysup` fail on timing.
+- Long-script details load with the script: `.claude/rules/sysup.md`, `claude-config-tool.md`, `claude-catalog.md`, `hindsight-wiring.md`.
 - Setup entrypoints: `brewpick` (`--all`, or an fzf checklist), `set-defaults` (runs `setup/macos.sh`), `dotfiles` (git pull only; re-run `setup.sh` afterwards to re-apply).
 - `install-iosevka-code`: VS Code's font (no cask), with a conditional request so an unchanged zip isn't downloaded. `REVIEWED_SHA256` only flags a change. `install-snippetslab-skill` exits 1 (callers warn) when the app is missing, the output is empty, or a real directory sits at the link path.
 - `rea-mcp`: what Claude Code's `rea` registration runs. It resolves `GHIDRA_INSTALL_DIR` and `JAVA_HOME` at every launch so the registration holds no versioned path (a pinned `openjdk@21` dangled when Ghidra 12.2 moved to `@25`). `JAVA_HOME` comes from the keg's `bin/ghidraRun` wrapper, the JDK the GUI uses, not one a `brew update` without `brew upgrade` only promises. It finds `brew` at its absolute path for app-launched Claude Code.
@@ -62,7 +62,7 @@ User CLI scripts, all on `PATH`. `zsh/path.zsh` prepends both `$DOTFILES/bin` an
 
 - Homebrew CLIs: `brew`, `gh`, `fzf`, `bat`, `rg`, `jq`, `cwebp`, and `tldr` (tlrc, configured by `tilde/.tlrc.toml`).
 - `node` from mise, for `get-tldr-md`, `myip` and other ESM scripts. `package.json` is `"type": "module"`.
-- `mise`, for `upup` and runtime-related scripts.
+- `mise`, for `sysup` and runtime-related scripts.
 - macOS system tools: `lsof` (`check-port`/`clear-port`), `defaults`, `softwareupdate`, `dscacheutil`.
 
 <!-- END AUTO-MANAGED -->

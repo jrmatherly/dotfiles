@@ -47,7 +47,7 @@ VS Code rewrites `User/settings.json` itself, so the template has to render exac
 The `spacebox-ui.*` settings (blur for menus, hovers and the Command Palette) do nothing on their own: the [SpaceBox UI Enhancer](https://marketplace.visualstudio.com/items?itemName=SpaceBox.spacebox-ui) extension works by patching VS Code's own files inside the app, and only when told to. Setup can't do it, since the command exists only inside VS Code:
 
 1. Run **SpaceBox Enable UI Enhancer** from the Command Palette, then quit VS Code (⌘Q) and open it again. A window reload isn't enough: VS Code then warns "Your Code installation appears to be corrupt", because it still holds the checksums it read at launch. The extension rewrites them in `product.json`, so the warning goes away after a full restart.
-1. Repeat after a VS Code update (it replaces the patched files; `upup` upgrades VS Code, so expect it then) and after updating the extension (**SpaceBox Disable UI Enhancer** first, then enable again).
+1. Repeat after a VS Code update (it replaces the patched files; `sysup` upgrades VS Code, so expect it then) and after updating the extension (**SpaceBox Disable UI Enhancer** first, then enable again).
 
 To undo it, run **SpaceBox Disable UI Enhancer** and restart: it restores VS Code's original files from the backups the extension made. Patching the app also invalidates its macOS code signature (`codesign --verify` fails), so disable it first if macOS or VS Code starts complaining about the app.
 
@@ -61,7 +61,7 @@ No manual step needed: the `visual-studio-code` cask links `code` into `/opt/hom
 
 ## Install extensions
 
-The extensions are listed in the [Brewfile](../setup/Brewfile). VS Code keeps them up to date itself; `upup` upgrades VS Code through Homebrew. Install all of them with:
+The extensions are listed in the [Brewfile](../setup/Brewfile). VS Code keeps them up to date itself; `sysup` upgrades VS Code through Homebrew. Install all of them with:
 
 ```shell
 bin/brewpick --all

@@ -4,9 +4,9 @@
 
 ## Summary
 
-- Installed as the mise npm tool `npm:rea-agents` (`tilde/.config/mise/config.toml`, `latest` with a 6 h release-age floor because REA ships several releases a day). `upup` upgrades it with the other mise tools.
+- Installed as the mise npm tool `npm:rea-agents` (`tilde/.config/mise/config.toml`, `latest` with a 6 h release-age floor because REA ships several releases a day). `sysup` upgrades it with the other mise tools.
 - Registered with Claude Code at user scope as the `rea` MCP server by `setup/misc.sh`. The registered command is `bin/rea-mcp`, a launcher that resolves `GHIDRA_INSTALL_DIR` and `JAVA_HOME` from Homebrew at every start and execs `rea mcp`, so no versioned path is stored and a Ghidra upgrade that moves its JDK cannot strand the registration.
-- The `reverse-engineer-anything` skill (REA's own workflow instructions) is the copy bundled with the installed `rea-agents`, written by `rea setup --skill` into `~/.agents/skills` and `~/.claude/skills` by `setup/misc.sh` and refreshed by `upup` after each REA upgrade, so it always describes the server that is running.
+- The `reverse-engineer-anything` skill (REA's own workflow instructions) is the copy bundled with the installed `rea-agents`, written by `rea setup --skill` into `~/.agents/skills` and `~/.claude/skills` by `setup/misc.sh` and refreshed by `sysup` after each REA upgrade, so it always describes the server that is running.
 - Permission rules for its 229 MCP tools (6.8.0) are in `agents/claude-settings.json`: static-analysis tools run without a prompt, tools that drive a live app, browser or process or write files ask first (details in [agents/README.md](../agents/README.md)).
 - Engines: Hopper (Brewfile cask, free demo until licensed) works. Ghidra (Brewfile formula, 12.2) is installed and its JDK resolves, but REA 6.8.0 still refuses Ghidra 12.2 (re-measured 2026-10-26) and the Homebrew build has no native decompiler, so the Ghidra provider is unusable until upstream lifts those limits.
 
@@ -43,7 +43,7 @@ Built-in providers that need no engine work today: native macOS inspection (Mach
 
 ## When something changes
 
-- After `upup` upgrades REA, re-run the MCP inspector command in [agents/README.md](../agents/README.md) and compare the tool list with the permission rules: a new tool arrives with no rule.
+- After `sysup` upgrades REA, re-run the MCP inspector command in [agents/README.md](../agents/README.md) and compare the tool list with the permission rules: a new tool arrives with no rule.
 - After a Ghidra upgrade, nothing to do for the JDK. `rea-mcp --print-env` shows the new `openjdk@N`. If REA starts accepting the installed Ghidra line, the `ghidra-version` row in `rea doctor` stops reporting `config_drift` (today: "12.2; accepted releases are 12.1.x").
 - If the dotfiles clone moves, re-run `./setup.sh --skip-brew` (or `setup/misc.sh`): the registration holds the launcher's absolute path and `register_mcp` warns about the old one.
 - Hopper: licence it in the app; REA notices on the next `doctor`.

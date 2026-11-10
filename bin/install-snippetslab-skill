@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Write SnippetsLab's agent skill to `~/.agents/skills/snippetslab/SKILL.md` and link `~/.claude/skills/snippetslab` to it. The skill is a static copy of `lab skill show`, so run this again after a SnippetsLab update; `setup/misc.sh` and `upup` do.
+# Write SnippetsLab's agent skill to `~/.agents/skills/snippetslab/SKILL.md` and link `~/.claude/skills/snippetslab` to it. The skill is a static copy of `lab skill show`, so run this again after a SnippetsLab update; `setup/misc.sh` and `sysup` do.
 #
 # - Install or refresh the skill:
 #

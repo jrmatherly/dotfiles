@@ -1,12 +1,12 @@
 # claude-config
 
-`bin/claude-config` keeps this machine's Claude Code setup in the repo: which plugins are installed, the base `settings.json`, and which user skills are installed for which agents. `save` records the machine into three tracked files under `agents/`; `restore` brings a new Mac up to that state. `setup/misc.sh` runs `restore` last, and `upup` runs `restore skills --update`, `retire` and then `save`, skipping `save` when `restore --dry-run` finds plugins or settings this Mac lacks, since it would erase them from the tracked files.
+`bin/claude-config` keeps this machine's Claude Code setup in the repo: which plugins are installed, the base `settings.json`, and which user skills are installed for which agents. `save` records the machine into three tracked files under `agents/`; `restore` brings a new Mac up to that state. `setup/misc.sh` runs `restore` last, and `sysup` runs `restore skills --update`, `retire` and then `save`, skipping `save` when `restore --dry-run` finds plugins or settings this Mac lacks, since it would erase them from the tracked files.
 
 ## Summary
 
 - Run `claude-config save` after installing or removing a plugin or skill, or changing a setting, then review `git diff agents/` and commit. `save` records what this machine has now.
 - `save` never shrinks a tracked file whose source is missing on this machine (a Mac that is not set up yet). It warns and keeps the tracked file. Writes go through a temp file and `mv`.
-- `restore` adds. Settings already on the machine win, permission lists are unioned, and nothing is rewritten when nothing is missing. The one removal: allow rules listed in `agents/claude-permissions-retired.txt` are dropped by `restore`, `save` and `retire`. Add a rule there when you remove it from `agents/claude-settings.json`, or another Mac keeps it and its next `save` brings it back. `upup` runs `retire`, which only removes, so a pull can't grant anything: new rules wait for a `restore` you run yourself.
+- `restore` adds. Settings already on the machine win, permission lists are unioned, and nothing is rewritten when nothing is missing. The one removal: allow rules listed in `agents/claude-permissions-retired.txt` are dropped by `restore`, `save` and `retire`. Add a rule there when you remove it from `agents/claude-settings.json`, or another Mac keeps it and its next `save` brings it back. `sysup` runs `retire`, which only removes, so a pull can't grant anything: new rules wait for a `restore` you run yourself.
 - Secrets never land in the tracked settings: credential helpers are dropped, and of `env` only Claude Code's own switches and the variables plugin hooks read (`AZURE_MCP_COLLECT_TELEMETRY`, `HINDSIGHT_API_LLM_PROVIDER` and the `HINDSIGHT_API_*LLM_MODEL` pins) survive.
 
 ## Commands
@@ -18,7 +18,7 @@
 | `claude-config restore plugins` / `settings` / `skills` | One part only |
 | `claude-config retire` | Drop retired allow rules from this Mac's settings and change nothing else |
 | `claude-config restore ... --dry-run` | Print what that part would do |
-| `claude-config restore skills --update` | Reinstall each tracked skill whose source changed since install (on GitHub its folder's git tree SHA against `skillFolderHash` in `~/.agents/.skill-lock.json`, one `gh api` call per repository; for a well-known source such as `siderolabs`, the `digest` in the site's `/.well-known/agent-skills/index.json` against `wellKnownDigest`), plus any it can't check, for its listed agents; prints `skill same\|changed\|unknown <name>` per skill (`upup` does this) |
+| `claude-config restore skills --update` | Reinstall each tracked skill whose source changed since install (on GitHub its folder's git tree SHA against `skillFolderHash` in `~/.agents/.skill-lock.json`, one `gh api` call per repository; for a well-known source such as `siderolabs`, the `digest` in the site's `/.well-known/agent-skills/index.json` against `wellKnownDigest`), plus any it can't check, for its listed agents; prints `skill same\|changed\|unknown <name>` per skill (`sysup` does this) |
 
 ## The three tracked files
 

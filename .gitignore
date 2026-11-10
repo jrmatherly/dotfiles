@@ -27,7 +27,7 @@ tilde/.config/mise/config.*.local.toml
 tilde/.config/mise/miserc.local.toml
 .tlrc/
 private/
-# upup's per-run logs (bin/upup); setup.sh logs under private/setup-logs/
+# sysup's per-run logs (bin/sysup); setup.sh logs under private/setup-logs/
 logs/
 # A Mac's own Mole whitelist, linked instead of the shared one (setup/symlinks.sh)
 mole/*.local

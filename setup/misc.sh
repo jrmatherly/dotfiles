@@ -157,7 +157,7 @@ if command_exists mise; then
   # finds TypeScript in a project's node_modules or by Node resolution from its
   # own install dir, which walks up to mise's data dir. mise gives every npm
   # tool its own prefix, so link the global `npm:typescript` where that walk
-  # finds it. The target path carries the exact version: upup relinks after
+  # finds it. The target path carries the exact version: sysup relinks after
   # `mise upgrade`.
   if ts_dir="$(mise where npm:typescript 2> /dev/null)"; then
     mkdir -p "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules"
@@ -283,7 +283,7 @@ fi
 
 # Serena — symbol-level code tools over language servers, as an MCP server for
 # Claude Code. Installed as a uv tool (its only documented install method);
-# `bin/upup` upgrades it. Launch invariants (claude-code context, one
+# `bin/sysup` upgrades it. Launch invariants (claude-code context, one
 # user-scope registration, --project-from-cwd): ~/.claude/rules/serena.md
 # https://github.com/oraios/serena
 serena_bin="$HOME/.local/bin/serena"
@@ -299,7 +299,7 @@ fi
 # Scrapling — web scraping library with an MCP server (plain, Chromium and
 # stealth fetches, sessions, screenshots) and a CLI that the scrapling-official
 # skill (agents/claude-skills.txt) drives. A uv tool with the `ai` extra (the
-# server plus the browser fetchers; `all` only adds IPython); `bin/upup`
+# server plus the browser fetchers; `all` only adds IPython); `bin/sysup`
 # upgrades it. `scrapling install` downloads Playwright's Chromium once and is
 # a no-op after. Registered by absolute path so app-launched Claude Code finds
 # it without the shell's PATH. https://scrapling.readthedocs.io/en/latest/ai/mcp-server/
@@ -331,7 +331,7 @@ fi
 # docs/superpowers/specs/completed/2026-10-24-hindsight-memory.md). Tracked snapshots stay
 # clean: `claude-config save` drops `hooks`, and the [mcp_servers] block lands in
 # the seeded copy ~/.codex/config.toml. It registers its MCP server with
-# `claude mcp add`, hence the PATH prefix. `bin/upup` upgrades it.
+# `claude mcp add`, hence the PATH prefix. `bin/sysup` upgrades it.
 if command_exists npx && command_exists uvx && command_exists jq && [ -x "$claude_bin" ]; then
   info "🧠 Setting up Hindsight memory…"
   PATH="$(dirname "$claude_bin"):$PATH" "$DOTFILES_DIR/bin/hindsight-memory" init 2>&1 | indent \
@@ -369,7 +369,7 @@ else
 fi
 
 # SnippetsLab (Mac App Store, not in the Brewfile): its `lab` helper gives an
-# agent skill (a static copy, so upup refreshes it; no git source, so not in
+# agent skill (a static copy, so sysup refreshes it; no git source, so not in
 # agents/claude-skills.txt) and a stdio MCP server, registered with Claude
 # Code and Codex. The server launches the app on the first tool call, not at
 # the handshake (measured), so no --no-launch. Write access for create_snippet

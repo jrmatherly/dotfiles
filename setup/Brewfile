@@ -135,7 +135,7 @@ brew "ruby-lsp" # Ruby language server; runs on the Homebrew Ruby it brings (mac
 brew "ruff" # Fast Python linter/formatter
 brew "rust-analyzer" # Rust language server
 # The system Rust (keg-only; PATH order in zsh/path.zsh). setup/misc.sh makes
-# stable the default, upup runs `rustup update`; a project pinning another
+# stable the default, sysup runs `rustup update`; a project pinning another
 # version goes through mise's rust backend, which reuses this rustup.
 brew "rustup" # Rust toolchain installer; Hindsight's daemon start needs cargo on macOS
 brew "cargo-audit" # Audits Cargo.lock for advisories; a bottled binary, so it needs no toolchain to install

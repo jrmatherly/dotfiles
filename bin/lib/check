@@ -78,8 +78,8 @@ bash bin/lib/test-hindsight-memory > /dev/null
 bash bin/lib/test-ca-roots > /dev/null
 # bin/claude-config save against fixture dirs, under each bash (never the real ~/.claude or agents/)
 bash bin/lib/test-claude-config > /dev/null
-# bin/upup's report against stubbed tools (nothing is upgraded)
-bash bin/lib/test-upup > /dev/null
+# bin/sysup's report against stubbed tools (nothing is upgraded)
+bash bin/lib/test-sysup > /dev/null
 # zsh/ and tilde/.zshrc in interactive agent and user shells, through a temp ZDOTDIR
 bash bin/lib/test-shell > /dev/null
 # mise's override layer: the version floor, the gitignored local files and zsh/override-env.zsh under a temp HOME and MISE_CONFIG_DIR

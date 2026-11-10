@@ -133,7 +133,7 @@ check_true "status says when the daemon is unreachable" bash -c '"$0" status | g
 check_true "uninstall calls the vendor uninstall and stops the daemon" hm uninstall
 check "uninstall args" "uninstall claude-code codex" "$(tail -1 "$HOME/installer.log")"
 check "daemon stopped" "-p coding-agent daemon stop" "$(tail -1 "$HOME/embed.log")"
-check_true "uninstall sets the config aside so upup skips it" test ! -e "$cfg" -a -f "$cfg.uninstalled"
+check_true "uninstall sets the config aside so sysup skips it" test ! -e "$cfg" -a -f "$cfg.uninstalled"
 check "status after uninstall says so instead of failing" "uninstalled (config kept at $cfg.uninstalled; run: hindsight-memory init)" "$(hm status)"
 check_true "init after uninstall restores the config and reruns the installer" hm init
 check "restored list" '["~/dev/x","/opt/src","'"${HOME}"'2/x"]' "$(jq -c .optInPaths "$cfg")"

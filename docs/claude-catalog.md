@@ -1,10 +1,10 @@
 # claude-catalog
 
-`bin/claude-catalog` builds a catalog of every installed Claude Code skill, slash command, subagent and MCP server, because the `/` menu shows names only. It writes `~/.claude/catalog/CATALOG.md` for AI assistants, `CATALOG-lite.md` as a short version to load up front, and `catalog.html`, a searchable page for you. `setup/misc.sh` builds it after `claude-config restore`, and `upup` rebuilds it.
+`bin/claude-catalog` builds a catalog of every installed Claude Code skill, slash command, subagent and MCP server, because the `/` menu shows names only. It writes `~/.claude/catalog/CATALOG.md` for AI assistants, `CATALOG-lite.md` as a short version to load up front, and `catalog.html`, a searchable page for you. `setup/misc.sh` builds it after `claude-config restore`, and `sysup` rebuilds it.
 
 ## Summary
 
-- Rebuild after installing, updating or removing plugins or skills: `claude-catalog` (`upup` does it too).
+- Rebuild after installing, updating or removing plugins or skills: `claude-catalog` (`sysup` does it too).
 - `claude-catalog --open` rebuilds and opens `catalog.html`.
 - The hand-written half lives in `agents/catalog/curated.toml`: task groups, the recommended pick per group, notes, and keep or retire decisions per plugin. The build exits 1 when that file names something that is not installed, except an MCP server (registration is per machine) or an `anthropic-skills:*` skill (synced per claude.ai account), which only warn.
 - A global rule, `tilde/.claude/rules/catalog.md`, tells Claude to consult the catalog when choosing a tool.

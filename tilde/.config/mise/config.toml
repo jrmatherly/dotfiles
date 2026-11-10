@@ -42,7 +42,7 @@ node = ["24", "22", "26"]
 # where it differs from the package.
 # typescript-language-server finds TypeScript in the project's node_modules or
 # by Node resolution from its own install dir, which walks up to mise's data
-# dir; setup/misc.sh and bin/upup link the `npm:typescript` above there.
+# dir; setup/misc.sh and bin/sysup link the `npm:typescript` above there.
 "npm:typescript-language-server" = "6"
 "npm:pyright" = "1" # `pyright-langserver`; Terax's Ruff preset uses the Brewfile's `ruff server`
 "npm:intelephense" = "1"

@@ -26,7 +26,7 @@ There is no build. `pnpm check` (`bin/lib/check`) is the gate: syntax checks, sh
 - One file: `bash -n <file> && shellcheck --severity=warning <file> && prettier --check <file>`.
 - `./setup.sh --skip-brew`: re-apply the dotfiles on this machine. It's interactive. Add `--skip-codegraph` to leave CodeGraph alone; drop `--skip-brew` to also install the Brewfile. Other flags: `-y`, `--dash`, `-h`. From a terminal it logs each run to `private/setup-logs/<timestamp>.log` (via `script`), which `/validate-setup after` reads.
 - `./setup/symlinks.sh`: re-link only.
-- `upup`: upgrades macOS, Homebrew, runtimes and the agent tooling, printing one status line per step with full output in the git-ignored `logs/upup-<timestamp>.log`. `setup.sh` only installs what's missing and doesn't upgrade. Details: `.claude/rules/upup.md`.
+- `sysup`: upgrades macOS, Homebrew, runtimes and the agent tooling, printing one status line per step with full output in the git-ignored `logs/sysup-<timestamp>.log`. `setup.sh` only installs what's missing and doesn't upgrade. Details: `.claude/rules/sysup.md`.
 - `help <bin-script>`: renders a script's header. Use it to verify new or edited `bin/` scripts.
 
 <!-- END AUTO-MANAGED -->

@@ -365,7 +365,7 @@
     },
     {
       "dot": "cyan",
-      "title": "Maintenance loop: upup",
+      "title": "Maintenance loop: sysup",
       "items": [
         "softwareupdate (password via 1Password op read, optional)",
         "brew upgrade --greedy, mise upgrade, uv tool upgrade",

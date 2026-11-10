@@ -105,7 +105,7 @@ exists   $bundle.orig" "$output"
 
   run restore
   check "$name: restore exits 0" 0 "$rc"
-  check "$name: restore names the opt-in to remove" "Remove DOTFILES_TRIM_CA_ROOTS from ~/.zsh.local, or the next upup removes them again." "$(tail -1 <<< "$output")"
+  check "$name: restore names the opt-in to remove" "Remove DOTFILES_TRIM_CA_ROOTS from ~/.zsh.local, or the next sysup removes them again." "$(tail -1 <<< "$output")"
   check "$name: restore ran cp through sudo" "cp -p $bundle.bak $bundle" "$(cat "$tmp/sudo.log")"
   run status
   check "$name: status after restore exits 1" 1 "$rc"

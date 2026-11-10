@@ -2,13 +2,13 @@
 #
 # Get macOS software updates, update Homebrew (incl. VS Code), mise (pruning versions nothing uses) and uv tools, the Iosevka Code font, dotfiles, Raycast, Claude Code and Amp; update agent skills, regenerate the SnippetsLab skill, record Claude Code plugins/settings/skills and rebuild their catalog.
 #
-# > Reads like a report: one status line per step and a summary at the end. Full tool output goes to `logs/upup-<timestamp>.log` in the dotfiles repo, and to the screen only when a step changed something or failed.
+# > Reads like a report: one status line per step and a summary at the end. Full tool output goes to `logs/sysup-<timestamp>.log` in the dotfiles repo, and to the screen only when a step changed something or failed.
 # > A macOS update asks for your login password. Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` (or with `mise set --override`) to a 1Password secret reference (`op://vault/item/password`) to supply it with a fingerprint instead.
 # > Set `DOTFILES_TRIM_CA_ROOTS=1` in `~/.zsh.local` (or with `mise set --override`) to let it remove the two compromised eMudhra roots `brew doctor` warns about from /etc/ssl/cert.pem (`ca-roots restore` puts them back).
 #
 # - Run updates:
 #
-# `upup`
+# `sysup`
 #
 # ---
 # License: MIT
@@ -17,9 +17,9 @@ set -euo pipefail
 
 DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 mkdir -p "$DOTFILES/logs"
-log="$DOTFILES/logs/upup-$(date +%Y%m%d-%H%M%S).log"
+log="$DOTFILES/logs/sysup-$(date +%Y%m%d-%H%M%S).log"
 changed=() notices=() failed=() actions=()
-# Not wherever upup was started: from a project, mise upgrade would also
+# Not wherever sysup was started: from a project, mise upgrade would also
 # upgrade what that project's mise.toml lists
 cd "$HOME"
 
@@ -61,13 +61,13 @@ elapsed() {
 }
 
 # status <level> <step> <detail>: print the line, log it, collect it for the
-# summary. A step's result line names its time when it took UPUP_SLOW (10)
+# summary. A step's result line names its time when it took SYSUP_SLOW (10)
 # seconds or more; the summary leaves the time out
 status() {
   local took=""
   case $1 in
     ok | changed | fail)
-      [ $((SECONDS - step_started)) -lt "${UPUP_SLOW:-10}" ] || took=" ($(elapsed $((SECONDS - step_started))))"
+      [ $((SECONDS - step_started)) -lt "${SYSUP_SLOW:-10}" ] || took=" ($(elapsed $((SECONDS - step_started))))"
       ;;
   esac
   clear_line
@@ -390,7 +390,7 @@ else
     END { if (w) print w }' <<< "$out")
   while read -r warning; do
     case $warning in
-      *"Root certificates in /etc/ssl/cert.pem"*) [ -n "${DOTFILES_TRIM_CA_ROOTS:-}" ] || warning+=" (set DOTFILES_TRIM_CA_ROOTS=1 in ~/.zsh.local to let upup remove them)" ;;
+      *"Root certificates in /etc/ssl/cert.pem"*) [ -n "${DOTFILES_TRIM_CA_ROOTS:-}" ] || warning+=" (set DOTFILES_TRIM_CA_ROOTS=1 in ~/.zsh.local to let sysup remove them)" ;;
     esac
     status notice "brew doctor" "$warning"
   done <<< "${warnings:-$(head -1 <<< "$out")}"
@@ -402,7 +402,7 @@ fi
 # newer releases outside those pins); mise itself updates with Homebrew above
 # Prune before upgrading: it deletes the versions the previous run replaced
 # and keeps the ones this run replaces, so each upgrade can be rolled back
-# until the next upup. mise keeps every version a tracked config (any project
+# until the next sysup. mise keeps every version a tracked config (any project
 # mise has loaded, worktrees too) or a running process still uses
 mise_dir="${MISE_DATA_DIR:-$HOME/.local/share/mise}"
 step "mise prune"
@@ -454,7 +454,7 @@ done < <(sed -nE 's/.*WARN +newer ([^ ]+) release ([^ ]+) \(released [^,]*, elig
 # mise upgrade reports a tool it could not reinstall (a pipx tool no config
 # pins, a backend bug) as a WARN and still exits 0
 while read -r mise_warn; do
-  status notice mise "$mise_warn; the next upup's mise prune removes a version no config pins"
+  status notice mise "$mise_warn; the next sysup's mise prune removes a version no config pins"
 done < <(sed -nE 's/.*WARN +(failed to [^:]*):.*/\1/p' <<< "$out" | sort -u)
 # Relink the global TypeScript for typescript-language-server (see
 # setup/misc.sh): the link target names the exact version mise installed.
@@ -552,7 +552,7 @@ fi
 # plugins, base settings and user skills in the repo (review with `git diff`),
 # then rebuild the catalog of installed skills/agents/MCP servers
 if command -v claude > /dev/null; then
-  # The native installer auto-updates on startup, but upup is where versions
+  # The native installer auto-updates on startup, but sysup is where versions
   # get read, and this catches a machine where auto-update stalled. First, so
   # the claude commands below run on the fresh binary
   step "Claude Code"

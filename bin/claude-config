@@ -14,11 +14,11 @@
 #
 # `claude-config restore {{plugins|settings|skills}} --dry-run`
 #
-# - Drop retired allow rules from this machine's settings and change nothing else (`upup` runs this):
+# - Drop retired allow rules from this machine's settings and change nothing else (`sysup` runs this):
 #
 # `claude-config retire`
 #
-# - Reinstall each tracked skill whose GitHub folder or well-known site digest changed since install, and any it can't check, for its listed agents (`upup` runs this):
+# - Reinstall each tracked skill whose GitHub folder or well-known site digest changed since install, and any it can't check, for its listed agents (`sysup` runs this):
 #
 # `claude-config restore skills --update`
 #
@@ -337,7 +337,7 @@ restore_skills() {
         codex) [ -e "$HOME/.agents/skills/$name" ] || missing+=("$agent") ;;
       esac
     done
-    # One line per skill for upup: skill <same|changed|unknown> <name>
+    # One line per skill for sysup: skill <same|changed|unknown> <name>
     if [ "$update" = true ]; then
       state=$(upstream "$name")
       echo "skill $state $name"
