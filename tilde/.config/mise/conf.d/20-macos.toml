@@ -235,13 +235,9 @@ key = "DesktopViewSettings"
 path = ["GroupBy"]
 value = "Kind"
 
-# Enable snap-to-grid for icons on the desktop and in other icon views
-[[bootstrap.macos.defaults_entries]]
-domain = "com.apple.finder"
-key = "DesktopViewSettings"
-path = ["IconViewSettings", "arrangeBy"]
-value = "grid"
-
+# Enable snap-to-grid for icons in icon views. The desktop's own
+# DesktopViewSettings arrangeBy is not declared: with Stacks on, macOS rewrites
+# it to "name" when Finder restarts (seen 2026-11-10).
 [[bootstrap.macos.defaults_entries]]
 domain = "com.apple.finder"
 key = "FK_StandardViewSettings"
