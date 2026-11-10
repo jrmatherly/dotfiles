@@ -184,6 +184,8 @@ The dotfiles can be extended to suit additional local requirements by using the 
 
 If this file exists, it's sourced near the end of `~/.zshrc` (after `zsh/init.zsh`), so its content can add to or override the existing aliases, settings, PATH, etc.
 
+An `export` here is a starting value. `mise set --override KEY=value`, run from your home directory, beats it in every new shell, and `mise unset --override KEY` hands the variable back to the export. Overrides are stored in `tilde/.config/mise/config.override.toml` inside the clone (`~/.config/mise` is a link to that folder), which git ignores.
+
 ### `~/.ssh/config.local`
 
 If this file exists, it will be automatically included after the public SSH hosts to specify any additional SSH hosts.
@@ -281,7 +283,7 @@ export DOTFILES_TRIM_CA_ROOTS=1
 
 `upup` then runs `ca-roots trim` each run, before `brew doctor`; while a root is present it runs Homebrew's own script with `sudo`, otherwise it does nothing. The script keeps a backup in `/etc/ssl/cert.pem.bak` (and the first original in `.orig`). A macOS update can put the roots back, so while the variable is set each `upup` after one removes them again. `ca-roots status` shows whether they're there.
 
-To undo it, run `ca-roots restore` (it copies the backup back with `sudo`; it does nothing if the roots are already back, and refuses if the bundle is no longer the backup minus the roots, as after a macOS update) and delete the line from `~/.zsh.local`. Removing the roots can break HTTPS connections to some websites.
+To undo it, run `ca-roots restore` (it copies the backup back with `sudo`; it does nothing if the roots are already back, and refuses if the bundle is no longer the backup minus the roots, as after a macOS update) and delete the line from `~/.zsh.local` (run `mise unset --override DOTFILES_TRIM_CA_ROOTS` too if you set it that way). Removing the roots can break HTTPS connections to some websites.
 
 ## Changing the dotfiles
 

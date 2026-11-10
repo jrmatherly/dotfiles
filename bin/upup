@@ -3,8 +3,8 @@
 # Get macOS software updates, update Homebrew (incl. VS Code), mise (pruning versions nothing uses) and uv tools, the Iosevka Code font, dotfiles, Raycast, Claude Code and Amp; update agent skills, regenerate the SnippetsLab skill, record Claude Code plugins/settings/skills and rebuild their catalog.
 #
 # > Reads like a report: one status line per step and a summary at the end. Full tool output goes to `logs/upup-<timestamp>.log` in the dotfiles repo, and to the screen only when a step changed something or failed.
-# > A macOS update asks for your login password. Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` to a 1Password secret reference (`op://vault/item/password`) to supply it with a fingerprint instead.
-# > Set `DOTFILES_TRIM_CA_ROOTS=1` in `~/.zsh.local` to let it remove the two compromised eMudhra roots `brew doctor` warns about from /etc/ssl/cert.pem (`ca-roots restore` puts them back).
+# > A macOS update asks for your login password. Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` (or with `mise set --override`) to a 1Password secret reference (`op://vault/item/password`) to supply it with a fingerprint instead.
+# > Set `DOTFILES_TRIM_CA_ROOTS=1` in `~/.zsh.local` (or with `mise set --override`) to let it remove the two compromised eMudhra roots `brew doctor` warns about from /etc/ssl/cert.pem (`ca-roots restore` puts them back).
 #
 # - Run updates:
 #
