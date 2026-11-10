@@ -52,10 +52,13 @@ if command -v mise > /dev/null && mise where python > /dev/null 2>&1; then
   mise exec python -- python3 agents/catalog/test_build_catalog.py > /dev/null
   mise exec python -- python3 agents/catalog/test_stack.py > /dev/null
   for t in "${settings_tests[@]}"; do mise exec python -- python3 "$t" > /dev/null; done
+  # conf.d/20-macos.toml parses clean under mise and no declared type contradicts the live one (drift only warns)
+  mise exec python -- python3 setup/tests/macos-defaults.py > /dev/null
 else
   python3 agents/catalog/test_build_catalog.py > /dev/null
   python3 agents/catalog/test_stack.py > /dev/null
   for t in "${settings_tests[@]}"; do python3 "$t" > /dev/null; done
+  python3 setup/tests/macos-defaults.py > /dev/null
 fi
 # The dotfiles-settings UI tests need Textual, so they run in the package's locked uv env
 if command -v uv > /dev/null; then
