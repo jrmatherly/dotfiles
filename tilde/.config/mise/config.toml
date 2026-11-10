@@ -80,6 +80,13 @@ flux2 = { version = "latest", postinstall = { run = 'mkdir -p "$HOME/.cache/dotf
 hunk = "latest" # Git pager used by tilde/.gitconfig, lazygit and gh
 lazydocker = "latest" # Full Docker management app (zsh `lzd` alias)
 talosctl = { version = "latest", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && talosctl completion zsh > "$HOME/.cache/dotfiles/completions/_talosctl"', when = "always" } } # Talos Linux/Kubernetes CLI
+# Sentry's new CLI (`sentry`, log in with `sentry auth`), not the legacy
+# `sentry-cli` that build tooling pulls in per project and that mise's registry
+# calls `sentry`. Telemetry is off via DO_NOT_TRACK in zsh/env.zsh. Not the
+# getsentry/tools tap formula: mise cannot build it (it runs the release's
+# bare .gz without unpacking it). The repo tags other packages too, so the
+# prefix keeps `latest` on the CLI's tags
+"github:getsentry/toolkit" = { version = "latest", version_prefix = "cli@", bin = "sentry", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && sentry cli completion zsh > "$HOME/.cache/dotfiles/completions/_sentry"', when = "always" } } # Sentry CLI: issues, events, root cause
 # Python for VS Code and scripts — Homebrew's python@3.x only exists as a
 # dependency of other formulae (pipx, awscli…), so don't rely on it. Projects
 # pin their own with `.python-version` / `mise.toml`; uv manages their venvs.

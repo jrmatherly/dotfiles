@@ -20,7 +20,6 @@ adopt = true
 "jrmatherly/tap" = "https://github.com/jrmatherly/homebrew-tap.git" # claude-multipass
 
 # Cloud / infra
-"getsentry/tools" = "https://github.com/getsentry/homebrew-tools.git" # sentry (cli.sentry.dev)
 "kubestellar/tap" = "https://github.com/kubestellar/homebrew-tap.git" # kubestellar-deploy / kubestellar-ops
 "skyhook-io/tap" = "https://github.com/skyhook-io/homebrew-tap.git" # radar (Kubernetes visibility)
 
@@ -136,10 +135,6 @@ adopt = true
 # version goes through mise's rust backend, which reuses this rustup.
 "brew:rustup" = "latest" # Rust toolchain installer; Hindsight's daemon start needs cargo on macOS
 "brew:cargo-audit" = "latest" # Audits Cargo.lock for advisories; a bottled binary, so it needs no toolchain to install
-# Sentry's new CLI (`sentry`, log in with `sentry auth`), not the legacy
-# `sentry-cli` that build tooling pulls in per project. Telemetry is off via
-# DO_NOT_TRACK in zsh/env.zsh.
-"brew:getsentry/tools/sentry" = "latest" # Sentry CLI: issues, events, root cause
 # The core formula: Supabase's docs install from supabase/tap, which would
 # need a sixth tap. Telemetry is off via DO_NOT_TRACK in zsh/env.zsh, and
 # persistently via `supabase telemetry disable` in setup/misc.sh.

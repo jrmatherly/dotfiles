@@ -26,7 +26,8 @@ PATH=$(tr ':' '\n' <<< "$PATH" | grep -v '/mise/shims$' | paste -sd: -)
 # HOMEBREW_PREFIX points nowhere so sysup's by-path rustup falls back to the stub
 # and the stub mise counts as not Homebrew's
 export HOME="$tmp/home" DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
-unset DOTFILES_MAC_PASSWORD_OP DOTFILES_TRIM_CA_ROOTS
+# A caller's own token would reach the mise stub in place of the gh stub's
+unset DOTFILES_MAC_PASSWORD_OP DOTFILES_TRIM_CA_ROOTS MISE_GITHUB_TOKEN
 mkdir -p "$HOME" "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
 printf 'skill one src claude-code\nskill two src claude-code\n' > "$DOTFILES/agents/claude-skills.txt"
 git -C "$DOTFILES" init -q
