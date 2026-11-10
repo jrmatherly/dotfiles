@@ -33,13 +33,11 @@ if ! command -v mise > /dev/null; then
   curl -fsSL https://mise.run | sh
 fi
 
-# Tap formulae resolve through api.github.com, whose anonymous limit is 60 an hour
-if [ -z "${MISE_GITHUB_TOKEN:-}" ]; then
-  if token=$(gh auth token 2> /dev/null) && [ -n "$token" ]; then
-    export MISE_GITHUB_TOKEN="$token"
-  else
-    warn "No GitHub token from gh: tap formulae may hit GitHub's anonymous rate limit. Re-run after gh auth login"
-  fi
+# mise asks gh for a token itself ([settings.github] in config.toml), so none is
+# exported here for every build and hook to inherit. Without one, tap formulae
+# resolve through api.github.com at its anonymous limit of 60 an hour
+if [ -z "${MISE_GITHUB_TOKEN:-}" ] && ! gh auth token > /dev/null 2>&1; then
+  warn "No GitHub token from gh: tap formulae may hit GitHub's anonymous rate limit. Re-run after gh auth login"
 fi
 
 mise plugins link --force vscode "$DOTFILES_DIR/mise-plugins/vscode"

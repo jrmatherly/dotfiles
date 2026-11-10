@@ -83,7 +83,7 @@ check "c: no vscode apply without code" "! grep -q 'manager vscode' '$logs/mise.
 check "c: says extensions are skipped" "grep -qi 'extensions.*skipped' <<< \"\$out\""
 
 run d
-check "d: gh's token reaches mise" "! grep -v ' tok=tok$' '$logs/mise.env'"
+check "d: gh's token is not exported to mise" "! grep -v ' tok=$' '$logs/mise.env'"
 GH_STUB_FAIL=1 run d2
 check "d: without a gh token, warns about the rate limit" "grep -q 'rate limit' <<< \"\$out\""
 check "d: without a gh token, still exits 0" "[ $rc = 0 ]"

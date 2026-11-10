@@ -286,29 +286,20 @@ else
 fi
 
 # Formulae, casks and VS Code extensions (mise's bootstrap packages). Tap
-# formulae resolve through api.github.com, whose anonymous limit one run can
-# use up, so gh's token goes along when there is one
-pkg_token=${MISE_GITHUB_TOKEN:-}
-[ -n "$pkg_token" ] || ! command -v gh > /dev/null || pkg_token=$(gh auth token 2> /dev/null || true)
-mise_packages() {
-  if [ -n "$pkg_token" ]; then
-    MISE_GITHUB_TOKEN=$pkg_token mise bootstrap packages "$@"
-  else
-    mise bootstrap packages "$@"
-  fi
-}
+# formulae resolve through api.github.com; mise gets gh's token itself
+# ([settings.github] in tilde/.config/mise/config.toml)
 # pkg_state: the status JSON, one object keyed by manager; fails when mise does
 # (with code on PATH, a failing `code --list-extensions` fails every manager)
 pkg_state() {
   local json
-  json=$(mise_packages status --json 2>> "$log") && jq -e 'type == "object"' <<< "$json" > /dev/null 2>&1 && printf '%s\n' "$json"
+  json=$(mise bootstrap packages status --json 2>> "$log") && jq -e 'type == "object"' <<< "$json" > /dev/null 2>&1 && printf '%s\n' "$json"
 }
 step packages
 pkg_after=""
 if ! pkg_before=$(pkg_state); then
   status fail packages "couldn't read package state; run: mise bootstrap packages status"
 else
-  capture mise_packages upgrade --yes && pkg_rc=0 || pkg_rc=$?
+  capture mise bootstrap packages upgrade --yes && pkg_rc=0 || pkg_rc=$?
   pkg_after=$(pkg_state) || pkg_after=""
   if [ "$pkg_rc" -ne 0 ]; then
     status fail packages "upgrade failed; run: mise bootstrap packages upgrade"

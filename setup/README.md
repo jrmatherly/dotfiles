@@ -19,7 +19,7 @@ The macOS preferences are deliberately not part of the run; use `set-defaults`.
 [`packages.sh`](packages.sh) installs everything declared in [`tilde/.config/mise/conf.d/30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml) with `mise bootstrap packages apply`. mise downloads Homebrew's bottles and casks into `/opt/homebrew` itself; Homebrew is not installed and `brew` is never run. Pass `--skip-brew` to `setup.sh` to skip this step when re-running for dotfiles changes only. In order, the script:
 
 1. Installs mise with mise's own installer (`curl -fsSL https://mise.run | sh`, into `~/.local/bin`) when no `mise` is on PATH.
-1. Takes a GitHub token from `gh auth token` unless `MISE_GITHUB_TOKEN` is already set. Tap formulae resolve through GitHub's API, whose anonymous limit is 60 calls an hour, so without a token it warns and carries on.
+1. Warns when gh has no GitHub token and `MISE_GITHUB_TOKEN` is unset, then carries on. Tap formulae resolve through GitHub's API, whose anonymous limit is 60 calls an hour. The script exports no token: mise asks gh for one itself (`[settings.github] credential_command` in `tilde/.config/mise/config.toml`), since gh keeps it in the Keychain where mise can't read it.
 1. Links the in-repo VS Code plugin (`mise plugins link --force vscode mise-plugins/vscode`).
 1. Applies the formulae, then the casks, then the VS Code extensions, one `mise bootstrap packages apply --yes --manager <name>` each, from `$HOME` so a project's config can't add to the run, and prints the free disk space after each. Formulae go first because reading a tap's cask needs the Ruby that `brew:ruby` installs. The extensions are skipped with a message while VS Code's `code` command isn't on PATH; re-run the script once it is.
 

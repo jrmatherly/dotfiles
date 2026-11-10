@@ -26,7 +26,7 @@ PATH=$(tr ':' '\n' <<< "$PATH" | grep -v '/mise/shims$' | paste -sd: -)
 # HOMEBREW_PREFIX points nowhere so sysup's by-path rustup falls back to the stub
 # and the stub mise counts as not Homebrew's
 export HOME="$tmp/home" DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
-# A caller's own token would reach the mise stub in place of the gh stub's
+# A caller's own token would reach the mise stub and fail the no-token assertion
 unset DOTFILES_MAC_PASSWORD_OP DOTFILES_TRIM_CA_ROOTS MISE_GITHUB_TOKEN
 mkdir -p "$HOME" "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
 printf 'skill one src claude-code\nskill two src claude-code\n' > "$DOTFILES/agents/claude-skills.txt"
@@ -199,8 +199,8 @@ check_true "up to date: every package installed" has '^✔ packages status +all 
 check_true "up to date: mise self-update is ok" has '^✔ mise self-update +up to date$'
 check_true "up to date: a Homebrew cask without auto_updates is one notice" has '^● packages +1 casks? installed by Homebrew (is|are) not upgraded by mise; run: migrate/legacy-to-mise --step packages$'
 check_true "up to date: no brew command named" lacks '(^|[^[:alpha:]])brew([^[:alpha:]]|$)'
-token_passed() { [ -s "$STATE/mise-env.log" ] && ! grep -vqx 'MISE_GITHUB_TOKEN=tok' "$STATE/mise-env.log"; }
-check_true "up to date: every package command gets gh's token" token_passed
+no_token() { [ -s "$STATE/mise-env.log" ] && ! grep -vqx 'MISE_GITHUB_TOKEN=' "$STATE/mise-env.log"; }
+check_true "up to date: no package command is handed a token" no_token
 check_true "up to date: an installed Scrapling browser gets a line" has '^✔ Scrapling +browser up to date$'
 check_true "up to date: a connected mise MCP server gets a line" has '^✔ mise MCP +connected$'
 check_true "up to date: config left dirty before the run is unchanged" has '^✔ Claude config +unchanged$'

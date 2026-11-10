@@ -105,3 +105,13 @@ bun = "latest"
 # relies on it, as does `bin/nnn`.
 # https://mise.jdx.dev/configuration/settings.html
 idiomatic_version_file_enable_tools = ["node", "python"]
+
+[settings.github]
+# gh keeps its token in the macOS Keychain, where mise's own reader (gh's
+# hosts.yml) cannot see it, so without this every mise call is anonymous and
+# tap and release lookups run out of GitHub's 60 calls an hour. mise runs the
+# command at most once per mise command, only when it needs GitHub, and falls
+# back to anonymous when gh is missing or logged out. The absolute path is for
+# shells whose PATH lacks the prefix. Global-only: a project config cannot set it
+# https://mise.jdx.dev/dev-tools/github-tokens.html#gh-keyring
+credential_command = '"${HOMEBREW_PREFIX:-/opt/homebrew}/bin/gh" auth token --hostname "$MISE_CREDENTIAL_HOST"'
