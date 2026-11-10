@@ -24,6 +24,7 @@ trap 'rm -rf "$tmp"' EXIT
 PATH=$(tr ':' '\n' <<< "$PATH" | grep -v '/mise/shims$' | paste -sd: -)
 # A scratch HOME: sysup's rm of a stale REA skill link must never reach the real one.
 # HOMEBREW_PREFIX points nowhere so sysup's by-path rustup falls back to the stub
+# and the stub mise counts as not Homebrew's
 export HOME="$tmp/home" DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
 unset DOTFILES_MAC_PASSWORD_OP DOTFILES_TRIM_CA_ROOTS
 mkdir -p "$HOME" "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
@@ -50,27 +51,43 @@ stub softwareupdate 'case $1 in
     case "$*" in *--stdinpass*) read -r pw; [ "$pw" = secret ] || { echo "wrong password"; exit 1; } ;; esac
     echo "Downloaded: macOS 27.2" ;;
 esac'
-stub brew 'case $1 in
-  outdated) [ -e "$STATE/brew" ] && printf "gh\ncodex\n" ;;
-  upgrade) trap '"'"'[ ! -e "$STATE/brew-upgrade-fails" ] || exit 1'"'"' EXIT
-    [ ! -e "$STATE/cask-no-quit" ] || { echo "==> Upgrading some/tap/1password"; echo "  8.12.42 -> 8.12.44"; echo "==> Quitting application '"'"'com.1password.1password'"'"'..."; echo "Warning: Application '"'"'com.1password.1password'"'"' did not quit. Enable Automation access for \"Terminal → System Events\" in:"; }
-    echo "==> Upgrading gh"; echo "==> Caveats"; echo "zsh completions have been installed to:"; echo "  /opt/homebrew/share/zsh/site-functions"
-    [ ! -e "$STATE/shadow-first" ] || { echo "The following rg executables are shadowed by commands in $HOME/.local/share/mise/shims:"; echo rg; echo "Running these by name will not invoke the version provided by Homebrew"; }
-    echo "==> gh"; echo "Run gh auth login to use it."; echo "Second line"
-    echo "==> uv"; echo "The following uv executables are shadowed by commands in $HOME/.local/share/mise/shims:"; echo uv; echo uvx; echo "Running these by name will not invoke the version provided by Homebrew"
-    echo "==> openssh"; echo "Default host keys are regenerated once to replace keys"; echo "previously distributed in bottles. This also replaces locally generated keys."; echo; echo "Restart any running Homebrew sshd."
-    echo "==> docker-buildx"; echo "docker-buildx is a Docker plugin. For Docker to find the plugin, add it to ~/.docker/config.json:"; echo "  \"cliPluginsExtraDirs\": ["
-    echo "==> Upgrading codex"; echo "  0.164.0 -> 0.165.0"; echo "==> Upgraded 1 outdated package"; echo "gh       2.103.1  -> 2.103.2" ;;
-  cleanup) echo "==> This operation has freed approximately 29.5MB of disk space." ;;
-  doctor) [ -e "$STATE/brew-doctor" ] || { [ -e "$STATE/brew-doctor-roots" ] && [ ! -e "$STATE/roots-trimmed" ]; } || { echo "Your system is ready to brew."; exit 0; }
-    echo "Please note that these warnings are just used to help the Homebrew maintainers"
-    [ ! -e "$STATE/brew-doctor-roots" ] || [ -e "$STATE/roots-trimmed" ] || printf "\nWarning: Root certificates in /etc/ssl/cert.pem can trust compromised CAs.\nCommand-line tools using this file may accept forged TLS certificates:\n  AAA Certificate Services\n  emSign ECC Root CA - G3\n\nRun this script to create a backup and remove these roots:\n  sudo /opt/homebrew/Library/Homebrew/vendor/portable-ruby/4.0.9/bin/ruby --disable=gems,rubyopt /opt/homebrew/Library/Homebrew/utils/emudhra_certificates.rb\n\nThe script validates the bundle before replacing it. Removing the roots\ncan break HTTPS connections to some websites.\n\nRun brew doctor afterwards and after system updates, which can restore\nthe roots.\nFor details and software update plans, see:\n  https://support.apple.com/en-us/149555\n"
-    [ -e "$STATE/brew-doctor" ] || exit 1
-    printf "\nWarning: Some installed formulae or casks are missing dependencies:\n  gcloud-cli: python@3.13\n\nYou should `brew install` the missing dependencies:\n  brew install python@3.13\n\nWarning: You have unlinked kegs in your Cellar.\nLeaving kegs unlinked can lead to build-trouble. Run `brew link` on these:\n  openssl@3\n  python@3.12\n"; exit 1 ;;
-esac
-exit 0'
-stub mise 'case $1 in
-  which) [ -n "$2" ] && [ -e "$STATE/mise-uv-active" ] ;;
+# sysup must never reach Homebrew or VS Code; these log a call so a test can say so
+stub brew 'echo "brew $*" >> "$STATE/forbidden.log"; exit 1'
+stub code 'echo "code $*" >> "$STATE/forbidden.log"; exit 1'
+stub gh '[ "$1 $2" = "auth token" ] && echo tok'
+stub mise "$(
+  cat << 'EOF'
+case $1 in
+  --version) if [ -e "$STATE/self-updated" ]; then echo "2026.11.6 macos-arm64"; else echo "2026.11.5 macos-arm64"; fi ;;
+  self-update) echo "self-update $*" >> "$STATE/mise-calls.log"
+    [ -e "$STATE/self-update-fails" ] && { echo "mise ERROR self-update failed"; exit 1; }
+    [ ! -e "$STATE/mise-newer" ] || touch "$STATE/self-updated" ;;
+  bootstrap) echo "MISE_GITHUB_TOKEN=${MISE_GITHUB_TOKEN:-}" >> "$STATE/mise-env.log"
+    case "$2 $3" in
+      "packages status")
+        [ -e "$STATE/pkg-status-fails" ] && { echo "mise ERROR code --list-extensions exited 1" >&2; exit 1; }
+        gh=2.103.1 codex=0.164.0 jq_state=installed utm_by=homebrew code=true ext_state=installed
+        [ ! -e "$STATE/pkg-upgraded" ] || gh=2.103.2 codex=0.165.0
+        [ ! -e "$STATE/pkg-broken" ] || jq_state=needs_repair
+        [ ! -e "$STATE/pkg-mise-casks" ] || utm_by=mise
+        [ ! -e "$STATE/pkg-no-code" ] || code=false ext_state=skipped
+        cat << JSON
+{"brew": {"available": true, "packages": [
+  {"package": "gh", "requested_version": "latest", "desired_state": "present", "state": "installed", "installed_version": "$gh"},
+  {"package": "jq", "requested_version": "latest", "desired_state": "present", "state": "$jq_state", "installed_version": "1.8.1"}]},
+ "brew-cask": {"available": true, "packages": [
+  {"package": "codex", "requested_version": "latest", "desired_state": "present", "state": "installed", "installed_version": "$codex", "managed_by": "mise"},
+  {"package": "utm", "requested_version": "latest", "desired_state": "present", "state": "installed", "installed_version": "5.0.8", "managed_by": "$utm_by"},
+  {"package": "raycast", "requested_version": "latest", "desired_state": "present", "state": "installed", "installed_version": "1.104.0", "auto_updates": true, "managed_by": "homebrew"}]},
+ "vscode": {"available": $code, "packages": [
+  {"package": "eamodio.gitlens", "requested_version": "latest", "desired_state": "present", "state": "$ext_state", "installed_version": "17.6.1"}]}}
+JSON
+        ;;
+      "packages upgrade")
+        [ -e "$STATE/pkg-upgrade-fails" ] && { echo "mise ERROR brew-cask:utm: download failed"; exit 1; }
+        [ ! -e "$STATE/pkg" ] || touch "$STATE/pkg-upgraded" ;;
+      *) exit 1 ;;
+    esac ;;
   ls) if [ -e "$STATE/prune" ]; then
       echo "{\"node\":[{\"version\":\"24.0.0\",\"install_path\":\"$STATE/installs/node/24.0.0\"}],\"github:microsoft/aspire\":[{\"version\":\"13.6.0\",\"install_path\":\"$STATE/installs/aspire/13.6.0\"}],\"npm:node\":[{\"version\":\"1.0.0\",\"install_path\":\"$STATE/installs/npm-node/1.0.0\"},{\"version\":\"2.0.0\",\"install_path\":\"$STATE/installs/npm-node/2.0.0\"}]}"
     else echo "{}"; fi ;;
@@ -83,7 +100,9 @@ stub mise 'case $1 in
       echo "mise WARN  failed to reinstall pipx tools: ~/.local/share/mise/shims/uv exited with non-zero status: exit code 2"
     fi ;;
   *) exit 1 ;;
-esac'
+esac
+EOF
+)"
 stub rustup 'if [ -e "$STATE/rust" ]; then
   echo "  stable-aarch64-apple-darwin updated - rustc 1.99.1 (58cf8f9c3 2026-10-13) (from rustc 1.99.0 (b940084d7 2026-09-28))"
 else echo "  stable-aarch64-apple-darwin unchanged - rustc 1.99.1 (58cf8f9c3 2026-10-13)"; fi'
@@ -174,9 +193,13 @@ run() {
 run
 check_true "off HOME: the log path stays absolute" has "^Logging to $DOTFILES/logs/sysup-[0-9]{8}-[0-9]{6}\\.log\$"
 check_true "any directory: mise runs from HOME, not the caller's project" [ "$(cat "$STATE/mise-pwd")" = "$(cd "$HOME" && pwd -P)" ]
-check_true "up to date: Homebrew is ok" has '^✔ Homebrew +up to date$'
-check_true "up to date: cleanup reports what it freed" has '^✔ brew cleanup +freed 29.5MB$'
-check_true "up to date: healthy brew doctor gets a line" has '^✔ brew doctor +ready to brew$'
+check_true "up to date: packages are ok" has '^✔ packages +up to date$'
+check_true "up to date: every package installed" has '^✔ packages status +all installed$'
+check_true "up to date: mise self-update is ok" has '^✔ mise self-update +up to date$'
+check_true "up to date: a Homebrew cask without auto_updates is one notice" has '^● packages +1 casks? installed by Homebrew (is|are) not upgraded by mise; run: migrate/legacy-to-mise --step packages$'
+check_true "up to date: no brew command named" lacks '(^|[^[:alpha:]])brew([^[:alpha:]]|$)'
+token_passed() { [ -s "$STATE/mise-env.log" ] && ! grep -vqx 'MISE_GITHUB_TOKEN=tok' "$STATE/mise-env.log"; }
+check_true "up to date: every package command gets gh's token" token_passed
 check_true "up to date: an installed Scrapling browser gets a line" has '^✔ Scrapling +browser up to date$'
 check_true "up to date: a connected mise MCP server gets a line" has '^✔ mise MCP +connected$'
 check_true "up to date: config left dirty before the run is unchanged" has '^✔ Claude config +unchanged$'
@@ -191,13 +214,13 @@ check_true "up to date: REA skill matches" has '^✔ REA skill +matches rea-agen
 check_true "up to date: Hindsight unchanged" has '^✔ Hindsight memory +hooks and runtime unchanged$'
 check_true "up to date: Rust is ok" has '^✔ Rust +up to date$'
 check_true "up to date: nothing for mise prune" has '^✔ mise prune +nothing unused$'
-check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
-check_true "up to date: one-line summary" has '^Everything up to date\.$'
+check_true "up to date: no changed or failed line" lacks '^ *(↻|✖)'
+check_true "up to date: the casks notice is the only notice" [ "$(grep -c '^● ' <<< "$screen")" -eq 1 ]
 check_true "up to date: log is a file:// link" has "^Log +file://$DOTFILES/logs/sysup-[0-9]{8}-[0-9]{6}\\.log\$"
 check_true "up to date: no step slow enough for a time" lacks '\([0-9]+s\)$'
 [ ! -x /Applications/SnippetsLab.app/Contents/Helpers/lab ] || check_true "up to date: SnippetsLab unchanged" has '^✔ SnippetsLab skill +unchanged$'
 check_true "up to date: summary links the catalog" has '^Catalog +file:///tmp/cat/catalog\.html$'
-check_true "up to date: log has the Homebrew section" grep -qx '== Homebrew ==' "$DOTFILES"/logs/sysup-*.log
+check_true "up to date: log has the packages section" grep -qx '== packages ==' "$DOTFILES"/logs/sysup-*.log
 # The header promises one status line per step: a step whose branch forgot its
 # line shows as a heading with nothing under it (the summary has none by design)
 silent_steps=$(awk '
@@ -207,12 +230,19 @@ silent_steps=$(awk '
 check_true "up to date: every step has a status line${silent_steps:+ (silent: $silent_steps)}" [ -z "$silent_steps" ]
 
 rm -rf "$DOTFILES/logs"
+touch "$STATE/pkg-mise-casks"
+run
+check_true "all casks mise's: no changed, notice or failed line" lacks '^ *[↻●✖]'
+check_true "all casks mise's: one-line summary" has '^Everything up to date\.$'
+rm -f "$STATE/pkg-mise-casks"
+
+rm -rf "$DOTFILES/logs"
 screen=$(HOME="$tmp" "$script" < /dev/null 2>&1) || true
 check_true "under HOME: the log path is the ~/ form" has '^Logging to ~/dotfiles/logs/sysup-[0-9]{8}-[0-9]{6}\.log$'
 rm -rf "$DOTFILES/logs"
 mkdir -p "$STATE/installs/node/24.0.0" "$STATE/installs/aspire/13.6.0"
 head -c 2048 /dev/zero > "$STATE/installs/node/24.0.0/bin"
-touch "$STATE/settings" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/prune" "$STATE/pull" "$STATE/brew" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea" "$STATE/brew-doctor" "$STATE/mise-uv-active" "$STATE/catalog-delta"
+touch "$STATE/settings" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/prune" "$STATE/pull" "$STATE/pkg" "$STATE/mise-newer" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea" "$STATE/catalog-delta"
 mkdir -p "$CLAUDE_CONFIG_DIR/skills"
 ln -s /nonexistent "$CLAUDE_CONFIG_DIR/skills/reverse-engineer-anything"
 run
@@ -228,27 +258,16 @@ check_true "changes: no upgrading line off a terminal" lacks 'upgrading'
 check_true "changes: dropped retired rules are reported" has '^↻ Claude settings +dropped retired permission rules$'
 check_true "changes: a further edit to dirty config is a change" has '^↻ Claude config +tracked Claude config changed$'
 check_true "changes: dotfiles pulled" has '^↻ dotfiles +pulled 1 commit$'
-check_true "changes: brew upgrade noise stays off screen" lacks '^==> Upgrading gh$'
-check_true "changes: boilerplate caveat dropped" lacks 'completions'
-check_true "changes: a caveat shows its package and first line" has '^    gh: Run gh auth login to use it\. \(more in the log\)$'
-check_true "changes: a shadow caveat is one line" has '^    uv: uv, uvx shadowed by ~/\.local/share/mise/shims$'
-check_true "changes: a wrapped sentence shows whole" has '^    openssh: Default host keys are regenerated once to replace keys previously distributed in bottles\. This also replaces locally generated keys\. \(more in the log\)$'
-check_true "changes: no reopen action without the cask warning" lacks 'Reopen'
-check_true "changes: the Docker plugin caveat stays off screen" lacks 'is a Docker plugin'
-check_true "changes: the Docker plugin caveat stays in the log" grep -q 'is a Docker plugin' "$DOTFILES"/logs/sysup-*.log
 check_true "changes: catalog names what it gained" has '^    added    p:new$'
 check_true "changes: catalog names what it lost" has '^    removed  p:one, p:two$'
 check_true "changes: a spinner is only its last frame in the log" grep -qx '◇  Repository cloned' "$DOTFILES"/logs/sysup-*.log
 check_true "changes: no spinner frames in the log" log_lacks 'Cloning'
 check_true "changes: no cursor or color codes in the log" log_lacks $'\x1b'
-check_true "changes: full caveats kept in the log" grep -qx 'Second line' "$DOTFILES"/logs/sysup-*.log
-check_true "changes: a brew doctor warning names what it found" has '^● brew doctor +Warning: Some installed formulae or casks are missing dependencies: gcloud-cli: python@3.13$'
-check_true "changes: each brew doctor warning is its own notice, items joined" has '^● brew doctor +Warning: You have unlinked kegs in your Cellar. openssl@3, python@3.12$'
-check_true "changes: brew doctor prose stays in the log" lacks 'Leaving kegs unlinked'
-check_true "changes: Homebrew line counts" has '^↻ Homebrew +2 packages upgraded$'
-check_true "changes: a formula's versions come from brew's table" has '^    gh     2\.103\.1 → 2\.103\.2$'
-check_true "changes: a cask's versions come from its Upgrading block" has '^    codex  0\.164\.0 → 0\.165\.0$'
-check_true "changes: summary keeps the short Homebrew line" has '^  ↻ Homebrew +2 packages upgraded$'
+check_true "changes: packages line counts" has '^↻ packages +2 packages upgraded$'
+check_true "changes: a formula's versions in a row" has '^    gh +2\.103\.1 → 2\.103\.2$'
+check_true "changes: a cask's versions in a row" has '^    codex +0\.164\.0 → 0\.165\.0$'
+check_true "changes: summary keeps the short packages line" has '^  ↻ packages +2 packages upgraded$'
+check_true "changes: mise upgraded itself" has '^↻ mise self-update +2026\.11\.5 → 2026\.11\.6$'
 check_true "changes: mise line counts" has '^↻ mise +4 versions upgraded$'
 check_true "changes: one tool in two pinned versions keeps its short name" has '^    tsc     5\.8\.0 → 5\.8\.1$'
 check_true "changes: mise names each old → new pair, one row each" has '^    node    24\.1\.0 → 24\.1\.1$'
@@ -277,45 +296,58 @@ check_true "changes: action banner counts the items" has '^ ▶ ACTION NEEDED \(
 check_true "changes: headline counts each kind" has '^Done in [0-9]+s · [0-9]+ changed · [0-9]+ notices · [0-9]+ failed · [0-9]+ actions$'
 check_true "changes: not everything up to date" lacks 'Everything up to date'
 check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$DOTFILES"/logs/sysup-*.log
-check_true "changes: log keeps the status lines and the table" grep -q -e '^↻ Homebrew  *2 packages upgraded$' -e '^    gh  ' "$DOTFILES"/logs/sysup-*.log
+check_true "changes: log keeps the status lines and the table" grep -q -e '^↻ packages  *2 packages upgraded$' -e '^    gh  ' "$DOTFILES"/logs/sysup-*.log
 
 # A warning alone (no newer release) must still replace the ok line
-rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/brew-doctor" "$STATE/mise-uv-active" "$STATE/catalog-delta"
-touch "$STATE/cask-no-quit" "$STATE/shadow-first"
+rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/catalog-delta" "$STATE/pkg" "$STATE/pkg-upgraded" "$STATE/mise-newer" "$STATE/self-updated"
+touch "$STATE/pkg-broken"
 run
-check_true "shadow: a tool mise doesn't have active isn't shadowed" lacks 'shadowed by'
-check_true "shadow: the caveat stays in the log" grep -q 'uv executables are shadowed' "$DOTFILES"/logs/sysup-*.log
-check_true "cask Homebrew couldn't quit is a notice" has "^● Homebrew +1password replaced while running: Homebrew couldn't quit it\$"
-check_true "cask: reopening it is an action" has '^  › Reopen 1password if it closed: open -b com\.1password\.1password$'
-rm -rf "$DOTFILES/logs" "$STATE/shadow-first"
-touch "$STATE/brew-upgrade-fails"
-run
-check_true "cask, upgrade fails: the failure is still reported" has '^✖ Homebrew +upgrade failed'
-check_true "cask, upgrade fails: reopening it is still an action" has '^  › Reopen 1password if it closed'
-rm -rf "$DOTFILES/logs"
-rm -f "$STATE/cask-no-quit" "$STATE/brew-upgrade-fails"
-touch "$STATE/mise-uv-active" "$STATE/shadow-first"
-run
-check_true "shadow: an active tool in the first, unnamed caveat block still shows" has '^    rg shadowed by ~/\.local/share/mise/shims$'
-rm -f "$STATE/mise-uv-active" "$STATE/shadow-first"
 check_true "warned: installer warning is the step's only line" lacks '^✔ Hindsight memory'
 check_true "warned: installer warning still a notice" has '^● Hindsight memory +installer: '
-
-# The root-certificate warning: a notice naming the opt-in; opted in, a CA roots
-# step trims before doctor runs, and the next run finds nothing to do
-rm -rf "$DOTFILES/logs"
-touch "$STATE/brew-doctor-roots"
+check_true "package needs repair: a notice naming it" has '^● packages status +brew:jq needs_repair; run: mise bootstrap packages apply$'
+rm -rf "$DOTFILES/logs" "$STATE/pkg-broken"
+touch "$STATE/pkg-no-code"
 run
-check_true "roots: the notice joins the two CA names and names the opt-in" has '^● brew doctor +Warning: Root certificates in /etc/ssl/cert\.pem can trust compromised CAs\. AAA Certificate Services, emSign ECC Root CA - G3 \(run dotfiles-settings set updates\.trim_ca_roots on to let sysup remove them\)$'
+check_true "no code: the manager is one notice" has '^● packages status +vscode is not available \(1 packages? skipped\)$'
+check_true "no code: its packages are not listed" lacks 'vscode:'
+check_true "no code: not all installed" lacks 'packages status +all installed'
+rm -rf "$DOTFILES/logs" "$STATE/pkg-no-code"
+touch "$STATE/pkg-upgrade-fails" "$STATE/self-update-fails"
+run
+check_true "package upgrade fails: fail line names the command" has '^✖ packages +upgrade failed; run: mise bootstrap packages upgrade$'
+check_true "package upgrade fails: its output shown" has '^    mise ERROR brew-cask:utm: download failed$'
+check_true "package upgrade fails: the run reaches mise prune" has '^✔ mise prune '
+check_true "self-update fails: fail line names the command" has '^✖ mise self-update +run: mise self-update$'
+rm -rf "$DOTFILES/logs" "$STATE/pkg-upgrade-fails" "$STATE/self-update-fails"
+touch "$STATE/pkg-status-fails"
+run
+check_true "package state unreadable: one fail line" has '^✖ packages +couldn.t read package state'
+check_true "package state unreadable: no packages status step" lacks '(✔|↻|●|✖) packages status'
+check_true "package state unreadable: the run reaches mise prune" has '^✔ mise prune '
+rm -rf "$DOTFILES/logs" "$STATE/pkg-status-fails" "$STATE/mise-calls.log"
+mkdir -p "$tmp/keg/bin"
+cp "$tmp/bin/mise" "$tmp/keg/bin/mise"
+screen=$(HOMEBREW_PREFIX="$tmp/keg" PATH="$tmp/keg/bin:$PATH" "$script" < /dev/null 2>&1) || true
+check_true "Homebrew's mise: a notice naming the migration" has '^● mise self-update +mise is still Homebrew.s and nothing upgrades it; run: migrate/legacy-to-mise --step packages$'
+check_true "Homebrew's mise: self-update never runs" test ! -e "$STATE/mise-calls.log"
+
+# CA roots: nothing without the opt-in; opted in, a notice where Homebrew's
+# script is gone, else a trim, and the next run finds nothing to do
+rm -rf "$DOTFILES/logs"
+run
 check_true "roots: no ca-roots without the opt-in" test ! -e "$STATE/ca-roots.log"
 rm -rf "$DOTFILES/logs"
 export DOTFILES_TRIM_CA_ROOTS=1
 run
+check_true "roots opted in, script absent: a notice" has '^● CA roots +ca-roots trim needs Homebrew.s script, which is not on this Mac; ca-roots status shows the roots$'
+check_true "roots opted in, script absent: no ca-roots" test ! -e "$STATE/ca-roots.log"
+rm -rf "$DOTFILES/logs"
+mkdir -p "$HOMEBREW_PREFIX/Library/Homebrew/utils"
+touch "$HOMEBREW_PREFIX/Library/Homebrew/utils/emudhra_certificates.rb"
+run
 check_true "roots opted in: trimmed, with the revert" has '^↻ CA roots +removed emSign ECC Root CA - G3, AAA Certificate Services; restore: ca-roots restore$'
-check_true "roots opted in: no root notice" lacks 'Root certificates'
 check_true "roots opted in: status, then one trim" [ "$(paste -sd' ' "$STATE/ca-roots.log")" = "status trim" ]
 check_true "roots opted in: a live sudo credential asks for nothing" lacks 'Password for sudo again'
-check_true "roots opted in: brew doctor then reports clean" has '^✔ brew doctor +ready to brew$'
 rm -rf "$DOTFILES/logs"
 run
 check_true "roots opted in, already trimmed: ok line" has '^✔ CA roots +already absent$'
@@ -331,7 +363,7 @@ touch "$STATE/sudo-expired"
 run
 check_true "roots opted in, sudo expired: asks again before the trim" has '^› sudo +Password for sudo again, to remove the CA roots$'
 unset DOTFILES_TRIM_CA_ROOTS
-rm -f "$STATE/brew-doctor-roots" "$STATE/ca-roots-fails" "$STATE/ca-roots.log" "$STATE/roots-trimmed" "$STATE/sudo-expired" "$STATE/sudo.log"
+rm -rf "$HOMEBREW_PREFIX" "$STATE/ca-roots-fails" "$STATE/ca-roots.log" "$STATE/roots-trimmed" "$STATE/sudo-expired" "$STATE/sudo.log"
 
 rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
 touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust" "$STATE/no-cargo" "$STATE/rea-fails" "$STATE/prune" "$STATE/prune-fails"
@@ -394,7 +426,7 @@ check_true "macOS: an update needing no restart installs quietly" lacks '^Downlo
 check_true "macOS: no install action for it" lacks 'Software Update → Restart Now'
 rm -rf "$DOTFILES/logs" "$STATE/macos" "$STATE/rea" "$STATE/prune" "$HOME/.local/share/mise"
 screen=$(SYSUP_SLOW=0 "$script" < /dev/null 2>&1) || true
-check_true "slow: a step's line names its time" has '^✔ brew doctor +ready to brew \([0-9]+s\)$'
+check_true "slow: a step's line names its time" has '^✔ packages status +all installed \([0-9]+s\)$'
 check_true "slow: the summary leaves the time out" lacks '^  [↻●✖›] .*\([0-9]+s\)$'
 
 # Back to the uv failure: the terminal run below needs a failed step
@@ -444,8 +476,9 @@ rc=0
 screen=$(TERM=xterm-256color script -q /dev/null "$script" < /dev/null | tr -d '\r') || rc=$?
 check_true "terminal: sysup exited $rc" [ "$rc" -eq 0 ]
 check_true "terminal: status lines colored" has $'\x1b\\[[0-9;]*m✔'
-check_true "terminal: a running step shows a … line" has '… Homebrew'
+check_true "terminal: a running step shows a … line" has '… packages'
 check_true "terminal: summary colored" has $'^  \x1b\\[[0-9;]*m✖'
 check_true "terminal: the log link is an OSC 8 hyperlink" has $'\x1b]8;;file://'"$DOTFILES"$'/logs/sysup-[0-9-]+\\.log\x1b\\\\'
 check_true "terminal: action banner colored" has $'\x1b\\[[0-9;]*m ▶ ACTION NEEDED'
 check_true "terminal: log has no color codes" log_lacks $'\x1b'
+check_true "no run called brew or code" test ! -e "$STATE/forbidden.log"

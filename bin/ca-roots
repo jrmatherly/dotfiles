@@ -80,7 +80,7 @@ case ${1:-} in
     fi
     ruby="$prefix/Library/Homebrew/vendor/portable-ruby/current/bin/ruby"
     script="$prefix/Library/Homebrew/utils/emudhra_certificates.rb"
-    [ -x "$ruby" ] && [ -f "$script" ] || die "Homebrew's $script (or its portable Ruby) is missing; run: brew update"
+    [ -x "$ruby" ] && [ -f "$script" ] || die "Homebrew's $script (or its portable Ruby) is missing. It ships with Homebrew, which this setup no longer installs"
     "$sudo" "$ruby" --disable=gems,rubyopt "$script"
     left=$(present_roots | joined)
     [ -z "$left" ] || die "still in $bundle: $left"

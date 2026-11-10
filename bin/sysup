@@ -1,10 +1,10 @@
 #!/bin/bash
 #
-# Get macOS software updates, update Homebrew (incl. VS Code), mise (pruning versions nothing uses) and uv tools, the Iosevka Code font, dotfiles, Raycast, Claude Code and Amp; update agent skills, regenerate the SnippetsLab skill, record Claude Code plugins/settings/skills and rebuild their catalog.
+# Get macOS software updates, upgrade mise and the formulae and casks it installs, mise tools (pruning versions nothing uses) and uv tools, the Iosevka Code font, dotfiles, Raycast, Claude Code and Amp; update agent skills, regenerate the SnippetsLab skill, record Claude Code plugins/settings/skills and rebuild their catalog.
 #
 # > Reads like a report: one status line per step and a summary at the end. Full tool output goes to `logs/sysup-<timestamp>.log` in the dotfiles repo, and to the screen only when a step changed something or failed.
 # > A macOS update asks for your login password. Run `dotfiles-settings set updates.mac_password_op 'op://vault/item/password'` (a 1Password secret reference) to supply it with a fingerprint instead.
-# > Run `dotfiles-settings set updates.trim_ca_roots on` to let it remove the two compromised eMudhra roots `brew doctor` warns about from /etc/ssl/cert.pem (`ca-roots restore` puts them back).
+# > Run `dotfiles-settings set updates.trim_ca_roots on` to let it remove the two compromised eMudhra roots from /etc/ssl/cert.pem (`ca-roots restore` puts them back).
 #
 # - Run updates:
 #
@@ -214,49 +214,6 @@ else
   show
 fi
 
-# brew_caveats: the caveats in $out worth reading, one line per package, on
-# screen and in the log. Dropped: "completions installed to", "examples
-# directory installed to", fish activation, and the Docker plugin block (Docker
-# loads OrbStack's plugins, linked in ~/.docker/cli-plugins). A "shadowed by" block
-# becomes "<names> shadowed by <dir>", also dropped for mise's shims unless mise
-# has the tool active, since the shim otherwise runs Homebrew's copy. Any other
-# block shows its first sentence. The full text stays in the log
-brew_caveats() {
-  sed -n '/^==> Caveats$/,/^==> Upgraded /p' <<< "$out" | awk -v home="$HOME" '
-    function flush(   i, kept, n, text, names) {
-      if (lines[1] ~ /is a Docker plugin/) { c = 0; delete lines; return }
-      n = 0
-      for (i = 1; i <= c; i++) {
-        if (lines[i] ~ /(completions|functions|directory) ha(ve|s) been installed to:$/) { if (lines[i + 1] ~ /^ /) i++; continue }
-        if (lines[i] ~ /^If you are using fish shell/) continue
-        kept[++n] = lines[i]
-      }
-      if (n && kept[1] ~ /^The following .* executables are shadowed by commands in .*:$/) {
-        text = kept[1]; sub(/.* in /, "", text); sub(/:$/, "", text); sub("^" home, "~", text)
-        for (i = 2; i <= n && kept[i] !~ /^Running these/; i++) names = names (names ? ", " : "") kept[i]
-        print "    " (pkg ? pkg ": " : "") names " shadowed by " text
-      } else if (n) {
-        text = kept[1]
-        for (i = 1; i < n && text !~ /[.:!?]$/ && kept[i + 1] != ""; i++) text = text " " kept[i + 1]
-        print "    " (pkg ? pkg ": " : "") text (i < n ? " (more in the log)" : "")
-      }
-      c = 0; delete lines
-    }
-    /^==> Caveats$/ { next }
-    /^==> / { flush(); pkg = substr($0, 5); next }
-    { lines[++c] = $0 }
-    END { flush() }' | while IFS= read -r caveat; do
-    case $caveat in
-      *" shadowed by "*/mise/shims)
-        # Homebrew's first block has no "==> name" heading, so no "name: " here
-        tool=${caveat#"    "} tool=${tool#*: } tool=${tool%%[, ]*}
-        mise which "$tool" > /dev/null 2>&1 || continue
-        ;;
-    esac
-    printf '%s\n' "$caveat"
-  done | tee -a "$log"
-}
-
 # macOS. List first: with nothing to install there's no second scan, and the
 # list says whether an OS update (the one that restarts) is among them.
 step macOS
@@ -308,99 +265,132 @@ else
   status ok macOS "no updates"
 fi
 
-# Homebrew (formulae + casks without and with auto_updates)
-step Homebrew
-if ! outdated_packages=$(brew outdated --greedy 2>> "$log"); then
-  status fail Homebrew "couldn't list outdated packages; run: brew outdated --greedy"
-elif [ -z "$outdated_packages" ]; then
-  status ok Homebrew "up to date"
+# mise itself. Homebrew's keg holds lib/.disable-self-update, so there self-update
+# only errors; Part B's packages step moves mise to ~/.local/bin
+step "mise self-update"
+if [ "$(command -v mise || true)" = "${HOMEBREW_PREFIX:-/opt/homebrew}/bin/mise" ]; then
+  status notice "mise self-update" "mise is still Homebrew's and nothing upgrades it; run: migrate/legacy-to-mise --step packages"
 else
-  printf '%s\n' "$outdated_packages" >> "$log"
-  outdated_count=$(wc -l <<< "$outdated_packages" | tr -d ' ')
-  working "Homebrew: upgrading $(plural "$outdated_count" package)"
-  # --yes: Homebrew asks before upgrading by default; the list is in the log.
-  # Of its output only each package's old -> new and the caveats worth reading
-  # reach the screen. A formula's pair is in the closing "==> Upgraded" table
-  # ("name old -> new"); a cask has no table, only "==> Upgrading name" with
-  # "  old -> new" under it
-  if capture brew upgrade --greedy --yes; then
-    versions=$(awk '
-      /^==> Upgraded / { table = 1; next }
-      table && $3 == "->" && !seen[$1]++ { print $1 "\t" $2 " → " $4; next }
-      /^==> Upgrading [^ ]+$/ { name = $3; next }
-      name != "" && /^  [^ ]+ -> [^ ]+$/ && !seen[name]++ { print name "\t" $1 " → " $3 }
-      { name = "" }' <<< "$out")
-    status changed Homebrew "$(plural "$outdated_count" package) upgraded"
-    rows <<< "${versions:-$outdated_packages}"
-    brew_caveats
+  before=$(mise --version 2> /dev/null | awk '{print $1}' || true)
+  if capture mise self-update --yes; then
+    after=$(mise --version 2> /dev/null | awk '{print $1}' || true)
+    if [ "$after" != "$before" ]; then
+      status changed "mise self-update" "$before → $after"
+    else
+      status ok "mise self-update" "up to date"
+    fi
   else
-    status fail Homebrew "upgrade failed; run: brew upgrade --greedy"
+    status fail "mise self-update" "run: mise self-update"
     show
   fi
-  # Homebrew carries on after this warning and replaces the app anyway: 1Password
-  # aborted when that happened, taking down the SSH agent git needs (2026-11-03)
-  while IFS=$'\t' read -r cask app_id; do
-    status notice Homebrew "$cask replaced while running: Homebrew couldn't quit it"
-    actions+=("Reopen $cask if it closed: open -b $app_id")
-  done < <(awk '
-    /^==> Upgrading / { cask = $3; sub(/.*\//, "", cask) }
-    /^Warning: Application .* did not quit/ { split($0, part, /\047/); print cask "\t" part[2] }' <<< "$out")
 fi
-step "brew cleanup"
-if capture brew cleanup --prune=all; then
-  freed=$(sed -n 's/.*freed approximately \(.*\) of disk space.*/\1/p' <<< "$out")
-  status ok "brew cleanup" "$([ -n "$freed" ] && echo "freed $freed" || echo "nothing to clean")"
+
+# Formulae, casks and VS Code extensions (mise's bootstrap packages). Tap
+# formulae resolve through api.github.com, whose anonymous limit one run can
+# use up, so gh's token goes along when there is one
+pkg_token=${MISE_GITHUB_TOKEN:-}
+[ -n "$pkg_token" ] || ! command -v gh > /dev/null || pkg_token=$(gh auth token 2> /dev/null || true)
+mise_packages() {
+  if [ -n "$pkg_token" ]; then
+    MISE_GITHUB_TOKEN=$pkg_token mise bootstrap packages "$@"
+  else
+    mise bootstrap packages "$@"
+  fi
+}
+# pkg_state: the status JSON, one object keyed by manager; fails when mise does
+# (with code on PATH, a failing `code --list-extensions` fails every manager)
+pkg_state() {
+  local json
+  json=$(mise_packages status --json 2>> "$log") && jq -e 'type == "object"' <<< "$json" > /dev/null 2>&1 && printf '%s\n' "$json"
+}
+step packages
+pkg_after=""
+if ! pkg_before=$(pkg_state); then
+  status fail packages "couldn't read package state; run: mise bootstrap packages status"
 else
-  status fail "brew cleanup" "run: brew cleanup --prune=all"
-  show
+  capture mise_packages upgrade --yes && pkg_rc=0 || pkg_rc=$?
+  pkg_after=$(pkg_state) || pkg_after=""
+  if [ "$pkg_rc" -ne 0 ]; then
+    status fail packages "upgrade failed; run: mise bootstrap packages upgrade"
+    show
+  elif [ -z "$pkg_after" ]; then
+    status fail packages "couldn't read package state; run: mise bootstrap packages status"
+  else
+    # manager:package<TAB>old → new for each installed_version that moved
+    upgraded=$(printf '%s\n%s\n' "$pkg_before" "$pkg_after" | jq -rs '
+      ([.[0] | to_entries[] | .key as $m | .value.packages[]? | {key: "\($m):\(.package)", value: .installed_version}] | from_entries) as $old
+      | .[1] | to_entries[] | .key as $m | .value.packages[]? | "\($m):\(.package)" as $k
+      | select($old[$k] != null and $old[$k] != .installed_version)
+      | "\($k)\t\($old[$k]) → \(.installed_version)"')
+    if [ -n "$upgraded" ]; then
+      status changed packages "$(plural "$(wc -l <<< "$upgraded" | tr -d ' ')" package) upgraded"
+      rows <<< "$upgraded"
+    else
+      status ok packages "up to date"
+    fi
+  fi
+  # mise leaves a cask Homebrew installed unchanged; one that updates itself
+  # needs nothing
+  brew_casks=0
+  [ -z "$pkg_after" ] || brew_casks=$(jq '[."brew-cask".packages[]? | select(.managed_by == "homebrew" and (.auto_updates | not))] | length' <<< "$pkg_after")
+  [ "$brew_casks" -eq 0 ] \
+    || status notice packages "$(plural "$brew_casks" cask) installed by Homebrew $([ "$brew_casks" = 1 ] && echo is || echo are) not upgraded by mise; run: migrate/legacy-to-mise --step packages"
 fi
+
 # Opt-in: drop the two roots that trust the compromised eMudhra CAs from
-# /etc/ssl/cert.pem (Apple's curl, python3 and git read it; brew doctor warns).
-# Before doctor, so a trimmed bundle gets no notice; a macOS update can put the
-# roots back, and trim is a no-op without sudo while they're absent
+# /etc/ssl/cert.pem (Apple's curl, python3 and git read it). ca-roots runs
+# Homebrew's own script, so only where Homebrew still is. A macOS update can
+# put the roots back, and trim is a no-op without sudo while they're absent
 if [ -n "${DOTFILES_TRIM_CA_ROOTS:-}" ]; then
   step "CA roots"
-  # The run's sudo credential may have timed out during brew upgrade; renew it
-  # only when a root is present, since trim needs no sudo otherwise
-  if ! ca-roots status > /dev/null 2>&1 && ! sudo -n -v 2> /dev/null; then
-    status prompt sudo "Password for sudo again, to remove the CA roots"
-    sudo -v
-  fi
-  if ! capture ca-roots trim; then
-    status fail "CA roots" "run: ca-roots trim"
-    show
+  if [ ! -f "${HOMEBREW_PREFIX:-/opt/homebrew}/Library/Homebrew/utils/emudhra_certificates.rb" ]; then
+    status notice "CA roots" "ca-roots trim needs Homebrew's script, which is not on this Mac; ca-roots status shows the roots"
   else
-    removed=$(sed -n 's/^Removed: //p' <<< "$out")
-    if [ -n "$removed" ]; then
-      status changed "CA roots" "removed $removed; restore: ca-roots restore"
+    # The run's sudo credential may have timed out during the package upgrade;
+    # renew it only when a root is present, since trim needs no sudo otherwise
+    if ! ca-roots status > /dev/null 2>&1 && ! sudo -n -v 2> /dev/null; then
+      status prompt sudo "Password for sudo again, to remove the CA roots"
+      sudo -v
+    fi
+    if ! capture ca-roots trim; then
+      status fail "CA roots" "run: ca-roots trim"
+      show
     else
-      status ok "CA roots" "already absent"
+      removed=$(sed -n 's/^Removed: //p' <<< "$out")
+      if [ -n "$removed" ]; then
+        status changed "CA roots" "removed $removed; restore: ca-roots restore"
+      else
+        status ok "CA roots" "already absent"
+      fi
     fi
   fi
 fi
-step "brew doctor"
-if capture brew doctor || grep -q 'Your system is ready to brew' <<< "$out"; then
-  status ok "brew doctor" "ready to brew"
-else
-  # One notice per warning: its "Warning:" line plus the indented items under
-  # it (a missing dependency, an unlinked keg), the prose between in the log only
-  warnings=$(awk '
-    /^Warning:/ { if (w) print w; w = $0; sep = " "; next }
-    w && /^ / { sub(/^ +/, ""); w = w sep $0; sep = ", "; next }
-    /^$/ { if (w) print w; w = "" }
-    END { if (w) print w }' <<< "$out")
-  while read -r warning; do
-    case $warning in
-      *"Root certificates in /etc/ssl/cert.pem"*) [ -n "${DOTFILES_TRIM_CA_ROOTS:-}" ] || warning+=" (run dotfiles-settings set updates.trim_ca_roots on to let sysup remove them)" ;;
-    esac
-    status notice "brew doctor" "$warning"
-  done <<< "${warnings:-$(head -1 <<< "$out")}"
+
+# What the upgrade left not installed. A manager that isn't available (no
+# code on PATH yet) reports every package skipped, so it is one line
+if [ -n "$pkg_after" ]; then
+  step "packages status"
+  unavailable=$(jq -r 'to_entries[] | select(.value.available == false) | "\(.key)\t\(.value.packages | length)"' <<< "$pkg_after")
+  not_installed=$(jq -r 'to_entries[] | select(.value.available != false) | .key as $m | .value.packages[]? | select(.state != "installed") | "\($m):\(.package) \(.state)"' <<< "$pkg_after")
+  if [ -z "$unavailable$not_installed" ]; then
+    status ok "packages status" "all installed"
+  fi
+  if [ -n "$unavailable" ]; then
+    while IFS=$'\t' read -r manager count; do
+      status notice "packages status" "$manager is not available ($(plural "$count" package) skipped)"
+    done <<< "$unavailable"
+  fi
+  if [ -n "$not_installed" ]; then
+    while read -r missing; do
+      status notice "packages status" "$missing; run: mise bootstrap packages apply"
+    done <<< "$not_installed"
+  fi
 fi
 
 # mise tools (Node/Python patch releases, npm: CLIs like CodeGraph, GitHub
 # release binaries) — stays within the versions pinned in
 # ~/.config/mise/config.toml (MISE_LOG_LEVEL=warn hides mise's hint about
-# newer releases outside those pins); mise itself updates with Homebrew above
+# newer releases outside those pins); mise itself updates in the mise self-update step
 # Prune before upgrading: it deletes the versions the previous run replaced
 # and keeps the ones this run replaces, so each upgrade can be rolled back
 # until the next sysup. mise keeps every version a tracked config (any project
@@ -464,7 +454,7 @@ if ts_dir="$(mise where npm:typescript 2> /dev/null)"; then
   ln -sfn "$ts_dir/node_modules/typescript" "$mise_dir/node_modules/typescript"
 fi
 
-# Rust toolchain (rustup itself is a Homebrew formula, upgraded above). Per
+# Rust toolchain (rustup itself is a brew: package mise upgrades above). Per
 # toolchain: "<channel>-<triple> updated - rustc NEW (…) (from rustc OLD (…))" or "… unchanged - …"
 # Homebrew's keg-only rustup is called by path: mise's shims sit earlier on
 # an activated PATH, and a rust toolchain installed in mise but pinned by no
@@ -532,8 +522,8 @@ if command -v uv > /dev/null; then
   fi
 fi
 
-# Iosevka Code Nerd Font (VS Code's font; no Homebrew cask, so not covered by
-# `brew upgrade` above) — reinstalls only when the upstream zip changed
+# Iosevka Code Nerd Font (VS Code's font; no cask, so not covered by the
+# packages step above) — reinstalls only when the upstream zip changed
 step Iosevka
 if ! capture install-iosevka-code; then
   status fail Iosevka "font check failed; run: install-iosevka-code"

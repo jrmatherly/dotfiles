@@ -133,7 +133,7 @@ mv "$ruby" "$ruby.off"
 cp "$tmp/full.pem" "$bundle"
 run trim
 check "trim without Homebrew's script exits 1" 1 "$rc"
-check "trim without Homebrew's script says so" "ca-roots: Homebrew's $tmp/brew/Library/Homebrew/utils/emudhra_certificates.rb (or its portable Ruby) is missing; run: brew update" "$output"
+check "trim without Homebrew's script says so" "ca-roots: Homebrew's $tmp/brew/Library/Homebrew/utils/emudhra_certificates.rb (or its portable Ruby) is missing. It ships with Homebrew, which this setup no longer installs" "$output"
 
 run bogus
 check "an unknown verb exits 1" 1 "$rc"
