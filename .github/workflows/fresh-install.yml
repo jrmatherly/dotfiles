@@ -1,0 +1,95 @@
+name: fresh-install
+
+# The path a new Mac takes: setup/packages.sh on a runner without Homebrew.
+# Manual only (gh workflow run fresh-install.yml): it installs every formula,
+# cask and extension. A hosted runner is not a clean Mac; the full proof is the
+# VM run in plan A6's Task 6
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    # Explicit bash adds -o pipefail, which the status | jq checks rely on
+    shell: bash
+
+jobs:
+  fresh-install:
+    # macOS 27 preview image. Fallback: macos-26 (plan A4 Task 8 Step 8)
+    runs-on: xcode-27
+    # Hosted jobs stop at 360 minutes; a pkg installer waiting on a prompt must
+    # not hold the job that long. Lowered after the first measured run
+    timeout-minutes: 240
+    env:
+      MISE_GITHUB_TOKEN: ${{ github.token }}
+      MISE_YES: 1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Runner image
+        run: |
+          sw_vers -productVersion
+          echo "image: ${ImageOS:-unknown} ${ImageVersion:-unknown}"
+      # Without the runner's Homebrew, mise creates the prefix and no formula
+      # counts as already installed. Homebrew's uninstall.sh is not used: the rm
+      # makes it pointless, and it would be piped from an unpinned HEAD
+      - name: Remove Homebrew
+        run: |
+          sudo rm -rf /opt/homebrew
+          test ! -e /opt/homebrew
+          if command -v mise; then exit 1; fi
+          df -h /
+          du -sh ~/Library/Caches/mise/system-brew/bottles ~/Library/Caches/mise/system-brew/casks 2> /dev/null || true
+      # Installs mise, exports MISE_CONFIG_DIR, links the VS Code plugin and
+      # applies formulae, casks, then extensions, printing free space after each.
+      # Single package failures only warn; this step fails when mise read no
+      # package list or the installer failed
+      - name: setup/packages.sh
+        run: bash setup/packages.sh
+      - name: Disk after packages
+        if: always()
+        run: |
+          df -h /
+          du -sh ~/Library/Caches/mise/system-brew/bottles ~/Library/Caches/mise/system-brew/casks 2> /dev/null || true
+          du -sh /opt/homebrew/Cellar 2> /dev/null || true
+          du -sh /opt/homebrew/Caskroom /Applications 2> /dev/null || true
+          du -sh ~/.vscode/extensions 2> /dev/null || true
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo /opt/homebrew/bin >> "$GITHUB_PATH"
+          echo "MISE_CONFIG_DIR=$GITHUB_WORKSPACE/tilde/.config/mise" >> "$GITHUB_ENV"
+      - name: mise installed
+        run: |
+          test -x "$HOME/.local/bin/mise"
+          mise --version
+      # From RUNNER_TEMP so the repo's .nvmrc adds nothing. The postinstall
+      # hooks in config.toml write the completions (spec decision 10)
+      - name: Global tools
+        working-directory: ${{ runner.temp }}
+        run: |
+          mise install --yes
+          for f in _flux _talosctl _sentry; do
+            test -s "$HOME/.cache/dotfiles/completions/$f" || { echo "::error::completion $f missing"; exit 1; }
+          done
+          df -h /
+          du -sh ~/.local/share/mise/installs 2> /dev/null || true
+      - name: Formulae installed
+        if: always()
+        run: |
+          status=$(mise bootstrap packages status --json)
+          jq -r '.brew.packages[] | select(.state != "installed") | "\(.package) \(.state)"' <<< "$status"
+          jq -e '[.brew.packages[] | select(.state != "installed")] | length == 0' <<< "$status"
+      # Not status --missing: it exits 0 when a manager is unavailable and its
+      # packages are skipped
+      - name: Casks and extensions installed
+        if: always()
+        run: |
+          status=$(mise bootstrap packages status --json)
+          jq -r '["brew-cask", "vscode"][] as $m | .[$m] | if .available then .packages[] | select(.state != "installed") | "\($m) \(.package) \(.state)" else "\($m) unavailable" end' <<< "$status"
+          jq -e '[."brew-cask", .vscode] | all(.available) and ([.[].packages[] | select(.state != "installed")] | length == 0)' <<< "$status"
+      - name: Package table
+        if: always()
+        run: |
+          mise bootstrap packages status
+          mise ls --missing

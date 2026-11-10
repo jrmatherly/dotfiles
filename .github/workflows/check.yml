@@ -15,8 +15,7 @@ concurrency:
 
 jobs:
   check:
-    # The scripts target macOS: /bin/bash 3.2, zsh, and Homebrew for the
-    # Brewfile parse step that bin/lib/check skips without brew.
+    # The scripts target macOS: /bin/bash 3.2 and zsh.
     # Pinned: macos-latest moves without notice (Renovate proposes bumps)
     runs-on: macos-26
     timeout-minutes: 15
@@ -45,10 +44,30 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: false
-      - run: brew install actionlint shellcheck minijinja-cli rtk
+      # Named packages install without any config; mise pours Homebrew's bottles
+      # itself. shellcheck, actionlint, minijinja-cli and rtk are what pnpm check runs
+      - run: mise bootstrap packages apply --yes brew:actionlint brew:shellcheck brew:minijinja-cli brew:rtk
         env:
-          HOMEBREW_NO_AUTO_UPDATE: 1
-          HOMEBREW_NO_INSTALL_CLEANUP: 1
-          HOMEBREW_NO_ANALYTICS: 1
+          MISE_GITHUB_TOKEN: ${{ github.token }}
+      # Every formula, cask, tap and dependency in the package list resolves.
+      # An empty prefix (MISE_SYSTEM_BREW_PREFIX: read by mise's source and its
+      # own tests, not documented) so the runner's Homebrew counts for nothing,
+      # and the fragment alone, because the whole config dir installs its
+      # pythons first. Downloads metadata only. VS Code ids are not checked:
+      # the plugin is not linked here and no dry run asks VS Code
+      - name: Package list dry run
+        env:
+          MISE_GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          d=$RUNNER_TEMP/packages-dry-run
+          mkdir -p "$d/config/conf.d" "$d/prefix"
+          cp tilde/.config/mise/conf.d/30-packages.toml "$d/config/conf.d/"
+          # Tap definitions are read with Ruby 3+, and a dry run never provisions one
+          ruby -e 'exit(RUBY_VERSION.to_i >= 3 ? 0 : 1)' || { echo "::error::no Ruby 3+ first on PATH: $(command -v ruby) $(ruby -v)"; exit 1; }
+          cd "$d"
+          MISE_CONFIG_DIR=$d/config MISE_TRUSTED_CONFIG_PATHS=$d/config \
+            MISE_DATA_DIR=$d/data MISE_STATE_DIR=$d/state MISE_CACHE_DIR=$d/cache \
+            MISE_SYSTEM_BREW_PREFIX=$d/prefix \
+            mise bootstrap packages apply --dry-run
       - run: pnpm install --frozen-lockfile
       - run: pnpm check

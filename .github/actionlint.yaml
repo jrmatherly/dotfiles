@@ -1,0 +1,5 @@
+self-hosted-runner:
+  # Hosted, not self-hosted: the macOS 27 preview image (actions/runner-images
+  # README), which actionlint 1.7.12 does not list yet. Used by fresh-install.yml
+  labels:
+    - xcode-27

@@ -16,8 +16,8 @@
 # that the tracked Claude Code permissions ask before curl and gh api and
 # deny credential paths, git add -f and VS Code's private state, that no allow
 # rule is also retired, that rtk's hook rewrites no command with a Bash ask rule,
-# that every setup/*.sh is executable, and that the instruction files stay under
-# their caps.
+# that every setup/*.sh is executable, that nothing calls brew, and that the
+# instruction files stay under their caps.
 #
 # License: MIT
 
@@ -127,6 +127,15 @@ done
 # :(glob) keeps * from crossing a slash, so setup/tests/*.sh (run with bash) is not matched.
 notexec=$(git ls-files -s ':(glob)setup/*.sh' | awk '$1 != "100755" { print $4 }')
 [ -z "$notexec" ] || fail "setup scripts must be executable (chmod +x): $notexec"
+
+# D5: nothing in setup, sysup, shell startup or CI runs brew. Comment lines,
+# bin/CLAUDE.md's prose and the fixture text of Homebrew's own script
+# (test-ca-roots) are not callers.
+# migrate/ and its test are the one place that knows the old layout (Part B)
+callers=$(grep -nE '(^|[^[:alnum:]_/.-])brew[[:space:]]+(install|update|upgrade|bundle|cleanup|doctor|outdated|shellenv|trust|autoremove|uninstall|list|info|cat|--prefix)' \
+  setup.sh setup/*.sh bin/* bin/lib/* zsh/*.zsh tilde/.zprofile tilde/.zshrc tilde/.zshenv .github/workflows/*.yml 2> /dev/null \
+  | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' | grep -vE '^(bin/CLAUDE\.md|bin/lib/test-ca-roots|bin/lib/test-migrate|migrate/[^:]*):' || true)
+[ -z "$callers" ] || fail "a brew command is still called: $callers"
 
 # rtk's hook rewrites a command before Claude Code matches rules, so `curl x` as
 # `rtk curl x` skips `Bash(curl *)`. rtk leaves a deny match alone by itself, but
