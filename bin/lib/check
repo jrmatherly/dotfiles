@@ -83,6 +83,8 @@ bash setup/tests/symlinks-backup.sh > /dev/null
 bash setup/tests/firefox-dev-path.sh > /dev/null
 # conf.d/40-dotfiles.toml: every tilde/ file has an entry, and with mise, apply, a second apply, the Codex merge and a conflict in a scratch HOME
 bash bin/lib/test-dotfiles > /dev/null
+# setup/dotfiles-extras.sh in a temp HOME: git identity, cot link, Firefox hard links (sudo and bat stubbed)
+bash setup/tests/dotfiles-extras.sh > /dev/null
 # setup/macos-extras.sh against stubbed sudo, pmset, defaults, socketfilterfw and killall (nothing is changed)
 bash setup/tests/macos-extras.sh > /dev/null
 # bin/hindsight-memory against a fixture HOME with the installer, hindsight-embed and npm stubbed
