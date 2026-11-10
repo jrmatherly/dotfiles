@@ -42,15 +42,20 @@ done < <(
 bash -n "${shell_scripts[@]}" "${bash_syntax_files[@]}"
 zsh -n "${zsh_syntax_files[@]}"
 shellcheck --severity=warning "${shell_scripts[@]}"
+# dotfiles-settings core tests (settings/): stdlib only, same Python as the catalog tests.
+# A listed file that is missing fails the gate.
+settings_tests=(settings/tests/test_registry.py)
 # The Claude Code catalog generator's status/cleanup rules (agents/catalog)
 # (Python 3.11+ for tomllib: mise's, not macOS's 3.9 — like bin/claude-catalog)
 # CI has mise but no mise-installed Python, and `mise exec python` would download one
 if command -v mise > /dev/null && mise where python > /dev/null 2>&1; then
   mise exec python -- python3 agents/catalog/test_build_catalog.py > /dev/null
   mise exec python -- python3 agents/catalog/test_stack.py > /dev/null
+  for t in "${settings_tests[@]}"; do mise exec python -- python3 "$t" > /dev/null; done
 else
   python3 agents/catalog/test_build_catalog.py > /dev/null
   python3 agents/catalog/test_stack.py > /dev/null
+  for t in "${settings_tests[@]}"; do python3 "$t" > /dev/null; done
 fi
 # Parse the Brewfile the way brewpick does (`manual` lines stripped: raw
 # `brew bundle` rejects them) so a typo fails here, not on the next install

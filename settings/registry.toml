@@ -1,0 +1,467 @@
+[[setting]]
+id = "updates.trim_ca_roots"
+section = "Updates"
+label = "Remove the compromised eMudhra roots"
+help = "Lets sysup remove two roots brew doctor warns about. ca-roots restore puts them back."
+kind = "env"
+key = "DOTFILES_TRIM_CA_ROOTS"
+type = "bool"
+true_value = "1"
+choices = []
+default = ""
+access = "rw"
+
+[[setting]]
+id = "updates.mac_password_op"
+section = "Updates"
+label = "1Password reference for the Mac login password"
+help = "A secret reference such as op://Private/Mac login/password. sysup reads it with op when a macOS update is pending. The password itself is never stored here."
+kind = "env"
+key = "DOTFILES_MAC_PASSWORD_OP"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "rw"
+
+[[setting]]
+id = "updates.slow_step_seconds"
+section = "Updates"
+label = "Show a step's time after this many seconds"
+help = "sysup adds the elapsed time to a step's result line when the step took at least this long."
+kind = "env"
+key = "SYSUP_SLOW"
+type = "int"
+true_value = ""
+choices = []
+default = "10"
+access = "rw"
+
+[[setting]]
+id = "setup.skip_codegraph"
+section = "Setup"
+label = "Leave CodeGraph alone during setup"
+help = "Same as setup.sh --skip-codegraph."
+kind = "env"
+key = "DOTFILES_SKIP_CODEGRAPH"
+type = "bool"
+true_value = "true"
+choices = []
+default = ""
+access = "rw"
+
+[[setting]]
+id = "shell.editor"
+section = "Shell"
+label = "Editor"
+help = "EDITOR for local sessions. zsh/env.zsh sets VISUAL from its own EDITOR value before an override applies, so VISUAL does not follow this."
+kind = "env"
+key = "EDITOR"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "rw"
+
+[[setting]]
+id = "shell.bat_theme"
+section = "Shell"
+label = "bat theme"
+help = "Syntax highlighting theme for bat. bat --list-themes prints the names."
+kind = "env"
+key = "BAT_THEME"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "rw"
+
+[[setting]]
+id = "apps.obsidian_vault"
+section = "Apps"
+label = "Obsidian vault folder"
+help = "Used by obsidian-vault and install-color-themes."
+kind = "env"
+key = "OBSIDIAN_VAULT"
+type = "path"
+true_value = ""
+choices = []
+default = "~/Library/Mobile Documents/com~apple~CloudDocs/Notes"
+access = "rw"
+
+[[setting]]
+id = "apps.vscode_font_preset"
+section = "Apps"
+label = "VS Code font preset"
+help = "Beats the preset saved by vscode-settings --choose, without replacing it. Reset goes back to the saved preset. Run vscode-settings in a new shell afterwards to render settings.json."
+kind = "env"
+key = "VSCODE_FONT_PRESET"
+type = "enum"
+true_value = ""
+choices = ["iosevka", "warp", "warp-terminal", "fira"]
+default = "iosevka"
+access = "rw"
+
+[[setting]]
+id = "hindsight.llm_model"
+section = "Hindsight"
+label = "Model for reflect and page refresh"
+help = "Read-only here. tilde/.zshenv sets it for shells and agents/claude-settings.json sets it for Claude Code, so change both files together. A running daemon keeps the model it started with."
+kind = "env"
+key = "HINDSIGHT_API_LLM_MODEL"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "hindsight.retain_llm_model"
+section = "Hindsight"
+label = "Model for extraction"
+help = "Read-only here. tilde/.zshenv sets it for shells and agents/claude-settings.json sets it for Claude Code, so change both files together. A running daemon keeps the model it started with."
+kind = "env"
+key = "HINDSIGHT_API_RETAIN_LLM_MODEL"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "hindsight.consolidation_llm_model"
+section = "Hindsight"
+label = "Model for consolidation"
+help = "Read-only here. tilde/.zshenv sets it for shells and agents/claude-settings.json sets it for Claude Code, so change both files together. A running daemon keeps the model it started with."
+kind = "env"
+key = "HINDSIGHT_API_CONSOLIDATION_LLM_MODEL"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "npm.init_author_name"
+section = "npm"
+label = "Author name for npm init"
+help = "zsh/env.zsh seeds it from git's global user.name."
+kind = "env"
+key = "NPM_CONFIG_INIT_AUTHOR_NAME"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "rw"
+
+[[setting]]
+id = "npm.init_license"
+section = "npm"
+label = "License for npm init"
+help = "zsh/env.zsh seeds MIT."
+kind = "env"
+key = "NPM_CONFIG_INIT_LICENSE"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "rw"
+
+[[setting]]
+id = "npm.init_version"
+section = "npm"
+label = "Version for npm init"
+help = "zsh/env.zsh seeds 0.1.0."
+kind = "env"
+key = "NPM_CONFIG_INIT_VERSION"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "rw"
+
+[[setting]]
+id = "privacy.next_telemetry_disabled"
+section = "Privacy"
+label = "Next.js"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "NEXT_TELEMETRY_DISABLED"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.strapi_telemetry_disabled"
+section = "Privacy"
+label = "Strapi"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "STRAPI_TELEMETRY_DISABLED"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.gatsby_telemetry_disabled"
+section = "Privacy"
+label = "Gatsby"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "GATSBY_TELEMETRY_DISABLED"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.astro_telemetry_disabled"
+section = "Privacy"
+label = "Astro"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "ASTRO_TELEMETRY_DISABLED"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.storybook_disable_telemetry"
+section = "Privacy"
+label = "Storybook"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "STORYBOOK_DISABLE_TELEMETRY"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.vercel_telemetry_disabled"
+section = "Privacy"
+label = "Vercel CLI"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "VERCEL_TELEMETRY_DISABLED"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.cdk_disable_cli_telemetry"
+section = "Privacy"
+label = "AWS CDK"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "CDK_DISABLE_CLI_TELEMETRY"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.gh_telemetry"
+section = "Privacy"
+label = "GitHub CLI"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "GH_TELEMETRY"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.azure_dev_collect_telemetry"
+section = "Privacy"
+label = "Azure Developer CLI"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "AZURE_DEV_COLLECT_TELEMETRY"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.azure_mcp_collect_telemetry"
+section = "Privacy"
+label = "Azure MCP server"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "AZURE_MCP_COLLECT_TELEMETRY"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.do_not_track"
+section = "Privacy"
+label = "Console Do Not Track"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "DO_NOT_TRACK"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.codegraph_telemetry"
+section = "Privacy"
+label = "CodeGraph"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "CODEGRAPH_TELEMETRY"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.rtk_telemetry_disabled"
+section = "Privacy"
+label = "rtk"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "RTK_TELEMETRY_DISABLED"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.functions_core_tools_telemetry_optout"
+section = "Privacy"
+label = "Azure Functions Core Tools"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "FUNCTIONS_CORE_TOOLS_TELEMETRY_OPTOUT"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.dotnet_cli_telemetry_optout"
+section = "Privacy"
+label = ".NET CLI"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "DOTNET_CLI_TELEMETRY_OPTOUT"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.powershell_telemetry_optout"
+section = "Privacy"
+label = "PowerShell"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "POWERSHELL_TELEMETRY_OPTOUT"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.azure_core_collect_telemetry"
+section = "Privacy"
+label = "Azure CLI"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "AZURE_CORE_COLLECT_TELEMETRY"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.aspire_cli_telemetry_optout"
+section = "Privacy"
+label = "Aspire CLI"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "ASPIRE_CLI_TELEMETRY_OPTOUT"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.aspire_dashboard_telemetry_optout"
+section = "Privacy"
+label = "Aspire dashboard"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "ASPIRE_DASHBOARD_TELEMETRY_OPTOUT"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.jfrog_cli_report_usage"
+section = "Privacy"
+label = "JFrog CLI"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "JFROG_CLI_REPORT_USAGE"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.disable_error_reporting"
+section = "Privacy"
+label = "Claude Code error reports"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "DISABLE_ERROR_REPORTING"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
+id = "privacy.homebrew_no_analytics"
+section = "Privacy"
+label = "Homebrew"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "HOMEBREW_NO_ANALYTICS"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"

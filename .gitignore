@@ -65,3 +65,6 @@ __pycache__/
 vscode/User/settings.json
 vscode/User/.settings.rendered
 vscode/User/.render-check-*.json
+# dotfiles-settings (settings/): uv's environment and build output. uv.lock is tracked.
+settings/.venv/
+settings/dist/
