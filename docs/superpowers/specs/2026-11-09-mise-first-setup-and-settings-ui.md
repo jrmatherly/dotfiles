@@ -72,7 +72,7 @@ From mise's docs, not run here:
 
 - mise never uses `sudo` for macOS preferences and never deletes one.
 - `[dotfiles]` symlink modes refuse to replace a real file. `--force` replaces it with no backup. A symlink pointing elsewhere is repointed without `--force`.
-- `create_if_missing = true` writes a copy only when nothing is there. `merge = true` owns only the keys in its source, for JSON, JSONC, TOML, YAML and INI.
+- `create_if_missing = true` writes a copy only when nothing is there. `merge = true` owns only the keys in its source, for JSON, JSONC, TOML, YAML and INI. `merge = "missing"` adds only the keys the target lacks and never changes one that is set.
 - mise does not upgrade a cask that Homebrew installed. Casks cannot be imported or version-pinned. Deleting a package entry uninstalls nothing until `prune`.
 - `mise bootstrap plan` does not cover dotfiles, repos, macOS defaults or tools. `mise bootstrap status --missing` exits 1 on any drift.
 - A bootstrap run is not a transaction. Hooks and the `bootstrap` task run every time.
@@ -182,7 +182,7 @@ Gitignore the machine-local mise files. Add `zsh/override-env.zsh`, sourced at t
 
 ### A2. The settings package
 
-`settings/` with the registry, the model, the `env` adapter, the CLI, the Textual app and the serve wrapper. The registry lists 36 env settings (35 after A4 removes the Homebrew opt-out with its export): 14 read-write (the `DOTFILES_*` knobs a script still reads, `OBSIDIAN_VAULT`, `VSCODE_FONT_PRESET`, `UPUP_SLOW`, the Hindsight model variables, `EDITOR`, `BAT_THEME`, the npm init values) and the 22 telemetry opt-outs as `ro`. `GHIDRA_INSTALL_DIR` is left out, because `bin/rea-mcp` overwrites it at every launch. `bin/vscode-settings` is changed so the environment's `VSCODE_FONT_PRESET` wins over its saved file. The seed is read from a fresh shell started with overrides off, since the current environment already holds the overridden value. textual-serve has no token and does not check the WebSocket origin, so `serve.py` adds both. The other four kinds have no adapter yet and no registry entries.
+`settings/` with the registry, the model, the `env` adapter, the CLI, the Textual app and the serve wrapper. The registry lists 36 env settings (35 after A4 removes the Homebrew opt-out with its export): 11 read-write (the `DOTFILES_*` knobs a script still reads, `OBSIDIAN_VAULT`, `VSCODE_FONT_PRESET`, `SYSUP_SLOW`, `EDITOR`, `BAT_THEME`, the npm init values), and as `ro` the 3 Hindsight model variables (decision 3) and the 22 telemetry opt-outs. `GHIDRA_INSTALL_DIR` is left out, because `bin/rea-mcp` overwrites it at every launch. `bin/vscode-settings` is changed so the environment's `VSCODE_FONT_PRESET` wins over its saved file. The seed is read from a fresh shell started with overrides off, since the current environment already holds the overridden value. textual-serve has no token and does not check the WebSocket origin, so `serve.py` adds both. The other four kinds have no adapter yet and no registry entries.
 
 ### A3. macOS defaults
 
@@ -196,7 +196,7 @@ Known gaps to close in this phase: `trash-cli` needs a PATH entry in place of `l
 
 ### A5. Dotfiles
 
-`conf.d/40-dotfiles.toml` declares 38 entries: 37 single-path `symlink` entries and one `symlink-each`, for `~/.claude/rules`. There is no entry that walks `~`: with one, a read-only status ran over two minutes on this Mac, against 0.09 s with explicit entries. Sources are written `~/dotfiles/...`. The Codex config uses `copy` with `create_if_missing`. `[bootstrap.files]` cannot make a symlink, so the two `/usr/local/bin` links, Firefox's hard links, the git identity prompt (`~/.gitconfig.local`, with the `DOTFILES_GIT_*` knobs) and bat's cache are `setup/dotfiles-extras.sh`, which asks for sudo only when a link is missing. This Mac's Mole `.local` whitelist becomes an entry in the gitignored `config.local.toml`. Delete `setup/symlinks.sh`. Add the `dotfile` adapter (status, and apply).
+`conf.d/40-dotfiles.toml` declares 38 entries: 37 single-path `symlink` entries and one `symlink-each`, for `~/.claude/rules`. There is no entry that walks `~`: with one, a read-only status ran over two minutes on this Mac, against 0.09 s with explicit entries. Sources are written `~/dotfiles/...`. The Codex config is an edit entry with `merge = "missing"` at mode 600 (decision 6). `[bootstrap.files]` cannot make a symlink, so the two `/usr/local/bin` links, Firefox's hard links, the git identity prompt (`~/.gitconfig.local`, with the `DOTFILES_GIT_*` knobs) and bat's cache are `setup/dotfiles-extras.sh`, which asks for sudo only when a link is missing. This Mac's Mole `.local` whitelist becomes an entry in the gitignored `config.local.toml`. Delete `setup/symlinks.sh`. Add the `dotfile` adapter (status, and apply).
 
 ### A6. Bootstrap entry point
 

@@ -4,11 +4,11 @@
 
 **Goal:** The macOS preferences `setup/macos.sh` wrote become TOML that mise applies and checks for drift, and the settings UI can read and change them.
 
-**Architecture:** `tilde/.config/mise/conf.d/20-macos.toml` declares 88 preferences as raw `[bootstrap.macos.defaults."<domain>"]` tables and `[[bootstrap.macos.defaults_entries]]`. `setup/macos-extras.sh` does what TOML cannot (sudo, `$HOME` paths, `pmset`, file flags, sandboxed apps, app restarts) and is run by the `pre-defaults` and `post-defaults` hooks and by `set-defaults`. The `macos-default` adapter reads `mise bootstrap macos defaults status --json` and writes by a minimal text edit of the tracked fragment plus one `defaults write` of that key.
+**Architecture:** `tilde/.config/mise/conf.d/20-macos.toml` declares 79 preferences as raw `[bootstrap.macos.defaults."<domain>"]` tables and `[[bootstrap.macos.defaults_entries]]`. `setup/macos-extras.sh` does what TOML cannot (sudo, `$HOME` paths, `pmset`, file flags, sandboxed apps, app restarts, and the preference groups a user can switch off) and is run by the `pre-defaults` and `post-defaults` hooks and by `set-defaults`. It reads nine `env` settings that the settings UI shows: four switches for the preference groups the old script asked about (on unless switched off) and five security and per-machine opt-ins (off unless switched on). The `macos-default` adapter reads `mise bootstrap macos defaults status --json` and writes by a minimal text edit of the tracked fragment plus one `defaults write` of that key.
 
 **Tech Stack:** mise 2026.11.5 (`bootstrap.macos`), bash, Python 3.11+ standard library (`tomllib`, `json`, `subprocess`).
 
-**Spec:** `docs/superpowers/specs/2026-11-09-mise-first-setup-and-settings-ui.md`, phase "A3. macOS defaults". Phases A1 and A2 have landed.
+**Spec:** `docs/superpowers/specs/2026-11-09-mise-first-setup-and-settings-ui.md`, phase "A3. macOS defaults", and its "Decisions" section: 1 (setup never applies macOS preferences), 2 (the security opt-ins are env settings in the UI), 7 (the `mise bootstrap*` ask rule is A7's, not this plan's) and 9 (a UI switch for each preference group that used to ask). Phases A1 and A2 have landed.
 
 **Line numbers** are from commit `9af6244`. An earlier phase may have moved them, so find the quoted text with `grep -n` before editing.
 
@@ -32,7 +32,7 @@
 Measured on this Mac on 2026-11-09 with mise 2026.11.5, in a scratch `MISE_CONFIG_DIR`.
 
 - `conf.d/*.toml` beside the global `config.toml` loads. `config.local.toml` in the same directory loads too and outranks it (a `tilesize = 99` there replaced the fragment's 38 in `status`).
-- The full fragment in Task 2 parsed with no warning. `status --json` listed 88 entries: 86 `set`, 2 `differs`, 0 `unset`.
+- The full fragment in Task 2, as first drafted with the screenshot, Time Machine new-disk and Software Update tables still in it, parsed with no warning. `status --json` listed 88 entries: 86 `set`, 2 `differs`, 0 `unset`. Those three tables now move to the extras script (Decision 9), taking 9 entries that were all `set` (`defaults read-type` on 2026-11-09: `type` and `name` strings, `disable-shadow`, `showsCursor`, `DoNotOfferNewDisksForBackup` and `AutomaticCheckEnabled` booleans, the other three Software Update keys integers). The fragment as written below, copied into a scratch `MISE_CONFIG_DIR/conf.d/` on 2026-11-09, parsed with no warning and listed 79: 77 `set`, 2 `differs`. The Task 2 coverage script, run against it, printed `91 defaults write lines, 79 declared preferences, 0 problems`.
 - The two that differ are real drift on this Mac, not parse problems. `com.apple.finder DesktopViewSettings.IconViewSettings.arrangeBy` is `name` (declared `grid`). `com.apple.symbolichotkeys AppleSymbolicHotKeys.64.enabled` is the integer `0` (declared the string `"0"`, which is what the old script wrote and what key `65` still holds).
 - `status --json` prints `{"macos_defaults": {"available": true, "entries": [{"domain", "host", "path", "key", "value", "current", "state"}]}}`. `state` is `set`, `differs` or `unset`. `current` is always a string. A config with no macOS section prints `{}`.
 - Values are not templated. `"file://{{ env.HOME }}/"` was compared literally. So a `$HOME` path cannot live in the fragment.
@@ -45,6 +45,8 @@ Measured on this Mac on 2026-11-09 with mise 2026.11.5, in a scratch `MISE_CONFI
 - `defaults read com.apple.TextEdit` from an agent shell fails with `Domain '~/Library/Containers/com.apple.TextEdit/...' not found`, while `~/Library/Preferences/com.apple.TextEdit.plist` holds the three values the old script wrote. mise reported those keys, `com.apple.Preview` and `com.apple.helpviewer` as `unset`. The completed plan `docs/superpowers/plans/completed/2026-10-27-setup-robustness.md` (Task 10) records that the owner proved the TextEdit and Preview writes are honoured.
 - `pmset -g cap` on this Mac does not list `lidwake`, and `pmset -g custom` does not report it.
 - `setup.sh` does not run `setup/macos.sh`. Only `bin/set-defaults` does.
+- The state of the sudo opt-ins reads without sudo. `/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate` printed `Firewall is enabled. (State = 1)` and `--getstealthmode` printed `Firewall stealth mode is on`. `socketfilterfw` is not on `PATH` (`command -v` finds nothing). `defaults read /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled` printed `Domain 'com.apple.windowserver' not found` (HiDPI never enabled here). `defaults read /Library/Preferences/com.apple.TimeMachine AutoBackup` printed `0`. `scutil --get ComputerName` printed the current name.
+- An `env` setting set to false reaches a shell as an empty, set variable. In a scratch `MISE_CONFIG_DIR`, `mise set --override DOTFILES_MACOS_SCREENSHOTS=` stored `""`, and `mise env --dotenv` printed `DOTFILES_MACOS_SCREENSHOTS=`, which A1's `zsh/override-env.zsh` exports as `''`. So `${VAR-1}` tells "switched off" (empty) from "never set" (unset, on by default). A value with an apostrophe (`Jason's MacBook Pro`) round-tripped unchanged.
 
 From mise's docs, not run here: mise never uses `sudo` for a preference, never deletes one, and does not restart apps. A declared value replaces the whole preference, except a `defaults_entries` item with `path`, which replaces one dictionary key and creates missing dictionaries. Two conflicting `defaults_entries` are rejected before any write.
 
@@ -54,7 +56,7 @@ The file has 91 uncommented `defaults write` lines (the spec says 87). 2 use `su
 
 | Where it goes | Lines | Count |
 | --- | --- | --- |
-| `[bootstrap.macos.defaults."<domain>"]` tables | every `defaults write` line not listed below | 71 lines, 77 keys |
+| `[bootstrap.macos.defaults."<domain>"]` tables | every `defaults write` line not listed below | 62 lines, 68 keys |
 | `[[bootstrap.macos.defaults_entries]]` with `host = "current"` | 131, 529 | 2 |
 | `[[bootstrap.macos.defaults_entries]]` with `path` (were `-dict-add`) | 281, 434, 437 | 3 |
 | `[[bootstrap.macos.defaults_entries]]` with `path` (were `PlistBuddy Set`) | 266, 267, 268, 276, 277, 278 | 6 |
@@ -62,26 +64,29 @@ The file has 91 uncommented `defaults write` lines (the spec says 87). 2 use `su
 | `setup/macos-extras.sh`: `sudo defaults` | 72, 194 | 2 |
 | `setup/macos-extras.sh`: value holds `$HOME` | 180, 217 | 2 |
 | `setup/macos-extras.sh`: sandboxed app domain mise cannot read back | 108, 495, 496, 497, 522 | 5 |
+| `setup/macos-extras.sh`: a preference group behind a UI switch (Decision 9) | 182, 184, 186, 188 (screenshots), 463 (Time Machine new disks), 506, 508, 510, 512 (Software Update) | 9 |
 
-Total declared: 77 + 2 + 3 + 6 = 88 preferences. Of the 91 lines, 76 move to TOML, 6 become opt-ins and 9 go to the extras script.
+Total declared: 68 + 2 + 3 + 6 = 79 preferences. Of the 91 lines, 67 move to TOML, 6 become opt-ins and 18 go to the extras script.
 
-Named keys. 14 of the 71 table lines have a named equivalent: `dock.tilesize` (316), `dock.autohide` (341), `dock.show_recents` (375), `finder.show_all_files` (224), `finder.show_status_bar` (233), `finder.show_pathbar` (236), `finder.sort_folders_first` (239), `finder.show_extensions_warning` (245), `finder.preferred_view_style` (285), `keyboard.automatic_capitalization` (111), `keyboard.automatic_spelling_correction` (123), `keyboard.press_and_hold` (135), `keyboard.key_repeat` (138), `keyboard.initial_key_repeat` (140). The opt-in lines 364 and 365 match `dock.autohide_delay` and `dock.autohide_time_modifier`. No trackpad line has one. **Decision: the fragment uses no named section.** They cover 14 of 77 keys, so each domain would be split across two tables. A raw value silently beats a named one in the same file. And one addressing rule, `<domain>/<key>`, keeps the adapter free of a name-mapping table.
+Why the three groups leave the fragment: Decision 9 gives each group that used to ask a switch, and a switch that is off must leave the group alone. mise applies every declared preference, has no per-domain filter (`mise bootstrap macos defaults apply --help` lists only `--dry-run` and `--yes`), does not template values, and `config.local.toml` can pin another value but cannot undeclare one. So a switchable group can only live in the extras script. The cost: those 9 preferences are no longer in `status` (no drift report) and no longer editable one by one in the UI. TextEdit and the screenshot folder were already in the extras script.
+
+Named keys. 14 of the 62 table lines have a named equivalent: `dock.tilesize` (316), `dock.autohide` (341), `dock.show_recents` (375), `finder.show_all_files` (224), `finder.show_status_bar` (233), `finder.show_pathbar` (236), `finder.sort_folders_first` (239), `finder.show_extensions_warning` (245), `finder.preferred_view_style` (285), `keyboard.automatic_capitalization` (111), `keyboard.automatic_spelling_correction` (123), `keyboard.press_and_hold` (135), `keyboard.key_repeat` (138), `keyboard.initial_key_repeat` (140). The opt-in lines 364 and 365 match `dock.autohide_delay` and `dock.autohide_time_modifier`. No trackpad line has one. **Decision: the fragment uses no named section.** They cover 14 of 68 keys, so each domain would be split across two tables. A raw value silently beats a named one in the same file. And one addressing rule, `<domain>/<key>`, keeps the adapter free of a name-mapping table.
 
 Commands that are not `defaults write` and cannot move to TOML, by line:
 
 | Lines | Command | New home |
 | --- | --- | --- |
-| 16 to 27 | computer name prompts | `macos-extras.sh --computer-name` |
+| 16 to 27 | computer name prompts | env settings `DOTFILES_MACOS_COMPUTER_NAME` and `DOTFILES_MACOS_LOCAL_HOSTNAME`, or `macos-extras.sh --computer-name` and `--local-hostname` |
 | 31 | `osascript` quits System Settings | `macos-extras.sh --before`, failure ignored |
 | 34, 38 to 42 | `sudo -v` and its keep-alive | dropped. `sudo` is asked only when a value differs |
-| 48 to 61 | `confirm()` and the two knobs | dropped |
-| 69, 70, 71 | `sudo scutil --set` | `macos-extras.sh --computer-name` |
+| 48 to 61 | `confirm()` and the two knobs | dropped. Each default-yes prompt becomes a switch that is on unless set off, each default-no prompt that needs sudo becomes a switch that is off unless set on |
+| 69, 70, 71 | `sudo scutil --set` | `macos-extras.sh`, when the computer name setting or flag differs from `scutil --get ComputerName` |
 | 157, 160, 163, 169 | `sudo pmset -a` | `macos-extras.sh`, guarded |
-| 204, 205 | `socketfilterfw` | `macos-extras.sh --firewall` |
+| 204, 205 | `socketfilterfw` | `macos-extras.sh`, when `DOTFILES_MACOS_FIREWALL` or `--firewall` is on and the state differs |
 | 292, 293, 294 | `xattr` and `chflags nohidden ~/Library` | `macos-extras.sh` |
 | 297 | `sudo chflags nohidden /Volumes` | `macos-extras.sh`, guarded |
 | 367, 368 | `defaults delete` of the Dock timing keys | dropped. mise never deletes. Documented in Task 3 |
-| 468 | `sudo tmutil disable` | `macos-extras.sh --disable-time-machine` |
+| 468 | `sudo tmutil disable` | `macos-extras.sh`, when `DOTFILES_MACOS_DISABLE_TIME_MACHINE` or `--disable-time-machine` is on and backups are not already off |
 | 535 to 542 | `killall` loop | `macos-extras.sh`, when the apply wrote something |
 
 `systemsetup` appears only in a comment (line 150). No line writes a date or binary data.
@@ -92,23 +97,37 @@ Commands that are not `defaults write` and cannot move to TOML, by line:
 | --- | --- |
 | `setup/macos-extras.sh` (create) | Everything macOS that TOML cannot express. Safe to repeat. |
 | `setup/tests/macos-extras.sh` (create) | Tests the extras script against stubbed commands. |
-| `tilde/.config/mise/conf.d/20-macos.toml` (create) | The 88 declared preferences and the two hooks. |
+| `tilde/.config/mise/conf.d/20-macos.toml` (create) | The 79 declared preferences and the two hooks. |
 | `setup/tests/macos-defaults.py` (create) | Self-check: the fragment parses clean under mise, and no declared type contradicts the live one. |
 | `bin/set-defaults` (modify) | `mise bootstrap macos defaults apply`, then the extras script. |
 | `setup/macos.sh` (delete) | |
 | `settings/src/dotfiles_settings/adapters/macos_default.py` (create) | The `macos-default` adapter. |
 | `settings/tests/test_macos_default.py` (create) | Adapter tests. |
-| `settings/registry.toml` (modify) | 31 `macos-default` entries. |
-| `bin/lib/check`, `bin/lib/test-conventions`, `.claude/settings.json` (modify) | Wire the checks, the executable-bit check for `setup/*.sh` and the permission guard. |
+| `settings/registry.toml` (modify) | 26 `macos-default` entries and 9 `env` entries. |
+| `bin/lib/check`, `bin/lib/test-conventions` (modify) | Wire the checks and the executable-bit check for `setup/*.sh`. |
 | Docs (modify) | Listed in Task 3. |
+
+`.claude/settings.json` is not touched. The `ask` rule for `mise bootstrap*` is added by A7 in the last phase (spec Decision 7); until then the owner's go-ahead in chat guards the command.
+
+## Decisions this plan makes
+
+- **The fragment uses no named section** (see "Named keys" above).
+- **The four groups that used to ask are switches in the extras script, not tables in the fragment** (Decision 9). `DOTFILES_MACOS_SCREENSHOTS`, `DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS`, `DOTFILES_MACOS_TEXTEDIT` and `DOTFILES_MACOS_SOFTWARE_UPDATE` are on unless set to the empty string, which is what A2 writes for a false bool. Unset means on, because the old prompts defaulted to yes. The script reads them as `${VAR-1}` (no colon), and the registry gives each `default = "1"`, the script's own fallback, as A2 defines `default`.
+- **The security and per-machine opt-ins are env settings** (Decision 2). `DOTFILES_MACOS_FIREWALL`, `DOTFILES_MACOS_HIDPI` and `DOTFILES_MACOS_DISABLE_TIME_MACHINE` are switches, off unless set to `1`. `DOTFILES_MACOS_COMPUTER_NAME` and `DOTFILES_MACOS_LOCAL_HOSTNAME` are text, empty meaning "leave the name alone". The `set-defaults` flags stay as one-run equivalents, and a flag wins over its setting.
+- **A sudo opt-in runs sudo only when the Mac's state differs**, read without sudo first. Under the `post-defaults` hook the same settings apply, so a `mise bootstrap` run by hand asks for sudo only when something is out of step. Setup never runs the hook (Decision 1).
+- **Turning an opt-in off changes nothing on the Mac.** The old prompts' "no" left the state as it was. The settings say so in their help text.
+- **The nine env settings sit in their own section, "macOS (this Mac)"**, apart from the tracked "macOS (tracked in git)" section, because they are stored in the git-ignored override file.
+
 
 ## Review Focus
 
 1. A key the UI writes is also declared in `config.local.toml`, which outranks the fragment. Expected: the write fails with a message that names `config.local.toml`, and does not report success. Test in Task 5.
-2. A string value holds `"`, `\` or `#` (a screenshot name). Expected: the fragment still parses and holds the exact string. Test in Task 5.
+2. A string value holds `"`, `\` or `#`. Expected: the fragment still parses and holds the exact string. Test in Task 5.
 3. `mise bootstrap` runs inside Terminal.app. Expected: the hook does not kill the terminal that is running the bootstrap. Test in Task 1.
 4. The fragment is not in git `HEAD` (a tarball checkout, or before the first commit). Expected: `read` works with `source` `SEED` and `seed` `None`, and `reset` fails with a clear message. Test in Task 5.
 5. `status --json` prints `{}` (the fragment is missing, or the config has no macOS section). Expected: `read` returns `UNSET`, not a traceback. Test in Task 5.
+6. A group switch set off in the UI arrives as an empty, set variable. Expected: the group is skipped, while an unset variable applies it. A `${VAR:-1}` (with a colon) would apply it in both cases. Test in Task 1.
+7. A sudo opt-in is on and the Mac already matches it. Expected: no `sudo` call at all, so a repeat `set-defaults` or a `mise bootstrap` hook run does not ask for a password. Test in Task 1.
 
 ---
 
@@ -122,7 +141,10 @@ Commands that are not `defaults write` and cannot move to TOML, by line:
 
 **Interfaces:**
 - Produces: `setup/macos-extras.sh [--before] [--restart] [--computer-name NAME] [--local-hostname HOST] [--hidpi] [--firewall] [--disable-time-machine]`, committed with mode 755. Exit 0 on success, 2 on an unknown flag. Snapshot file: `${TMPDIR:-/tmp}/dotfiles-macos-defaults-before`, the `status --json` output taken by `--before`.
-- Produces: two environment switches, each read as non-empty means skip. `DOTFILES_MACOS_SKIP_SCREENSHOT_FOLDER` skips the screenshot folder write. `DOTFILES_MACOS_SKIP_TEXTEDIT` skips the three TextEdit writes. They are environment switches, not flags, because a hook's command line is fixed. They are not registry settings.
+- Produces: nine environment variables, registered as `env` settings in Task 6. They are variables, not only flags, because a hook's command line is fixed and the settings UI writes variables.
+  - Group switches, read as `${VAR-1}`: on unless set to the empty string. `DOTFILES_MACOS_SCREENSHOTS`, `DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS`, `DOTFILES_MACOS_TEXTEDIT`, `DOTFILES_MACOS_SOFTWARE_UPDATE`.
+  - Opt-in switches, read as `${VAR:-}`: on when non-empty. `DOTFILES_MACOS_FIREWALL`, `DOTFILES_MACOS_HIDPI`, `DOTFILES_MACOS_DISABLE_TIME_MACHINE`. The flags `--firewall`, `--hidpi` and `--disable-time-machine` turn the same switch on for one run.
+  - Text: `DOTFILES_MACOS_COMPUTER_NAME` and `DOTFILES_MACOS_LOCAL_HOSTNAME`, empty meaning unset. `--computer-name` and `--local-hostname` replace them for one run.
 - Produces: the `bin/lib/test-conventions` check that every tracked `setup/*.sh` has mode 755. Later plans that add a setup script rely on it.
 
 Behaviour, in this order. Each row keeps the comment the old script had beside that command.
@@ -132,43 +154,83 @@ Behaviour, in this order. Each row keeps the comment the old script had beside t
 | not Darwin | `exit 0` | |
 | `--before` | Quit System Settings: `osascript -e 'tell application "System Settings" to quit' > /dev/null 2>&1 \|\| true`. A failure (a CI runner with no Apple Events permission) must not fail the hook and stop a bootstrap. Then save the preferences as they are: `mise bootstrap macos defaults status --json > "$snapshot" 2> /dev/null \|\| rm -f "$snapshot"`. Then exit 0, doing nothing else. | |
 | every other run | The script sets `trap 'rm -f "$snapshot"' EXIT` before it parses its flags, and the `--before` branch clears it with `trap - EXIT`. The snapshot is used once and never survives another run, whatever fails. | |
-| unless `DOTFILES_MACOS_SKIP_SCREENSHOT_FOLDER` is non-empty | `defaults write com.apple.screencapture location -string "$HOME/Desktop"` (old line 180) | plain overwrite |
+| `${DOTFILES_MACOS_SCREENSHOTS-1}` is non-empty | the five `com.apple.screencapture` writes (old lines 180 to 188): `location -string "$HOME/Desktop"`, `type -string png`, `disable-shadow -bool true`, `showsCursor -bool true`, `name -string Shot` | plain overwrite |
+| `${DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS-1}` is non-empty | `defaults write com.apple.TimeMachine DoNotOfferNewDisksForBackup -bool true` (463) | plain overwrite |
+| `${DOTFILES_MACOS_TEXTEDIT-1}` is non-empty | the three `com.apple.TextEdit` writes (495 to 497, `-int 0`, `-int 4`, `-int 4`) | plain overwrite |
+| `${DOTFILES_MACOS_SOFTWARE_UPDATE-1}` is non-empty | the four `com.apple.SoftwareUpdate` writes (506 to 512): `AutomaticCheckEnabled -bool true`, `ScheduleFrequency -int 1`, `AutomaticDownload -int 1`, `CriticalUpdateInstall -int 1`. Keep the comment that the last two are integers, not booleans. | plain overwrite |
 | always | `defaults write com.apple.finder NewWindowTargetPath -string "file://${HOME}/"` (217) | plain overwrite |
 | always | `defaults write com.apple.helpviewer DevMode -bool true` (108), `defaults write com.apple.Preview ApplePersistenceIgnoreState YES` (522) | plain overwrite |
-| unless `DOTFILES_MACOS_SKIP_TEXTEDIT` is non-empty | the three `com.apple.TextEdit` writes (495 to 497, `-int 0`, `-int 4`, `-int 4`) | plain overwrite |
 | always | the three `~/Library` lines (292 to 294), unchanged | already tolerant |
 | always | for each of `lidwake 1`, `disksleep 10`, `womp 0`, `hibernatemode 3`: read `pmset -g custom \| awk -v k="$key" '$1 == k { print $2 }' \| sort -u`. Run `sudo pmset -a "$key" "$want"` only when that output is non-empty and is not exactly `$want`. | A key the Mac does not report is skipped (`lidwake` on this Mac). |
 | always | `sudo chflags nohidden /Volumes` | only when `ls -ldO /Volumes` contains `hidden` |
-| `--computer-name NAME` | the three `sudo scutil --set` lines and the `sudo defaults write ... NetBIOSName` line (69 to 72). `--local-hostname HOST` sets the host name. Without it, derive it with the old line 22 expression. | only when `scutil --get ComputerName` differs from NAME |
-| `--hidpi` | `sudo defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true` (194) | only when `defaults read` of that key is not `1` |
-| `--firewall` | the two `socketfilterfw` lines (204, 205) | none needed, both are idempotent |
-| `--disable-time-machine` | `hash tmutil &> /dev/null && sudo tmutil disable` (468) | none needed |
+| a computer name, from `--computer-name NAME` or else `DOTFILES_MACOS_COMPUTER_NAME` | the three `sudo scutil --set` lines and the `sudo defaults write ... NetBIOSName` line (69 to 72). The host name comes from `--local-hostname`, else `DOTFILES_MACOS_LOCAL_HOSTNAME`, else the old line 22 expression applied to the name. | only when `scutil --get ComputerName` differs from the name |
+| `--hidpi` or `DOTFILES_MACOS_HIDPI` non-empty | `sudo defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true` (194) | only when `defaults read` of that key is not `1` (it fails, domain not found, on this Mac) |
+| `--firewall` or `DOTFILES_MACOS_FIREWALL` non-empty | the two `socketfilterfw` lines (204, 205), the tool found as `fw=$(command -v socketfilterfw \|\| echo /usr/libexec/ApplicationFirewall/socketfilterfw)` so the test can put a stub on `PATH` | `--setglobalstate on` only when `"$fw" --getglobalstate` does not contain `State = 1`, and `--setstealthmode on` only when `"$fw" --getstealthmode` does not contain `mode is on`. Both reads need no sudo. |
+| `--disable-time-machine` or `DOTFILES_MACOS_DISABLE_TIME_MACHINE` non-empty | `hash tmutil &> /dev/null && sudo tmutil disable` (468) | only when `defaults read /Library/Preferences/com.apple.TimeMachine AutoBackup` does not print `0` |
 | `--restart`, or the snapshot exists and differs from the status now | The second case is `[ -e "$snapshot" ] && ! mise bootstrap macos defaults status --json 2> /dev/null \| cmp -s - "$snapshot"`. Then `killall "$app" > /dev/null 2>&1 \|\| true` for Activity Monitor, Dock, Finder, NotificationCenter, SystemUIServer, Terminal. Skip Terminal and print a `warn` line when `$TERM_PROGRAM` is `Apple_Terminal`. Then print the old closing line about logout. | |
 
 Why a snapshot and not `status --missing`: drift alone must not restart anything. Two entries differ on this Mac today, and a value macOS keeps rewriting would otherwise kill Finder and the Dock on every bootstrap. The status changes between `--before` and the later run only when the apply wrote a preference. When the user declines mise's prompt under `mise bootstrap`, the `post-defaults` hook does not run and the snapshot stays in `$TMPDIR` until the next `--before` overwrites it. `bin/set-defaults` removes it with its own trap (Task 3). One limit is left and is accepted: after a declined bootstrap, a run of `setup/macos-extras.sh` by hand compares against that old snapshot.
 
-The two skip switches exist because the old script asked before these two groups (default yes) and `DOTFILES_MACOS_NO=1` declined them. `config.local.toml` can pin another value for a declared preference, but nothing there can tell this script to leave a preference alone.
+The four group switches exist because the old script asked before each group (default yes) and `DOTFILES_MACOS_NO=1` declined them, and Decision 9 puts each in the UI. A group's preferences are written only here, because a preference declared in the fragment cannot be switched off (see the classification). A group's writes that change only `status`-invisible preferences restart nothing under the hook; under `set-defaults` the `--restart` path always restarts.
 
-The script uses `set -euo pipefail` and inline `info` and `warn` helpers, like the other setup scripts. Its header says: what it is, that mise's hooks and `set-defaults` run it, one usage line per flag, and one line for the two skip switches.
+The opt-ins run on every run that is not `--before`, so the same settings apply under `set-defaults` and under a hand-run `mise bootstrap`. Each one reads the Mac's state first and calls `sudo` only when it differs. A read that fails (a domain not found) counts as "differs" and must not stop the script under `set -e`, so each read is `$(... 2> /dev/null || true)`. Turning one off does nothing: the script never turns the firewall or HiDPI off, re-enables Time Machine or renames the Mac back.
+
+The script uses `set -euo pipefail` and inline `info` and `warn` helpers, like the other setup scripts. Under `set -u`, `${VAR-1}` and `${VAR:-}` are both safe on an unset variable. Its header says: what it is, that mise's hooks and `set-defaults` run it, one usage line per flag, one line for the four group switches (on unless set to the empty string) and one for the five opt-in variables, and that `dotfiles-settings` sets all nine.
 
 - [ ] **Step 1: Write the failing test `setup/tests/macos-extras.sh`**
 
-Follow `setup/tests/codex-config.sh` for the `check "<name>" "<condition>"` helper, the `fails` counter and the exit code. Build a temp dir of stub commands, each appending `<name> <args>` to `$log`, and put it first on `PATH`: `sudo` (logs, then runs nothing), `defaults`, `killall`, `osascript`, `scutil` (prints `Old Name` for `--get`), `chflags`, `xattr`, `tmutil`, `mise` (logs, then prints the file `$status_out`), and `pmset` (prints the file `$pmset_out` for `-g custom`). Set `HOME` and `TMPDIR` to temp dirs. Assertions:
+Follow `setup/tests/codex-config.sh` for the `check "<name>" "<condition>"` helper, the `fails` counter and the exit code. Build a temp dir of stub commands, each appending `<name> <args>` to `$log`, and put it first on `PATH`: `sudo` (logs, then runs nothing), `defaults` (for `read`, prints the file `$reads/<last argument>` and exits 1 when it does not exist), `killall`, `osascript`, `scutil` (prints `Old Name` for `--get`), `chflags`, `xattr`, `tmutil`, `socketfilterfw` (prints `${FW_GLOBAL:-Firewall is disabled. (State = 0)}` for `--getglobalstate` and `${FW_STEALTH:-Firewall stealth mode is off}` for `--getstealthmode`), `mise` (logs, then prints the file `$status_out`), and `pmset` (prints the file `$pmset_out` for `-g custom`). Set `HOME` and `TMPDIR` to temp dirs. Before the first `run`, `unset` all nine `DOTFILES_MACOS_*` variables of Task 1, because A1's override cache may export them into the shell that runs `pnpm check`. Assertions:
 
 ```bash
 # pmset reports the wanted values: no sudo pmset at all
 printf ' hibernatemode 3\n womp 0\n disksleep 10\n' > "$pmset_out"
 run
 check "matching pmset values need no sudo" "! grep -q '^sudo pmset' '$log'"
-check "screenshot folder is written" "grep -q 'defaults write com.apple.screencapture location -string $HOME/Desktop' '$log'"
-check "TextEdit is written" "grep -q 'defaults write com.apple.TextEdit RichText -int 0' '$log'"
 check "no restart without a snapshot" "! grep -q '^killall' '$log'"
 
-# the skip switches leave their group alone and nothing else
-DOTFILES_MACOS_SKIP_SCREENSHOT_FOLDER=1 DOTFILES_MACOS_SKIP_TEXTEDIT=1 run
-check "the screenshot folder can be skipped" "! grep -q 'com.apple.screencapture' '$log'"
-check "TextEdit can be skipped" "! grep -q 'com.apple.TextEdit' '$log'"
+# the four group switches: unset means on
+check "screenshots are written when unset" "grep -q 'defaults write com.apple.screencapture location -string $HOME/Desktop' '$log' && grep -q 'defaults write com.apple.screencapture name -string Shot' '$log'"
+check "the Time Machine new-disk prompt is suppressed when unset" "grep -q 'defaults write com.apple.TimeMachine DoNotOfferNewDisksForBackup -bool true' '$log'"
+check "TextEdit is written when unset" "grep -q 'defaults write com.apple.TextEdit RichText -int 0' '$log'"
+check "Software Update is written when unset" "grep -q 'defaults write com.apple.SoftwareUpdate AutomaticDownload -int 1' '$log'"
+
+# the UI's false is the empty string: each group is left alone, and nothing else is
+DOTFILES_MACOS_SCREENSHOTS= DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS= DOTFILES_MACOS_TEXTEDIT= DOTFILES_MACOS_SOFTWARE_UPDATE= run
+check "screenshots switched off" "! grep -q 'com.apple.screencapture' '$log'"
+check "Time Machine new-disk switch off" "! grep -q 'com.apple.TimeMachine' '$log'"
+check "TextEdit switched off" "! grep -q 'com.apple.TextEdit' '$log'"
+check "Software Update switched off" "! grep -q 'com.apple.SoftwareUpdate' '$log'"
 check "the other writes still happen" "grep -q 'defaults write com.apple.helpviewer' '$log'"
+
+# the UI's true is 1: the same as unset
+DOTFILES_MACOS_SOFTWARE_UPDATE=1 run
+check "a group switched on is written" "grep -q 'defaults write com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true' '$log'"
+
+# the opt-ins are off by default: no sudo apart from pmset and /Volumes
+check "no opt-in runs unasked" "! grep -q 'scutil --set\|socketfilterfw --set\|tmutil disable\|windowserver' '$log'"
+
+# each opt-in, from its env setting, when the Mac differs
+DOTFILES_MACOS_FIREWALL=1 DOTFILES_MACOS_HIDPI=1 DOTFILES_MACOS_DISABLE_TIME_MACHINE=1 DOTFILES_MACOS_COMPUTER_NAME="Jason's Mac" run
+check "the firewall is turned on" "grep -q '^sudo .*socketfilterfw --setglobalstate on$' '$log' && grep -q '^sudo .*socketfilterfw --setstealthmode on$' '$log'"
+check "HiDPI is turned on" "grep -q '^sudo defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true' '$log'"
+check "Time Machine is turned off" "grep -qx 'sudo tmutil disable' '$log'"
+check "the Mac is renamed" "grep -qx \"sudo scutil --set ComputerName Jason's Mac\" '$log'"
+check "the local hostname is derived" "grep -qx 'sudo scutil --set LocalHostName jason-s-mac' '$log'"
+
+# the same opt-ins when the Mac already matches: no sudo for them (Review Focus 7)
+echo 1 > "$reads/DisplayResolutionEnabled"; echo 0 > "$reads/AutoBackup"
+FW_GLOBAL='Firewall is enabled. (State = 1)' FW_STEALTH='Firewall stealth mode is on' \
+  DOTFILES_MACOS_FIREWALL=1 DOTFILES_MACOS_HIDPI=1 DOTFILES_MACOS_DISABLE_TIME_MACHINE=1 DOTFILES_MACOS_COMPUTER_NAME='Old Name' run
+check "a matching Mac needs no sudo for the opt-ins" "! grep -q '^sudo \(.*socketfilterfw\|tmutil\|scutil\|defaults\)' '$log'"
+rm -f "$reads/DisplayResolutionEnabled" "$reads/AutoBackup"
+
+# the UI's false for an opt-in, and an empty name, do nothing
+DOTFILES_MACOS_FIREWALL= DOTFILES_MACOS_COMPUTER_NAME= run
+check "an opt-in switched off does nothing" "! grep -q 'socketfilterfw --set\|scutil --set' '$log'"
+
+# a flag wins over its setting for one run
+DOTFILES_MACOS_COMPUTER_NAME='From Setting' run --computer-name 'From Flag' --local-hostname custom-host
+check "the flag's name wins" "grep -qx 'sudo scutil --set ComputerName From Flag' '$log' && grep -qx 'sudo scutil --set LocalHostName custom-host' '$log'"
 
 # one value differs: exactly that key is set, and an unreported key is skipped
 printf ' hibernatemode 3\n womp 0\n disksleep 0\n' > "$pmset_out"
@@ -258,7 +320,7 @@ Expected: the line starts with `100755`.
 Add after the `firefox-dev-path.sh` line:
 
 ```bash
-# setup/macos-extras.sh against stubbed sudo, pmset, defaults and killall (nothing is changed)
+# setup/macos-extras.sh against stubbed sudo, pmset, defaults, socketfilterfw and killall (nothing is changed)
 bash setup/tests/macos-extras.sh > /dev/null
 ```
 
@@ -281,7 +343,7 @@ git commit -m "Add the macOS extras script for what TOML cannot express"
 
 **Interfaces:**
 - Consumes: `setup/macos-extras.sh` and its `--before` flag (Task 1).
-- Produces: 77 keys under `[bootstrap.macos.defaults."<domain>"]` in 12 domains, 11 `[[bootstrap.macos.defaults_entries]]`, and `[bootstrap.hooks]` with `pre-defaults` and `post-defaults`. Later tasks address a table key as `<domain>/<key>`.
+- Produces: 68 keys under `[bootstrap.macos.defaults."<domain>"]` in 9 domains, 11 `[[bootstrap.macos.defaults_entries]]`, and `[bootstrap.hooks]` with `pre-defaults` and `post-defaults`. Later tasks address a table key as `<domain>/<key>`.
 
 `~/.config/mise` is a symlink into this repo, so the file is live the moment it exists. That is why Task 1 comes first: the hooks need the script.
 
@@ -293,7 +355,8 @@ It is throwaway and is not committed. It proves that every `defaults write` line
 """Throwaway: every `defaults write` in setup/macos.sh is declared in 20-macos.toml or listed in EXTRAS/OPT_IN."""
 import json, re, shlex, subprocess, sys
 
-EXTRAS = {72, 108, 180, 194, 217, 495, 496, 497, 522}  # sudo, $HOME, sandboxed apps
+EXTRAS = {72, 108, 180, 194, 217, 495, 496, 497, 522,  # sudo, $HOME, sandboxed apps
+          182, 184, 186, 188, 463, 506, 508, 510, 512}  # groups behind a UI switch
 OPT_IN = {101, 260, 261, 262, 364, 365}  # documented for config.local.toml
 status = json.loads(subprocess.run(["mise", "bootstrap", "macos", "defaults", "status", "--json"],
                                    capture_output=True, text=True, check=True).stdout)
@@ -344,12 +407,17 @@ Expected: a `KeyError: 'macos_defaults'` traceback, because no fragment exists a
 #
 # What cannot live here is in setup/macos-extras.sh, which the hooks at the end
 # run: sudo writes, $HOME paths (values are not templated), pmset, file flags,
-# and the sandboxed apps (TextEdit, Preview, Help Viewer), whose preferences
-# mise cannot read back without Full Disk Access.
+# the sandboxed apps (TextEdit, Preview, Help Viewer), whose preferences mise
+# cannot read back without Full Disk Access, and the groups a user can switch
+# off in dotfiles-settings (screenshots, Time Machine's new-disk prompt,
+# TextEdit, Software Update): mise applies every key declared here, so a key
+# that may be left alone cannot be declared.
 #
-# Security-sensitive and per-machine preferences are not declared here. To opt
-# in on one Mac, declare them in the git-ignored config.local.toml beside
-# config.toml, which outranks this file:
+# Security-sensitive and per-machine preferences are not declared here. The
+# firewall, HiDPI, Time Machine and computer name are switches in
+# dotfiles-settings ("macOS (this Mac)"), applied by the extras script. For the
+# rest, opt in on one Mac by declaring them in the git-ignored
+# config.local.toml beside config.toml, which outranks this file:
 #
 #   # Disable the "downloaded from the internet" confirmation (weakens security)
 #   [bootstrap.macos.defaults."com.apple.LaunchServices"]
@@ -369,10 +437,7 @@ Expected: a `KeyError: 'macos_defaults'` traceback, because no fragment exists a
 #   autohide-time-modifier = 0.0
 #
 # config.local.toml can pin another value for a key below, but it cannot say
-# "leave this preference alone". The screenshot, Time Machine new-disk and
-# Software Update tables are always declared here (the old script asked first).
-# On a Mac whose updates or backups are managed by MDM, delete those tables in
-# your fork.
+# "leave this preference alone".
 
 [bootstrap.macos.defaults.NSGlobalDomain]
 # --- General UI/UX ---
@@ -436,15 +501,6 @@ DialogType = "none"
 
 # (Password-after-sleep lives in System Settings → Lock Screen; the old
 # com.apple.screensaver askForPassword keys have had no effect since macOS 13.)
-[bootstrap.macos.defaults."com.apple.screencapture"]
-# Save screenshots in PNG format (other options: BMP, GIF, JPG, PDF, TIFF)
-type = "png"
-# Disable shadow in window captures
-disable-shadow = true
-# Show the mouse pointer in screenshots
-showsCursor = true
-# Change the default screenshot name
-name = "Shot"
 
 [bootstrap.macos.defaults."com.apple.finder"]
 # Open new Finder windows in the home folder
@@ -534,10 +590,6 @@ SecureKeyboardEntry = true
 # Disable the annoying line marks
 ShowLineMarks = 0
 
-# Suppress Time Machine's "use as backup disk?" prompt for new drives
-[bootstrap.macos.defaults."com.apple.TimeMachine"]
-DoNotOfferNewDisksForBackup = true
-
 [bootstrap.macos.defaults."com.apple.ActivityMonitor"]
 # Show the main window when launching Activity Monitor
 OpenMainWindow = true
@@ -548,16 +600,6 @@ ShowCategory = 102
 # Sort Activity Monitor results by CPU usage
 SortColumn = "CPUUsage"
 SortDirection = 0
-
-[bootstrap.macos.defaults."com.apple.SoftwareUpdate"]
-# Enable the automatic update check
-AutomaticCheckEnabled = true
-# Check for software updates daily, not just once per week
-ScheduleFrequency = 1
-# Download newly available updates in background (an integer, not a boolean)
-AutomaticDownload = 1
-# Install system data files & security updates (an integer, not a boolean)
-CriticalUpdateInstall = 1
 
 # Entries for what a plain table cannot say: a -currentHost preference, or one
 # key inside a dictionary that macOS also writes to.
@@ -651,7 +693,7 @@ post-defaults = '"${DOTFILES:-$HOME/dotfiles}/setup/macos-extras.sh"'
 - [ ] **Step 4: Run the coverage script**
 
 Run: `python3 /tmp/a3-coverage.py setup/macos.sh`
-Expected: `91 defaults write lines, 88 declared preferences, 0 problems`, exit 0.
+Expected: `91 defaults write lines, 79 declared preferences, 0 problems`, exit 0.
 
 To regenerate the mapping after any edit to the fragment, rerun this command. A line number in `EXTRAS` or `OPT_IN` that is also declared, or a line in neither place, is printed as a problem.
 
@@ -665,7 +707,7 @@ Expected: `0`.
 mise reports `set` only when the live type equals the declared type, so the state column is the first check.
 
 Run: `mise bootstrap macos defaults status --json | jq -r '.macos_defaults.entries | group_by(.state)[] | "\(.[0].state) \(length)"'`
-Expected on this Mac: `differs 2` and `set 86`. No `unset`.
+Expected on this Mac: `differs 2` and `set 77`. No `unset`.
 
 Run: `mise bootstrap macos defaults status --json | jq -r '.macos_defaults.entries[] | select(.state != "set") | [.domain, .key, (.path | tostring)] | @tsv'`
 Expected: `com.apple.finder DesktopViewSettings ["IconViewSettings","arrangeBy"]` and `com.apple.symbolichotkeys AppleSymbolicHotKeys ["64"]`. Any other row is a wrong value or a wrong type. Fix the fragment, not the Mac.
@@ -706,15 +748,14 @@ One commit, because D12 and `.claude/rules/setup.md` require the docs to change 
 **Files:**
 - Modify: `bin/set-defaults`
 - Delete: `setup/macos.sh`
-- Modify: `.claude/settings.json`, `bin/lib/test-conventions` (after the `for s in sysup set-defaults` loop)
 - Modify: `settings/registry.toml` (only if it lists `DOTFILES_MACOS_YES` or `DOTFILES_MACOS_NO`)
 - Modify: `README.md`, `setup/README.md`, `docs/macos settings.md`, `docs/macos tips & tricks.md`, `docs/mole.md`, `docs/gui/raycast.md`, `CLAUDE.md`, `bin/CLAUDE.md`, `.claude/rules/macos-defaults.md`
 
 **Interfaces:**
 - Consumes: `setup/macos-extras.sh` flags (Task 1), the fragment (Task 2).
-- Produces: `set-defaults [--computer-name NAME] [--local-hostname HOST] [--hidpi] [--firewall] [--disable-time-machine]`. It is the only command in the repo that applies macOS preferences.
-- Produces: the `ask` rule `Bash(mise bootstrap*)` in `.claude/settings.json` and its `test-conventions` assertion. It matches the bare command, every flag and every subcommand.
-- For A6: `setup.sh` must run `mise bootstrap --skip macos-defaults`, which drops the part and both hooks. `--only` and `--skip` cannot be combined, so a user's extra `--skip` list is merged into that one `--skip` argument. The `Bash(mise bootstrap*)` rule and its assertion already exist after this task. A6 does not add them again.
+- Produces: `set-defaults [--computer-name NAME] [--local-hostname HOST] [--hidpi] [--firewall] [--disable-time-machine]`. It is the only command in the repo that applies macOS preferences. It also honours the nine `DOTFILES_MACOS_*` settings of Task 1, which reach it through the shell it is started from.
+- For A6: `setup.sh` must run `mise bootstrap --skip macos-defaults` (Decision 1), which drops the part and both hooks. `--only` and `--skip` cannot be combined, so a user's extra `--skip` list is merged into that one `--skip` argument.
+- Not produced here: the `ask` rule `Bash(mise bootstrap*)` and its `test-conventions` assertion. A7 adds both in the last phase (Decision 7).
 
 - [ ] **Step 1: Rewrite `bin/set-defaults`**
 
@@ -731,12 +772,12 @@ mise bootstrap macos defaults apply
 "$DOTFILES/setup/macos-extras.sh" --restart "$@"
 ```
 
-Add `set -euo pipefail` after the header. Rewrite the header as a tldr page: description "Apply this repo's macOS preferences and restart the affected apps.", then one example each for `set-defaults`, `set-defaults --computer-name "Jason's MacBook Pro"`, `set-defaults --firewall`, `set-defaults --hidpi`, `set-defaults --disable-time-machine`.
+Add `set -euo pipefail` after the header. Rewrite the header as a tldr page: description "Apply this repo's macOS preferences and restart the affected apps.", then one example each for `set-defaults`, `set-defaults --computer-name "Jason's MacBook Pro"`, `set-defaults --firewall`, `set-defaults --hidpi`, `set-defaults --disable-time-machine`, and `dotfiles-settings set macos.software_update off` (described as "Leave Software Update alone from now on; the macOS (this Mac) section of dotfiles-settings has every switch").
 
 - [ ] **Step 2: Render the header**
 
 Run: `help set-defaults`
-Expected: the five examples render.
+Expected: the six examples render.
 
 - [ ] **Step 3: Delete the old script and check nothing names it**
 
@@ -745,29 +786,13 @@ git rm setup/macos.sh
 ```
 
 Run: `grep -rnI 'macos\.sh\|DOTFILES_MACOS_\(YES\|NO\)' --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=completed --exclude-dir=specs . | grep -v 'docs/superpowers/plans/'`
-Expected before the doc edits below: hits in `CLAUDE.md:40`, `README.md:8,29,126`, `bin/CLAUDE.md:19`, `setup/README.md:15,114`, `.claude/rules/macos-defaults.md:3`, `docs/mole.md:41`, `docs/gui/raycast.md:9`, `docs/macos tips & tricks.md:109`, `docs/macos settings.md:5,298`. After Step 6: no output. Completed plans and specs keep their history and are excluded.
+Expected before the doc edits below: hits in `CLAUDE.md:40`, `README.md:8,29,126`, `bin/CLAUDE.md:19`, `setup/README.md:15,114`, `.claude/rules/macos-defaults.md:3`, `docs/mole.md:41`, `docs/gui/raycast.md:9`, `docs/macos tips & tricks.md:109`, `docs/macos settings.md:5,298`. After Step 5: no output. Completed plans and specs keep their history and are excluded.
 
 If `settings/registry.toml` has a `[[setting]]` for `DOTFILES_MACOS_YES` or `DOTFILES_MACOS_NO`, delete both tables.
 
-- [ ] **Step 4: Guard the new apply command**
+The `ask` rule for `mise bootstrap*` is not added here: A7 adds it with its assertion in the last phase (spec Decision 7).
 
-First add the assertion. In `bin/lib/test-conventions`, after the `for s in sysup set-defaults` loop, add:
-
-```bash
-# mise bootstrap changes the machine too: bare, with flags (--yes, --only) and its apply subcommands
-rules .claude/settings.json ask present 'Bash(mise bootstrap*)'
-```
-
-Run: `bash bin/lib/test-conventions`
-Expected: `FAIL: .claude/settings.json ask: Bash(mise bootstrap*) should be present`, exit 1.
-
-Then add `"Bash(mise bootstrap*)"` to `permissions.ask` in `.claude/settings.json` and run it again. Expected: exit 0.
-
-One rule, not `Bash(mise bootstrap)` plus `Bash(mise bootstrap *apply*)`: those two match nothing for `mise bootstrap --yes` or `mise bootstrap --only macos-defaults`. The cost is that the read-only `mise bootstrap ... status` and `--dry-run` commands ask too when an agent runs them. `pnpm check` runs them inside scripts, which no rule matches.
-
-`setup/macos-extras.sh` is already covered by the existing `Bash(setup/*)` rules.
-
-- [ ] **Step 5: Rewrite `.claude/rules/macos-defaults.md`**
+- [ ] **Step 4: Rewrite `.claude/rules/macos-defaults.md`**
 
 Replace the whole file with:
 
@@ -780,9 +805,10 @@ paths:
 
 # macOS defaults
 
-- Preferences are declared in `conf.d/20-macos.toml` and applied by `bin/set-defaults` only. `setup.sh` never applies them. A plain `mise bootstrap` run by hand does. `setup/macos-extras.sh` holds only what TOML cannot express: sudo, `$HOME` paths, `pmset`, file flags, sandboxed apps (TextEdit, Preview, Help Viewer) and the app restarts.
-- Security-sensitive and per-machine settings are never declared in the tracked fragment (`setup/tests/macos-defaults.py` fails on two of them). They are opt-ins: a table in the git-ignored `config.local.toml`, or a flag of `macos-extras.sh`.
-- `config.local.toml` can pin another value but cannot say "leave it as it is". The screenshot, Time Machine new-disk and Software Update preferences are always declared, so a managed Mac removes those tables in a fork. The extras script's screenshot folder and TextEdit writes are skipped with `DOTFILES_MACOS_SKIP_SCREENSHOT_FOLDER=1` and `DOTFILES_MACOS_SKIP_TEXTEDIT=1`.
+- Preferences are declared in `conf.d/20-macos.toml` and applied by `bin/set-defaults` only. `setup.sh` never applies them. A plain `mise bootstrap` run by hand does. `setup/macos-extras.sh` holds only what TOML cannot express: sudo, `$HOME` paths, `pmset`, file flags, sandboxed apps (TextEdit, Preview, Help Viewer), the groups a user can switch off, and the app restarts.
+- Security-sensitive and per-machine settings are never declared in the tracked fragment (`setup/tests/macos-defaults.py` fails on two of them). They are opt-ins: an `env` setting the extras script reads (firewall, HiDPI, Time Machine, computer name), or a table in the git-ignored `config.local.toml`. An opt-in that needs sudo reads the Mac's state first and calls sudo only when it differs. Turning one off changes nothing.
+- `config.local.toml` can pin another value but cannot say "leave it as it is", and mise applies every declared key. So a preference group a user may want left alone (screenshots, Time Machine's new-disk prompt, TextEdit, Software Update) is written by the extras script behind a switch that is on unless set to the empty string (`${VAR-1}`, no colon: the settings UI writes `""` for off). Never move such a group back into the fragment.
+- Every `DOTFILES_MACOS_*` variable the extras script reads has an `env` entry in `settings/registry.toml`, section "macOS (this Mac)". Add both together.
 - Types matter: mise treats `1` and `true` as different values. Before adding a key, run `defaults read-type <domain> <key>` on a Mac where the setting is already on, and verify the domain and key against the current macOS release. Prefer leaving a value at the macOS default over pinning it.
 - mise never deletes a preference, never uses sudo and never restarts an app. Removing a line leaves the value in place until `defaults delete <domain> <key>`.
 - Values are not templated, and `{{ config_root }}` in a hook is `$HOME`. The `pre-defaults` and `post-defaults` hooks run under `mise bootstrap` when its `macos-defaults` part runs, and not under `mise bootstrap macos defaults apply`, so `bin/set-defaults` calls the extras script itself.
@@ -791,7 +817,7 @@ paths:
 - Every `setup/*.sh` is committed executable (`bin/lib/test-conventions` checks the mode). Hooks run the script directly.
 ```
 
-- [ ] **Step 6: Rewrite the user docs**
+- [ ] **Step 5: Rewrite the user docs**
 
 Each row quotes the stale text with its current line number. Replace it with the text given.
 
@@ -803,7 +829,7 @@ Each row quotes the stale text with its current line number. Replace it with the
 | 29 | "- Sensible [macOS defaults](setup/macos.sh), prompting for a computer name so it's reusable across machines." | "- Sensible [macOS defaults](tilde/.config/mise/conf.d/20-macos.toml), declared as TOML that mise applies and checks for drift." |
 | 126 | "Runs [`setup/macos.sh`](setup/macos.sh): keyboard, trackpad, Finder, Dock and system preferences, with prompts for the security-sensitive and per-machine ones. See [what it changes](setup/README.md#macos). At the end it force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal — so run it from Ghostty, Warp, cmux or iTerm2 rather than Terminal.app. Log out afterwards so key repeat takes effect. Safari isn't configured by it; set Safari up in Safari → Settings." | The paragraph below. |
 
-> Applies the preferences declared in [`20-macos.toml`](tilde/.config/mise/conf.d/20-macos.toml) with `mise bootstrap macos defaults apply`, which lists the planned writes and asks first, then runs [`setup/macos-extras.sh`](setup/macos-extras.sh) for what TOML can't express. See [what it changes](setup/README.md#macos). Nothing prompts for the security-sensitive or per-machine settings any more: they are opt-in flags (`set-defaults --firewall`, `--hidpi`, `--disable-time-machine`, `--computer-name "Name"`) or tables in the git-ignored `config.local.toml`. `mise bootstrap macos defaults status` shows which preferences have drifted. mise never deletes a preference, never uses sudo for one and doesn't restart apps by itself, so the extras script force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal (Terminal is spared when you run it from Terminal.app). Log out afterwards so key repeat takes effect. Safari isn't configured by it; set Safari up in Safari → Settings.
+> Applies the preferences declared in [`20-macos.toml`](tilde/.config/mise/conf.d/20-macos.toml) with `mise bootstrap macos defaults apply`, which lists the planned writes and asks first, then runs [`setup/macos-extras.sh`](setup/macos-extras.sh) for what TOML can't express. See [what it changes](setup/README.md#macos). Nothing prompts any more. The choices the old script asked about are switches in the "macOS (this Mac)" section of [`dotfiles-settings`](settings/README.md): the screenshot, Time Machine new-disk, TextEdit and Software Update groups (on unless you switch them off), and the firewall, HiDPI, turning Time Machine off and the computer name (off or empty unless you set them; `set-defaults --firewall`, `--hidpi`, `--disable-time-machine` and `--computer-name "Name"` do the same for one run). The rest are tables in the git-ignored `config.local.toml`. `mise bootstrap macos defaults status` shows which preferences have drifted. mise never deletes a preference, never uses sudo for one and doesn't restart apps by itself, so the extras script force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal (Terminal is spared when you run it from Terminal.app). Log out afterwards so key repeat takes effect. Safari isn't configured by it; set Safari up in Safari → Settings.
 
 `setup/README.md`:
 
@@ -811,29 +837,29 @@ Each row quotes the stale text with its current line number. Replace it with the
 | --- | --- | --- |
 | 15 | "`macos.sh` is deliberately not part of the run; use `set-defaults`." | "The macOS preferences are deliberately not part of the run; use `set-defaults`." Do not name the `--skip macos-defaults` flag here: `setup.sh` gains it in A6, and A6's documentation task adds it to this sentence. |
 | 100 | "Sane macOS defaults, run with `set-defaults`. Based on [~/.macos](https://mths.be/macos) by @mathiasbynens, reviewed for macOS 27." | "Sane macOS defaults, declared in [`20-macos.toml`](../tilde/.config/mise/conf.d/20-macos.toml) and applied with `set-defaults` only. `setup.sh` skips them. A plain `mise bootstrap` run by hand does apply them and runs both hooks. Based on [~/.macos](https://mths.be/macos) by @mathiasbynens, reviewed for macOS 27." |
-| 102 | "Prompts for a computer name/local hostname (skippable) so the same script works unmodified across machines. Pre-set `COMPUTERNAME`/`LOCALHOSTNAME` env vars to skip the prompt in non-interactive runs." | "Nothing prompts. `set-defaults --computer-name \"Name\"` (with an optional `--local-hostname host`) renames the Mac." |
+| 102 | "Prompts for a computer name/local hostname (skippable) so the same script works unmodified across machines. Pre-set `COMPUTERNAME`/`LOCALHOSTNAME` env vars to skip the prompt in non-interactive runs." | "Nothing prompts. Set the computer name in `dotfiles-settings` (`macos.computer_name`, optionally `macos.local_hostname`) or run `set-defaults --computer-name \"Name\"` (with an optional `--local-hostname host`); the next `set-defaults` renames the Mac when the name differs." |
 | 104 to 112 | The paragraph "A handful of higher-impact/opinionated settings are asked about interactively…" and its seven bullets | The opt-in list below. |
 | 114 | "Non-interactive runs use the defaults above. `DOTFILES_MACOS_NO=1` answers every prompt no. **`DOTFILES_MACOS_YES=1` answers every prompt yes — including the two security-weakening ones and disabling Time Machine**, so avoid it unless that's really what you want." | Delete. |
-| 116 | "Applied unconditionally:" | "Always declared in the fragment. The screenshot, Time Machine new-disk and Software Update preferences used to prompt and are now always declared too. `config.local.toml` can pin another value for them but cannot say \"leave it as it is\", so on a Mac whose updates or backups are managed by MDM, delete those tables from the fragment in your fork:" |
+| 116 | "Applied unconditionally:" | "Always declared in the fragment:" |
 | 127 | "At the end the script force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal (so run it from another terminal app), and key repeat needs a logout to take effect." | The behaviour list below. |
 
 Opt-in list for lines 104 to 112:
 
 > Higher-impact settings are opt-in, because the right answer varies per machine (a work laptop with its firewall or updates managed by MDM):
 >
-> - Flags of `set-defaults` (they need sudo): `--firewall` (firewall and stealth mode), `--hidpi` (HiDPI display modes, needs a restart), `--disable-time-machine` (**stops all Time Machine backups**), `--computer-name`.
+> - Switches in the "macOS (this Mac)" section of `dotfiles-settings`, off unless you turn them on. They need sudo, and `set-defaults` asks for it only when the Mac differs. Turning one off later changes nothing on the Mac. `macos.firewall` (firewall and stealth mode), `macos.hidpi` (HiDPI display modes, needs a restart), `macos.disable_time_machine` (**stops all Time Machine backups**), and the text settings `macos.computer_name` and `macos.local_hostname` (derived from the name when empty). The `set-defaults` flags `--firewall`, `--hidpi`, `--disable-time-machine`, `--computer-name` and `--local-hostname` do the same for one run.
 > - Tables in the git-ignored `tilde/.config/mise/config.local.toml`, which outranks the fragment: disabling the "downloaded from the internet" confirmation and skipping disk image verification (**both weaken security**), and custom Dock auto-hide timing. The fragment's header has the tables to copy.
 >
-> Two groups the old script asked about are on unless you switch them off: `DOTFILES_MACOS_SKIP_SCREENSHOT_FOLDER=1 set-defaults` leaves the screenshot folder alone, and `DOTFILES_MACOS_SKIP_TEXTEDIT=1 set-defaults` leaves TextEdit alone. Export them in `~/.zsh.local` to make that permanent. The old script's two answer-everything variables are gone.
+> Four groups the old script asked about are on unless you switch them off in the same section: `macos.screenshots` (save to the Desktop as PNG named "Shot", no window shadow, pointer shown), `macos.time_machine_new_disks` (stop Time Machine offering new disks for backup), `macos.textedit` (plain text and UTF-8) and `macos.software_update` (daily check, background download, security and system data installs). Switch a group off on a Mac whose updates or backups are managed by MDM; `set-defaults` then leaves it as it is. Each setting is the variable `DOTFILES_MACOS_<NAME>`, stored in the git-ignored override file, so an export in `~/.zsh.local` works too (empty means off for a group). The old script's two answer-everything variables are gone.
 
 Behaviour list for line 127 (keep the Safari sentence that precedes it):
 
 > What changed from the old script:
 >
 > - mise never deletes a preference. Removing a line from the fragment leaves the value in place; run `defaults delete <domain> <key>` to return to the macOS default. The old script deleted the Dock timing keys when you declined them.
-> - mise never uses sudo. The settings that need it (`pmset`, unhiding `/Volumes`, the opt-in flags) are in `setup/macos-extras.sh`, which asks for sudo only when a value differs.
+> - mise never uses sudo. The settings that need it (`pmset`, unhiding `/Volumes`, the opt-ins) are in `setup/macos-extras.sh`, which asks for sudo only when a value differs.
 > - mise doesn't restart apps. The extras script force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal when the apply wrote a preference (always under `set-defaults`), and spares Terminal when it is the terminal you ran it from. Key repeat needs a logout to take effect.
-> - TextEdit, Preview and Help Viewer are sandboxed, so mise can't read their preferences back; the extras script writes them and `status` doesn't list them. The screenshot folder and Finder's new-window path hold `$HOME` and are written there too.
+> - TextEdit, Preview and Help Viewer are sandboxed, so mise can't read their preferences back; the extras script writes them and `status` doesn't list them. Finder's new-window path holds `$HOME` and is written there too, as are the four switchable groups, since mise applies every preference the fragment declares.
 > - `mise bootstrap macos defaults status` lists every declared preference as set, differs or unset. `pnpm check` warns about drift and fails only on a type mismatch.
 
 In the `README.md` paragraph above and in these lists, every sentence agrees on one thing: `set-defaults` is the only command of this repo that applies macOS preferences. Do not write that `setup.sh` or setup applies them.
@@ -843,21 +869,21 @@ In the `README.md` paragraph above and in these lists, every sentence agrees on 
 | Line | Stale | Replace with |
 | --- | --- | --- |
 | 5 | "- **(set-defaults)**: [`set-defaults`](../bin/set-defaults) already applies this setting by running [`setup/macos.sh`](../setup/macos.sh). You don't need to change it by hand, and running `set-defaults` again resets it to the value shown." | "- **(set-defaults)**: [`set-defaults`](../bin/set-defaults) already applies this setting from [`20-macos.toml`](../tilde/.config/mise/conf.d/20-macos.toml) or [`setup/macos-extras.sh`](../setup/macos-extras.sh). You don't need to change it by hand, and running `set-defaults` again resets it to the value shown. `mise bootstrap macos defaults status` shows which ones have drifted." |
-| 6 | "- **(set-defaults, prompt)**: `set-defaults` asks before it applies this one." | "- **(set-defaults, opt-in)**: applied only when you pass the named flag to `set-defaults` or declare it in `config.local.toml`." |
-| 23, 24 | "(set-defaults, prompt)" twice | "(set-defaults, opt-in: `--firewall`)" |
-| 55 | "(set-defaults, prompt: turns on the automatic check, download, and critical/security installs)" | "(set-defaults: turns on the automatic check, download, and critical/security installs)" |
-| 60 | "(set-defaults sets it when you type a computer name at its prompt)" | "(set-defaults, opt-in: `--computer-name`)" |
-| 61 | "(set-defaults, prompt: \"Disable Time Machine backups entirely\"). A separate prompt stops Time Machine asking to use new disks for backup." | "(set-defaults, opt-in: `--disable-time-machine`). set-defaults also stops Time Machine asking to use new disks for backup." |
+| 6 | "- **(set-defaults, prompt)**: `set-defaults` asks before it applies this one." | "- **(set-defaults, opt-in)**: applied only when you turn on the named setting in `dotfiles-settings` (or pass the named flag to `set-defaults`), or declare it in `config.local.toml`.\n- **(set-defaults, switch)**: applied unless you turn off the named setting in `dotfiles-settings`." (two bullets) |
+| 23, 24 | "(set-defaults, prompt)" twice | "(set-defaults, opt-in: `macos.firewall` or `--firewall`)" |
+| 55 | "(set-defaults, prompt: turns on the automatic check, download, and critical/security installs)" | "(set-defaults, switch: `macos.software_update`; turns on the automatic check, download, and critical/security installs)" |
+| 60 | "(set-defaults sets it when you type a computer name at its prompt)" | "(set-defaults, opt-in: `macos.computer_name` and `macos.local_hostname`, or `--computer-name`)" |
+| 61 | "(set-defaults, prompt: \"Disable Time Machine backups entirely\"). A separate prompt stops Time Machine asking to use new disks for backup." | "(set-defaults, opt-in: `macos.disable_time_machine` or `--disable-time-machine`). set-defaults also stops Time Machine asking to use new disks for backup (set-defaults, switch: `macos.time_machine_new_disks`)." |
 | 134 | "reveal delay and slide animation stay at macOS defaults unless you opt in to custom values when prompted" | "reveal delay and slide animation stay at macOS defaults unless you declare `autohide-delay` and `autohide-time-modifier` in `config.local.toml`" |
-| 170 | "(set-defaults, prompt, default No)" | "(set-defaults, opt-in: `--hidpi`)" |
+| 170 | "(set-defaults, prompt, default No)" | "(set-defaults, opt-in: `macos.hidpi` or `--hidpi`)" |
 | 293 | "- Quick Look text selection" | Delete. The key was removed in commit 893c53a. |
-| 298 | "The script also has optional prompts for screenshot preferences, TextEdit plain text, and download quarantine or disk-image verification (both prompts default to No, which keeps the protection on). It runs [`setup/macos.sh`](../setup/macos.sh)." | "It also sets the screenshot preferences and TextEdit plain text. Download quarantine and disk-image verification stay on unless you opt out in `config.local.toml` (see the header of [`20-macos.toml`](../tilde/.config/mise/conf.d/20-macos.toml))." |
+| 298 | "The script also has optional prompts for screenshot preferences, TextEdit plain text, and download quarantine or disk-image verification (both prompts default to No, which keeps the protection on). It runs [`setup/macos.sh`](../setup/macos.sh)." | "It also sets the screenshot preferences and TextEdit plain text, unless you switch off `macos.screenshots` or `macos.textedit` in `dotfiles-settings`. Download quarantine and disk-image verification stay on unless you opt out in `config.local.toml` (see the header of [`20-macos.toml`](../tilde/.config/mise/conf.d/20-macos.toml))." |
 
 Other files:
 
 | File and line | Stale | Replace with |
 | --- | --- | --- |
-| `docs/macos tips & tricks.md:63` | "`set-defaults` can optionally set the built-in tool to save PNGs" | "`set-defaults` sets the built-in tool to save PNGs" |
+| `docs/macos tips & tricks.md:63` | "`set-defaults` can optionally set the built-in tool to save PNGs" | "`set-defaults` sets the built-in tool (unless `macos.screenshots` is off in `dotfiles-settings`) to save PNGs" |
 | `docs/macos tips & tricks.md:109` | "Remove the hot-corner loop in `setup/macos.sh` if you want to keep your own." | "Remove the eight `wvous-` lines from `tilde/.config/mise/conf.d/20-macos.toml` if you want to keep your own." |
 | `docs/mole.md:41` | "`setup/macos.sh` already sets both." | "`tilde/.config/mise/conf.d/20-macos.toml` already declares both." |
 | `docs/gui/raycast.md:9` | "`set-defaults` (`setup/macos.sh`) turns off" | "`set-defaults` (`20-macos.toml`) turns off" |
@@ -866,7 +892,9 @@ Other files:
 
 `CLAUDE.md` is listed in `.prettierignore`. Edit it by hand and do not format it.
 
-- [ ] **Step 7: Verify**
+These docs name the nine `dotfiles-settings` ids before Task 6 registers them. The variables they stand for work from Task 1 on, and Task 6 lands in the same phase. Use the ids exactly as Task 6's table spells them.
+
+- [ ] **Step 6: Verify**
 
 Run the `grep` from Step 3.
 Expected: no output.
@@ -874,10 +902,10 @@ Expected: no output.
 Run: `pnpm check`
 Expected: exit 0.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add bin/set-defaults .claude/settings.json .claude/rules/macos-defaults.md bin/lib/test-conventions README.md setup/README.md 'docs/macos settings.md' 'docs/macos tips & tricks.md' docs/mole.md docs/gui/raycast.md CLAUDE.md bin/CLAUDE.md
+git add bin/set-defaults .claude/rules/macos-defaults.md README.md setup/README.md 'docs/macos settings.md' 'docs/macos tips & tricks.md' docs/mole.md docs/gui/raycast.md CLAUDE.md bin/CLAUDE.md
 git status --short
 git commit -m "Apply macOS defaults through mise and drop setup/macos.sh"
 ```
@@ -901,7 +929,7 @@ What it asserts, and where:
 | 1 | `tomllib` parses the fragment. | everywhere |
 | 2 | Neither `com.apple.LaunchServices` nor `com.apple.frameworks.diskimages` is a table in the fragment (the security opt-ins stay out of git). | everywhere |
 | 3 | Copy the fragment into `<tmp>/conf.d/`, run `mise bootstrap macos defaults status --json` with `MISE_CONFIG_DIR=<tmp>` and `cwd=<tmp>`. It exits 0 and stderr does not contain `WARN`. | where `mise` is on PATH |
-| 4 | The number of entries equals the number of table keys plus the number of `defaults_entries` in the fragment (88 today, computed, not hard-coded). A dropped or shadowed entry fails here. | same |
+| 4 | The number of entries equals the number of table keys plus the number of `defaults_entries` in the fragment (79 today, computed, not hard-coded). A dropped or shadowed entry fails here. | same |
 | 5 | For each entry with `state == "differs"` and `path == null`: the live type from `defaults read-type` (`-currentHost` when `host` is `current`) equals the declared TOML type (`bool` boolean, `int` integer, `float` float, `str` string, `list` array, `dict` dictionary). A mismatch fails and names the key and both types. | not when `$CI` is set |
 | 6 | Any remaining `differs` or `unset` is drift, not an error. Print one line to stderr, `check: N macOS preference(s) differ from 20-macos.toml (mise bootstrap macos defaults status)`, and pass. | not when `$CI` is set |
 
@@ -1183,7 +1211,7 @@ git commit -m "Add the macos-default settings adapter"
 **Interfaces:**
 - Consumes: the adapter (Task 5), the fragment (Task 2), A2's registry loader.
 
-How the 31 were chosen, out of 77 table keys. A preference is exposed when all four hold: it has a control in System Settings or Finder's settings, or `docs/macos settings.md` marks it "(set-defaults)"; its value is a `bool`, `int`, `string` or `enum`, the types `Setting` has (so no float, array or dictionary); for an enum, every choice is named in the old script's comments or the settings pane; and it is not security-sensitive. That leaves out the hot corners (eight integers with opaque codes), the locale strings, the Activity Monitor and Terminal internals, everything in `defaults_entries`, and the opt-ins.
+How the 26 were chosen, out of 68 table keys. A preference is exposed when all four hold: it has a control in System Settings or Finder's settings, or `docs/macos settings.md` marks it "(set-defaults)"; its value is a `bool`, `int`, `string` or `enum`, the types `Setting` has (so no float, array or dictionary); for an enum, every choice is named in the old script's comments or the settings pane; and it is not security-sensitive. That leaves out the hot corners (eight integers with opaque codes), the locale strings, the Activity Monitor and Terminal internals, everything in `defaults_entries`, and the opt-ins. The screenshot and Software Update preferences are not in the fragment any more (Decision 9 moved them to the extras script), so they are reached through their group switch, not one by one.
 
 Entries are short, as A2's loader allows: `true_value`, `choices`, `default` and `widget` may be left out. Every entry writes the required fields `id`, `section = "macOS (tracked in git)"`, `label`, `help` (`""` where the table's cell is empty), `kind = "macos-default"`, `key`, `type` and `access = "rw"`. A `bool` adds `true_value = "true"`. An `enum` adds `choices`. No entry sets `default` or `widget`.
 
@@ -1215,11 +1243,22 @@ Entries are short, as A2's loader allows: `true_value`, `choices`, `default` and
 | `macos.keyboard.smart_dashes` | Use smart dashes | bool | `NSGlobalDomain/NSAutomaticDashSubstitutionEnabled` | |
 | `macos.keyboard.period_substitution` | Add a period with a double space | bool | `NSGlobalDomain/NSAutomaticPeriodSubstitutionEnabled` | |
 | `macos.general.scroll_bars` | Show scroll bars | enum `WhenScrolling`, `Automatic`, `Always` | `NSGlobalDomain/AppleShowScrollBars` | |
-| `macos.screenshots.type` | Screenshot format | enum `png`, `jpg`, `gif`, `pdf`, `tiff`, `bmp` | `com.apple.screencapture/type` | |
-| `macos.screenshots.disable_shadow` | Leave the shadow out of window screenshots | bool | `com.apple.screencapture/disable-shadow` | |
-| `macos.screenshots.show_cursor` | Show the pointer in screenshots | bool | `com.apple.screencapture/showsCursor` | |
-| `macos.screenshots.name` | Screenshot file name prefix | string | `com.apple.screencapture/name` | macOS appends the date and time. |
-| `macos.updates.automatic_check` | Check for macOS updates automatically | bool | `com.apple.SoftwareUpdate/AutomaticCheckEnabled` | |
+
+The nine `env` settings of Task 1 go in their own section, "macOS (this Mac)", because they are stored in the git-ignored override file, not in the tracked fragment. Every entry writes `kind = "env"`, `access = "rw"` and the fields below. A `bool` writes `true_value = "1"`, the value A2's CLI and TUI write for on; off arrives as `""`. `default` is the extras script's own fallback, as A2 defines it: `"1"` for a group switch (the script reads `${VAR-1}`, so unset means on), `""` for the rest. `help` names what `set-defaults` does and that the change applies at its next run.
+
+| id | label | type | default | key | help |
+| --- | --- | --- | --- | --- | --- |
+| `macos.screenshots` | Apply the screenshot preferences | bool | `"1"` | `DOTFILES_MACOS_SCREENSHOTS` | Save to the Desktop as PNG named Shot, no window shadow, pointer shown. Off leaves them as they are. Applied by the next set-defaults. |
+| `macos.time_machine_new_disks` | Stop Time Machine offering new disks | bool | `"1"` | `DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS` | Time Machine stops asking to use each new drive for backups. Off leaves the prompt as it is. Applied by the next set-defaults. |
+| `macos.textedit` | Make TextEdit default to plain text | bool | `"1"` | `DOTFILES_MACOS_TEXTEDIT` | New documents are plain text, opened and saved as UTF-8. Off leaves TextEdit as it is. Applied by the next set-defaults. |
+| `macos.software_update` | Turn on automatic macOS updates | bool | `"1"` | `DOTFILES_MACOS_SOFTWARE_UPDATE` | Daily check, background download, security and system data installs. Turn off on a Mac whose updates are managed by MDM. Applied by the next set-defaults. |
+| `macos.firewall` | Turn on the firewall and stealth mode | bool | `""` | `DOTFILES_MACOS_FIREWALL` | set-defaults asks for your password when the firewall is off. Turning this off later leaves the firewall on. |
+| `macos.hidpi` | Offer HiDPI display modes | bool | `""` | `DOTFILES_MACOS_HIDPI` | Needs your password and a restart. Turning this off later leaves the modes on. |
+| `macos.disable_time_machine` | Turn off Time Machine backups | bool | `""` | `DOTFILES_MACOS_DISABLE_TIME_MACHINE` | Stops all Time Machine backups on this Mac. set-defaults asks for your password when backups are on. Turning this off later does not turn backups back on: use System Settings. |
+| `macos.computer_name` | Computer name | string | `""` | `DOTFILES_MACOS_COMPUTER_NAME` | set-defaults renames the Mac when this differs from its current name, and asks for your password. Empty leaves the name alone. |
+| `macos.local_hostname` | Local hostname | string | `""` | `DOTFILES_MACOS_LOCAL_HOSTNAME` | The Bonjour name (name.local), set together with the computer name. Empty derives it from the computer name: lower case, other characters as hyphens. |
+
+What the UI shows for these nine: the value the next `set-defaults` will act on (override, else a `~/.zsh.local` export, else the default), never the Mac's live state. A2's `env` adapter reports `drift` as `False` for every env setting, and its write note ("Open a new shell to pick this up.") applies: `set-defaults` reads the variables from the shell it starts in.
 
 - [ ] **Step 1: Add the failing consistency block to `settings/tests/test_macos_default.py`** (before `print("ok")`)
 
@@ -1227,8 +1266,9 @@ Entries are short, as A2's loader allows: `true_value`, `choices`, `default` and
 # every macos-default registry entry is declared in the real fragment with a matching type
 repo = Path(__file__).resolve().parents[2]
 declared = tomllib.loads((repo / "tilde/.config/mise/conf.d/20-macos.toml").read_text())["bootstrap"]["macos"]["defaults"]
-macos = [s for s in registry.load() if s.kind == "macos-default"]
-assert len(macos) == 31
+settings = registry.load()
+macos = [s for s in settings if s.kind == "macos-default"]
+assert len(macos) == 26
 for s in macos:
     domain, key = split_key(s.key)
     value = declared[domain][key]
@@ -1236,68 +1276,74 @@ for s in macos:
     assert s.type != "enum" or value in s.choices, s.id
     assert s.section == "macOS (tracked in git)" and s.access == "rw", s.id
     assert s.type != "bool" or s.true_value == "true", s.id
+
+# every variable the extras script reads is a setting in "macOS (this Mac)", and the reverse
+extras = (repo / "setup/macos-extras.sh").read_text()
+local = {s.key: s for s in settings if s.section == "macOS (this Mac)"}
+assert set(local) == set(re.findall(r"DOTFILES_MACOS_[A-Z_]+", extras)), sorted(local)
+groups = {"DOTFILES_MACOS_SCREENSHOTS", "DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS", "DOTFILES_MACOS_TEXTEDIT", "DOTFILES_MACOS_SOFTWARE_UPDATE"}
+for key, s in local.items():
+    assert s.kind == "env" and s.access == "rw", key
+    assert s.type == "string" or s.true_value == "1", key
+    # a group is on unless switched off; the script's ${VAR-1} and the registry default must agree
+    assert (s.default == "1") == (key in groups), key
+    assert (f"${{{key}-1}}" in extras) == (key in groups), key
 ```
 
-The count is of this plan's own entries only. No test here counts the whole registry or its kinds.
+The counts are of this plan's own entries only. No test here counts the whole registry or its kinds. The file imports `re`.
 
 Use A2's real loader call in place of `registry.load()` if its name differs.
 
 - [ ] **Step 2: Run it to see it fail**
 
 Run: `python3 settings/tests/test_macos_default.py`
-Expected: `AssertionError` on `len(macos) == 31`.
+Expected: `AssertionError` on `len(macos) == 26`.
 
-- [ ] **Step 3: Add the 31 `[[setting]]` tables to `settings/registry.toml`** from the table above, in that order, under a comment line that names the fragment and the selection rule.
+- [ ] **Step 3: Add the 26 `[[setting]]` tables to `settings/registry.toml`** from the first table above, in that order, under a comment line that names the fragment and the selection rule.
 
-- [ ] **Step 3a: Register the two skip switches as `env` settings**
+Run: `python3 settings/tests/test_macos_default.py`
+Expected: `AssertionError` naming the nine `DOTFILES_MACOS_*` keys, from the `set(local)` line.
 
-  `setup/macos-extras.sh` reads `DOTFILES_MACOS_SKIP_SCREENSHOT_FOLDER` and `DOTFILES_MACOS_SKIP_TEXTEDIT` (Task 1). They are switches a user sets once, which is what the settings UI is for, so they get entries. A2's `env` adapter stores them in the override file, and A1's cache carries them to the shell `set-defaults` runs in. Add after the 31, with the fields R1 requires plus `true_value`:
+- [ ] **Step 4: Add the nine `env` tables** from the second table, in that order, under a comment line that names `setup/macos-extras.sh` as their reader. Write `default` only where it is `"1"`. For example:
 
-  ```toml
-  [[setting]]
-  id = "macos.skip_screenshot_folder"
-  section = "macOS (tracked in git)"
-  label = "Leave the screenshot folder alone"
-  help = "set-defaults then does not point screenshots at ~/Desktop. Stored on this Mac only, not in git."
-  kind = "env"
-  key = "DOTFILES_MACOS_SKIP_SCREENSHOT_FOLDER"
-  type = "bool"
-  true_value = "1"
-  access = "rw"
+```toml
+[[setting]]
+id = "macos.software_update"
+section = "macOS (this Mac)"
+label = "Turn on automatic macOS updates"
+help = "Daily check, background download, security and system data installs. Turn off on a Mac whose updates are managed by MDM. Applied by the next set-defaults."
+kind = "env"
+key = "DOTFILES_MACOS_SOFTWARE_UPDATE"
+type = "bool"
+true_value = "1"
+default = "1"
+access = "rw"
+```
 
-  [[setting]]
-  id = "macos.skip_textedit"
-  section = "macOS (tracked in git)"
-  label = "Leave TextEdit's preferences alone"
-  help = "set-defaults then skips the three TextEdit writes. Stored on this Mac only, not in git."
-  kind = "env"
-  key = "DOTFILES_MACOS_SKIP_TEXTEDIT"
-  type = "bool"
-  true_value = "1"
-  access = "rw"
-  ```
-
-  Use the section name the 31 entries use, if it differs from the one written here. Add to the consistency block of Step 1, before running it: both ids exist, are `kind == "env"`, `type == "bool"` and `true_value == "1"`. The count of 31 applies to `kind == "macos-default"` entries only; check the assertion filters on kind.
-
-- [ ] **Step 4: Run the tests**
+- [ ] **Step 5: Run the tests**
 
 Run: `python3 settings/tests/test_macos_default.py`
 Expected: `ok`.
 
 Run: `uv run --project settings dotfiles-settings list --section "macOS (tracked in git)" --json | jq 'length, (map(select(.drift)) | length)'`
-Expected: `31` and `0`.
+Expected: `26` and `0`.
 
 Run: `uv run --project settings dotfiles-settings get macos.dock.tilesize --json | jq -c '[.value, .source, .drift]'`
-Expected: `["38","SEED",false]`, with `source` in whatever spelling A2's JSON uses for `Source.SEED`.
+Expected: `["38","seed",false]` (A2's JSON writes `source` as the lowercase enum value).
 
-- [ ] **Step 5: Gate and commit**
+Run: `uv run --project settings dotfiles-settings list --section "macOS (this Mac)" --json | jq -c 'map([.setting_id, .value, .source])'`
+Expected on a Mac with none of the nine set: the four group switches read `["…","1","default"]`, the other five `["…",null,"unset"]`.
+
+These commands only read. Do not run `set` on these nine here: it writes the live override file, which every new shell then exports. Task 7 Step 5 exercises one.
+
+- [ ] **Step 6: Gate and commit**
 
 Run: `pnpm check`
 Expected: exit 0.
 
 ```bash
 git add settings/registry.toml settings/tests/test_macos_default.py
-git commit -m "Expose 31 macOS preferences in the settings registry"
+git commit -m "Expose the macOS preferences and switches in the settings registry"
 ```
 
 ### Task 7: Apply on this Mac and close the phase (needs the user's explicit go-ahead; the user runs it)
@@ -1307,7 +1353,7 @@ These commands change the machine. The user runs them in Ghostty after saying so
 - [ ] **Step 1: See what will change**
 
 Run: `mise bootstrap macos defaults apply --dry-run`
-Expected: `86 value(s) already set` and two planned writes: `DesktopViewSettings["IconViewSettings"]["arrangeBy"] = grid` and `AppleSymbolicHotKeys["64"]`.
+Expected: `77 value(s) already set` and two planned writes: `DesktopViewSettings["IconViewSettings"]["arrangeBy"] = grid` and `AppleSymbolicHotKeys["64"]`.
 
 - [ ] **Step 2: Apply**
 
@@ -1333,6 +1379,16 @@ Expected: the Dock redraws larger, Finder and the other apps do not restart, the
 
 Run: `uv run --project settings dotfiles-settings reset macos.dock.tilesize && git status --short tilde/.config/mise/conf.d/`
 Expected: the Dock returns to 38 and the status command prints nothing.
+
+- [ ] **Step 5a: Switch one group off and back through the UI**
+
+This changes only the git-ignored override file, not a preference.
+
+Run: `uv run --project settings dotfiles-settings set macos.textedit off && zsh -ic 'print -r -- "[${DOTFILES_MACOS_TEXTEDIT-unset}]"'`
+Expected: `[]`. A new shell sees the switch as set and empty, which the extras script reads as off.
+
+Run: `uv run --project settings dotfiles-settings reset macos.textedit && zsh -ic 'print -r -- "[${DOTFILES_MACOS_TEXTEDIT-unset}]"'`
+Expected: `[unset]`, or `[1]` if `~/.zsh.local` exports it.
 
 - [ ] **Step 6: The phase gate**
 
@@ -1361,13 +1417,16 @@ The spec says that step reports drift only. It can rely on:
 - Nothing to back up and nothing to move. The old script wrote the same preferences in place.
 - Expected drift on a machine set up the old way, so the report can explain it: `AppleLocale` may read `en_US@currency=USD` where the fragment declares the lower-case `usd`, hotkey `64` may hold integers, and the desktop `arrangeBy` may be `name`.
 - Leftovers the new method never declares and mise never deletes. The step should list any of these that are present, with the command that removes each: `com.apple.dock autohide-delay`, `com.apple.dock autohide-time-modifier`, `com.apple.LaunchServices LSQuarantine`, and `com.apple.frameworks.diskimages` `skip-verify`, `skip-verify-locked`, `skip-verify-remote`. For example `defaults delete com.apple.dock autohide-delay`.
-- The dead knobs `DOTFILES_MACOS_YES` and `DOTFILES_MACOS_NO`. If `~/.zsh.local` exports either, the `env` step should say they no longer do anything.
+- The screenshot, Time Machine new-disk and Software Update preferences are not in `status`: the extras script writes them behind switches. The report cannot show drift for them.
+- The dead knobs `DOTFILES_MACOS_YES` and `DOTFILES_MACOS_NO`, and the old prompt variables `COMPUTERNAME` and `LOCALHOSTNAME`. If `~/.zsh.local` exports any of them, the `env` step should say they no longer do anything, and point the last two at `macos.computer_name` and `macos.local_hostname`.
 - The fix for drift is `set-defaults`. The migration script prints that and does not run it.
 
 ## Self-review notes
 
 - Spec coverage for A3: the non-sudo `defaults write` lines move (Task 2), the sudo and non-`defaults` commands move to `setup/macos-extras.sh` run by a `post-defaults` hook (Tasks 1 and 2), `setup/macos.sh` and both knobs are deleted (Task 3), the adapter (Task 5) and registry entries (Task 6) exist, the Documentation table's four files are rewritten (Task 3), and the phase gate (`pnpm check` and the self-check) runs in Task 7.
-- Where this plan differs from the spec's wording: the spec counts 87 `defaults write` lines and 85 non-sudo ones. The file has 91 and 89. Of the 89, 76 are declared (plus 6 that were `PlistBuddy`), 6 become opt-ins and 7 go to the extras script, for the reasons in the classification.
+- Decisions coverage: 1 (setup never applies; the docs say `set-defaults` is the only applier, and A6 writes `--skip macos-defaults`), 2 (five opt-in env settings, Tasks 1 and 6), 7 (no permission rule in this plan, Task 3 points to A7), 9 (four group switches, Tasks 1 and 6, each tested on, off and unset).
+- Where this plan differs from the spec's wording: the spec counts 87 `defaults write` lines and 85 non-sudo ones. The file has 91 and 89. Of the 89, 67 are declared (plus 6 that were `PlistBuddy`, for 79 entries; the spec's A3 paragraph says 88), 6 become opt-ins and 16 go to the extras script, for the reasons in the classification. The spec's A3 paragraph predates Decision 9, which moves 9 of its 88 out.
 - `setup.sh` never applies macOS preferences. A6 passes `--skip macos-defaults`; this plan's docs already say so, and they are true only once A6 lands that line. Until then nothing in the repo runs `mise bootstrap`.
 - A UI write touches one preference (`defaults write`), never the whole fragment.
-- No test covers `--firewall`, `--hidpi`, `--computer-name` or `--disable-time-machine`. The firewall tool is called by absolute path and cannot be stubbed, and the others are three lines each behind one guard.
+- Task 1's test covers every opt-in from its setting and from a flag, with the Mac differing and matching. The firewall tool is looked up on `PATH` first so a stub can stand in. Not verified on a real Mac: that `sudo tmutil disable` leaves `AutoBackup` at `0` (the guard's assumption; this Mac reads `0` already), and the `socketfilterfw` output wording when the firewall is off (the guard matches the "on" wording, so any other text leads to a write).
+- Not verified: that `mise bootstrap` passes the override file's `[env]` to the `post-defaults` hook. If it does not, a hand-run `mise bootstrap` sees only the shell's exports, which A1's cache already holds, so the result is the same in a zsh-started run.

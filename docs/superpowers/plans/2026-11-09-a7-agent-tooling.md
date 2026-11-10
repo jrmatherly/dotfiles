@@ -24,7 +24,7 @@
 - Every doc that describes a changed behaviour changes in the same commit (D12).
 - Line numbers in this plan are from commit `9af6244`. An earlier phase may have moved them, so find each quoted text with `grep -n` before editing it.
 - No step in this plan changes this Mac. The steps that touch the live machine are reads (`get`, `status`, opening the TUI and changing nothing). Every write in a test goes to a scratch file. A real `set` or `reset` from the UI is the user's to run.
-- The phase is done when `pnpm check` passes and Task 7's stale-instruction greps pass. `mise bootstrap status --missing` is informational and no step needs it to exit 0.
+- The phase is done when `pnpm check` passes, Task 7's stale-instruction greps pass and Task 8's three ask rules are in place. `mise bootstrap status --missing` is informational and no step needs it to exit 0.
 - Commits name their paths. No `git add -A`, no `git add .`, no bare directory. The working tree holds an unrelated uncommitted change to `agents/claude-settings.json` that must never enter a commit of this plan.
 - This plan's tests live in `settings/tests/test_tool.py`, `settings/tests/test_tui_agents.py` and `agents/catalog/test_stack.py`. It does not edit `settings/tests/test_registry.py`, and no test here counts the registry's settings or pins its kinds. A count is scoped to this plan's own rows (the 17 `jstack:` keys).
 - A false bool reaches an adapter as `""` and a true one as the setting's `true_value` (`"true"` for the tool bools, `"1"` for `ui.claude_panel`). The tool writers treat `""` as false. A test of a bool goes through `cli.normalize`.
@@ -36,6 +36,7 @@
 3. `jstack-models.md` holds lines the UI does not know: a hand-added comment, a model-only value such as `opus`, a full model id, a missing role, no final newline. Expected: a read shows the text as it is, and a write changes one line and leaves every other byte alone. Pinned by `test_jstack_round_trip_is_byte_identical` in Task 4.
 4. `~/.claude/settings.json` is not valid JSON, or is missing. Expected: the read shows unset, a write fails with exit 1, and the file is unchanged. Pinned by `test_claude_model_refuses_invalid_json` in Task 3.
 5. The UI is started outside a project, or where `claude-stack` cannot run (no catalog, no mise). Expected: `stack.status` shows unset and every other row still lists. Pinned by `test_stack_status_failure_is_unset` in Task 5.
+6. An agent starts `mise bootstrap` in any form (`--yes`, `--only macos-defaults`, a subcommand) or `mise dot apply` / `mise dotfiles apply` / `unapply`. Expected: Claude Code asks first, also when rtk's hook is active. Pinned by the `rules .claude/settings.json ask present` line and the rtk probe in `bin/lib/test-conventions` (Task 8).
 
 ---
 
@@ -66,6 +67,8 @@ Confirmed with the A2 plan's author on 2026-11-09. Check them against the landed
 **jstack roles: the rule file is both seed and live.** `~/.claude/rules/jstack-models.md` is a symlink to the tracked `tilde/.claude/rules/jstack-models.md`. There is no override layer, so a present line has source `SEED` and `drift` is always false. The file's own header defines reset: "Delete a line to fall back to the skill default". So `reset` deletes the role's line and the row then shows `UNSET`. A UI edit leaves the tracked file modified, and `git diff` shows it.
 
 **The plugin stack is per project, so the global UI shows it read-only for the launch directory.** Its storage is that project's gitignored `.claude/settings.local.json`. A global row with a toggle would claim a scope it does not have. The registry holds one `ro` row, `stack.status`. A separate screen lists `claude-stack scan` for the directory the UI was started from, with keep and off as actions that run `claude-stack apply --keep|--off`. `scan` is too slow for `list`, so `claude-stack` gains a `status` subcommand that only reads the manifest.
+
+**The `ask` rules for `mise bootstrap` and `mise dot apply` land here, last** (spec decision 7). A3 moved macOS preferences from `setup/macos.sh` to `mise bootstrap`, and A5 moved the links from `setup/symlinks.sh` to `mise dot apply`. The old scripts were guarded by the `Bash(./setup/*)` family of ask rules, and those guards went with the scripts. The owner kept the guard but moved it to the last phase so it does not prompt during the build. Until Task 8 lands, the owner's go-ahead in chat guards both commands. Task 8 adds the exact rules A3 and A5 used to carry: `Bash(mise bootstrap*)`, `Bash(mise dot *apply*)` and `Bash(mise dotfiles *apply*)`. It adds no allow rules: the decision's allow list for the build's read-only and scratch commands is the owner's to approve, and is not in this plan.
 
 **`ui.claude_panel` is an `env` setting.** Key `DOTFILES_UI_CLAUDE_PANEL`, type `bool`, `true_value = "1"`, default `""`. It is stored in the mise override file by A2's `env` adapter. No `tool` code is involved.
 
@@ -107,6 +110,7 @@ The 17 jstack rows, as `slug` = role: `feature_refactoring` = `feature, refactor
 - Modify `agents/catalog/stack.py`, `agents/catalog/test_stack.py`, `bin/claude-stack` (header), `docs/README.md`.
 - Modify `agents/README.md`, `.claude/rules/claude-config.md`, `tilde/.claude/rules/hindsight.md`.
 - Modify `bin/lib/check` only if A2 lists test files one by one there.
+- Modify `.claude/settings.json` (`permissions.ask`), `bin/lib/test-conventions` and `.claude/rules/claude-config.md` (Task 8).
 
 ---
 
@@ -830,6 +834,78 @@ git diff --quiet bin/lib/check || git add bin/lib/check      # only when Step 1 
 git diff --cached --name-only | grep -x "agents/claude-settings.json" && echo "STOP: unstage it"
 git commit -m "Document the agent settings in the settings UI"
 ```
+
+### Task 8: Ask before `mise bootstrap` and `mise dot apply`
+
+Spec decision 7. The last task of the last phase, so the rules never prompt during the build. Before this task, the owner's go-ahead in chat is the only guard on both commands.
+
+**Files:**
+- Modify: `bin/lib/test-conventions` (directly after the `done` of the `for s in sysup set-defaults` loop, before the rtk block)
+- Modify: `.claude/settings.json` (`permissions.ask`)
+- Modify: `.claude/rules/claude-config.md` (the **Permissions** bullet)
+
+**Interfaces:**
+- Consumes: the `rules <file> <list> present|absent <rule>…` helper in `bin/lib/test-conventions`, and its rtk probe block, which reads every `Bash(` ask rule in `.claude/settings.json`.
+- Produces: three `ask` rules and their assertion. `Bash(mise bootstrap*)` matches the bare command, every flag and every subcommand. `Bash(mise dot *apply*)` and `Bash(mise dotfiles *apply*)` match `apply` with any flags, and `unapply` too. These are the strings A3 and A5 carried before decision 7 moved them here.
+
+- [ ] **Step 1: Write the failing check**
+
+In `bin/lib/test-conventions`, directly after the `done` that closes the `for s in sysup set-defaults` loop, add:
+
+```bash
+# mise bootstrap and mise dot apply change the machine too: bare, with flags (--yes, --only), every subcommand, and unapply
+rules .claude/settings.json ask present 'Bash(mise bootstrap*)' 'Bash(mise dot *apply*)' 'Bash(mise dotfiles *apply*)'
+```
+
+Part B's Task 1 adds its own `if [ -e migrate ]` block at the same place. When it is already there, put this line before it.
+
+- [ ] **Step 2: Run it and see it fail**
+
+Run: `bash bin/lib/test-conventions`
+Expected: `FAIL: .claude/settings.json ask: Bash(mise bootstrap*) should be present`, exit 1.
+
+If it passes instead, an earlier phase already added the rules. Run `git log -S'mise bootstrap*' --oneline -- .claude/settings.json`, report the commit, and keep only Step 1's line and the docs row.
+
+- [ ] **Step 3: Add the rules**
+
+In `.claude/settings.json`, append to `permissions.ask`, keeping the file's two-space JSON:
+
+```json
+      "Bash(mise bootstrap*)",
+      "Bash(mise dot *apply*)",
+      "Bash(mise dotfiles *apply*)"
+```
+
+One `mise bootstrap` rule, not `Bash(mise bootstrap)` plus `Bash(mise bootstrap *apply*)`: those two match nothing for `mise bootstrap --yes` or `mise bootstrap --only macos-defaults`. The cost is that the read-only `mise bootstrap … status` and `--dry-run` commands ask too when an agent runs them. The self-checks `pnpm check` runs (A5's `bin/lib/test-dotfiles` among them) call mise from inside a script, which no rule matches, and `Bash(pnpm check *)` is allowed. `mise dot` and `mise dotfiles` are two rules because `mise dot *` needs the space after `dot`.
+
+- [ ] **Step 4: Run it and see it pass**
+
+Run: `bash bin/lib/test-conventions | tail -1`
+Expected: `conventions: all checks passed`. The same run probes the three new rules against rtk. Measured on 2026-11-09 with rtk 1.2.0 and the tracked `rtk/config.toml` in a scratch `HOME`: `rtk rewrite` prints nothing for `mise bootstrap x`, `mise bootstrap status`, `mise dot x`, `mise dot apply` and `mise dotfiles x`, so the rules match as written. If the probe fails here, a newer rtk rewrites `mise`: add `"mise"` to `exclude_commands` in `rtk/config.toml`, as the block's comment says, and add that file to the commit.
+
+Run: `/usr/bin/jq -r '.permissions.ask[] | select(test("^Bash\\(mise (bootstrap|dot |dotfiles )"))' .claude/settings.json`
+Expected: exactly the three rules, once each.
+
+- [ ] **Step 5: Update the Permissions bullet in `.claude/rules/claude-config.md`**
+
+Find it with `grep -n "asks first, because they change the machine" .claude/rules/claude-config.md`. Stale text (Part A may have changed the command list; keep whatever list is there): "running `setup.sh`, `setup/*`, `set-defaults` or `sysup` asks first, because they change the machine."
+
+Replace with the same list plus the mise commands: "running `setup.sh`, `setup/*`, `set-defaults`, `sysup`, `mise bootstrap` (any form, its read-only `status` and `--dry-run` too) or `mise dot apply` / `mise dotfiles apply` asks first, because they change the machine." Leave the rest of the bullet as it is. The file is 3,369 bytes against the 6,000-byte cap.
+
+- [ ] **Step 6: Gate and commit**
+
+Run: `pnpm check`
+Expected: exit 0.
+
+`.claude/settings.json` may hold other uncommitted edits (decision 7's allow list, once the owner approves it, belongs in its own commit). Run `git diff .claude/settings.json` first. When it shows any hunk other than the three lines from Step 3, stop and ask the owner which change goes in this commit. Do not use `git add -p` (interactive) or `git add -A`.
+
+```bash
+git add bin/lib/test-conventions .claude/settings.json .claude/rules/claude-config.md
+git diff --cached --name-only | grep -x "agents/claude-settings.json" && echo "STOP: unstage it"
+git commit -m "Ask before mise bootstrap and mise dot apply"
+```
+
+Add `rtk/config.toml` to the `git add` line only when Step 4 edited it.
 
 ---
 

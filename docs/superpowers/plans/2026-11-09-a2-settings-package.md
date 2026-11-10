@@ -33,6 +33,8 @@
 3. **mise missing or older than 2026.11.5.** Every subcommand exits 1 with one line naming the floor and what was found. No traceback. Test in Task 3.
 4. **The override file hand-edited into invalid TOML.** mise itself exits 1 on every command in that state. `list` and `get` exit 1 with the file path and the parser's line. The TUI shows the error in a banner, disables the rows, and recovers when the file is fixed. Tests in Tasks 2, 3 and 4.
 5. **Two UIs open at once.** A change made in one appears in the other within two seconds. A write that another writer clobbered is reported, not silently lost. Tests in Tasks 2 and 4.
+6. **The browser page and third parties.** textual-serve 1.1.3's own page links a stylesheet on `fonts.googleapis.com`, so opening it would tell Google the user ran the settings UI. The page served here contains no URL outside `127.0.0.1:<port>`, and the shipped template copy cannot silently drift from upstream after a lock bump. Test in Task 5.
+7. **Settings a UI must not offer to change.** The Hindsight model variables are `ro` (spec decision 3): they reach shells only, and Claude Code started from an app reads its own copy in `agents/claude-settings.json`, so an editable field would change half the system. Test in Task 1.
 
 ---
 
@@ -52,6 +54,8 @@
 | `settings/src/dotfiles_settings/__main__.py` | `python -m dotfiles_settings` (textual-serve launches the app this way) |
 | `settings/src/dotfiles_settings/tui.py` | `SettingsApp` |
 | `settings/src/dotfiles_settings/serve.py` | `GuardedServer`, the textual-serve wrapper |
+| `settings/src/dotfiles_settings/templates/app_index.html` | textual-serve's page template with the Google Fonts link replaced by an `@font-face` on textual-serve's own font file |
+| `settings/src/dotfiles_settings/templates/LICENSE-textual-serve` | textual-serve's MIT license, which a copy of its file must carry |
 | `settings/tests/test_*.py` | One script per module |
 | `settings/README.md` | Package documentation |
 | `bin/dotfiles-settings` | Launcher from the clone |
@@ -70,6 +74,9 @@ Decisions the spec left open, fixed here:
 - **Live refresh covers every file an adapter names.** An adapter may define `watch_paths(self) -> list[Path]`. The TUI polls the mtimes of the union across its adapters.
 - **The VS Code font preset has a file seed.** `bin/vscode-settings` falls back to the preset saved in `~/.config/dotfiles/vscode.env`, not to a shell export. For this one key, when the seed shell does not export it, `EnvAdapter` reads the seed from that file (`env.file_seed`). No registry field is added for it. Task 6 makes the script use an environment preset without saving it, so a reset in the UI hands the choice back to the saved file.
 - **`set`, `reset` and `apply` ask in Claude Code.** In this phase they only write the gitignored override file. From A3 on, `set` on a `macos-default` setting edits a tracked file and changes live preferences, and A5's `apply dotfile` creates links. A permission rule cannot tell kinds apart, so Task 3 adds `ask` rules for all three subcommands now, in the form the repo uses for `sysup` and `set-defaults`. `list`, `get`, `tui` and `serve` do not ask.
+- **The Hindsight model variables are read-only** (spec decision 3). `tilde/.zshenv` exports them for shells and `agents/claude-settings.json` sets the same three for Claude Code, so an override would reach shells only. They are shown so the user can see which model runs, with help text naming both files.
+- **The browser page is served from a template copy in the package** (spec decision 4). `GuardedServer` passes `templates_path` to textual-serve, which accepts an absolute path (`base_path / templates_path` in `Server.__init__` keeps an absolute right side). The copy is upstream's `app_index.html` with its four-line Google Fonts `<link>` replaced by an `@font-face` that points at `RobotoMono-VariableFont_wght.ttf`, a file textual-serve already ships in its `static/fonts/` and serves at `/static/fonts/`, so the page keeps the font upstream intends and makes no third-party request. Static files still come from textual-serve's own folder. `test_serve.py` rebuilds the expected copy from the installed upstream template, so a textual-serve upgrade that changes the template fails the gate until the copy is redone.
+- **Later phases add `env` settings to this registry.** A3 adds the macOS security opt-ins (firewall, HiDPI, Time Machine, computer name; spec decision 2) and the four preference-group switches (screenshots, the Time Machine new-disk prompt, TextEdit, Software Update; spec decision 9), and A7 adds `ui.claude_panel`. Nothing in this plan pins the number of `env` settings, a closed list of keys or sections, or the set of read-write settings. `seed_env` takes the keys of whatever `env` settings the registry holds, and the only count, of `Privacy` entries, does not include them.
 - **Registry entries left out on purpose:** `DOTFILES_MACOS_YES` and `DOTFILES_MACOS_NO` (deleted by A3), `DOTFILES_GIT_NAME`, `DOTFILES_GIT_EMAIL`, `DOTFILES_GIT_SIGN_METHOD`, `DOTFILES_GIT_SIGNINGKEY` (read once, only while `~/.gitconfig.local` is missing; A5 keeps them and moves the prompt that reads them into `setup/dotfiles-extras.sh`), `DOTFILES_SUDO_KEPT`, `DOTFILES_SETUP_LOG`, `DOTFILES_DIR` (internal), and `GHIDRA_INSTALL_DIR` (`bin/rea-mcp` overwrites it from the Homebrew keg at every launch, so an override has no effect).
 
 ---
@@ -190,7 +197,7 @@ section = "Updates"
 label = "Show a step's time after this many seconds"
 help = "sysup adds the elapsed time to a step's result line when the step took at least this long."
 kind = "env"
-key = "UPUP_SLOW"
+key = "SYSUP_SLOW"
 type = "int"
 true_value = ""
 choices = []
@@ -266,22 +273,27 @@ access = "rw"
 id = "hindsight.llm_model"
 section = "Hindsight"
 label = "Model for reflect and page refresh"
-help = "Reaches shells only. Claude Code started from an app reads its own copy in agents/claude-settings.json, and a running daemon keeps the model it started with."
+help = "Read-only here. tilde/.zshenv sets it for shells and agents/claude-settings.json sets it for Claude Code, so change both files together. A running daemon keeps the model it started with."
 kind = "env"
 key = "HINDSIGHT_API_LLM_MODEL"
 type = "string"
 true_value = ""
 choices = []
 default = ""
-access = "rw"
+access = "ro"
 ```
+
+Add the other two Hindsight models with the same shape as `hindsight.llm_model`, `access = "ro"` and its help text included:
+
+| id | section | key | label |
+| --- | --- | --- | --- |
+| `hindsight.retain_llm_model` | Hindsight | `HINDSIGHT_API_RETAIN_LLM_MODEL` | Model for extraction |
+| `hindsight.consolidation_llm_model` | Hindsight | `HINDSIGHT_API_CONSOLIDATION_LLM_MODEL` | Model for consolidation |
 
 Add these with the same shape (`kind = "env"`, `true_value = ""`, `choices = []`, `default = ""`, `access = "rw"`, `type = "string"`):
 
 | id | section | key | label | help |
 | --- | --- | --- | --- | --- |
-| `hindsight.retain_llm_model` | Hindsight | `HINDSIGHT_API_RETAIN_LLM_MODEL` | Model for extraction | Same help as `hindsight.llm_model` |
-| `hindsight.consolidation_llm_model` | Hindsight | `HINDSIGHT_API_CONSOLIDATION_LLM_MODEL` | Model for consolidation | Same help as `hindsight.llm_model` |
 | `npm.init_author_name` | npm | `NPM_CONFIG_INIT_AUTHOR_NAME` | Author name for npm init | zsh/env.zsh seeds it from git's global user.name. |
 | `npm.init_license` | npm | `NPM_CONFIG_INIT_LICENSE` | License for npm init | zsh/env.zsh seeds MIT. |
 | `npm.init_version` | npm | `NPM_CONFIG_INIT_VERSION` | Version for npm init | zsh/env.zsh seeds 0.1.0. |
@@ -313,13 +325,13 @@ Add the telemetry opt-outs. Each is `section = "Privacy"`, `kind = "env"`, `type
 | `DISABLE_ERROR_REPORTING` | Claude Code error reports |
 | `HOMEBREW_NO_ANALYTICS` | Homebrew |
 
-That makes 36 entries, all `kind = "env"`, 22 of them in `Privacy`. A4 deletes `privacy.homebrew_no_analytics` together with the export, and lowers the `Privacy` count in `test_registry.py` by one in the same commit.
+That makes 36 entries, all `kind = "env"`: 11 read-write, the 3 read-only Hindsight models and the 22 read-only opt-outs in `Privacy`. A4 deletes `privacy.homebrew_no_analytics` together with the export, and lowers the `Privacy` count in `test_registry.py` by one in the same commit.
 
 - [ ] **Step 3: Write the failing test `settings/tests/test_registry.py`**
 
 The file starts with `sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))`, as every test file in this plan does. A helper `load_text(toml_text)` writes the text to a temp file named `registry.toml` and returns `registry.load(path)`. `bad(toml_text, needle)` asserts that `load_text` raises `SettingsError` containing `needle`. `table(**fields)` renders one valid string-typed table with id `a.b`, with the given fields replaced, and `table_without(*names)` leaves fields out.
 
-No assertion pins the total number of settings or the exact set of kinds. A3, A4, A5 and A7 append entries and test their own in their own files. The one count below, of `Privacy` entries, is the one this plan owns. It does not count `env` entries, because A3 and A7 add `env` entries of their own. A plan that adds or removes an `env` entry or a `Privacy` entry changes the number in the same commit: A4 removes one of each, and A7 adds the `env` entry `ui.claude_panel`.
+No assertion pins the total number of settings, the number of `env` or read-write settings, or the exact set of kinds, keys or sections. A3, A4, A5 and A7 append entries and test their own in their own files. The one count below, of `Privacy` entries, is the one this plan owns. A plan that adds or removes a `Privacy` entry changes that number in the same commit: A4 removes `privacy.homebrew_no_analytics`. The `env` entries A3 adds (the security opt-ins and the four preference-group switches, spec decisions 2 and 9) and A7's `ui.claude_panel` are in other sections and change nothing in this file. The Hindsight check selects by key prefix and kind, not by section or id prefix, because A7 adds `kind = "tool"` entries with ids starting `hindsight.`.
 
 ```python
 settings = registry.load()
@@ -337,6 +349,15 @@ env_zsh = (Path(__file__).resolve().parents[2] / "zsh/env.zsh").read_text()
 for s in settings:
     if s.section == "Privacy":
         assert re.search(rf"^export {s.key}=", env_zsh, re.M), s.key
+
+# the Hindsight models are shown, never edited, and tilde/.zshenv still exports each (spec decision 3)
+zshenv = (Path(__file__).resolve().parents[2] / "tilde/.zshenv").read_text()
+models = [s for s in settings if s.kind == "env" and s.key.startswith("HINDSIGHT_API_")]
+assert {s.key for s in models} == {"HINDSIGHT_API_LLM_MODEL", "HINDSIGHT_API_RETAIN_LLM_MODEL",
+                                   "HINDSIGHT_API_CONSOLIDATION_LLM_MODEL"}
+for s in models:
+    assert s.access == "ro", s.id
+    assert re.search(rf"^export {s.key}=", zshenv, re.M), s.key
 
 bad(two_tables_with_id("a.b"), "duplicate id: a.b")
 bad(table(kind="nope"), "a.b: unknown kind 'nope'")
@@ -963,7 +984,7 @@ git commit -m "Add the dotfiles-settings terminal UI"
 
 **Files:**
 
-- Create: `settings/src/dotfiles_settings/serve.py`
+- Create: `settings/src/dotfiles_settings/serve.py`, `settings/src/dotfiles_settings/templates/app_index.html`, `settings/src/dotfiles_settings/templates/LICENSE-textual-serve`
 - Test: `settings/tests/test_serve.py`
 - Modify: `bin/lib/check` (one line in the uv block from Task 4)
 
@@ -973,6 +994,7 @@ git commit -m "Add the dotfiles-settings terminal UI"
 - Produces:
 
 ```python
+TEMPLATES = Path(__file__).parent / "templates"  # passed to textual-serve as templates_path
 def free_port() -> int
 def guard(port: int, token: str)                # an aiohttp middleware
 class GuardedServer(textual_serve.server.Server):
@@ -985,12 +1007,37 @@ def run(open_browser: bool = True) -> None
 - It has no token and no authentication of any kind.
 - `handle_websocket` calls `websocket.prepare(request)` for any request. It never reads the `Origin` header. Any page open in the browser could connect to `/ws` and drive the app.
 - Each WebSocket connection starts `command` as a new subprocess through `asyncio.create_subprocess_shell`, so `command` is a shell string.
-- `Server.__init__(command, host="localhost", port=8000, title=None, public_url=None, statics_path=..., templates_path=...)`. `public_url` is built from `port` in the constructor, so port 0 cannot be used. The wrapper must choose the port first.
+- `Server.__init__(command, host="localhost", port=8000, title=None, public_url=None, statics_path="./static", templates_path="./templates")`. `public_url` is built from `port` in the constructor, so port 0 cannot be used. The wrapper must choose the port first. Both paths are joined onto the package folder with `/`, so an absolute path replaces it. `_make_app` loads templates with `jinja2.FileSystemLoader(self.templates_path)`, and `handle_index` renders `app_index.html` from there. Passing `templates_path` alone leaves `statics_path`, and so `/static`, on textual-serve's own folder.
 - Routes: `/`, `/ws`, `/download/{key}`, `/static`. The page's script opens `new WebSocket(url + "?width=..&height=..")`, so it sends no token of its own. The browser does send cookies on that same-origin handshake.
 - `_make_app()` is an async method returning the `aiohttp.web.Application`, and `serve()` runs it with `web.run_app(host=self.host, port=self.port)`.
-- The index template links a stylesheet from `fonts.googleapis.com`. The page works without it (the font falls back). This plan leaves the template alone and the README says so.
+- `templates/app_index.html` (160 lines) links a stylesheet at `https://fonts.googleapis.com/css?family=Roboto%20Mono` (lines 6 to 9) and names `"Roboto Mono"` in its CSS. `static/js/textual.js` asks xterm for `'Roboto Mono', Monaco, 'Courier New', monospace`. The package also ships `static/fonts/RobotoMono-VariableFont_wght.ttf` and an italic variant, which no file references. The only other absolute URLs in the template and static files are the SVG namespace `http://www.w3.org/2000/svg` and two comments in `xterm.css`, none of which the browser fetches. So the Google link is the page's only third-party request, and spec decision 4 removes it.
 
-**The wrapper.** `GuardedServer.__init__` calls `super().__init__(command, host="127.0.0.1", port=port, title="dotfiles settings")`. Its `_make_app` awaits the parent's and appends `guard(port, token)` to `app.middlewares`. The middleware applies to every route, in this order:
+**The template copy.** Run `uv run --quiet --locked --project settings python -c 'import textual_serve, pathlib; print(pathlib.Path(textual_serve.__file__).parent)'` to find the locked textual-serve. Copy its `templates/app_index.html` to `settings/src/dotfiles_settings/templates/app_index.html`, and its `LICENSE` from the matching `textual_serve-<version>.dist-info/licenses/` folder to `templates/LICENSE-textual-serve`. In the copy, replace exactly these four lines:
+
+```html
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Roboto%20Mono"
+    />
+```
+
+with:
+
+```html
+    <style>
+      @font-face {
+        font-family: "Roboto Mono";
+        src: url("{{ config.static.url }}fonts/RobotoMono-VariableFont_wght.ttf");
+        font-style: normal;
+      }
+    </style>
+```
+
+Change nothing else, so the test below can rebuild the copy from upstream. `{{ config.static.url }}` is the variable the template already uses for `xterm.css` and `textual.js`. hatchling's `packages = ["src/dotfiles_settings"]` includes non-Python files, so the wheel carries the folder (checked in a scratch build: the wheel lists `dotfiles_settings/templates/app_index.html`). `bin/lib/check` runs Prettier on no `*.html` glob, so the copy keeps upstream's formatting.
+
+When textual-serve is upgraded in `uv.lock`, `test_serve.py` compares the copy with the new upstream template. If upstream changed the template, the test fails: copy the new file, make the same replacement, and check that the new template adds no other third-party URL (the test's URL scan covers that too). The comment above `TEMPLATES` in `serve.py` says this in one line.
+
+**The wrapper.** `GuardedServer.__init__` calls `super().__init__(command, host="127.0.0.1", port=port, title="dotfiles settings", templates_path=TEMPLATES)`. Its `_make_app` awaits the parent's and appends `guard(port, token)` to `app.middlewares`. The middleware applies to every route, in this order:
 
 1. `Host` header is not exactly `127.0.0.1:<port>`: 403. This stops DNS rebinding.
 2. An `Origin` header is present and is not `http://127.0.0.1:<port>`: 403.
@@ -1009,11 +1056,39 @@ This design was run as a prototype against textual-serve 1.1.3 and aiohttp 3.14.
 
 ```python
 from aiohttp.test_utils import TestClient, TestServer
+import textual_serve
+
+GOOGLE_LINK = '''    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Roboto%20Mono"
+    />
+'''
+LOCAL_FONT = '''    <style>
+      @font-face {
+        font-family: "Roboto Mono";
+        src: url("{{ config.static.url }}fonts/RobotoMono-VariableFont_wght.ttf");
+        font-style: normal;
+      }
+    </style>
+'''
+
+# the shipped copy is upstream's template with only the font link replaced.
+# A textual-serve upgrade that changes the template fails here: redo the copy (Task 5).
+upstream = (Path(textual_serve.__file__).parent / "templates/app_index.html").read_text()
+assert upstream.count(GOOGLE_LINK) == 1, "textual-serve's template changed its font link"
+assert (serve.TEMPLATES / "app_index.html").read_text() == upstream.replace(GOOGLE_LINK, LOCAL_FONT), \
+    "templates/app_index.html no longer matches textual-serve's template"
+
+def third_party(body, port):
+    own = (f"http://127.0.0.1:{port}/", f"ws://127.0.0.1:{port}/")
+    urls = re.findall(r"""(?:[a-z]+:)?//[^\s"'<>)]+""", body)
+    return [u for u in urls if not u.startswith(own) and u != "http://www.w3.org/2000/svg"]
 
 async def main():
     port = serve.free_port()
     server = serve.GuardedServer("true", port, "tok")
     assert server.host == "127.0.0.1"
+    assert server.templates_path == serve.TEMPLATES
     app = await server._make_app()
     origin = f"http://127.0.0.1:{port}"
     async with TestClient(TestServer(app, host="127.0.0.1", port=port)) as c:
@@ -1025,8 +1100,12 @@ async def main():
         cookie = r.cookies[f"dotfiles_settings_{port}"]
         assert r.status == 302 and r.headers["Location"] == "/"
         assert cookie.value == "tok" and cookie["httponly"] and cookie["samesite"] == "Strict"
-        assert (await c.get("/")).status == 200                         # the client now holds the cookie
+        page = await c.get("/")                                         # the client now holds the cookie
+        body = await page.text()
+        assert page.status == 200 and "fonts.googleapis.com" not in body
+        assert third_party(body, port) == [], third_party(body, port)   # spec decision 4
         assert (await c.get("/static/js/textual.js")).status == 200
+        assert (await c.get("/static/fonts/RobotoMono-VariableFont_wght.ttf")).status == 200
         assert (await c.get("/", headers={"Host": f"localhost:{port}"})).status == 403
         assert (await c.get("/", headers={"Host": f"evil.example:{port}"})).status == 403
         assert (await c.get("/", headers={"Origin": "http://evil.example"})).status == 403
@@ -1040,19 +1119,23 @@ asyncio.run(main())
 print("ok")
 ```
 
+The URL scan was run against textual-serve 1.1.3 in a scratch venv, rendering `/` through a plain `Server` on `127.0.0.1`: with upstream's template it returns `['https://fonts.googleapis.com/css?family=Roboto%20Mono']`, and with the copy described above it returns `[]`, while `/static/fonts/RobotoMono-VariableFont_wght.ttf` answers 200.
+
 - [ ] **Step 2: Run it to see it fail**
 
 Run: `uv run --quiet --locked --project settings python settings/tests/test_serve.py`
 Expected: `ModuleNotFoundError: No module named 'dotfiles_settings.serve'`
 
-- [ ] **Step 3: Implement `serve.py`**
+- [ ] **Step 3: Write the template copy, then implement `serve.py`**
+
+Make the copy and the license file as "The template copy" above says. Then write `serve.py`.
 
 - [ ] **Step 4: Run the test, then the real thing**
 
 Run: `uv run --quiet --locked --project settings python settings/tests/test_serve.py`
 Expected: `ok`
 
-Run: `bin/dotfiles-settings serve`. Expected: a browser tab opens showing the same UI as Task 4, and the address bar shows `http://127.0.0.1:<port>/` with no token. Change a setting in the tab, then run `bin/dotfiles-settings tui` in a second terminal and confirm it shows the change. Change it back there and confirm the tab follows within two seconds. In a third terminal run `curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:<port>/`. Expected: `403`. Stop the server with Ctrl+C.
+Run: `bin/dotfiles-settings serve`. Expected: a browser tab opens showing the same UI as Task 4, and the address bar shows `http://127.0.0.1:<port>/` with no token. In the browser's network panel, every request goes to `127.0.0.1:<port>` and the terminal text is drawn in Roboto Mono. Change a setting in the tab, then run `bin/dotfiles-settings tui` in a second terminal and confirm it shows the change. Change it back there and confirm the tab follows within two seconds. In a third terminal run `curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:<port>/`. Expected: `403`. Stop the server with Ctrl+C.
 
 - [ ] **Step 5: Verify and commit**
 
@@ -1061,7 +1144,8 @@ In `bin/lib/check`, in the uv block from Task 4, add the same `uv run` line for 
 Run: `pnpm check`. Expected: exit 0, and it now runs `test_serve.py`.
 
 ```bash
-git add settings/src/dotfiles_settings/serve.py settings/tests/test_serve.py bin/lib/check
+git add settings/src/dotfiles_settings/serve.py settings/src/dotfiles_settings/templates/app_index.html \
+  settings/src/dotfiles_settings/templates/LICENSE-textual-serve settings/tests/test_serve.py bin/lib/check
 git commit -m "Serve the settings UI to a browser behind a token and an Origin check"
 ```
 
@@ -1139,11 +1223,11 @@ git commit -m "Let VSCODE_FONT_PRESET in the environment pick the VS Code font p
 Prettier checks it (`printWidth: 70`, `proseWrap: never`). Sections, in this order, each stating only what the code does:
 
 1. What it is, and the three ways in: `dotfiles-settings tui`, `serve`, and the JSON commands.
-2. Where a value comes from: the four sources. The seed is what a new interactive zsh exports (`zsh/env.zsh`, `tilde/.zshenv`, `~/.zsh.local`). A variable exported by hand in one terminal is not a seed. A change is written to `config.override.toml` in mise's config dir, which is inside the clone and gitignored, and it beats the seed. Reset removes the override. A change reaches a shell opened afterwards.
+2. Where a value comes from: the four sources. Read-only rows: the telemetry opt-outs, and the three Hindsight models, which `tilde/.zshenv` and `agents/claude-settings.json` set together. The seed is what a new interactive zsh exports (`zsh/env.zsh`, `tilde/.zshenv`, `~/.zsh.local`). A variable exported by hand in one terminal is not a seed. A change is written to `config.override.toml` in mise's config dir, which is inside the clone and gitignored, and it beats the seed. Reset removes the override. A change reaches a shell opened afterwards.
 3. The CLI contract table and the exit codes from Task 3, and the eleven JSON keys. In Claude Code, `set`, `reset` and `apply` ask first.
 4. Values that are refused: `{{`, `{%`, `{#`, `$` and line breaks, with the one-line reason for each (mise treats the first three as a template and expands the fourth).
 5. Booleans: on means the value equals the setting's `true_value`, and off is written as an empty value. An adapter receives `true_value` or `""`, never the word typed.
-6. The browser UI: loopback only, a random port, a per-run token that becomes a cookie, a `Host` and `Origin` check. State that textual-serve's page requests a font stylesheet from `fonts.googleapis.com`.
+6. The browser UI: loopback only, a random port, a per-run token that becomes a cookie, a `Host` and `Origin` check. The page makes no request outside `127.0.0.1`: `templates/app_index.html` is textual-serve's page with its `fonts.googleapis.com` link replaced by textual-serve's own Roboto Mono file. After upgrading textual-serve in `uv.lock`, `test_serve.py` fails if upstream changed its template. Then copy the new template, make the same one replacement, and rerun the test.
 7. Adding a setting: one `[[setting]]` table, the eight required fields, the four optional ones with their defaults (`true_value`, `choices`, `default`, `widget`), and the validation errors. Adding a kind: a module in `adapters/`, an entry in `ADAPTERS` and in `registry.KINDS`, with the optional `apply`, `watch_paths` and `write_note` (a string, or a method taking the setting). The VS Code font preset is the one setting whose seed comes from a file, `~/.config/dotfiles/vscode.env`.
 8. Tests: the two run commands, that `pnpm check` runs them, and the layout. One script per module in `settings/tests/`. A core test is listed in `settings_tests` in `bin/lib/check`, a Textual test in the uv block. Each plan asserts its own registry entries in its own file.
 9. Installing without the clone: `uv tool install "git+<repo>#subdirectory=settings"`.
