@@ -306,7 +306,7 @@ check_true "warned: installer warning still a notice" has '^● Hindsight memory
 rm -rf "$DOTFILES/logs"
 touch "$STATE/brew-doctor-roots"
 run
-check_true "roots: the notice joins the two CA names and names the opt-in" has '^● brew doctor +Warning: Root certificates in /etc/ssl/cert\.pem can trust compromised CAs\. AAA Certificate Services, emSign ECC Root CA - G3 \(set DOTFILES_TRIM_CA_ROOTS=1 in ~/\.zsh\.local to let sysup remove them\)$'
+check_true "roots: the notice joins the two CA names and names the opt-in" has '^● brew doctor +Warning: Root certificates in /etc/ssl/cert\.pem can trust compromised CAs\. AAA Certificate Services, emSign ECC Root CA - G3 \(run dotfiles-settings set updates\.trim_ca_roots on to let sysup remove them\)$'
 check_true "roots: no ca-roots without the opt-in" test ! -e "$STATE/ca-roots.log"
 rm -rf "$DOTFILES/logs"
 export DOTFILES_TRIM_CA_ROOTS=1

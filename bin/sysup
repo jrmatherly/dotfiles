@@ -3,8 +3,8 @@
 # Get macOS software updates, update Homebrew (incl. VS Code), mise (pruning versions nothing uses) and uv tools, the Iosevka Code font, dotfiles, Raycast, Claude Code and Amp; update agent skills, regenerate the SnippetsLab skill, record Claude Code plugins/settings/skills and rebuild their catalog.
 #
 # > Reads like a report: one status line per step and a summary at the end. Full tool output goes to `logs/sysup-<timestamp>.log` in the dotfiles repo, and to the screen only when a step changed something or failed.
-# > A macOS update asks for your login password. Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` (or with `mise set --override`) to a 1Password secret reference (`op://vault/item/password`) to supply it with a fingerprint instead.
-# > Set `DOTFILES_TRIM_CA_ROOTS=1` in `~/.zsh.local` (or with `mise set --override`) to let it remove the two compromised eMudhra roots `brew doctor` warns about from /etc/ssl/cert.pem (`ca-roots restore` puts them back).
+# > A macOS update asks for your login password. Run `dotfiles-settings set updates.mac_password_op 'op://vault/item/password'` (a 1Password secret reference) to supply it with a fingerprint instead.
+# > Run `dotfiles-settings set updates.trim_ca_roots on` to let it remove the two compromised eMudhra roots `brew doctor` warns about from /etc/ssl/cert.pem (`ca-roots restore` puts them back).
 #
 # - Run updates:
 #
@@ -271,9 +271,10 @@ if grep -q 'Label:' <<< "$macos_updates"; then
   pending=$(awk '/Label: /{ sub(/.*Label: /, ""); l = $0 } /Action: restart/{ print l }' <<< "$macos_updates" | list)
   # On Apple Silicon, softwareupdate itself asks for the account password
   # before an OS update (volume-owner authorization); sudo and Touch ID don't
-  # count. Optional: set DOTFILES_MAC_PASSWORD_OP in ~/.zsh.local to a
-  # 1Password secret reference (op://vault/item/password) and the password is
-  # read with `op` (a fingerprint) instead of typed — see README, Updating.
+  # count. Optional: set DOTFILES_MAC_PASSWORD_OP (dotfiles-settings set
+  # updates.mac_password_op) to a 1Password secret reference
+  # (op://vault/item/password) and the password is read with `op` (a
+  # fingerprint) instead of typed — see README, Updating.
   mac_password=""
   if [ -n "$pending" ] && [ -n "${DOTFILES_MAC_PASSWORD_OP:-}" ] && command -v op > /dev/null; then
     # 1Password asks for its own fingerprint, separate from sudo's
@@ -390,7 +391,7 @@ else
     END { if (w) print w }' <<< "$out")
   while read -r warning; do
     case $warning in
-      *"Root certificates in /etc/ssl/cert.pem"*) [ -n "${DOTFILES_TRIM_CA_ROOTS:-}" ] || warning+=" (set DOTFILES_TRIM_CA_ROOTS=1 in ~/.zsh.local to let sysup remove them)" ;;
+      *"Root certificates in /etc/ssl/cert.pem"*) [ -n "${DOTFILES_TRIM_CA_ROOTS:-}" ] || warning+=" (run dotfiles-settings set updates.trim_ca_roots on to let sysup remove them)" ;;
     esac
     status notice "brew doctor" "$warning"
   done <<< "${warnings:-$(head -1 <<< "$out")}"

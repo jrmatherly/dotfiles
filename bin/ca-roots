@@ -104,7 +104,7 @@ case ${1:-} in
     left=$(present_roots | wc -l | tr -d ' ') || die "can't read $bundle after the restore"
     [ "$left" -eq "${#roots[@]}" ] || die "restored $bundle from $bundle.bak, but a root is still missing"
     echo "Restored $bundle from $bundle.bak; the roots are back."
-    echo "Remove DOTFILES_TRIM_CA_ROOTS from ~/.zsh.local, or the next sysup removes them again."
+    echo "Run dotfiles-settings reset updates.trim_ca_roots (or remove the export from ~/.zsh.local), or the next sysup removes them again."
     ;;
   *)
     echo "usage: ca-roots status|trim|restore" >&2

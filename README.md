@@ -184,7 +184,7 @@ The dotfiles can be extended to suit additional local requirements by using the 
 
 If this file exists, it's sourced near the end of `~/.zshrc` (after `zsh/init.zsh`), so its content can add to or override the existing aliases, settings, PATH, etc.
 
-An `export` here is a starting value. `mise set --override KEY=value`, run from your home directory, beats it in every new shell, and `mise unset --override KEY` hands the variable back to the export. Overrides are stored in `tilde/.config/mise/config.override.toml` inside the clone (`~/.config/mise` is a link to that folder), which git ignores.
+An `export` here is a starting value. A setting changed with [`dotfiles-settings`](settings/README.md) beats an export of the same variable in every new shell, and `dotfiles-settings reset <id>` hands the variable back to the export. The changes are stored in `tilde/.config/mise/config.override.toml` inside the clone (`~/.config/mise` is a link to that folder), which git ignores.
 
 ### `~/.ssh/config.local`
 
@@ -257,11 +257,13 @@ An update of VS Code replaces the files the SpaceBox UI Enhancer patched, so run
 1. In 1Password, save your Mac login password as an item (a Login or Password item; any vault).
 1. Turn on **Settings → Developer → Integrate with 1Password CLI**. The `op` command comes from the Brewfile (`1password-cli`).
 1. Copy the field's secret reference: open the item, click the arrow next to the password field → **Copy Secret Reference**. It looks like `op://Private/Mac login/password`.
-1. Add it to [`~/.zsh.local`](#zshlocal), which is machine-local and not in the repo (create the file if it doesn't exist yet):
+1. Store it with [`dotfiles-settings`](settings/README.md), which keeps it in a git-ignored file inside the clone:
 
    ```shell
-   export DOTFILES_MAC_PASSWORD_OP='op://Private/Mac login/password'
+   dotfiles-settings set updates.mac_password_op 'op://Private/Mac login/password'
    ```
+
+   An `export DOTFILES_MAC_PASSWORD_OP=…` in [`~/.zsh.local`](#zshlocal) still works. It is the seed that the setting beats.
 
 1. Open a new terminal and check that it resolves (this prints nothing but `ok`):
 
@@ -275,15 +277,15 @@ An update of VS Code replaces the files the SpaceBox UI Enhancer patched, so run
 
 Keys of eMudhra intermediate CAs were compromised ([Apple](https://support.apple.com/en-us/149555)). Apple's frameworks already block them, but `/etc/ssl/cert.pem`, which Apple's bundled `curl`, `python3`, `git` and `openssl` read, still carries the two roots that trust them, `emSign ECC Root CA - G3` and `AAA Certificate Services`. Homebrew's `curl` verifies through Apple's trust store and its `openssl` and `git` through Homebrew's own `ca-certificates`, so they don't read it. `brew doctor` warns about this, and `sysup` shows that warning as a notice.
 
-To let `sysup` remove the roots, add this to [`~/.zsh.local`](#zshlocal):
+To let `sysup` remove the roots, turn the setting on:
 
 ```shell
-export DOTFILES_TRIM_CA_ROOTS=1
+dotfiles-settings set updates.trim_ca_roots on
 ```
 
 `sysup` then runs `ca-roots trim` each run, before `brew doctor`; while a root is present it runs Homebrew's own script with `sudo`, otherwise it does nothing. The script keeps a backup in `/etc/ssl/cert.pem.bak` (and the first original in `.orig`). A macOS update can put the roots back, so while the variable is set each `sysup` after one removes them again. `ca-roots status` shows whether they're there.
 
-To undo it, run `ca-roots restore` (it copies the backup back with `sudo`; it does nothing if the roots are already back, and refuses if the bundle is no longer the backup minus the roots, as after a macOS update) and delete the line from `~/.zsh.local` (run `mise unset --override DOTFILES_TRIM_CA_ROOTS` too if you set it that way). Removing the roots can break HTTPS connections to some websites.
+To undo it, run `ca-roots restore` (it copies the backup back with `sudo`; it does nothing if the roots are already back, and refuses if the bundle is no longer the backup minus the roots, as after a macOS update) and run `dotfiles-settings reset updates.trim_ca_roots` (delete the line from `~/.zsh.local` too if you exported it there). Removing the roots can break HTTPS connections to some websites.
 
 ## Changing the dotfiles
 
