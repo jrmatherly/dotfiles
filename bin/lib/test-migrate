@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Self-check for migrate/legacy-to-mise against a scratch HOME and stubbed brew, mise and claude.
+# Self-check for migrate/legacy-to-mise against a scratch HOME and stubbed brew, mise, claude, curl and pgrep.
 #
 # - Run it (pnpm check does too); exits 1 naming the first failed assertion:
 #
@@ -50,13 +50,89 @@ stub() {
 stub mise 'echo "mise $*" >> "$STATE/mise.log"
 case "$*" in
   --version) echo "${FAKE_MISE_VERSION:-2026.11.5} macos-arm64 (2026-11-08)" ;;
+  "bootstrap packages status --json")
+    [ ! -e "$STATE/status-fails" ] || exit 1
+    cat "$STATE/status.json"
+    ;;
+  "bootstrap packages prune --manager brew --dry-run") [ -e "$STATE/prune-empty" ] || printf "remove brew:abseil@1\nremove brew:ack@3\n" ;;
+  reshim) # as the real one: every shim becomes a link to the binary that ran
+    for s in "${MISE_DATA_DIR:-$HOME/.local/share/mise}"/shims/*; do if [ -L "$s" ]; then ln -sfn "$0" "$s"; fi; done ;;
+  "bootstrap packages apply --yes brew-cask:"*)
+    [ ! -e "$STATE/apply-fails" ] || exit 1
+    for t; do :; done
+    t=${t#brew-cask:}
+    jq --arg t "$t" "(.\"brew-cask\".packages[] | select(.package == \$t)) |= (.state = \"installed\" | .managed_by = \"mise\")" "$STATE/status.json" > "$STATE/s" && mv "$STATE/s" "$STATE/status.json"
+    while read -r a; do mkdir -p "$MIGRATE_APPDIR/$a"; done < <(cat "$STATE/apps/$t" 2> /dev/null)
+    ;;
 esac'
 stub brew 'echo "brew $*" >> "$STATE/brew.log"
-[ "${HOMEBREW_NO_ANALYTICS:-}" = 1 ] || { echo "brew ran without HOMEBREW_NO_ANALYTICS=1" >&2; exit 97; }'
-stub claude 'echo "claude $*" >> "$STATE/claude.log"'
-for tool in mise brew claude; do
+[ "${HOMEBREW_NO_ANALYTICS:-}" = 1 ] || { echo "brew ran without HOMEBREW_NO_ANALYTICS=1" >&2; exit 97; }
+for t; do :; done # the last argument: the cask token
+case "$*" in
+  "info --json=v2 --cask "*) cat "$STATE/cask-info/$t.json" ;;
+  "uninstall mise") # fails while a shim still links to this mise, which pins reshim-before-uninstall
+    if find "$HOME/.local/share/mise/shims" -type l -lname "$HOMEBREW_PREFIX/bin/mise" | grep -q .; then echo "shims still use this mise" >&2; exit 1; fi
+    rm "$HOMEBREW_PREFIX/bin/mise"
+    ;;
+  "uninstall --cask "*)
+    jq --arg t "$t" "(.\"brew-cask\".packages[] | select(.package == \$t)) |= (.state = \"missing\" | del(.managed_by))" "$STATE/status.json" > "$STATE/s" && mv "$STATE/s" "$STATE/status.json"
+    ;;
+esac'
+stub claude 'echo "claude $*" >> "$STATE/claude.log"
+case "$*" in
+  "mcp get mise")
+    [ -e "$STATE/mcp-command" ] || exit 1
+    printf "mise:\n  Command: %s\n" "$(cat "$STATE/mcp-command")"
+    ;;
+  "mcp add --scope user mise -- "*) echo "$7" > "$STATE/mcp-command" ;;
+esac'
+# For mise.run it prints a one-line installer that copies the fake mise into place
+stub curl 'echo "curl $*" >> "$STATE/curl.log"
+[ ! -e "$STATE/offline" ] || exit 1
+case "$*" in
+  *mise.run*)
+    if [ -e "$STATE/installer-fails" ]; then
+      echo "exit 1"
+    else
+      echo "mkdir -p \"\$(dirname \"\$MISE_INSTALL_PATH\")\" && cp \"$STATE/../bin/mise\" \"\$MISE_INSTALL_PATH\""
+    fi
+    ;;
+esac'
+stub pgrep '[ -e "$STATE/running" ] || exit 1
+for last; do :; done
+while read -r name; do case $last in *"$name"*) exit 0 ;; esac; done < "$STATE/running"
+exit 1'
+for tool in mise brew claude curl pgrep; do
   [ "$(command -v "$tool")" = "$tmp/bin/$tool" ] || fail "$tool resolves to $(command -v "$tool"), not the stub"
 done
+# The script appends /usr/sbin to PATH, so none of these system folders may hold a real one
+for tool in mise brew claude code; do
+  for dir in /usr/bin /bin /usr/sbin; do
+    [ ! -e "$dir/$tool" ] || fail "$dir/$tool exists, so a run could reach the real $tool"
+  done
+done
+
+export MIGRATE_APPDIR="$tmp/apps"
+: > "$STATE/curl.log"
+mkdir -p "$STATE/cask-info" "$STATE/apps"
+cat > "$STATE/status.json" << 'EOF'
+{"brew":{"packages":[
+  {"package":"jq","state":"installed","installed_version":"1.8.2"},
+  {"package":"rustup","state":"needs_repair","installed_version":"1.28.2"}]},
+ "brew-cask":{"packages":[
+  {"package":"ghostty","state":"installed","installed_version":"1.2.3","auto_updates":true,"managed_by":"homebrew"},
+  {"package":"font-hack-nerd-font","state":"installed","installed_version":"3.4.0","managed_by":"homebrew"},
+  {"package":"utm","state":"installed","installed_version":"4.7.4","managed_by":"homebrew"},
+  {"package":"freelens","state":"installed","installed_version":"1.6.1","managed_by":"homebrew"},
+  {"package":"raycast","state":"installed","installed_version":"1.103.0","auto_updates":true,"managed_by":"mise"}]}}
+EOF
+echo '{"casks":[{"artifacts":[{"app":["Ghostty.app"]}]}]}' > "$STATE/cask-info/ghostty.json"
+echo '{"casks":[{"artifacts":[{"font":["Hack.ttf"]}]}]}' > "$STATE/cask-info/font-hack-nerd-font.json"
+echo '{"casks":[{"artifacts":[{"app":["UTM.app"],"target":"/Applications/UTM.app"}]}]}' > "$STATE/cask-info/utm.json"
+echo '{"casks":[{"artifacts":[{"app":["Freelens.app"]}]}]}' > "$STATE/cask-info/freelens.json"
+echo Ghostty.app > "$STATE/apps/ghostty"
+echo UTM.app > "$STATE/apps/utm"
+echo Freelens.app > "$STATE/apps/freelens"
 
 phase() {
   local marker
@@ -134,6 +210,212 @@ helpers_back_up_before_replacing() {
   [ -f "$REPO_COPY/migrate/legacy-to-mise" ] || fail "the clone's script was moved"
   rm -rf "$HOME/.dotfiles-migration-backup" "$HOME/victim"
 }
+shims="$HOME/.local/share/mise/shims"
+# This Mac's layout: Homebrew's mise first on PATH, the new one behind it
+brewpath="$HOMEBREW_PREFIX/bin:$HOME/.local/bin:$PATH"
+homebrew_mise() {
+  phase packages
+  mkdir -p "$HOMEBREW_PREFIX/bin" "$shims"
+  cp "$tmp/bin/mise" "$HOMEBREW_PREFIX/bin/mise"
+  ln -sfn "$HOMEBREW_PREFIX/bin/mise" "$shims/node"
+  echo "$HOMEBREW_PREFIX/bin/mise" > "$STATE/mcp-command"
+}
+mise_move_declined_or_dry_run_changes_nothing() {
+  homebrew_mise
+  for how in "--dry-run" ""; do
+    before=$(snapshot)
+    : > "$STATE/mise.log"
+    : > "$STATE/brew.log"
+    # shellcheck disable=SC2086 # $how is one flag or nothing
+    out=$(PATH="$brewpath" "$script" --step packages $how < /dev/null 2>&1) || fail "mise move $how: exit $?: $out"
+    [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] || fail "mise move $how with closed stdin changed something"
+    check_out "explains the move" "^mise is Homebrew's"
+  done
+  check_out "closed stdin leaves it" "^mise stays Homebrew's"
+}
+mise_move_refused_offline() {
+  touch "$STATE/offline"
+  : > "$STATE/brew.log"
+  out=$(yes | PATH="$brewpath" "$script" --step packages 2>&1) || fail "mise move offline: exit $?: $out"
+  rm "$STATE/offline"
+  check_out "says so" '^No network: not moving mise\.$'
+  [ ! -e "$HOME/.local/bin/mise" ] && ! grep -q uninstall "$STATE/brew.log" || fail "moved mise while offline"
+}
+mise_move_stops_when_the_installer_fails() {
+  touch "$STATE/installer-fails"
+  : > "$STATE/brew.log"
+  out=$({
+    echo y
+    yes n
+  } | PATH="$brewpath" "$script" --step packages 2>&1) && fail "a failed installer must exit 1" || [ $? = 1 ] || fail "failed installer: want exit 1"
+  check_out "says what is untouched" "Homebrew's mise is untouched"
+  [ -x "$HOMEBREW_PREFIX/bin/mise" ] && ! grep -q 'uninstall mise' "$STATE/brew.log" || fail "uninstalled mise without a working replacement"
+  [ "$(readlink "$shims/node")" = "$HOMEBREW_PREFIX/bin/mise" ] || fail "repointed the shims without a working replacement"
+  ! grep -q 'Formulae:' <<< "$out" || fail "went on to the packages after a failed mise move"
+  rm "$STATE/installer-fails"
+  rm -rf "$HOME/.dotfiles-migration-backup"
+}
+mise_moves_off_homebrew() {
+  # answers: move mise y, re-register the MCP server y, everything after n
+  out=$({
+    printf 'y\ny\n'
+    yes n
+  } | PATH="$brewpath" "$script" --step packages 2>&1) || fail "mise move: exit $?: $out"
+  [ -x "$HOME/.local/bin/mise" ] || fail "the installer did not put mise at ~/.local/bin/mise"
+  [ ! -e "$HOMEBREW_PREFIX/bin/mise" ] || fail "Homebrew's mise is still installed"
+  [ "$(readlink "$shims/node")" = "$HOME/.local/bin/mise" ] || fail "shim not repointed: $(readlink "$shims/node")"
+  [ "$(cat "$STATE/mcp-command")" = "$HOME/.local/bin/mise" ] || fail "mise MCP server still names Homebrew's path"
+  grep -qF 'HOMEBREW_NO_ANALYTICS=1 brew install mise' "$HOME"/.dotfiles-migration-backup/*/RESTORE.txt || fail "no way back recorded"
+  check_out "tells the user to open a new terminal" 'Open a new terminal'
+  # every mise call after the move went through the new binary, never a PATH lookup of the old one
+  [ "$(grep -c "^mise" "$STATE/mise.log")" -gt 0 ] && check_out "lists the packages with the new mise" '^Formulae: nothing to migrate'
+}
+mise_move_second_run_changes_nothing() {
+  before=$(snapshot)
+  : > "$STATE/mise.log"
+  : > "$STATE/brew.log"
+  : > "$STATE/claude.log"
+  out=$(yes n | PATH="$brewpath" "$script" --step packages 2>&1) || fail "mise move rerun: exit $?"
+  [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] || fail "mise move rerun changed something"
+  check_out "reports and skips" "not Homebrew's\. Nothing to move\.$"
+}
+half_way_mise_shims() {
+  # an earlier run uninstalled Homebrew's mise and stopped before the second reshim
+  ln -sfn "$HOMEBREW_PREFIX/bin/mise" "$shims/node"
+  out=$({
+    echo y
+    yes n
+  } | PATH="$brewpath" "$script" --step packages 2>&1) || fail "dangling shims: exit $?"
+  [ "$(readlink "$shims/node")" = "$HOME/.local/bin/mise" ] || fail "dangling shim not rebuilt"
+  rm -rf "$HOME/.local" "$HOME/.dotfiles-migration-backup" "$STATE/mcp-command"
+}
+undeclared_packages_are_offered() {
+  local_toml="$REPO_COPY/tilde/.config/mise/config.local.toml"
+  mkdir -p "$HOMEBREW_PREFIX/Cellar/ack/3" "$HOMEBREW_PREFIX/Cellar/abseil/1" "$HOMEBREW_PREFIX/Caskroom/signal/8/.metadata"
+  echo '{"installed_on_request":true,"source":{"tap":"me/tap"}}' > "$HOMEBREW_PREFIX/Cellar/ack/3/INSTALL_RECEIPT.json"
+  echo '{"installed_on_request":false,"source":{"tap":"homebrew/core"}}' > "$HOMEBREW_PREFIX/Cellar/abseil/1/INSTALL_RECEIPT.json"
+  printf '[bootstrap.packages]\n"brew:other" = "latest"\n' > "$local_toml"
+  before=$(cksum < "$local_toml")
+  out=$("$script" --step packages < /dev/null 2>&1) || fail "undeclared, closed stdin: exit $?"
+  check_out "says what a no means" '^ack: left undeclared\. A prune removes it\.$'
+  check_out "names the undeclared cask" '^Casks Homebrew installed that no config declares: signal$'
+  [ "$(cksum < "$local_toml")" = "$before" ] || fail "closed stdin declared a package"
+  # answers: keep ack y, declare signal y, everything after n
+  out=$({
+    printf 'y\ny\n'
+    yes n
+  } | "$script" --step packages 2>&1) || fail "undeclared: exit $?: $out"
+  check_out "names the dependency without asking" '^  abseil 1: a dependency nothing declared needs$'
+  ! grep -q 'Keep abseil' <<< "$out" || fail "asked about a dependency"
+  check_out "prune caveat" 'mise keeps a formula that any config it has tracked still declares \(0 tracked'
+  grep -qxF '"brew:me/tap/ack" = "latest"' "$local_toml" || fail "tap formula not declared with its tap"
+  grep -qxF '"brew-cask:signal" = "latest"' "$local_toml" || fail "cask not declared"
+  grep -qxF '"brew:other" = "latest"' "$local_toml" || fail "lost an entry that was already there"
+  [ "$(grep -c '^\[bootstrap\.packages\]' "$local_toml")" = 1 ] || fail "wrote a second [bootstrap.packages] table"
+  ls "$HOME"/.dotfiles-migration-backup/*/files"$local_toml" > /dev/null 2>&1 || fail "config.local.toml not backed up before the write"
+  before=$(cksum < "$local_toml")
+  out=$({
+    printf 'y\ny\n'
+    yes n
+  } | "$script" --step packages 2>&1) || fail "undeclared rerun: exit $?"
+  [ "$(cksum < "$local_toml")" = "$before" ] || fail "declared a package twice"
+  rm -rf "$local_toml" "$HOMEBREW_PREFIX/Cellar" "$HOMEBREW_PREFIX/Caskroom" "$HOME/.dotfiles-migration-backup"
+}
+no_prune_candidates() {
+  touch "$STATE/prune-empty"
+  out=$("$script" --step packages < /dev/null 2>&1) || fail "no prune candidates: exit $?: $out"
+  check_out "zero is a count, not a failure" 'Not declared in the config: 0 formulae'
+  rm "$STATE/prune-empty"
+}
+status_failure_is_reported() {
+  touch "$STATE/status-fails"
+  : > "$STATE/mise.log"
+  : > "$STATE/brew.log"
+  out=$(yes | "$script" --step packages 2>&1) && fail "a failed status must exit 1" || [ $? = 1 ] || fail "failed status: want exit 1"
+  rm "$STATE/status-fails"
+  check_out "says why the lists are missing" '^mise could not report the package state'
+  [ -z "$(mutations)" ] || fail "changed something without the package state"
+}
+packages_lists_and_reinstalls_only_the_picked() {
+  phase packages
+  # answers in table order: font-hack-nerd-font n, utm y, freelens n, then the self-updating table: ghostty n
+  out=$(printf 'n\ny\nn\nn\n' | "$script" --step packages 2>&1) || fail "packages: exit $?: $out"
+  check_out "formulae need nothing" '^Formulae: nothing to migrate'
+  check_out "repair is reported" '^rustup: needs repair'
+  check_out "prune count" 'Not declared in the config: 2 formulae'
+  check_out "self-updating casks are offered too" '^Homebrew casks that update themselves:'
+  check_out "the table names each cask's kind" '^  utm +4\.7\.4 +app$'
+  ! grep -q '^Left alone' <<< "$out" || fail "left the self-updating casks out (spec decision 5)"
+  check_out "a declined cask blocks the removal" "^ghostty: stays Homebrew's, so Homebrew cannot be removed yet\.$"
+  check_out "privacy warning" 'macOS can drop the privacy'
+  ! grep -q 'raycast' <<< "$out" || fail "listed a cask mise already manages"
+  [ "$(grep -c '^brew uninstall' "$STATE/brew.log")" = 1 ] && grep -qx 'brew uninstall --cask utm' "$STATE/brew.log" || fail "uninstalled something other than the one pick"
+  grep -qx 'mise bootstrap packages apply --yes brew-cask:utm' "$STATE/mise.log" || fail "did not apply the pick through mise"
+  grep -q '^utm' "$HOME"/.dotfiles-migration-backup/*/casks.tsv || fail "pick not recorded before the uninstall"
+  grep -qx 'HOMEBREW_NO_ANALYTICS=1 brew install --cask utm' "$HOME"/.dotfiles-migration-backup/*/RESTORE.txt || fail "no way back recorded"
+}
+packages_second_run_changes_nothing() {
+  before=$(snapshot)
+  : > "$STATE/mise.log"
+  : > "$STATE/brew.log"
+  out=$(printf 'n\nn\nn\n' | "$script" --step packages 2>&1) || fail "packages rerun: exit $?"
+  [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] || fail "packages rerun changed something"
+  ! grep -q 'Reinstall utm' <<< "$out" || fail "offered utm again after mise took it over"
+}
+cask_running() {
+  printf 'Freelens.app\nGhostty.app\n' > "$STATE/running"
+  : > "$STATE/brew.log"
+  # yes moves font-hack-nerd-font, the one cask not running
+  out=$(yes | "$script" --step packages 2>&1) || fail "running apps: exit $?: $out"
+  check_out "names the running app" '^freelens: Freelens\.app is running\. Quit it'
+  check_out "names a running self-updating app" '^ghostty: Ghostty\.app is running\. Quit it'
+  ! grep -qE 'uninstall --cask (freelens|ghostty)' "$STATE/brew.log" || fail "uninstalled a running app"
+  rm "$STATE/running"
+}
+no_network() {
+  touch "$STATE/offline"
+  : > "$STATE/brew.log"
+  out=$(yes | "$script" --step packages 2>&1) || fail "offline: exit $?"
+  check_out "says so" '^No network: not reinstalling anything\.$'
+  ! grep -q uninstall "$STATE/brew.log" || fail "uninstalled a cask while offline"
+  rm "$STATE/offline"
+}
+half_way_cask() {
+  touch "$STATE/apply-fails"
+  # freelens is the first cask still Homebrew's (utm and font-hack-nerd-font are mise's by now), and the failed apply stops the step
+  out=$(yes | "$script" --step packages 2>&1) && fail "a failed apply must exit 1" || [ $? = 1 ] || fail "failed apply: want exit 1"
+  check_out "says the cask is gone" '^mise.s apply of freelens failed \(exit 1\)\. Homebrew has already uninstalled it\.$'
+  check_out "way back" 'Put it back with: HOMEBREW_NO_ANALYTICS=1 brew install --cask freelens'
+  ! grep -q 'uninstall --cask ghostty' "$STATE/brew.log" || fail "touched the next cask after a failed reinstall"
+  rm "$STATE/apply-fails"
+  out=$("$script" --step packages < /dev/null 2>&1) || fail "rerun after a failed apply: exit $?"
+  check_out "the missing cask gets its command" '^freelens: declared but not installed\. Install it: mise bootstrap packages apply brew-cask:freelens$'
+}
+packages_dry_run_changes_nothing() {
+  before=$(snapshot)
+  : > "$STATE/mise.log"
+  : > "$STATE/brew.log"
+  out=$(yes | "$script" --step packages --dry-run 2>&1) || fail "packages --dry-run: exit $?"
+  [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] || fail "packages --dry-run changed something"
+  check_out "--dry-run shows the question" '^would ask: Reinstall ghostty'
+}
+packages_without_brew_only_lists() {
+  mv "$tmp/bin/brew" "$tmp/brew.off"
+  out=$(yes | "$script" --step packages 2>&1) || fail "no brew: exit $?"
+  check_out "explains" '^brew is not installed, so these cannot be moved by this script'
+  mv "$tmp/brew.off" "$tmp/bin/brew"
+}
+staging_leftovers() {
+  mkdir -p "$HOMEBREW_PREFIX/Cellar/hello" "$HOMEBREW_PREFIX/Cellar/jq/1.8.2"
+  touch "$HOMEBREW_PREFIX/Cellar/hello/.mise-staging.lock" "$HOMEBREW_PREFIX/Cellar/jq/.mise-staging.lock"
+  # offline, so no cask is asked about and the only prompt is the leftovers one
+  touch "$STATE/offline"
+  out=$(yes | "$script" --step packages 2>&1) || fail "leftovers: exit $?"
+  rm "$STATE/offline"
+  [ ! -e "$HOMEBREW_PREFIX/Cellar/hello" ] || fail "leftover not removed"
+  [ -d "$HOMEBREW_PREFIX/Cellar/jq/1.8.2" ] || fail "removed a Cellar folder that holds a keg"
+  ls -d "$HOME"/.dotfiles-migration-backup/*/files"$HOMEBREW_PREFIX"/Cellar/hello > /dev/null || fail "leftover not backed up"
+}
 never_old() {
   for s in env macos packages dotfiles setup; do phase "$s"; done
   # the cases before this one leave their backup folders and their logged calls behind
@@ -141,8 +423,13 @@ never_old() {
   : > "$STATE/mise.log"
   : > "$STATE/brew.log"
   : > "$STATE/claude.log"
+  # mise outside Homebrew, every cask mise's own, nothing to prune
+  jq '."brew-cask".packages |= map(.state = "installed" | .managed_by = "mise")' "$STATE/status.json" > "$STATE/s" && mv "$STATE/s" "$STATE/status.json"
+  touch "$STATE/prune-empty"
   before=$(snapshot)
   out=$("$script" < /dev/null 2>&1) || fail "never-old Mac: exit $?: $out"
+  check_out "mise needs no move" "not Homebrew's\. Nothing to move\.$"
+  check_out "no cask to move" "^Casks: none is Homebrew's\. Nothing to migrate\.$"
   [ "$(snapshot)" = "$before" ] || fail "never-old Mac: something changed"
   [ ! -e "$HOME/.dotfiles-migration-backup" ] || fail "never-old Mac: a backup folder was made"
   [ -z "$(mutations)" ] || fail "never-old Mac: mutating calls: $(mutations)"
@@ -157,6 +444,27 @@ usage_errors
 skips_absent_phases
 dry_run_asks_nothing
 helpers_back_up_before_replacing
+# the mise cases first, with Homebrew's mise ahead on PATH; the rest see a mise outside the prefix
+mise_move_declined_or_dry_run_changes_nothing
+mise_move_refused_offline
+mise_move_stops_when_the_installer_fails
+mise_moves_off_homebrew
+mise_move_second_run_changes_nothing
+half_way_mise_shims
+undeclared_packages_are_offered
+no_prune_candidates
+status_failure_is_reported
+packages_lists_and_reinstalls_only_the_picked
+packages_second_run_changes_nothing
+cask_running
+no_network
+half_way_cask
+packages_dry_run_changes_nothing
+packages_without_brew_only_lists
+staging_leftovers
 # last: it creates every marker file
 never_old
+# every network and process probe went to a stub: the real curl logs nothing here
+! grep -vE 'formulae\.brew\.sh|mise\.run' "$STATE/curl.log" | grep -q . || fail "curl was asked for something unexpected: $(cat "$STATE/curl.log")"
+grep -q 'mise\.run' "$STATE/curl.log" || fail "the installer download did not go through the curl stub"
 echo "test-migrate: ok"

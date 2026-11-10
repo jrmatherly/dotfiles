@@ -239,7 +239,7 @@ sysup
 - asks Raycast to check for app and extension updates
 - updates Amp, if it's installed
 
-On a Mac that Homebrew set up before the move to mise, two things stay as they were: mise is still Homebrew's copy, which nothing upgrades, and a cask that Homebrew put there is left alone unless the app updates itself. `sysup` prints a notice for each. The command that hands both to mise is `migrate/legacy-to-mise --step packages` (see [Migrating an existing machine](#migrating-an-existing-machine)); until that step is written it only prints `nothing to migrate yet`.
+On a Mac that Homebrew set up before the move to mise, two things stay as they were: mise is still Homebrew's copy, which nothing upgrades, and a cask that Homebrew put there is left alone unless the app updates itself. `sysup` prints a notice for each. The command that hands both to mise is `migrate/legacy-to-mise --step packages` (see [Migrating an existing machine](#migrating-an-existing-machine)).
 
 It doesn't re-apply the dotfiles. When a pull brings new symlinks, tools or config, run setup again:
 

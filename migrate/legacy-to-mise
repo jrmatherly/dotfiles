@@ -27,7 +27,6 @@ export HOMEBREW_NO_ANALYTICS=1
 
 REPO=$(cd "$(dirname "$0")/.." && pwd -P)
 DRY_RUN=false
-# shellcheck disable=SC2034 # read by the packages and setup steps, which later Part B tasks write
 PREFIX="${HOMEBREW_PREFIX:-/opt/homebrew}"
 BACKUP_DIR="$HOME/.dotfiles-migration-backup/$(date +%Y%m%d-%H%M%S)"
 MIN_MISE=2026.11.5
@@ -37,6 +36,11 @@ MISE=$(command -v mise || true)
 STEPS=(env macos packages dotfiles setup)
 
 mise() { "$MISE" "$@"; }
+# mise reads a tap cask that publishes no JSON by running its .rb, and that fails with
+# "No such file or directory" when /usr/sbin is not on PATH (an agent or launchd shell)
+export PATH="$PATH:/usr/sbin"
+mise_version() { "$1" --version 2> /dev/null | awk '{ print $1; exit }' || true; }
+version_ok() { [ -n "$1" ] && [ "$(printf '%s\n' "$MIN_MISE" "$1" | sort -V | head -1)" = "$MIN_MISE" ]; }
 
 # tput fails with TERM unset (CI, a launchd job), which would abort this set -e script
 tput() { command tput "$@" 2> /dev/null || true; }
@@ -88,7 +92,8 @@ run() {
     return 0
   fi
   echo "→ $*"
-  "$@"
+  # Explicit: under `if ! run …` or `run … ||` set -e is off, and a failure would count as a change
+  "$@" || return $?
   CHANGED=$((CHANGED + 1))
 }
 
@@ -136,7 +141,343 @@ phase_present() { [ -e "$REPO/$(phase_marker "$1")" ]; }
 
 step_env() { info "nothing to migrate yet"; }
 step_macos() { info "nothing to migrate yet"; }
-step_packages() { info "nothing to migrate yet"; }
+# The seven formulae A4 moved to [tools], as the prune dry-run names them (the Brewfile that listed them is gone)
+MOVED_TO_TOOLS=(azd azure-functions-core-tools@4 flux hunk kubelogin lazydocker talosctl)
+APPDIR="${MIGRATE_APPDIR:-/Applications}"
+LOCAL_TOML="$REPO/tilde/.config/mise/config.local.toml"
+STATUS=
+ONLINE=
+DECLARED=0
+
+# A "no" line is noise under --dry-run, where nobody was asked
+declined() { [ "$DRY_RUN" = true ] || info "$1"; }
+
+# Sets STATUS. mise fetches a tap cask's metadata to answer, so this can fail offline
+read_status() {
+  STATUS=$(mise bootstrap packages status --json) \
+    || fail 'mise could not report the package state ("mise bootstrap packages status --json" failed; it needs the network while a tap cask is declared).'
+}
+
+online() {
+  if [ -z "$ONLINE" ]; then
+    ONLINE=no
+    ! curl -fsI --max-time 5 https://formulae.brew.sh/ > /dev/null 2>&1 || ONLINE=yes
+  fi
+  [ "$ONLINE" = yes ]
+}
+
+dangling_shims() {
+  [ -d "$1" ] || return 0
+  find "$1" -type l ! -exec test -e {} \; -print
+}
+
+reregister_mise_mcp() {
+  local got old
+  command -v claude > /dev/null || return 0
+  got=$(claude mcp get mise 2> /dev/null) || return 0
+  old=$(awk '/^  Command: / { sub(/^  Command: /, ""); print; exit }' <<< "$got")
+  [ -n "$old" ] && [ "$old" != "$MISE" ] || return 0
+  ask "Re-register the mise MCP server with $MISE?" || return 0
+  backup_note mcp.txt "$old"
+  backup_note RESTORE.txt "claude mcp remove mise -s user && claude mcp add --scope user mise -- '$old' mcp"
+  run claude mcp remove mise -s user
+  run claude mcp add --scope user mise -- "$MISE" mcp
+}
+
+# 0: moved, nothing to move, or declined. 1: a check failed
+move_mise() {
+  local new="$HOME/.local/bin/mise" shims="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims" old n=0
+  case $MISE in
+    "$PREFIX"/*) ;;
+    *)
+      n=$(dangling_shims "$shims" | wc -l | tr -d ' ')
+      if [ "$n" -gt 0 ]; then
+        info "$n mise shim(s) point at a mise that is gone."
+        ! ask "Rebuild the mise shims with $MISE?" || run mise reshim
+      else
+        info "mise: $MISE, not Homebrew's. Nothing to move."
+      fi
+      return 0
+      ;;
+  esac
+  [ ! -d "$shims" ] || n=$(find "$shims" -type l | wc -l | tr -d ' ')
+  cat << EOF
+mise is Homebrew's ($MISE). The new setup installs mise with mise's own installer, and
+Homebrew's copy refuses "mise self-update", so nothing upgrades it any more.
+Moving it runs:
+  curl -fsSL https://mise.run | sh     installs ~/.local/bin/mise and checks its checksum
+  ~/.local/bin/mise reshim             points the $n shims at the new binary
+  brew uninstall mise
+and checks that every shim still resolves. Way back: HOMEBREW_NO_ANALYTICS=1 brew install mise
+EOF
+  if ! command -v brew > /dev/null; then
+    info "brew is not installed, so its mise cannot be uninstalled by this script."
+    return 0
+  fi
+  if ! online; then
+    info "No network: not moving mise."
+    return 0
+  fi
+  if ! ask "Move mise from Homebrew to ~/.local/bin/mise?"; then
+    declined "mise stays Homebrew's. sysup reports it until this step moves it."
+    return 0
+  fi
+  # The pipeline's exit status proves nothing (a failed curl hands sh an empty script): the version check decides
+  version_ok "$(mise_version "$new")" \
+    || run env MISE_INSTALL_PATH="$new" MISE_INSTALL_HELP=0 sh -c 'curl -fsSL https://mise.run | sh' || true
+  if ! version_ok "$(mise_version "$new")"; then
+    info "The new mise did not install. Homebrew's mise is untouched."
+    return 1
+  fi
+  backup_note mise.tsv "$MISE	$(mise_version "$MISE")"
+  backup_note RESTORE.txt "HOMEBREW_NO_ANALYTICS=1 brew install mise && $PREFIX/bin/mise reshim"
+  # Reshim before the uninstall: every shim is a link to the mise binary, so uninstalling
+  # first would leave node, python and jq dangling for agent and GUI shells
+  old=$MISE
+  MISE=$new
+  hash -r
+  run mise reshim || true
+  if [ -d "$shims" ] && find "$shims" -type l -lname "$old" | grep -q .; then
+    MISE=$old
+    info "The shims still point at Homebrew's mise. Nothing was uninstalled."
+    return 1
+  fi
+  if ! run brew uninstall mise; then
+    info "brew could not uninstall mise. Both are installed and the shims use the new one. Run this step again."
+    return 1
+  fi
+  run mise reshim || true
+  if [ -n "$(dangling_shims "$shims")" ] || { [ -e "$shims/node" ] && ! "$shims/node" --version > /dev/null 2>&1; }; then
+    info "A mise shim does not resolve. Put Homebrew's mise back with: HOMEBREW_NO_ANALYTICS=1 brew install mise && $PREFIX/bin/mise reshim"
+    return 1
+  fi
+  reregister_mise_mcp
+  info "mise now runs from ~/.local/bin/mise. Open a new terminal: this one still remembers the old path."
+  # type -P: `command -v` would name this script's own mise function
+  # shellcheck disable=SC2088 # a message, not a path
+  [ "$(type -P mise || true)" = "$new" ] \
+    || warn "~/.local/bin is not on PATH in this shell. The new shell startup files put it there."
+}
+
+# name<TAB>version<TAB>kind for each formula the prune dry-run would remove
+undeclared_formulae() {
+  local spec name kind
+  # grep exits 1 on zero matches, which would end the script under pipefail
+  mise bootstrap packages prune --manager brew --dry-run | { grep '^remove brew:' || true; } \
+    | while read -r _ spec; do
+      spec=${spec#brew:}
+      name=${spec%@*}
+      kind=dependency
+      if [ "$name" = mise ]; then
+        kind=mise
+      elif [[ " ${MOVED_TO_TOOLS[*]} " == *" $name "* ]]; then
+        kind=tools
+      elif cat "$PREFIX/Cellar/$name"/*/INSTALL_RECEIPT.json 2> /dev/null | /usr/bin/jq -es 'any(.installed_on_request == true)' > /dev/null; then
+        kind=request
+      fi
+      printf '%s\t%s\t%s\n' "$name" "${spec##*@}" "$kind"
+    done
+}
+
+undeclared_casks() {
+  local d declared
+  declared=$(/usr/bin/jq -r '."brew-cask".packages[]?.package | split("/") | last' <<< "$STATUS")
+  for d in "$PREFIX"/Caskroom/*/; do
+    [ -d "$d" ] || continue
+    d=$(basename "$d")
+    grep -qxF "$d" <<< "$declared" || echo "$d"
+  done
+}
+
+# receipt_key <brew|brew-cask> <name> <receipt> <default tap>: the config key, tap-qualified outside the default tap
+receipt_key() {
+  local tap
+  tap=$(/usr/bin/jq -r '.source.tap // empty' "$3" 2> /dev/null | head -1 || true)
+  if [ -n "$tap" ] && [ "$tap" != "$4" ]; then echo "$1:$tap/$2"; else echo "$1:$2"; fi
+}
+
+# local_toml_add <table> <key> <value>
+local_toml_add() {
+  local tmp
+  ! grep -qF "\"$2\" =" "$LOCAL_TOML" 2> /dev/null || return 0
+  if [ "$DECLARED" = 0 ] && [ -e "$LOCAL_TOML" ]; then backup_copy "$LOCAL_TOML"; fi
+  if grep -qxF "[$1]" "$LOCAL_TOML" 2> /dev/null; then
+    # TOML does not allow the same table twice, so the entry goes under the existing header
+    tmp=$(mktemp)
+    awk -v h="[$1]" -v e="\"$2\" = $3" '{ print } $0 == h && !done { print e; done = 1 }' "$LOCAL_TOML" > "$tmp"
+    cat "$tmp" > "$LOCAL_TOML"
+    rm "$tmp"
+  else
+    [ ! -s "$LOCAL_TOML" ] || echo >> "$LOCAL_TOML"
+    printf '[%s]\n"%s" = %s\n' "$1" "$2" "$3" >> "$LOCAL_TOML"
+  fi
+  DECLARED=$((DECLARED + 1))
+  CHANGED=$((CHANGED + 1))
+}
+
+# token<TAB>version<TAB>self-updates<TAB>kind<TAB>apps joined by "|", for each cask Homebrew manages
+homebrew_casks() {
+  local token version self info apps kind
+  while IFS=$'\t' read -r token version self; do
+    [ -n "$token" ] || continue
+    info=
+    apps=
+    kind=unknown
+    if command -v brew > /dev/null && info=$(brew info --json=v2 --cask "$token" 2> /dev/null < /dev/null); then
+      apps=$(/usr/bin/jq -r '[.casks[0].artifacts[] | .app? // empty | .[] | strings] | join("|")' <<< "$info")
+      kind=other
+      if [ -n "$apps" ]; then
+        kind=app
+      elif /usr/bin/jq -e '[.casks[0].artifacts[] | .pkg? // empty] | length > 0' <<< "$info" > /dev/null; then
+        kind=pkg
+      fi
+    fi
+    printf '%s\t%s\t%s\t%s\t%s\n' "$token" "$version" "$self" "$kind" "$apps"
+  done < <(/usr/bin/jq -r '."brew-cask".packages[]? | select(.managed_by == "homebrew") | [.package, .installed_version // "-", (.auto_updates == true)] | @tsv' <<< "$STATUS")
+}
+
+app_running() { pgrep -f "$APPDIR/$1/Contents/MacOS/" > /dev/null; }
+
+# reinstall_cask <token> <version> <apps joined by "|">: exits 1 when the cask is not mise's afterwards
+reinstall_cask() {
+  local token=$1 app ok=true rc=0
+  backup_note casks.tsv "$token	$2"
+  backup_note RESTORE.txt "HOMEBREW_NO_ANALYTICS=1 brew install --cask $token"
+  run brew uninstall --cask "$token" || fail "brew could not uninstall $token. Nothing was replaced."
+  run mise bootstrap packages apply --yes "brew-cask:$token" || rc=$?
+  STATUS=$(mise bootstrap packages status --json) || ok=false
+  /usr/bin/jq -e --arg t "$token" '."brew-cask".packages[] | select(.package == $t) | .state == "installed" and .managed_by == "mise"' <<< "$STATUS" > /dev/null || ok=false
+  while IFS= read -r app; do
+    [ -z "$app" ] || [ -e "$APPDIR/$app" ] || ok=false
+  done < <(tr '|' '\n' <<< "$3")
+  [ "$ok" = false ] || return 0
+  [ "$rc" = 0 ] || info "mise's apply of $token failed (exit $rc). Homebrew has already uninstalled it."
+  info "To try mise again: mise bootstrap packages apply brew-cask:$token"
+  fail "$token is not installed. Put it back with: HOMEBREW_NO_ANALYTICS=1 brew install --cask $token"
+}
+
+clean_staging_leftovers() {
+  local d left=()
+  for d in "$PREFIX"/Cellar/*/; do
+    [ -d "$d" ] && [ "$(ls -A "$d")" = .mise-staging.lock ] || continue
+    left+=("${d%/}")
+  done
+  [ ${#left[@]} -gt 0 ] || return 0
+  printf '  %s\n' "${left[@]}"
+  ask "Remove ${#left[@]} empty Cellar folder(s) that hold only mise's staging lock?" || return 0
+  for d in "${left[@]}"; do
+    backup_move "$d"
+    CHANGED=$((CHANGED + 1))
+  done
+}
+
+step_packages() {
+  local undeclared casks name version kind token self apps app reason n dir tracked running key
+
+  move_mise || fail "mise was not moved, so nothing else in this step ran."
+  read_status
+
+  info "Formulae: nothing to migrate. mise reads $PREFIX, so a formula Homebrew installed counts as installed, and \"mise bootstrap packages upgrade\" replaces it with the current bottle."
+  /usr/bin/jq -r '.brew.packages[]? | select(.state == "needs_repair") | "\(.package): needs repair (mise bootstrap packages apply restores the link, nothing is reinstalled)"' <<< "$STATUS"
+
+  undeclared=$(undeclared_formulae)
+  n=$(grep -c . <<< "$undeclared" || true)
+  info "Not declared in the config: $n formulae (\"mise bootstrap packages prune --dry-run\" lists them; this script never prunes)"
+  while IFS=$'\t' read -r name version kind <&3; do
+    [ -n "$name" ] || continue
+    case $kind in
+      mise) reason="Homebrew's mise, moved at the start of this step" ;;
+      tools) reason="moved to mise tools, this keg is no longer used" ;;
+      request) reason="installed by hand" ;;
+      *) reason="a dependency nothing declared needs" ;;
+    esac
+    info "  $name $version: $reason"
+  done 3<<< "$undeclared"
+  if [ "$n" -gt 0 ]; then
+    dir="${MISE_STATE_DIR:-$HOME/.local/state/mise}/tracked-configs"
+    tracked=0
+    [ ! -d "$dir" ] || tracked=$(find "$dir" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')
+    cat << EOF
+Any "mise bootstrap packages prune" removes every formula listed above.
+mise keeps a formula that any config it has tracked still declares ($tracked tracked, in $dir),
+so this list can be shorter than what is really undeclared.
+EOF
+  fi
+  while IFS=$'\t' read -r name version kind <&3; do
+    [ "$kind" = request ] || continue
+    if ask "Keep $name by declaring it in config.local.toml?"; then
+      key=$(receipt_key brew "$name" "$(ls "$PREFIX/Cellar/$name"/*/INSTALL_RECEIPT.json | head -1)" homebrew/core)
+      local_toml_add bootstrap.packages "$key" '"latest"'
+    else
+      declined "$name: left undeclared. A prune removes it."
+    fi
+  done 3<<< "$undeclared"
+  casks=$(undeclared_casks)
+  if [ -n "$casks" ]; then
+    info "Casks Homebrew installed that no config declares: $(tr '\n' ' ' <<< "$casks" | sed 's/ $//')"
+    info "mise never upgrades or removes these. Once declared, one that does not update itself can be moved to mise by this step. To remove one instead, while brew exists: HOMEBREW_NO_ANALYTICS=1 brew uninstall --cask <token>"
+    while read -r token <&3; do
+      ask "Declare $token in config.local.toml?" || continue
+      key=$(receipt_key brew-cask "$token" "$PREFIX/Caskroom/$token/.metadata/INSTALL_RECEIPT.json" homebrew/cask)
+      local_toml_add bootstrap.packages "$key" '"latest"'
+    done 3<<< "$casks"
+  fi
+  [ "$DECLARED" = 0 ] \
+    || info "Declared $DECLARED package(s) in tilde/.config/mise/config.local.toml (gitignored, this Mac only). Run this step again to see them in the lists below."
+
+  /usr/bin/jq -r '."brew-cask".packages[]? | select(.state == "missing") | "\(.package): declared but not installed. Install it: mise bootstrap packages apply brew-cask:\(.package)"' <<< "$STATUS"
+
+  casks=$(homebrew_casks)
+  if [ -z "$casks" ]; then
+    info "Casks: none is Homebrew's. Nothing to migrate."
+  else
+    for self in false true; do
+      if [ "$self" = false ]; then
+        info "Homebrew casks that do not update themselves:"
+      else
+        info "Homebrew casks that update themselves:"
+      fi
+      awk -F'\t' -v s="$self" '$3 == s { printf "  %-34s %-16s %s\n", $1, $2, $4; n++ } END { if (!n) print "  (none)" }' <<< "$casks"
+    done
+    cat << 'EOF'
+Nothing upgrades the first list any more: mise leaves a cask Homebrew installed alone.
+The second list updates itself, so moving it gains no upgrades. It is offered because
+Homebrew is removed only once no cask is still Homebrew's (the removal at the end of this step).
+Reinstalling one through mise runs, for each cask you pick:
+  brew uninstall --cask <token>
+  mise bootstrap packages apply --yes brew-cask:<token>
+and then checks that mise reports it installed and managed by mise.
+The app bundle is replaced, not copied to the backup folder. macOS can drop the privacy
+permissions (Accessibility, Full Disk Access, Screen Recording and the like) of a replaced app,
+so check System Settings > Privacy & Security afterwards.
+A cask you decline stays Homebrew's, and Homebrew stays installed while one does.
+Way back: HOMEBREW_NO_ANALYTICS=1 brew install --cask <token>.
+EOF
+    if ! command -v brew > /dev/null; then
+      info "brew is not installed, so these cannot be moved by this script. To move one by hand, delete the app and $PREFIX/Caskroom/<token>, then run the apply command."
+      return 0
+    fi
+    if ! online; then
+      info "No network: not reinstalling anything."
+    else
+      # sort -s: the casks that do not update themselves first, each table in status order
+      while IFS=$'\t' read -r token version self kind apps <&3; do
+        running=
+        while IFS= read -r app; do
+          [ -z "$app" ] || ! app_running "$app" || running=$app
+        done < <(tr '|' '\n' <<< "$apps")
+        if [ -n "$running" ]; then
+          info "$token: $running is running. Quit it and run this step again."
+        elif ask "Reinstall $token $version through mise?"; then
+          reinstall_cask "$token" "$version" "$apps"
+        else
+          declined "$token: stays Homebrew's, so Homebrew cannot be removed yet."
+        fi
+      done 3< <(sort -s -t$'\t' -k3,3 <<< "$casks")
+    fi
+  fi
+  clean_staging_leftovers
+}
 step_dotfiles() { info "nothing to migrate yet"; }
 step_setup() { info "nothing to migrate yet"; }
 
@@ -168,8 +509,8 @@ while [ $# -gt 0 ]; do
 done
 
 have=
-[ -z "$MISE" ] || have=$(mise --version 2> /dev/null | awk '{ print $1 }')
-[ -n "$have" ] && [ "$(printf '%s\n' "$MIN_MISE" "$have" | sort -V | head -1)" = "$MIN_MISE" ] \
+[ -z "$MISE" ] || have=$(mise_version "$MISE")
+version_ok "$have" \
   || refuse "refusing: this needs mise $MIN_MISE or newer (found: ${have:-no mise on PATH})"
 [ "$HOME/.config/mise" -ef "$REPO/tilde/.config/mise" ] \
   || refuse "refusing: ~/.config/mise is not this clone's tilde/.config/mise, so mise would report on another config"
