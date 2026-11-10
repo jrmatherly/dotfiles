@@ -62,14 +62,14 @@ Decisions the spec left open, fixed here:
 - **Build backend: hatchling.** `uv init --package` with uv 0.13.7 writes `uv_build`, which cannot map a file outside the module into the wheel. The spec puts `registry.toml` at `settings/registry.toml`, so the wheel needs hatchling's `force-include`. Verified: the built wheel contains `dotfiles_settings/registry.toml`, and an editable install finds `settings/registry.toml`.
 - **`uv.lock` is committed.** The launcher and `bin/lib/check` run with `--locked`, so a dependency cannot move without a diff.
 - **`default` means the consumer's own fallback.** No file applies a registry default for an env setting (spec D3), so `default` is non-empty only when the script that reads the variable falls back to that value itself. Otherwise it is `""` and an unset variable reads as `unset`.
-- **A bool set to false is written as the empty string.** `upup` tests `DOTFILES_TRIM_CA_ROOTS` with `-n` and `setup/misc.sh` tests `DOTFILES_SKIP_CODEGRAPH` with `= true`. An empty override reads as false for both and still beats a seed of `1`. A bool is shown as on when its value equals `true_value`.
+- **A bool set to false is written as the empty string.** `sysup` tests `DOTFILES_TRIM_CA_ROOTS` with `-n` and `setup/misc.sh` tests `DOTFILES_SKIP_CODEGRAPH` with `= true`. An empty override reads as false for both and still beats a seed of `1`. A bool is shown as on when its value equals `true_value`.
 - **`apply <kind>`** calls an optional adapter method `apply(self, settings: list[Setting]) -> list[str]` and prints the returned lines. `EnvAdapter` has none, and the CLI prints `env: nothing to apply`.
 - **`write_note`** is optional on an adapter. It is either a string, or a method `write_note(self, s: Setting) -> str` for an adapter whose settings differ (A7's jstack roles edit a tracked file, its other settings do not). An empty string means no note. Callers never read the attribute themselves. They call `model.note_for(adapter, s)`, which handles a missing attribute, a string and a method. The note is shown with the write: once, right after a `set` or `reset` succeeds. The CLI prints it to stderr. The TUI shows it with `notify`. It is not shown before the write, there is no confirmation prompt, and a refused or failed write shows the error alone.
 - **Four registry fields are optional.** `true_value`, `choices`, `default` and `widget` default to `""`, `[]`, `""` and `""`. The other eight are required. `Setting` is a keyword-only dataclass, so every `Setting(...)` call names its fields and the field order cannot matter. `widget` is one of `""`, `"lines"`, `"seats"`. This plan defines the field, validates it and emits it in JSON. A7 gives the two non-empty values their behaviour, and until then the TUI draws every setting by its `type`.
 - **mise runs from `$HOME`.** `run_mise` passes `cwd=Path.home()`. Measured on mise 2026.11.5: from a folder holding an untrusted `mise.toml`, `mise set --override` exits 0 but `mise env --json` exits 1 with "not trusted". From `$HOME` both exit 0.
 - **Live refresh covers every file an adapter names.** An adapter may define `watch_paths(self) -> list[Path]`. The TUI polls the mtimes of the union across its adapters.
 - **The VS Code font preset has a file seed.** `bin/vscode-settings` falls back to the preset saved in `~/.config/dotfiles/vscode.env`, not to a shell export. For this one key, when the seed shell does not export it, `EnvAdapter` reads the seed from that file (`env.file_seed`). No registry field is added for it. Task 6 makes the script use an environment preset without saving it, so a reset in the UI hands the choice back to the saved file.
-- **`set`, `reset` and `apply` ask in Claude Code.** In this phase they only write the gitignored override file. From A3 on, `set` on a `macos-default` setting edits a tracked file and changes live preferences, and A5's `apply dotfile` creates links. A permission rule cannot tell kinds apart, so Task 3 adds `ask` rules for all three subcommands now, in the form the repo uses for `upup` and `set-defaults`. `list`, `get`, `tui` and `serve` do not ask.
+- **`set`, `reset` and `apply` ask in Claude Code.** In this phase they only write the gitignored override file. From A3 on, `set` on a `macos-default` setting edits a tracked file and changes live preferences, and A5's `apply dotfile` creates links. A permission rule cannot tell kinds apart, so Task 3 adds `ask` rules for all three subcommands now, in the form the repo uses for `sysup` and `set-defaults`. `list`, `get`, `tui` and `serve` do not ask.
 - **Registry entries left out on purpose:** `DOTFILES_MACOS_YES` and `DOTFILES_MACOS_NO` (deleted by A3), `DOTFILES_GIT_NAME`, `DOTFILES_GIT_EMAIL`, `DOTFILES_GIT_SIGN_METHOD`, `DOTFILES_GIT_SIGNINGKEY` (read once, only while `~/.gitconfig.local` is missing; A5 keeps them and moves the prompt that reads them into `setup/dotfiles-extras.sh`), `DOTFILES_SUDO_KEPT`, `DOTFILES_SETUP_LOG`, `DOTFILES_DIR` (internal), and `GHIDRA_INSTALL_DIR` (`bin/rea-mcp` overwrites it from the Homebrew keg at every launch, so an override has no effect).
 
 ---
@@ -162,7 +162,7 @@ A table has eight required fields: `id`, `section`, `label`, `help`, `kind`, `ke
 id = "updates.trim_ca_roots"
 section = "Updates"
 label = "Remove the compromised eMudhra roots"
-help = "Lets upup remove two roots brew doctor warns about. ca-roots restore puts them back."
+help = "Lets sysup remove two roots brew doctor warns about. ca-roots restore puts them back."
 kind = "env"
 key = "DOTFILES_TRIM_CA_ROOTS"
 type = "bool"
@@ -175,7 +175,7 @@ access = "rw"
 id = "updates.mac_password_op"
 section = "Updates"
 label = "1Password reference for the Mac login password"
-help = "A secret reference such as op://Private/Mac login/password. upup reads it with op when a macOS update is pending. The password itself is never stored here."
+help = "A secret reference such as op://Private/Mac login/password. sysup reads it with op when a macOS update is pending. The password itself is never stored here."
 kind = "env"
 key = "DOTFILES_MAC_PASSWORD_OP"
 type = "string"
@@ -188,7 +188,7 @@ access = "rw"
 id = "updates.slow_step_seconds"
 section = "Updates"
 label = "Show a step's time after this many seconds"
-help = "upup adds the elapsed time to a step's result line when the step took at least this long."
+help = "sysup adds the elapsed time to a step's result line when the step took at least this long."
 kind = "env"
 key = "UPUP_SLOW"
 type = "int"
@@ -615,7 +615,7 @@ git commit -m "Read and write env settings through mise's override file"
 
 - Create: `settings/src/dotfiles_settings/cli.py`, `__main__.py`, `bin/dotfiles-settings`
 - Test: `settings/tests/test_cli.py`
-- Modify: `bin/lib/check` (append the test to `settings_tests`), `.claude/settings.json` (the `ask` list), `bin/lib/test-conventions` (the assertion after the `upup` and `set-defaults` loop near line 120, and the header comment)
+- Modify: `bin/lib/check` (append the test to `settings_tests`), `.claude/settings.json` (the `ask` list), `bin/lib/test-conventions` (the assertion after the `sysup` and `set-defaults` loop near line 120, and the header comment)
 
 **Interfaces:**
 
@@ -790,7 +790,7 @@ Expected: the header renders as a tldr page with no error.
 
 This step edits the project's tracked permission file. Show the user the diff before committing it.
 
-In `.claude/settings.json`, append to `permissions.ask`, after the `upup` rules, six rules for each of `set`, `reset` and `apply`. For `set`:
+In `.claude/settings.json`, append to `permissions.ask`, after the `sysup` rules, six rules for each of `set`, `reset` and `apply`. For `set`:
 
 ```json
 "Bash(dotfiles-settings set *)",
@@ -801,7 +801,7 @@ In `.claude/settings.json`, append to `permissions.ask`, after the `upup` rules,
 "Bash(sh bin/dotfiles-settings set*)"
 ```
 
-In `bin/lib/test-conventions`, after the loop that asserts the `upup` and `set-defaults` rules, add:
+In `bin/lib/test-conventions`, after the loop that asserts the `sysup` and `set-defaults` rules, add:
 
 ```bash
 # dotfiles-settings set, reset and apply change settings, for some kinds a
@@ -1127,7 +1127,7 @@ git commit -m "Let VSCODE_FONT_PRESET in the environment pick the VS Code font p
 **Files:**
 
 - Create: `settings/README.md`
-- Modify: `docs/README.md`, `README.md`, `bin/upup` (header lines 6 and 7, the comment near line 274, the notice text near line 393), `bin/ca-roots` (the message near line 107), `bin/lib/test-ca-roots` (the assertion near line 108 that quotes that message), `.claude/rules/telemetry-sync.md`, `CLAUDE.md` (the Architecture block)
+- Modify: `docs/README.md`, `README.md`, `bin/sysup` (header lines 6 and 7, the comment near line 274, the notice text near line 393), `bin/ca-roots` (the message near line 107), `bin/lib/test-ca-roots` (the assertion near line 108 that quotes that message), `.claude/rules/telemetry-sync.md`, `CLAUDE.md` (the Architecture block)
 
 **Interfaces:**
 
@@ -1162,28 +1162,28 @@ In `docs/README.md`, in the table that holds the `claude-stack` and `vscode-sett
 - `README.md`, the `DOTFILES_MAC_PASSWORD_OP` step: the instruction becomes `dotfiles-settings set updates.mac_password_op 'op://Private/Mac login/password'`, with one sentence that an export in `~/.zsh.local` still works and is the seed an override beats.
 - `README.md`, the eMudhra section: `dotfiles-settings set updates.trim_ca_roots on`. The undo sentence ends, as A1 left it, "and delete the line from `~/.zsh.local` (run `mise unset --override DOTFILES_TRIM_CA_ROOTS` too if you set it that way)." Replace that ending with "and run `dotfiles-settings reset updates.trim_ca_roots` (delete the line from `~/.zsh.local` too if you exported it there)."
 - `README.md`, the `~/.zsh.local` section: A1 added a second paragraph that starts "An `export` here is a starting value. `mise set --override KEY=value`". Replace that whole paragraph. Do not add a second one beside it. New text: "An `export` here is a starting value. A setting changed with [`dotfiles-settings`](settings/README.md) beats an export of the same variable in every new shell, and `dotfiles-settings reset <id>` hands the variable back to the export. The changes are stored in `tilde/.config/mise/config.override.toml` inside the clone (`~/.config/mise` is a link to that folder), which git ignores." Afterwards `grep -c 'mise set --override' README.md` prints 0.
-- `bin/upup` header lines 6 and 7. As A1 leaves them, line 6 reads "Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` (or with `mise set --override`) to a 1Password secret reference" and line 7 reads "Set `DOTFILES_TRIM_CA_ROOTS=1` in `~/.zsh.local` (or with `mise set --override`) to let it remove". On line 6, keep the first sentence and replace the second with "Run `dotfiles-settings set updates.mac_password_op 'op://vault/item/password'` (a 1Password secret reference) to supply it with a fingerprint instead." On line 7, replace the quoted start with "Run `dotfiles-settings set updates.trim_ca_roots on` to let it remove" and leave the rest of the line as it is. Each header line stays on one line: tlrc rejects a wrapped line.
-- `bin/upup` near line 274, the comment that says "Optional: set DOTFILES_MAC_PASSWORD_OP in ~/.zsh.local to a 1Password secret reference". Change "set DOTFILES_MAC_PASSWORD_OP in ~/.zsh.local to" to "set DOTFILES_MAC_PASSWORD_OP (dotfiles-settings set updates.mac_password_op) to". Re-wrap the comment at the width of its neighbours.
-- `bin/upup` near line 393, the `brew doctor` notice. A1 does not touch it. Current: `(set DOTFILES_TRIM_CA_ROOTS=1 in ~/.zsh.local to let upup remove them)`. New: `(run dotfiles-settings set updates.trim_ca_roots on to let upup remove them)`. A4 later deletes this notice with the `brew doctor` step, so A4 has nothing of this edit to carry over.
-- `bin/ca-roots` near line 107. Current: `Remove DOTFILES_TRIM_CA_ROOTS from ~/.zsh.local, or the next upup removes them again.` New: `Run dotfiles-settings reset updates.trim_ca_roots (or remove the export from ~/.zsh.local), or the next upup removes them again.`
+- `bin/sysup` header lines 6 and 7. As A1 leaves them, line 6 reads "Set `DOTFILES_MAC_PASSWORD_OP` in `~/.zsh.local` (or with `mise set --override`) to a 1Password secret reference" and line 7 reads "Set `DOTFILES_TRIM_CA_ROOTS=1` in `~/.zsh.local` (or with `mise set --override`) to let it remove". On line 6, keep the first sentence and replace the second with "Run `dotfiles-settings set updates.mac_password_op 'op://vault/item/password'` (a 1Password secret reference) to supply it with a fingerprint instead." On line 7, replace the quoted start with "Run `dotfiles-settings set updates.trim_ca_roots on` to let it remove" and leave the rest of the line as it is. Each header line stays on one line: tlrc rejects a wrapped line.
+- `bin/sysup` near line 274, the comment that says "Optional: set DOTFILES_MAC_PASSWORD_OP in ~/.zsh.local to a 1Password secret reference". Change "set DOTFILES_MAC_PASSWORD_OP in ~/.zsh.local to" to "set DOTFILES_MAC_PASSWORD_OP (dotfiles-settings set updates.mac_password_op) to". Re-wrap the comment at the width of its neighbours.
+- `bin/sysup` near line 393, the `brew doctor` notice. A1 does not touch it. Current: `(set DOTFILES_TRIM_CA_ROOTS=1 in ~/.zsh.local to let sysup remove them)`. New: `(run dotfiles-settings set updates.trim_ca_roots on to let sysup remove them)`. A4 later deletes this notice with the `brew doctor` step, so A4 has nothing of this edit to carry over.
+- `bin/ca-roots` near line 107. Current: `Remove DOTFILES_TRIM_CA_ROOTS from ~/.zsh.local, or the next sysup removes them again.` New: `Run dotfiles-settings reset updates.trim_ca_roots (or remove the export from ~/.zsh.local), or the next sysup removes them again.`
 - `bin/lib/test-ca-roots` near line 108, the check named "restore names the opt-in to remove". It compares the last output line with the old sentence, word for word. Put the new sentence there in the same commit.
 - `.claude/rules/telemetry-sync.md`: add one sentence at the end. "Each opt-out exported by `zsh/env.zsh` is also a read-only entry in `settings/registry.toml`, and `settings/tests/test_registry.py` fails the gate when an entry's variable is no longer exported there, so add, rename or remove the registry entry in the same change." Add `'settings/registry.toml'` to the file's `paths:` list. `bin/lib/test-conventions` caps the size of instruction files, so keep it to that one sentence.
 - `CLAUDE.md`, the Architecture block: add the line `settings/          uv package dotfiles-settings: registry.toml + adapters, CLI, Textual UI (bin/dotfiles-settings)`.
 
 - [ ] **Step 4: Check nothing still gives the old instruction**
 
-Run: `grep -rn "in \`~/.zsh.local\` to\|add this to \[\`~/.zsh.local\`\]\|Add it to \[\`~/.zsh.local\`\]" README.md bin/upup bin/ca-roots docs/README.md`
+Run: `grep -rn "in \`~/.zsh.local\` to\|add this to \[\`~/.zsh.local\`\]\|Add it to \[\`~/.zsh.local\`\]" README.md bin/sysup bin/ca-roots docs/README.md`
 Expected: no output.
 
-Run: `bash bin/lib/test-upup && bash bin/lib/test-ca-roots && help upup > /dev/null && help dotfiles-settings > /dev/null`
-Expected: exit 0. `bin/lib/test-ca-roots` passes only with the assertion from Step 3 updated. `bin/lib/test-upup` asserts none of the changed text (checked with `grep -n zsh.local bin/lib/test-upup`: no match).
+Run: `bash bin/lib/test-sysup && bash bin/lib/test-ca-roots && help sysup > /dev/null && help dotfiles-settings > /dev/null`
+Expected: exit 0. `bin/lib/test-ca-roots` passes only with the assertion from Step 3 updated. `bin/lib/test-sysup` asserts none of the changed text (checked with `grep -n zsh.local bin/lib/test-sysup`: no match).
 
 - [ ] **Step 5: Verify and commit**
 
 Run: `pnpm check`. Expected: exit 0.
 
 ```bash
-git add settings/README.md docs/README.md README.md bin/upup bin/ca-roots bin/lib/test-ca-roots \
+git add settings/README.md docs/README.md README.md bin/sysup bin/ca-roots bin/lib/test-ca-roots \
   .claude/rules/telemetry-sync.md CLAUDE.md
 git commit -m "Document dotfiles-settings and point the knob instructions at it"
 ```

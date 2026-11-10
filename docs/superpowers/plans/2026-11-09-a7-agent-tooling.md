@@ -61,7 +61,7 @@ Confirmed with the A2 plan's author on 2026-11-09. Check them against the landed
 
 **The Claude Code model has no CLI writer, so the adapter edits `~/.claude/settings.json` itself.** `claude config --help` prints the top-level help on Claude Code 2.1.321, so there is no `claude config set`. `claude-config` has no setter either, and its `write_settings` writes through the file (`cat tmp > settings`), which is not atomic. The adapter makes one atomic edit (see `edit_file`). This is the one place the plan departs from D4's wording "the UI calls the existing CLIs". It keeps D4's intent, since nothing is copied.
 
-**Model drift rule.** The UI changes the live file only, `${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json`. The tracked `agents/claude-settings.json` is the seed and is never written by the UI. Effective value is the live one. `drift` is true when the two differ. `reset` writes the tracked value into the live file. The existing flow then closes the gap in the other direction: `claude-config save` (run by hand or by `upup`) copies live into the repo for review and commit. Measured on 2026-11-09: commit `9af6244` tracks `opus`, the live file says `fable`, and the working tree already holds an uncommitted `fable` from a save. The seed is read from the working tree, so the UI reports no drift here until the next UI change.
+**Model drift rule.** The UI changes the live file only, `${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json`. The tracked `agents/claude-settings.json` is the seed and is never written by the UI. Effective value is the live one. `drift` is true when the two differ. `reset` writes the tracked value into the live file. The existing flow then closes the gap in the other direction: `claude-config save` (run by hand or by `sysup`) copies live into the repo for review and commit. Measured on 2026-11-09: commit `9af6244` tracks `opus`, the live file says `fable`, and the working tree already holds an uncommitted `fable` from a save. The seed is read from the working tree, so the UI reports no drift here until the next UI change.
 
 **jstack roles: the rule file is both seed and live.** `~/.claude/rules/jstack-models.md` is a symlink to the tracked `tilde/.claude/rules/jstack-models.md`. There is no override layer, so a present line has source `SEED` and `drift` is always false. The file's own header defines reset: "Delete a line to fall back to the skill default". So `reset` deletes the role's line and the row then shows `UNSET`. A UI edit leaves the tracked file modified, and `git diff` shows it.
 
@@ -795,9 +795,9 @@ Replace with: "`jstack-models.md` is rewritten through its symlink by `/jstack:s
 
 - [ ] **Step 4: `agents/README.md` line 40**
 
-Stale sentence: "After installing or removing plugins or skills, or changing settings, run `claude-config save` (`upup` does too) and commit the diff."
+Stale sentence: "After installing or removing plugins or skills, or changing settings, run `claude-config save` (`sysup` does too) and commit the diff."
 
-Replace with: "After installing or removing plugins or skills, or changing settings, run `claude-config save` (`upup` does too) and commit the diff. That includes a default model changed in `dotfiles-settings` (`claude.model`): the UI changes this Mac's `~/.claude/settings.json`, shows the value tracked here as the seed, and marks a difference as drift until `save` records it or Reset puts the tracked value back."
+Replace with: "After installing or removing plugins or skills, or changing settings, run `claude-config save` (`sysup` does too) and commit the diff. That includes a default model changed in `dotfiles-settings` (`claude.model`): the UI changes this Mac's `~/.claude/settings.json`, shows the value tracked here as the seed, and marks a difference as drift until `save` records it or Reset puts the tracked value back."
 
 - [ ] **Step 5: `agents/README.md` line 42**
 

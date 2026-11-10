@@ -231,7 +231,7 @@ Expected: the same `FAIL` lines, exit 1. The test runs the script directly and t
 
 - [ ] **Step 5: Add the executable-bit check to `bin/lib/test-conventions` and see it fail**
 
-Add after the `for s in upup set-defaults` loop:
+Add after the `for s in sysup set-defaults` loop:
 
 ```bash
 # Hooks and setup.sh run these directly, and a test that runs `bash "$script"` cannot see a missing mode bit.
@@ -706,7 +706,7 @@ One commit, because D12 and `.claude/rules/setup.md` require the docs to change 
 **Files:**
 - Modify: `bin/set-defaults`
 - Delete: `setup/macos.sh`
-- Modify: `.claude/settings.json`, `bin/lib/test-conventions` (after the `for s in upup set-defaults` loop)
+- Modify: `.claude/settings.json`, `bin/lib/test-conventions` (after the `for s in sysup set-defaults` loop)
 - Modify: `settings/registry.toml` (only if it lists `DOTFILES_MACOS_YES` or `DOTFILES_MACOS_NO`)
 - Modify: `README.md`, `setup/README.md`, `docs/macos settings.md`, `docs/macos tips & tricks.md`, `docs/mole.md`, `docs/gui/raycast.md`, `CLAUDE.md`, `bin/CLAUDE.md`, `.claude/rules/macos-defaults.md`
 
@@ -751,7 +751,7 @@ If `settings/registry.toml` has a `[[setting]]` for `DOTFILES_MACOS_YES` or `DOT
 
 - [ ] **Step 4: Guard the new apply command**
 
-First add the assertion. In `bin/lib/test-conventions`, after the `for s in upup set-defaults` loop, add:
+First add the assertion. In `bin/lib/test-conventions`, after the `for s in sysup set-defaults` loop, add:
 
 ```bash
 # mise bootstrap changes the machine too: bare, with flags (--yes, --only) and its apply subcommands

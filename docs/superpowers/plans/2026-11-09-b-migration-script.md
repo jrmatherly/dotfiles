@@ -55,7 +55,7 @@ The spec left these open. Each was checked on this Mac on 2026-11-09 unless mark
 | P7 | A cask moves to mise with `brew uninstall --cask <token>` then `mise bootstrap packages apply --yes brew-cask:<token>`. So reinstalling needs `brew` still installed. Without `brew` the step only lists. | mise docs: apply does nothing to a Homebrew-installed cask, upgrade and prune skip it, "use Homebrew" to remove it. |
 | P13 | mise itself moves first. The `packages` step installs mise with its own installer to `~/.local/bin/mise`, reshims with the new binary, and only then runs `brew uninstall mise`. Nothing else in the step runs until this is done or declined. | Measured on this Mac: `/opt/homebrew/opt/mise/lib/.disable-self-update` exists, so `mise self-update` refuses. All 149 files in `~/.local/share/mise/shims` are links to `/opt/homebrew/bin/mise`. A prune dry-run lists `remove brew:mise@2026.11.5`. `brew uses --installed mise` prints nothing. Scratch run, mise 2026.11.5: `mise reshim` run by a copy of the binary repoints every shim to that copy, whether the old target still exists or not. `mise ls` does not repoint. |
 | P14 | A package this Mac has that no config declares is offered a line in the gitignored `tilde/.config/mise/config.local.toml`. The script asks only about formulae Homebrew recorded as installed on request and casks in `Caskroom` that the status does not list. It never asks about `mise` or the seven formulae A4 moved to `[tools]`. | Scratch run: a `[bootstrap.packages]` table in `config.local.toml` merges with the one in `conf.d`, and `"brew:jrmatherly/ai-kb/aikb"` and `"brew-cask:signal"` there read `installed`. `INSTALL_RECEIPT.json` has `installed_on_request: true` for `aikb` and `ai-kb-lite` and `false` for the old `openssl@3` keg. A4's P16: mise finds a tap at its default GitHub URL with no taps entry. |
-| P15 | `.claude/settings.json` asks before every way an agent can start `migrate/legacy-to-mise`, `--dry-run` included. | The repo's rule for `upup` and `set-defaults` (`bin/lib/test-conventions`): a command that changes the machine asks. |
+| P15 | `.claude/settings.json` asks before every way an agent can start `migrate/legacy-to-mise`, `--dry-run` included. | The repo's rule for `sysup` and `set-defaults` (`bin/lib/test-conventions`): a command that changes the machine asks. |
 | P8 | A removed app bundle is not copied to the backup folder (size). The backup records token and version in `casks.tsv`, and the restore command is `HOMEBREW_NO_ANALYTICS=1 brew install --cask <token>`. This is the one exception to "back up what you replace", and the prompt says so. | Casks have no version pins (spec). |
 | P9 | Formulae need no migration. mise reads the prefix, so a Homebrew-installed formula counts as installed, and `upgrade` installs the current bottle over it. The step reports `needs_repair` entries and the `prune --dry-run` count. It never prunes. | Scratch run: `brew:jq` `installed`, `brew:rustup` `needs_repair`. mise brew docs. |
 | P10 | Homebrew's documented uninstaller is not used. It deletes `Cellar` and `Caskroom`, where mise's packages live (D5). The step moves only the Homebrew program into the backup folder. | `uninstall.sh` lines 377-378, 423 and 454, cited in Task 5. |
@@ -82,7 +82,7 @@ The spec left these open. Each was checked on this Mac on 2026-11-09 unless mark
 | 1 Skeleton | before A1 | Later tasks only add a step function. |
 | 2 `env` | A2 | Needs `settings/registry.toml`. |
 | 3 `macos` | A3 | |
-| 4 `packages`: mise itself, undeclared packages, casks and leftovers | A4 | A4's `upup` sends the user here to move mise off Homebrew. |
+| 4 `packages`: mise itself, undeclared packages, casks and leftovers | A4 | A4's `sysup` sends the user here to move mise off Homebrew. |
 | 5 `packages`: Homebrew removal | after A4's fresh-install workflow has passed once | That run is the proof mise needs no Homebrew program. |
 | 6 `dotfiles` | A5, before A5's first `mise dot apply` on this Mac | |
 | 7 `setup` | A6, before A6's first `mise bootstrap` on this Mac. Its old-method-name check (Step 6) lands after A6's last commit. | A6 plan, Task "changes the machine", says so. The check fails until A6 has removed the last old name. |
@@ -121,7 +121,7 @@ The spec left these open. Each was checked on this Mac on 2026-11-09 unless mark
   - Each step is a function `step_<name>` returning 0 or 1. Task 1 defines all five as `info "nothing to migrate yet"`.
 - Produces, in `bin/lib/test-migrate`:
   - `tmp` (`tmp=$(cd "$(mktemp -d)" && pwd -P)`: physical, because the script resolves `REPO` with `pwd -P` and macOS's temp folder sits behind the `/var` link), `HOME=$tmp/home`, `STATE=$tmp/state`, `REPO_COPY=$tmp/repo` (holds a copy of `migrate/` plus fixture `tilde/.config/mise/conf.d/` and `settings/`), `HOMEBREW_PREFIX=$tmp/prefix`, `PATH=$tmp/bin:/usr/bin:/bin`.
-  - `stub <name> <body>` as in `bin/lib/test-upup`.
+  - `stub <name> <body>` as in `bin/lib/test-sysup`.
   - `phase <step>`: creates that step's marker file in `REPO_COPY` (the same five paths as `phase_marker`).
   - `snapshot`: prints `find "$HOME" "$HOMEBREW_PREFIX" "$STATE" -exec ls -ld {} +` with every regular file's `cksum`, sorted, excluding `$STATE/*.log`.
   - `mutations`: prints the lines of `$STATE/mise.log`, `$STATE/brew.log` and `$STATE/claude.log` that are not read-only calls. Read-only means matching `status`, `--version`, `--dry-run`, `set --file`, `info --json`, `mcp get`.
@@ -273,7 +273,7 @@ fi
 
 Add to the header's description sentence: "that migrate/ is gone after 2027-02-28,".
 
-Add the permission rules (P15). In `.claude/settings.json`, append to `permissions.ask`, after the `upup` rules:
+Add the permission rules (P15). In `.claude/settings.json`, append to `permissions.ask`, after the `sysup` rules:
 
 ```json
       "Bash(migrate/legacy-to-mise*)",
@@ -283,7 +283,7 @@ Add the permission rules (P15). In `.claude/settings.json`, append to `permissio
       "Bash(sh migrate/legacy-to-mise*)"
 ```
 
-There is no bare-name rule because the script is not on `PATH`. In `bin/lib/test-conventions`, after the `for s in upup set-defaults` loop (the `rules` helper is defined above it):
+There is no bare-name rule because the script is not on `PATH`. In `bin/lib/test-conventions`, after the `for s in sysup set-defaults` loop (the `rules` helper is defined above it):
 
 ```bash
 # migrate/legacy-to-mise changes the machine, so every way to start it asks (temporary: goes with migrate/)
@@ -645,7 +645,7 @@ Way back: HOMEBREW_NO_ANALYTICS=1 brew install --cask <token>.
    ```
 
 3. Without `brew` on `PATH`: `brew is not installed, so its mise cannot be uninstalled by this script.` Return 0. `online` fails: `No network: not moving mise.` Return 0.
-4. `ask "Move mise from Homebrew to ~/.local/bin/mise?"`. On no: `mise stays Homebrew's. upup reports it until this step moves it.` Return 0.
+4. `ask "Move mise from Homebrew to ~/.local/bin/mise?"`. On no: `mise stays Homebrew's. sysup reports it until this step moves it.` Return 0.
 5. When `$new` is not executable or its version is below `MIN_MISE`: `run env MISE_INSTALL_PATH="$new" MISE_INSTALL_HELP=0 sh -c 'curl -fsSL https://mise.run | sh' || true`. The pipeline's exit status proves nothing either way (a failed `curl` hands `sh` an empty script), so point 6 decides.
 6. `"$new" --version` meets `MIN_MISE` (the Task 1 test). Otherwise `The new mise did not install. Homebrew's mise is untouched.` Return 1.
 7. `backup_note mise.tsv "<old path><TAB><old version>"` and append `HOMEBREW_NO_ANALYTICS=1 brew install mise && $PREFIX/bin/mise reshim` to `RESTORE.txt`.
@@ -955,7 +955,7 @@ This moves only the Homebrew program (brew, Library with its taps, the Git check
 These casks stay installed and stay recorded as Homebrew's. They update themselves, or nothing updates them.
 Without brew, removing one later means deleting the app and its Caskroom folder by hand:
   <tokens>
-"ca-roots trim" (the opt-in DOTFILES_TRIM_CA_ROOTS step in upup) runs a script inside Library and stops working.
+"ca-roots trim" (the opt-in DOTFILES_TRIM_CA_ROOTS step in sysup) runs a script inside Library and stops working.
 Lines in your own files that call "brew shellenv" or set HOMEBREW_ variables (not edited):
   <file>:<line number> for each match in ~/.zsh.local, ~/.zprofile, ~/.zshrc, ~/.bash_profile, ~/.profile that is a real file, not a link into this clone
 Type "remove homebrew" to continue. Anything else leaves Homebrew installed.
@@ -965,7 +965,7 @@ Type "remove homebrew" to continue. Anything else leaves Homebrew installed.
 
 - [ ] **Step 1: Write the failing tests**
 
-The test builds a fake prefix: `git init -q "$HOMEBREW_PREFIX"`, tracked `bin/brew`, `Library/Homebrew/x`, `Library/Taps/a/b/x`, `README.md`, committed with the flags `bin/lib/test-upup` uses. Untracked `Cellar/jq/1.8.2/bin/jq`, `Caskroom/ghostty/1.4.0/x`, `var/homebrew/linked/jq`, `bin/jq`. `git` and `df` are the real ones (`PATH` keeps `/usr/bin`). The tracked `bin/brew` is a copy of the `brew` stub. The fake `mise` touches `$STATE/status-read` on each `bootstrap packages status --json`, and exits 1 instead when that file already exists and `$STATE/status-fails-later` does too. So a case can fail the fresh read `packages_fingerprint` makes while the step's first, cached read succeeds. When `$STATE/differs-without-brew` exists and `$HOMEBREW_PREFIX/bin/brew` does not, it prints the status with every `managed_by` of `homebrew` changed to `unknown`.
+The test builds a fake prefix: `git init -q "$HOMEBREW_PREFIX"`, tracked `bin/brew`, `Library/Homebrew/x`, `Library/Taps/a/b/x`, `README.md`, committed with the flags `bin/lib/test-sysup` uses. Untracked `Cellar/jq/1.8.2/bin/jq`, `Caskroom/ghostty/1.4.0/x`, `var/homebrew/linked/jq`, `bin/jq`. `git` and `df` are the real ones (`PATH` keeps `/usr/bin`). The tracked `bin/brew` is a copy of the `brew` stub. The fake `mise` touches `$STATE/status-read` on each `bootstrap packages status --json`, and exits 1 instead when that file already exists and `$STATE/status-fails-later` does too. So a case can fail the fresh read `packages_fingerprint` makes while the step's first, cached read succeeds. When `$STATE/differs-without-brew` exists and `$HOMEBREW_PREFIX/bin/brew` does not, it prints the status with every `managed_by` of `homebrew` changed to `unknown`.
 
 ```bash
 homebrew_removal_is_off_by_default() {
@@ -1306,7 +1306,7 @@ Expected: `Changed 0 thing(s).`
 - Modify: `bin/lib/test-conventions` (remove the removal-date check and its header words, and the `if [ -e migrate ]` permission-rule check; in the old-method-name check drop the `':!migrate'` and `':!bin/lib/test-migrate'` exclusions)
 - Modify: `.claude/settings.json` (remove the five `legacy-to-mise` rules from `permissions.ask`)
 - Modify: `README.md` (remove the section "Migrating an existing machine")
-- Modify: `bin/upup`, `bin/lib/test-upup` (remove A4's two notices that end `run: migrate/legacy-to-mise --step packages`, for a Homebrew mise and for Homebrew casks, and their assertions. Find them with `grep -n legacy-to-mise bin/upup bin/lib/test-upup`)
+- Modify: `bin/sysup`, `bin/lib/test-sysup` (remove A4's two notices that end `run: migrate/legacy-to-mise --step packages`, for a Homebrew mise and for Homebrew casks, and their assertions. Find them with `grep -n legacy-to-mise bin/sysup bin/lib/test-sysup`)
 - Modify: `docs/superpowers/specs/2026-11-09-mise-first-setup-and-settings-ui.md` only by `git mv` to `specs/completed/` when every other plan built on it is completed
 
 **Interfaces:** none. Step 3 proves nothing outside these files refers to `migrate/`.
@@ -1325,7 +1325,7 @@ Expected: exit 0.
 
 ```bash
 git rm -q migrate/legacy-to-mise migrate/README.md bin/lib/test-migrate
-git add bin/lib/check bin/lib/test-conventions bin/upup bin/lib/test-upup package.json README.md .claude/settings.json
+git add bin/lib/check bin/lib/test-conventions bin/sysup bin/lib/test-sysup package.json README.md .claude/settings.json
 git commit -m "Remove the migration script"
 git push
 ```

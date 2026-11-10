@@ -25,7 +25,7 @@ Phases land one at a time on `main`. Each Part A phase has a matching Part B ste
 | D2 | A UI change to an env setting is written with `mise set --override`, into `config.override.toml`. Reset is `mise unset --override`. | The override file outranks every other config and the shell's own value. |
 | D3 | Existing shell exports (`zsh/env.zsh`, `tilde/.zshenv`, `~/.zsh.local`) stay where they are and act as seeds. They are not moved into `[env]`. | Smallest change that meets "seed from env, UI wins". |
 | D4 | Tool-owned live files (`~/.claude/settings.json`, `~/.hindsight/coding-agent.json`, a project's `.claude/settings.local.json`) get no second copy. The UI calls the existing CLIs (`claude-config`, `hindsight-memory`, `claude-stack`) where one can make the change. No CLI can set the Claude Code model or a jstack role, so for those two the UI edits the live file itself with an atomic write. | A copy drifts. The tools rewrite those files themselves. |
-| D5 | The new method is Homebrew-free. Setup, `upup` and shell startup never call `brew`. mise installs, upgrades and prunes packages into `/opt/homebrew`. | Removes the dependency on the old tool. Conditions in [Packages](#a4-packages). |
+| D5 | The new method is Homebrew-free. Setup, `sysup` and shell startup never call `brew`. mise installs, upgrades and prunes packages into `/opt/homebrew`. | Removes the dependency on the old tool. Conditions in [Packages](#a4-packages). |
 | D6 | Tap formulae that mise can install as a tool from the same upstream project move to `[tools]`, each after an identity check. Seven move (`azd`, `azure-functions-core-tools`, `kubelogin` as `aqua:Azure/kubelogin`, `flux2`, `hunk`, `lazydocker`, `talosctl`). Six stay tap formulae (`sentry`, `kubestellar-deploy`, `kubestellar-ops`, `radar`, `sfnt2woff`, `claude-multipass`). | 13 Brewfile tap formulae have no Apple Silicon bottle, and building from a tap's Ruby file is mise's least mature path. |
 | D7 | The settings package is an in-repo uv package at `settings/`, named `dotfiles-settings`. It is not published yet. | Its registry describes this repo's files. It installs from git with `uv tool install "git+<repo>#subdirectory=settings"`. |
 | D8 | One Textual app serves the terminal UI and, through textual-serve, the browser UI. | One codebase, verified on this Mac. |
@@ -87,7 +87,7 @@ From mise's docs, not run here:
 - `~/dotfiles` must be a symlink to the clone. A `[dotfiles]` source is not a template, so sources and hooks find the repo through that path. `setup.sh` creates it and stops when something else is there.
 - A value written to the override file may not contain `{{`, `{%`, `{#`, `$` or a line break. mise treats the first three as a template and expands `$`, and a bad template breaks every later `mise env`.
 - Nothing prunes packages automatically. `prune` removes every undeclared keg, mise's own included on a migrated Mac.
-- Tap resolution calls the GitHub API. A run over the five remaining taps uses about 20 of the 60 anonymous calls an hour. Setup, `upup` and CI pass `MISE_GITHUB_TOKEN` when `gh` is signed in and warn when it is not.
+- Tap resolution calls the GitHub API. A run over the five remaining taps uses about 20 of the 60 anonymous calls an hour. Setup, `sysup` and CI pass `MISE_GITHUB_TOKEN` when `gh` is signed in and warn when it is not.
 - Setup never applies macOS preferences. Only `bin/set-defaults` does, as today. `setup.sh` passes `--skip macos-defaults`.
 - No hook may need a terminal or sudo on a routine command. `setup/dotfiles-extras.sh` is run by `setup.sh` after the bootstrap, not from a `post-dotfiles` hook.
 - The telemetry opt-outs stay exported in `setup.sh`, so they cover the package and tool installs.
@@ -133,7 +133,7 @@ migrate/legacy-to-mise         Part B
 id = "updates.trim_ca_roots"       # unique, dotted
 section = "Updates"                # UI grouping
 label = "Remove the compromised eMudhra roots"
-help = "Lets upup remove two roots brew doctor warns about. ca-roots restore puts them back."
+help = "Lets sysup remove two roots brew doctor warns about. ca-roots restore puts them back."
 kind = "env"                       # env | macos-default | package | dotfile | tool
 key = "DOTFILES_TRIM_CA_ROOTS"     # meaning depends on kind
 type = "bool"                      # bool | string | int | enum | path
@@ -190,7 +190,7 @@ Gitignore the machine-local mise files. Add `zsh/override-env.zsh`, sourced at t
 
 ### A4. Packages
 
-`conf.d/30-packages.toml` declares 144 formulae (the Brewfile's 151, less `mise`, less the 7 that move to `[tools]`, plus `ruby`, which mise needs to read tap definitions), 33 casks and 183 VS Code extensions. `HOMEBREW_PREFIX` stays exported, because `upup`, `ca-roots` and `rea-mcp` read it. The extension plugin installs each extension separately, so one that fails does not stop the rest. Registry-backed tap formulae move to `[tools]` after an identity check each (D6). VS Code extensions are installed by a package-manager plugin kept in this repo at `mise-plugins/vscode/`, linked with `mise plugins link`. mise itself is installed with its own installer. `brewpick`, `setup/brew.sh` and `setup/Brewfile` are deleted. `upup` gets its mise upgrade steps in this phase, so upgrades never stop between phases. `upup`, `bin/lib/check`, `zsh/path.zsh`, `zsh/init.zsh`, `tilde/.zprofile` and the other `brew` callers stop calling `brew`. The `HOMEBREW_*` exports go. A manually triggered workflow, `.github/workflows/fresh-install.yml`, removes the runner's Homebrew and runs `setup/packages.sh`, so mise's own installer, the config-dir export and every package install are exercised. It always installs casks and extensions. Add the `package` adapter (status, and apply missing).
+`conf.d/30-packages.toml` declares 144 formulae (the Brewfile's 151, less `mise`, less the 7 that move to `[tools]`, plus `ruby`, which mise needs to read tap definitions), 33 casks and 183 VS Code extensions. `HOMEBREW_PREFIX` stays exported, because `sysup`, `ca-roots` and `rea-mcp` read it. The extension plugin installs each extension separately, so one that fails does not stop the rest. Registry-backed tap formulae move to `[tools]` after an identity check each (D6). VS Code extensions are installed by a package-manager plugin kept in this repo at `mise-plugins/vscode/`, linked with `mise plugins link`. mise itself is installed with its own installer. `brewpick`, `setup/brew.sh` and `setup/Brewfile` are deleted. `sysup` gets its mise upgrade steps in this phase, so upgrades never stop between phases. `sysup`, `bin/lib/check`, `zsh/path.zsh`, `zsh/init.zsh`, `tilde/.zprofile` and the other `brew` callers stop calling `brew`. The `HOMEBREW_*` exports go. A manually triggered workflow, `.github/workflows/fresh-install.yml`, removes the runner's Homebrew and runs `setup/packages.sh`, so mise's own installer, the config-dir export and every package install are exercised. It always installs casks and extensions. Add the `package` adapter (status, and apply missing).
 
 Known gaps to close in this phase: `trash-cli` needs a PATH entry in place of `link: true` (`link = true` is a parse error in mise). `bin/ca-roots trim` runs Homebrew's own script, so `DOTFILES_TRIM_CA_ROOTS` does nothing on a Mac without Homebrew, and its help text says so. `bin/rea-mcp` and `setup/misc.sh` call `brew --prefix ghidra` and get a static path. `hunk` moves from 0.17.0 to the current release, and the git pager is checked against the tracked config. The 2 pkg casks and the 2 completion-generating casks each need an install test. `ghostty`'s man page is not linked. The `rustup` keg repair must be understood before the first real apply.
 
@@ -200,7 +200,7 @@ Known gaps to close in this phase: `trash-cli` needs a PATH entry in place of `l
 
 ### A6. Bootstrap entry point
 
-`setup.sh` becomes a short script: install mise if missing, check its version, create the `~/dotfiles` and `~/.config/mise` links, then run `mise bootstrap` from `$HOME`. `mise bootstrap --adopt` cannot use a repo subdirectory as the config dir, so the wrapper stays. `setup/misc.sh` keeps its name and is the one `[tasks.bootstrap]` (a second definition in another fragment silently replaces the first). `setup.sh` installs the packages itself, one manager at a time, warning and carrying on when one fails (mise has no continue-on-failure flag, and a failed part stops every later part). It then runs `mise bootstrap --skip macos-defaults,packages`, then `setup/dotfiles-extras.sh`. It refuses `--only`, which cannot be combined with `--skip`, and names the direct mise command. Touch ID for sudo is a `[bootstrap.files]` entry. `upup` gains a prune report that never prunes. `.claude/skills/validate-setup` and `.claude/rules/setup.md` are rewritten for the new order.
+`setup.sh` becomes a short script: install mise if missing, check its version, create the `~/dotfiles` and `~/.config/mise` links, then run `mise bootstrap` from `$HOME`. `mise bootstrap --adopt` cannot use a repo subdirectory as the config dir, so the wrapper stays. `setup/misc.sh` keeps its name and is the one `[tasks.bootstrap]` (a second definition in another fragment silently replaces the first). `setup.sh` installs the packages itself, one manager at a time, warning and carrying on when one fails (mise has no continue-on-failure flag, and a failed part stops every later part). It then runs `mise bootstrap --skip macos-defaults,packages`, then `setup/dotfiles-extras.sh`. It refuses `--only`, which cannot be combined with `--skip`, and names the direct mise command. Touch ID for sudo is a `[bootstrap.files]` entry. `sysup` gains a prune report that never prunes. `.claude/skills/validate-setup` and `.claude/rules/setup.md` are rewritten for the new order.
 
 ### A7. Agent tooling
 
@@ -224,10 +224,10 @@ Each phase rewrites every file below that describes what it changed. A phase is 
 
 | Behaviour change | Phase | Files |
 | --- | --- | --- |
-| Settings are changed in the UI; `~/.zsh.local` exports are seeds that an override beats | A1, A2 | `README.md` (the `~/.zsh.local` section and each knob's instructions), `setup/README.md`, `bin/upup` header, `.claude/rules/zsh.md`, `CLAUDE.md` |
+| Settings are changed in the UI; `~/.zsh.local` exports are seeds that an override beats | A1, A2 | `README.md` (the `~/.zsh.local` section and each knob's instructions), `setup/README.md`, `bin/sysup` header, `.claude/rules/zsh.md`, `CLAUDE.md` |
 | Machine-local mise files live in the clone and are gitignored | A1 | `CLAUDE.md` (machine-local config), `.gitignore` comment |
 | macOS preferences are TOML. mise never deletes a preference and never uses sudo for one | A3 | `.claude/rules/macos-defaults.md`, `docs/macos settings.md`, `setup/README.md`, `README.md` |
-| No Homebrew. No version pins for casks. Removing an entry needs `prune`. Casks mise installs are its own | A4 | `README.md` (install, "Make it yours"), `setup/README.md`, `.claude/skills/add-tool/SKILL.md`, `.claude/rules/upup.md`, `.claude/rules/telemetry-sync.md`, `.claude/rules/vscode.md`, `bin/CLAUDE.md`, `CLAUDE.md`, `docs/privacy.md`, `docs/gui/*.md` and `docs/rea.md` and `docs/mole.md` where they say `brew install`, `fonts/README.md`, `colors/README.md`, `vscode/README.md` |
+| No Homebrew. No version pins for casks. Removing an entry needs `prune`. Casks mise installs are its own | A4 | `README.md` (install, "Make it yours"), `setup/README.md`, `.claude/skills/add-tool/SKILL.md`, `.claude/rules/sysup.md`, `.claude/rules/telemetry-sync.md`, `.claude/rules/vscode.md`, `bin/CLAUDE.md`, `CLAUDE.md`, `docs/privacy.md`, `docs/gui/*.md` and `docs/rea.md` and `docs/mole.md` where they say `brew install`, `fonts/README.md`, `colors/README.md`, `vscode/README.md` |
 | Link conflicts stop the run; `--force` replaces with no backup; no prompt | A5 | `.claude/rules/symlinks.md`, `tilde/README.md`, `setup/README.md`, `firefox/README.md`, `README.md`, `CLAUDE.md` |
 | mise is installed first; `setup.sh` is a wrapper around `mise bootstrap`; a run is not a transaction; `~/dotfiles` is required; macOS preferences come from `set-defaults` only; without a `gh` sign-in, repeated runs can hit GitHub's anonymous limit | A6 | `README.md`, `setup/README.md`, `.claude/rules/setup.md`, `.claude/skills/validate-setup/SKILL.md`, `.claude/agents/docs-auditor.md`, `.claude/skills/docs-audit/SKILL.md`, `CLAUDE.md`, `.serena/memories/core.md` |
 | Agent settings are in the UI | A7 | `agents/README.md`, `.claude/rules/claude-config.md`, `tilde/.claude/rules/hindsight.md` |
@@ -243,28 +243,30 @@ Each phase rewrites every file below that describes what it changed. A phase is 
 - **A bootstrap run can stop half way.** Mitigation: every task and hook is safe to repeat, and the docs say to rerun.
 - **Session cost of the browser UI.** Any local page could try the WebSocket. Mitigation: loopback bind, random port, URL token, and a test that a request without the token is refused. Whether textual-serve checks the Origin header is unverified; A2 checks it and adds the check if absent.
 
-## Open decisions
+## Decisions
 
-Each has a default the plans already follow. Changing one means editing the named plan.
+The owner settled these on 2026-11-09. Where a choice differs from what a plan says, the plan named in brackets is updated before its phase is built.
 
-1. **Settled by the review: setup does not apply macOS preferences.** `setup.sh` passes `--skip macos-defaults` (A6), which keeps today's behaviour. A `mise bootstrap` run by hand without that flag does apply them.
-2. **Security opt-ins for macOS** (firewall, HiDPI, Time Machine, computer name) are flags of `setup/macos-extras.sh`, so they are not in the UI. Making them env settings would put them there (A3).
-3. **The Hindsight model settings are read-write but reach shells only.** An app-launched Claude Code reads its own copy in `agents/claude-settings.json`. The help text says so. Marking them read-only is the stricter choice (A2).
-4. **The browser page loads one stylesheet from `fonts.googleapis.com`** (textual-serve's template). Removing it means shipping our own copy of the template (A2).
-5. **Removing Homebrew at all** (B, Task 5). The new method never calls it either way.
-6. **The Codex config** is seeded with `copy` and `create_if_missing`, which drops the old warning about tracked lines the live file lacks. `merge = "missing"` would add those lines for real (A5).
-7. **`ask` permission rules** for `mise bootstrap*` and `mise dot apply` were added to `.claude/settings.json` by A3 and A5, replacing the guard on the deleted scripts.
-8. **Must `~/dotfiles` be required?** A5 writes sources as `~/dotfiles/...` and `setup.sh` stops when that path is not a link to the clone. The review measured that sources relative to the config file also work, which would keep the repo's rule that its location is never assumed, at the cost of link targets that read `~/.config/mise/conf.d/../../../<file>`. Default in the plans: `~/dotfiles` is required (A5, A6).
-9. **Four preference groups that used to ask now apply without asking** when `set-defaults` runs: screenshots, the Time Machine new-disk prompt, TextEdit and Software Update. This Mac already has them. Two switches, both in the settings UI, leave the screenshot folder and TextEdit alone. A managed Mac or a fork removes the Time Machine and Software Update tables (A3).
-10. **Shell completions for `flux` and `talosctl` are lost** when those move from tap formulae to mise tools. The docs give the two commands that regenerate them. A generation step is the alternative (A4).
-11. **`./setup.sh -- --upgrade` upgrades tools only**, because the bootstrap call skips packages. `upup` upgrades packages (A6).
+1. **Setup does not apply macOS preferences.** `setup.sh` passes `--skip macos-defaults` (A6), which keeps today's behaviour. A `mise bootstrap` run by hand without that flag does apply them.
+2. **The macOS security opt-ins are env settings in the UI** (firewall, HiDPI, Time Machine, computer name), not only flags of `setup/macos-extras.sh` (A3).
+3. **The Hindsight model settings are read-only in the UI.** They reach shells only, and an app-launched Claude Code reads its own copy in `agents/claude-settings.json`, so an editable field would mislead (A2).
+4. **The browser page makes no request to `fonts.googleapis.com`.** The repo ships its own copy of textual-serve's template without the stylesheet link, re-checked when textual-serve is upgraded (A2).
+5. **Homebrew is removed only after every Homebrew-managed app is reinstalled or adopted under the new method.** The removal task checks that nothing Homebrew installed is left outside mise's package state before it offers to run. The fresh-install workflow passing once and the owner's go-ahead in chat are still required (B, Task 5).
+6. **The Codex config is seeded with `merge = "missing"`** at mode 600: a missing file is created, and later applies add only keys the live file lacks. The tracked `[features] codex_hooks` line is deleted (a line NotchBar wrote that got committed; Codex 0.167.0 reports it as a legacy alias of `hooks`, which is on by default). The comments that say NotchBar and Jean are why the file is copied are corrected: setup's own `codex mcp add`, Hindsight and Codex write it on any Mac. Known limits: source comments are not carried over, and a key deleted on purpose returns on the next apply (A5).
+7. **The `ask` permission rules for `mise bootstrap*` and `mise dot apply` are kept, and added in the last phase** (A7), not by A3 and A5, so they do not slow the build. Until then the owner's go-ahead in chat guards both commands. The project's `.claude/settings.json` also gains allow rules for the routine read-only and scratch commands the build runs, a list the owner approves first.
+8. **`~/dotfiles` is required.** A5 writes sources as `~/dotfiles/...` and `setup.sh` stops when that path is not a link to the clone (A5, A6).
+9. **Each of the four preference groups that used to ask has a switch in the UI**: screenshots, the Time Machine new-disk prompt, TextEdit and Software Update. With a switch on, `set-defaults` applies the group without asking (A3).
+10. **Setup generates shell completions for `flux` and `talosctl`** after they move from tap formulae to mise tools, skipping a tool that is not installed (A4).
+11. **`./setup.sh -- --upgrade` upgrades packages as well as tools** (A6). `sysup` remains the command that upgrades everything, macOS included.
+12. **Open: whether the fresh-install workflow always installs casks and extensions.** A4 (P8) says always, A6 says a `casks` input exists. Research is under way.
+13. **`upup` is renamed `sysup`**, with no alias, before A2 is built.
 
 ## Corrections from planning
 
 - A1: one source of the override file in `.zshenv` loses to `zsh/env.zsh` and `~/.zsh.local` in an interactive shell. `mise env --dotenv` is not sourceable as printed.
 - A2: `VSCODE_FONT_PRESET` was never read from the environment. `GHIDRA_INSTALL_DIR` cannot be overridden. textual-serve checks neither a token nor the origin. The JSON contract lacked `choices`.
 - A3: the script has 91 `defaults write` lines, not 87, and not every non-sudo line can be declared. `setup.sh` never ran it.
-- A4: 13 bottle-less tap formulae are in the Brewfile, not 15. The registry names for `kubelogin` and `sentry` are different tools. `upup` must upgrade through mise in the same phase that drops Homebrew. The GitHub rate limit and `ca-roots trim` were missing.
+- A4: 13 bottle-less tap formulae are in the Brewfile, not 15. The registry names for `kubelogin` and `sentry` are different tools. `sysup` must upgrade through mise in the same phase that drops Homebrew. The GitHub rate limit and `ca-roots trim` were missing.
 - A5: `[bootstrap.files]` cannot make a symlink. A `symlink-each` over `~` is too slow to use. `~/dotfiles` becomes required.
 - A6: `--adopt` cannot take a subdirectory. mise must run from `$HOME`. Only one `[tasks.bootstrap]` can exist.
 - A7: no CLI sets the Claude Code model.

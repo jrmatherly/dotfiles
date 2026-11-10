@@ -4,7 +4,7 @@
 
 **Goal:** A new Mac goes from `git clone` to a finished setup with `./setup.sh`, which installs mise, links the repo's mise config, installs the packages and runs `mise bootstrap`. It never applies macOS preferences. Those stay with `set-defaults`.
 
-**Architecture:** `setup.sh` shrinks to a wrapper. It checks the Command Line Tools, links `~/dotfiles` and `~/.config/mise` into the clone, installs mise when missing, holds sudo, applies the packages one manager at a time (a failed package warns and the run goes on), runs `mise bootstrap --skip macos-defaults,packages` from `$HOME`, and then runs `setup/dotfiles-extras.sh`. `conf.d/50-bootstrap.toml` declares Touch ID for sudo, the login shell, a `pre-packages` hook for a bare `mise bootstrap`, a `pre-tools` hook that drops sudo, and one `[tasks.bootstrap]` that runs `setup/misc.sh`. `setup/misc.sh` keeps every step no declarative section covers. `upup` gains a prune report.
+**Architecture:** `setup.sh` shrinks to a wrapper. It checks the Command Line Tools, links `~/dotfiles` and `~/.config/mise` into the clone, installs mise when missing, holds sudo, applies the packages one manager at a time (a failed package warns and the run goes on), runs `mise bootstrap --skip macos-defaults,packages` from `$HOME`, and then runs `setup/dotfiles-extras.sh`. `conf.d/50-bootstrap.toml` declares Touch ID for sudo, the login shell, a `pre-packages` hook for a bare `mise bootstrap`, a `pre-tools` hook that drops sudo, and one `[tasks.bootstrap]` that runs `setup/misc.sh`. `setup/misc.sh` keeps every step no declarative section covers. `sysup` gains a prune report.
 
 **Tech Stack:** bash 3.2 (`/bin/bash`), mise 2026.11.5, TOML, the repo's stub-based self-checks.
 
@@ -13,14 +13,14 @@
 ## Global Constraints
 
 - Minimum mise version: 2026.11.5. Setup fails with a clear message below it.
-- The new method is Homebrew-free. Setup, `upup` and shell startup never call `brew`.
+- The new method is Homebrew-free. Setup, `sysup` and shell startup never call `brew`.
 - Part A never reads the old layout and carries no compatibility code for it.
 - Every task and hook is safe to repeat. A bootstrap run is not a transaction. Hooks and the `bootstrap` task run every time.
 - A closed stdin means "skip", never abort or overwrite.
 - Bash scripts start with `#!/bin/bash` and a header comment, define their output helpers inline, and pass `pnpm check`.
 - Commit subjects are short, imperative, sentence case, with no conventional-commit prefix.
 - Every phase updates the docs that describe what it changed, in the same commit (D12).
-- Never run `./setup.sh`, `mise bootstrap` without `--dry-run`, or `upup` yourself. Task 5 is the only place the real thing runs, and the user runs it.
+- Never run `./setup.sh`, `mise bootstrap` without `--dry-run`, or `sysup` yourself. Task 5 is the only place the real thing runs, and the user runs it.
 - Tests that isolate mise set `HOME` and `MISE_CONFIG_DIR` only. Never set `MISE_GLOBAL_CONFIG_FILE`.
 - Line numbers in this plan are from commit `9af6244`. An earlier phase may have moved them, so find each quoted sentence with `grep -n` before editing it.
 - A commit names its paths. No `git add -A`, no `git add .`, no bare directory. The working tree holds an unrelated change to `agents/claude-settings.json` that must stay out of every commit.
@@ -32,7 +32,7 @@
 2. `mise bootstrap` started inside the clone. Measured: the repo's `.nvmrc` (`lts/*`) adds `node@26` to the tools part. Expected: `setup.sh` always runs mise from `$HOME`. Pinned by `test-bootstrap` case a (`pwd=`).
 3. A mise older than 2026.11.5 already on PATH. Expected: A1's message naming the floor and the found version, and no bootstrap. Pinned by case e.
 4. A run without a terminal (CI, an agent shell). Expected: no `sudo -v` prompt, no Enter prompt, no `script` log, and the run still reaches `mise bootstrap`. Pinned by case a (`sudo.log` has no `-v`).
-5. Packages on the Mac that no config declares. Expected: `upup` names the count and the review command, and removes nothing. Pinned by the `only_dry_runs` assertion in Task 3.
+5. Packages on the Mac that no config declares. Expected: `sysup` names the count and the review command, and removes nothing. Pinned by the `only_dry_runs` assertion in Task 3.
 6. A rerun of `./setup.sh` on a configured Mac. Expected: no macOS preference is written and no app is quit. Pinned by case a (`--skip macos-defaults,packages`) and case b3 (`--only` is refused).
 7. One cask fails to install on a new Mac. Expected: a warning, and the run still links the dotfiles, sets the login shell and installs the tools. Pinned by case f2.
 8. `mise dotfiles apply` started from the settings UI. Expected: no sudo prompt, because `setup/dotfiles-extras.sh` is not a hook. Pinned by the static check that `50-bootstrap.toml` has no `post-dotfiles` line.
@@ -79,7 +79,7 @@
 | `--skip-brew` | Removed. It exits 1 and names the replacement, `./setup.sh -- --skip packages`. |
 | `-- <args>` | New. Everything after `--` goes to `mise bootstrap`, with three exceptions. `--skip <parts>` (or `--skip=<parts>`, repeatable) is merged into the one `--skip macos-defaults,<parts>,packages`. When `<parts>` names `packages`, `setup.sh` skips its own package step too. `--only` exits 1. `--dry-run` is also passed to the package step, and the plugin link and `setup/dotfiles-extras.sh` are left out. The two links and the mise install still happen. |
 
-**`upup` reports prune, it never prunes.** `mise bootstrap packages prune` removes every linked formula no config declares, including ones installed by hand. `upup` runs it with `--dry-run` and prints a notice with the command.
+**`sysup` reports prune, it never prunes.** `mise bootstrap packages prune` removes every linked formula no config declares, including ones installed by hand. `sysup` runs it with `--dry-run` and prints a notice with the command.
 
 ## Inventory
 
@@ -181,7 +181,7 @@ Totals for the 60 rows:
 
 - A1: `setup/mise-floor.sh` is the version check, called from `setup/misc.sh`. Task 1 moves the call to `setup.sh`. CI has `mise` 2026.11.5 and `uv` on PATH (`jdx/mise-action` with `install: false`), with no `~/.config/mise` link, so part two of `test-bootstrap` runs there.
 - A3: `tilde/.config/mise/conf.d/20-macos.toml` declares `[bootstrap.hooks]` `pre-defaults` and `post-defaults`. Measured: hooks from two fragments combine, and both hooks run only when the `macos-defaults` part runs. A3 adds the `ask` rule `Bash(mise bootstrap*)` to `.claude/settings.json` with its `test-conventions` assertion, and the `test-conventions` check that tracked `setup/*.sh` files are executable. A6 relies on both and adds neither.
-- A4: `conf.d/30-packages.toml` declares `brew:zsh`. `setup/packages.sh` installs mise with `curl -fsSL https://mise.run | sh`, exports `MISE_GITHUB_TOKEN` from `gh auth token` or warns, links the vscode plugin and applies packages one manager at a time (the vscode manager only when `code` exists, a warning per failed manager, exit 0), behind the `--skip-brew` flag. `setup/tests/packages.sh` tests it and `bin/lib/check` runs that test. A6 moves those behaviours into `setup.sh` and deletes the script, the test and the check line. `setup/misc.sh` already has `export PATH="$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"` in place of `brew shellenv`, so inventory row M2 is done. `upup` already has `mise self-update`, `packages` (status JSON compared before and after) and `packages status` steps, and exports `GITHUB_TOKEN` from `gh auth token`. A4 adds no hooks. `fresh-install.yml` applies packages piecewise with a `casks` input.
+- A4: `conf.d/30-packages.toml` declares `brew:zsh`. `setup/packages.sh` installs mise with `curl -fsSL https://mise.run | sh`, exports `MISE_GITHUB_TOKEN` from `gh auth token` or warns, links the vscode plugin and applies packages one manager at a time (the vscode manager only when `code` exists, a warning per failed manager, exit 0), behind the `--skip-brew` flag. `setup/tests/packages.sh` tests it and `bin/lib/check` runs that test. A6 moves those behaviours into `setup.sh` and deletes the script, the test and the check line. `setup/misc.sh` already has `export PATH="$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"` in place of `brew shellenv`, so inventory row M2 is done. `sysup` already has `mise self-update`, `packages` (status JSON compared before and after) and `packages status` steps, and exports `GITHUB_TOKEN` from `gh auth token`. A4 adds no hooks. `fresh-install.yml` applies packages piecewise with a `casks` input.
 - A5: `conf.d/40-dotfiles.toml` links `tilde/` with sources written `~/dotfiles/...`, so `~/dotfiles` must exist before the `dotfiles` part. A real directory at `~/.config/mise` makes `mise dot apply` refuse. A5 defines no task and no hook. It creates `setup/dotfiles-extras.sh` (git identity prompt, the two `sudo ln -s` links into `/usr/local/bin`, Firefox hard links, `bat cache --build`), safe to repeat, which the old `setup.sh` calls after `mise dotfiles apply --yes`. Measured here: when two fragments both define `[tasks.bootstrap]`, the later file wins silently, so `test-bootstrap` asserts there is exactly one.
 
 ## File Structure
@@ -195,7 +195,7 @@ Totals for the 60 rows:
 | `bin/lib/test-bootstrap` | Create. Stub-driven check of `setup.sh` and a dry-run parse of the real config. |
 | `bin/lib/check`, `bin/lib/test-conventions` | Wire the new check, drop the lines that run the two deleted tests, repoint the `tput` loop. |
 | `setup/tests/symlinks-backup.sh` | Delete. A5 left only its `link_config_dir` half, and `link_config_dir` goes (M4). |
-| `bin/upup`, `bin/lib/test-upup` | A `packages prune` report step. |
+| `bin/sysup`, `bin/lib/test-sysup` | A `packages prune` report step. |
 | `.claude/skills/validate-setup/SKILL.md`, `snapshot.sh`, `.claude/rules/setup.md` | Rewrite for the new order. |
 | Docs listed in Task 2 | Replace stale sentences. |
 | `setup/bootstrap-runtime.archify.json`, `setup/bootstrap-runtime.svg` | Regenerate. |
@@ -215,7 +215,7 @@ Totals for the 60 rows:
 
 - [ ] **Step 1: Write `bin/lib/test-bootstrap`**
 
-Header in the `bin/lib/test-upup` style. Part one never touches the machine. `HOME`, `STATE`, a stub `bin` and a fixture clone `$fix` live under `mktemp -d`, and `PATH` is `"$tmp/bin:/usr/bin:/bin"`. The fixture holds copies of the real `setup.sh` and `setup/mise-floor.sh`, an empty `tilde/.config/mise/`, and three executable stubs: `setup/dotfiles-extras.sh` (appends `ran` to `$STATE/extras.log`), `setup/dash.sh` and `bin/nyan` (both `exit 0`). A fixture is needed because `setup.sh` finds its helper scripts next to itself, and the real extras script must not run in a test. Stubs on PATH:
+Header in the `bin/lib/test-sysup` style. Part one never touches the machine. `HOME`, `STATE`, a stub `bin` and a fixture clone `$fix` live under `mktemp -d`, and `PATH` is `"$tmp/bin:/usr/bin:/bin"`. The fixture holds copies of the real `setup.sh` and `setup/mise-floor.sh`, an empty `tilde/.config/mise/`, and three executable stubs: `setup/dotfiles-extras.sh` (appends `ran` to `$STATE/extras.log`), `setup/dash.sh` and `bin/nyan` (both `exit 0`). A fixture is needed because `setup.sh` finds its helper scripts next to itself, and the real extras script must not run in a test. Stubs on PATH:
 
 ```bash
 stub mise 'case $1 in
@@ -232,7 +232,7 @@ stub xcode-select '[ ! -e "$STATE/no-clt" ]'
 stub curl 'echo "$*" >> "$STATE/curl.log"; echo "mkdir -p \"\$HOME/.local/bin\" && cp \"$STATE/mise-stub\" \"\$HOME/.local/bin/mise\""'
 ```
 
-Cases i and f2 add a `gh` stub (`auth token` prints `tok`) and a `code` stub (`exit 0`). No other case has them. Each case starts from an empty `HOME` and `STATE`, runs `"$fix/setup.sh" <args> < /dev/null` and asserts with `check_true`, as `test-upup` does. "The bootstrap line" is the one `mise.log` line whose `args=` starts with `bootstrap --` or is exactly `bootstrap`.
+Cases i and f2 add a `gh` stub (`auth token` prints `tok`) and a `code` stub (`exit 0`). No other case has them. Each case starts from an empty `HOME` and `STATE`, runs `"$fix/setup.sh" <args> < /dev/null` and asserts with `check_true`, as `test-sysup` does. "The bootstrap line" is the one `mise.log` line whose `args=` starts with `bootstrap --` or is exactly `bootstrap`.
 
 | Case | Setup | Assertions |
 | --- | --- | --- |
@@ -401,7 +401,7 @@ Expected: no output. `setup.sh` runs `setup/dotfiles-extras.sh` directly, and mi
 
 - [ ] **Step 8: Wire the check**
 
-In `bin/lib/check`, after the `test-upup` line:
+In `bin/lib/check`, after the `test-sysup` line:
 
 ```bash
 # setup.sh in a fixture clone against stubbed mise, sudo, gh and curl, then a dry-run of the tracked bootstrap config in a scratch HOME
@@ -421,7 +421,7 @@ Task 1 is verified on its own by the two runs above. It is not committed on its 
 ### Task 2: Docs and agent instructions for the new entry point
 
 **Files:**
-- Modify: `.github/workflows/fresh-install.yml`, `README.md`, `setup/README.md`, `CLAUDE.md`, `.claude/rules/setup.md`, `.claude/skills/validate-setup/SKILL.md`, `.claude/skills/validate-setup/snapshot.sh`, `.claude/agents/docs-auditor.md`, `docs/README.md`, `docs/rea.md`, `bin/dotfiles`, `bin/upup:210`, `.claude/skills/add-tool/SKILL.md`
+- Modify: `.github/workflows/fresh-install.yml`, `README.md`, `setup/README.md`, `CLAUDE.md`, `.claude/rules/setup.md`, `.claude/skills/validate-setup/SKILL.md`, `.claude/skills/validate-setup/snapshot.sh`, `.claude/agents/docs-auditor.md`, `docs/README.md`, `docs/rea.md`, `bin/dotfiles`, `bin/sysup:210`, `.claude/skills/add-tool/SKILL.md`
 
 **Interfaces:**
 - Consumes: Task 1's signature and environment.
@@ -442,7 +442,7 @@ Facts every edit must state where it applies: mise is installed first, by `setup
 | `README.md:105` | "If `/etc/pam.d/sudo_local` doesn't exist yet, it's created to enable Touch ID" | mise declares the file (content, mode, `root:wheel`) and rewrites it when any of them differs. |
 | `README.md`, the paragraph on `gh` near line 53 | "`setup/misc.sh` offers `gh auth login` later" | Keep, and add what is true about the token: `setup.sh` passes `MISE_GITHUB_TOKEN` to mise when `gh` is signed in and warns when it is not. One run fits the anonymous limit (about 20 of 60 API calls an hour). Several runs within an hour can hit it. Do not write that `gh` must be signed in first. |
 | `README.md:242` | `"$DOTFILES/setup.sh" --skip-brew # drop --skip-brew to also install new Brewfile entries` | `"$DOTFILES/setup.sh"`, with `-- --skip packages` to leave packages alone. |
-| `README.md:245` | "`setup.sh` installs what's missing but doesn't upgrade… the dependencies `brew bundle` upgrades on its own…" | Drop the `brew bundle` clause. Add that `./setup.sh -- --upgrade` upgrades the tools, and that packages upgrade through `upup`. |
+| `README.md:245` | "`setup.sh` installs what's missing but doesn't upgrade… the dependencies `brew bundle` upgrades on its own…" | Drop the `brew bundle` clause. Add that `./setup.sh -- --upgrade` upgrades the tools, and that packages upgrade through `sysup`. |
 | `setup/README.md:9` | "`../setup.sh` runs these in order: **brew → zsh → misc → symlinks**…" | The order: packages (applied by `setup.sh`, one manager at a time, a failure warns), then mise's parts from `mise bootstrap --help` without the two that are skipped: files, dotfiles, login shell, tools, the `bootstrap` task. Then `setup/dotfiles-extras.sh`. The new flag list, with the `--skip` merge and the refused `--only`. |
 | `setup/README.md:11` | "After its `sudo -v` it exports `DOTFILES_SUDO_KEPT=1`… Sudo is held only around the steps that use it…", as A5 left it | One span of sudo. The `pre-tools` hook and `misc.sh` drop it. `setup/dotfiles-extras.sh` runs after that and asks itself when a `/usr/local/bin` link is missing (keep A5's sentence). The `~/.config/mise` link and its failure message. |
 | `setup/README.md:15` | A3's sentence that macOS preferences are not part of the run | Still true. Add how: `setup.sh` passes `--skip macos-defaults`, which also drops the two hooks around that part. |
@@ -458,7 +458,7 @@ Facts every edit must state where it applies: mise is installed first, by `setup
 | `CLAUDE.md:52` | "**Setup order**: `brew.sh` must run first…a sudo keep-alive loop, and telemetry opt-out exports." | The whole bullet becomes: "- **Setup order**: mise is installed first and its part order is fixed. `setup.sh` installs packages itself first, so one failed package doesn't stop the run. What each step does is in `setup/README.md`; the constraints are in `.claude/rules/setup.md`." |
 | `CLAUDE.md:87` | "telemetry opt-outs live in both `setup.sh` and `zsh/env.zsh`" | Still true. Keep. |
 | `CLAUDE.md:89` | "Re-running `setup.sh` is the normal way to apply changes." | Keep, and append "A run is not a transaction: rerun after a failure." |
-| `docs/README.md:152`, `bin/dotfiles:4`, `bin/upup:210`, `docs/rea.md:48`, `.claude/skills/add-tool/SKILL.md:24` | "`setup.sh --skip-brew`" | "`setup.sh`". |
+| `docs/README.md:152`, `bin/dotfiles:4`, `bin/sysup:210`, `docs/rea.md:48`, `.claude/skills/add-tool/SKILL.md:24` | "`setup.sh --skip-brew`" | "`setup.sh`". |
 | `.claude/agents/docs-auditor.md:15` | "`tilde/.config/mise/config.toml`" in the repo-claims list | Add `tilde/.config/mise/conf.d/*.toml`. Add `mise bootstrap` to the forbidden list on line 16. |
 
 `.claude/rules/telemetry-sync.md` and `docs/privacy.md:24` say `setup.sh` exports the opt-outs for the install run. That stays true. Do not edit them.
@@ -482,7 +482,7 @@ Facts every edit must state where it applies: mise is installed first, by `setup
 - A run is not a transaction: a failed part leaves the earlier ones applied, and the fix is to rerun `./setup.sh`. Hooks and the task run on every bootstrap, so each `misc.sh` step checks state first and warns instead of failing.
 - Hooks run in mise's environment without `[tools]`; the task has them. In a global fragment `{{ config_root }}` is `$HOME`, so hooks and the task find the repo as `${DOTFILES:-$HOME/dotfiles}`.
 - Only one fragment may define `[tasks.bootstrap]`: a second definition replaces the first without a warning.
-- Order constraints in `misc.sh`: `claude-config restore` and the catalog run last so `npx skills` runs with the npm settings (`min-release-age`, `allow-git none`). After the tools part it links `<mise data dir>/node_modules/typescript` to the global `npm:typescript` (`upup` relinks it). `chmod +x` skips `*.md` so `bin/CLAUDE.md` stays non-executable.
+- Order constraints in `misc.sh`: `claude-config restore` and the catalog run last so `npx skills` runs with the npm settings (`min-release-age`, `allow-git none`). After the tools part it links `<mise data dir>/node_modules/typescript` to the global `npm:typescript` (`sysup` relinks it). `chmod +x` skips `*.md` so `bin/CLAUDE.md` stays non-executable.
 - `aspire certs trust` has no y/N prompt and macOS may ask for the password, so it is skipped when already trusted and only a hint when non-interactive.
 - `--skip-codegraph` must leave an existing CodeGraph install untouched, including its mise shim: `setup.sh` sets `MISE_DISABLE_TOOLS` for the run and `misc.sh` reshims once without it.
 - Every behavior change updates `setup/README.md` (and `README.md` for flags) in the same commit.
@@ -543,7 +543,7 @@ Task 1 Step 7 already staged the four deletions with `git rm`. Name every other 
 ```bash
 chmod 755 bin/lib/test-bootstrap
 git add setup.sh setup/misc.sh setup/README.md tilde/.config/mise/conf.d/50-bootstrap.toml \
-  bin/lib/test-bootstrap bin/lib/check bin/lib/test-conventions bin/dotfiles bin/upup \
+  bin/lib/test-bootstrap bin/lib/check bin/lib/test-conventions bin/dotfiles bin/sysup \
   .claude/rules/setup.md .claude/skills/validate-setup/SKILL.md .claude/skills/validate-setup/snapshot.sh \
   .claude/skills/add-tool/SKILL.md .claude/agents/docs-auditor.md \
   .github/workflows/fresh-install.yml README.md CLAUDE.md docs/README.md docs/rea.md
@@ -556,18 +556,18 @@ Expected: every line of `git status --short` that starts with a letter in the fi
 git commit -m "Make setup.sh a wrapper around mise bootstrap"
 ```
 
-### Task 3: Prune report in `upup`
+### Task 3: Prune report in `sysup`
 
-A4 already upgrades packages in `upup` through `mise bootstrap packages upgrade` and compares `packages status --json` before and after. What is left for A6 is the prune report.
+A4 already upgrades packages in `sysup` through `mise bootstrap packages upgrade` and compares `packages status --json` before and after. What is left for A6 is the prune report.
 
 **Files:**
-- Modify: `bin/upup` (after A4's `packages status` step), `bin/lib/test-upup`, `.claude/rules/upup.md`, `README.md` (the Updating list)
+- Modify: `bin/sysup` (after A4's `packages status` step), `bin/lib/test-sysup`, `.claude/rules/sysup.md`, `README.md` (the Updating list)
 
 **Interfaces:**
 - Consumes: `mise bootstrap packages prune --dry-run` prints one `remove <manager>:<name>@<version>` line per package and exits 0 (measured). With `-m brew-cask` it also prints `mise WARN  brew-cask:<name>: skipped: Homebrew owns this cask` lines, which are not removals (measured).
-- Produces: one `upup` step, `packages prune`.
+- Produces: one `sysup` step, `packages prune`.
 
-- [ ] **Step 1: Write the failing assertions in `bin/lib/test-upup`**
+- [ ] **Step 1: Write the failing assertions in `bin/lib/test-sysup`**
 
 Extend A4's `mise` stub: `bootstrap packages prune --dry-run` prints `remove brew:old@1.0` and `remove brew:older@0.9` when `$STATE/undeclared` exists, prints nothing otherwise, and exits 1 when `$STATE/prune-report-fails` exists. Record every `bootstrap packages prune` call's arguments in `$STATE/prune-args.log`.
 
@@ -575,34 +575,34 @@ Extend A4's `mise` stub: `bootstrap packages prune --dry-run` prints `remove bre
 check_true "up to date: nothing undeclared" has '^✔ packages prune +nothing undeclared$'
 check_true "undeclared: a notice with the command" has '^● packages prune +2 packages no config declares; review: mise bootstrap packages prune --dry-run$'
 only_dry_runs() { ! grep -v -- --dry-run "$STATE/prune-args.log" | grep -q .; }
-check_true "undeclared: upup never prunes" only_dry_runs
+check_true "undeclared: sysup never prunes" only_dry_runs
 check_true "prune report fails: fail line names the command" has '^✖ packages prune +run: mise bootstrap packages prune --dry-run$'
 ```
 
 - [ ] **Step 2: Run it to see it fail**
 
-Run: `bash bin/lib/test-upup`
+Run: `bash bin/lib/test-sysup`
 Expected: `FAIL: up to date: nothing undeclared`.
 
-- [ ] **Step 3: Implement `step "packages prune"` in `bin/upup`**
+- [ ] **Step 3: Implement `step "packages prune"` in `bin/sysup`**
 
 `capture mise bootstrap packages prune --dry-run`, then the same with `-m brew-cask`, and count the `^remove ` lines of both. Zero is `ok`, more is one `notice`, a non-zero exit is `fail`. The step never runs prune without `--dry-run`.
 
 - [ ] **Step 4: Run the test**
 
-Run: `bash bin/lib/test-upup`
+Run: `bash bin/lib/test-sysup`
 Expected: every line starts with `ok:`.
 
 - [ ] **Step 5: Docs**
 
-`.claude/rules/upup.md`: add to A4's packages bullet that prune is reported and never run, because it removes every formula no config declares. `README.md`, Updating list: one bullet for the report and the command that removes.
+`.claude/rules/sysup.md`: add to A4's packages bullet that prune is reported and never run, because it removes every formula no config declares. `README.md`, Updating list: one bullet for the report and the command that removes.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 pnpm check
-git add bin/upup bin/lib/test-upup .claude/rules/upup.md README.md
-git commit -m "Report undeclared packages in upup"
+git add bin/sysup bin/lib/test-sysup .claude/rules/sysup.md README.md
+git commit -m "Report undeclared packages in sysup"
 ```
 
 ### Task 4: Regenerate the setup diagram
@@ -616,7 +616,7 @@ git commit -m "Report undeclared packages in upup"
 
 - [ ] **Step 1: Edit the JSON**
 
-Set `meta.repository.revision` to `git rev-parse HEAD`. Remove the `brew`, `symlinks` and `homebrew` nodes and their edges. Add a `mise` node (`mise bootstrap`, sublabel `files · dotfiles · shell · tools · task`, source `tilde/.config/mise/conf.d/50-bootstrap.toml`) between `setup` and `misc`. The package step (`mise bootstrap packages apply`, one manager at a time) and `setup/dotfiles-extras.sh` are steps of the `setup` node, with `setup.sh` as their source. Repoint every `sources` entry to lines that exist now. The `system` node's sources become the `[bootstrap.files]` and `[bootstrap.user]` tables. Rewrite the cards: the primary path is `setup.sh → packages → mise bootstrap → setup/misc.sh → setup/dotfiles-extras.sh`, the trust card says sudo is held until the `pre-tools` hook and that macOS preferences are never applied, and the upup card says `mise bootstrap packages upgrade`.
+Set `meta.repository.revision` to `git rev-parse HEAD`. Remove the `brew`, `symlinks` and `homebrew` nodes and their edges. Add a `mise` node (`mise bootstrap`, sublabel `files · dotfiles · shell · tools · task`, source `tilde/.config/mise/conf.d/50-bootstrap.toml`) between `setup` and `misc`. The package step (`mise bootstrap packages apply`, one manager at a time) and `setup/dotfiles-extras.sh` are steps of the `setup` node, with `setup.sh` as their source. Repoint every `sources` entry to lines that exist now. The `system` node's sources become the `[bootstrap.files]` and `[bootstrap.user]` tables. Rewrite the cards: the primary path is `setup.sh → packages → mise bootstrap → setup/misc.sh → setup/dotfiles-extras.sh`, the trust card says sudo is held until the `pre-tools` hook and that macOS preferences are never applied, and the sysup card says `mise bootstrap packages upgrade`.
 
 - [ ] **Step 2: Validate and finalize**
 
