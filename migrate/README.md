@@ -24,11 +24,43 @@ Each step below prints `nothing to migrate yet` until its own change lands.
 
 ### env
 
-Not written yet. Its phases, A1 and A2, have landed.
+Turns the `~/.zsh.local` exports of registered settings into mise overrides. It never edits `~/.zsh.local`.
+
+The registered keys are those of every `[[setting]]` in `settings/registry.toml` with `kind = "env"` whose `access` is not `"ro"`. Without the registry the step refuses with exit 3. With no `~/.zsh.local`, or one that exports neither a registered key nor a retired name, it prints `nothing to migrate`.
+
+A value is read as text from the last `export KEY=` line, never by running the file. Three forms are accepted, each optionally followed by spaces and a `# comment`: `'…'` with no `'` inside, `"…"` with none of `"`, `$`, `` ` `` or `\` inside, and a plain word of `A-Z a-z 0-9 _ . / : @ % + , = ~ -` that does not start with `~`. A value holding `$` is refused in every form, because mise expands `$` in `[env]` values. A value in any other form is skipped with the command to set it by hand: `mise set --override KEY=<value>`.
+
+For each registered key with an export it reads the current override (`mise set --file ~/.config/mise/config.override.toml KEY`). A matching override prints `KEY: already an override`. With none it asks to make the value an override. With a different one it prints both values and asks to replace it. The override file is copied to the backup folder before the first write, and each write is `mise set --override "KEY=VALUE"`, run from `$HOME`.
+
+It names exports the new setup no longer reads, once the phase that retired them is here: `DOTFILES_MACOS_YES` and `DOTFILES_MACOS_NO` (with `macos`) and any `HOMEBREW_*` (with `packages`) get "delete its line yourself". The old script's prompt variables `COMPUTERNAME` and `LOCALHOSTNAME` (with `macos`) point at `dotfiles-settings set macos.computer_name <name>` and `macos.local_hostname <host>`. Nothing is written for them.
+
+When at least one override was written or already matched, it ends with:
+
+```text
+~/.zsh.local was not edited. Its export lines stay as seeds.
+An override beats the seed: while KEY has an override, editing ~/.zsh.local does not change KEY.
+Undo one with: mise unset --override KEY
+```
 
 ### macos
 
-Not written yet. Its phase, A3, has landed.
+Reports only and changes nothing. From `mise bootstrap macos defaults status --json` it prints `macOS defaults: <a> set, <b> differ, <c> unset.` and one line per entry that differs or is unset, as `<domain> <key> <path>: wants <value>, has <current>` (the dotted `path` only for a value inside a dictionary preference, and `nothing` for no current value).
+
+It then lists the leftovers: preferences the old script set only when asked, which the new setup offers as `config.local.toml` opt-ins: `com.apple.dock` `autohide-delay` and `autohide-time-modifier`, `com.apple.LaunchServices LSQuarantine`, and `com.apple.frameworks.diskimages` `skip-verify`, `skip-verify-locked` and `skip-verify-remote`. One is listed only when `defaults read` finds it and no status entry has its domain and key. A declared one is never a leftover. Each line gives both ways out: declare it in `config.local.toml` (the comment at the top of `conf.d/20-macos.toml` shows the table), or `defaults delete <domain> <key>`.
+
+Two switches are on by default where the old script asked first, and each gets a warning while it is still at its default (not exported in the shell and no override; an empty value means switched off):
+
+- **Time Machine.** When backups are on (`AutoBackup` reads something other than `0`, or `tmutil destinationinfo` names a destination), it warns that `set-defaults` now turns them off and gives `dotfiles-settings set macos.disable_time_machine off`. Run that before `set-defaults`, or the backups stop.
+- **Firewall.** When `socketfilterfw --getglobalstate` shows it off, it says `set-defaults` turns it on with stealth mode and asks for the password, and gives `dotfiles-settings set macos.firewall off` to leave it off.
+
+It ends with:
+
+```text
+Nothing was changed. The old script already wrote these preferences.
+To write the declared values, run: set-defaults
+mise never deletes a preference. One the old script set that no config declares stays as it is.
+Declare it in config.local.toml to keep it on purpose, or run its defaults delete command.
+```
 
 ### packages
 

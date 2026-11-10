@@ -139,8 +139,159 @@ phase_marker() {
 }
 phase_present() { [ -e "$REPO/$(phase_marker "$1")" ]; }
 
-step_env() { info "nothing to migrate yet"; }
-step_macos() { info "nothing to migrate yet"; }
+OVERRIDE="$HOME/.config/mise/config.override.toml"
+
+# The key of each [[setting]] in the registry with kind = "env" that is not read-only
+registered_env_keys() {
+  awk '
+    function flush() { if (kind == "env" && access != "ro" && key != "") print key; kind = ""; key = ""; access = "" }
+    /^\[/ { flush() }
+    /^[ \t]*(kind|key|access)[ \t]*=/ {
+      name = $0; sub(/^[ \t]*/, "", name); sub(/[ \t]*=.*/, "", name)
+      value = $0; sub(/^[^=]*=[ \t]*"/, "", value); sub(/".*/, "", value)
+      if (name == "kind") kind = value; else if (name == "key") key = value; else access = value
+    }
+    END { flush() }
+  ' "$REPO/settings/registry.toml"
+}
+
+# zsh_local_value <KEY>: the value of the last `export KEY=` line in ~/.zsh.local, read as
+# text, never run. 1: no such line. 2: not '…', "…" or a plain word, or it holds a $ (mise expands it)
+zsh_local_value() {
+  local line rest tail='([[:space:]]+(#.*)?)?$' sq dq bare
+  sq="^'([^']*)'$tail"
+  dq='^"([^"$`\\]*)"'"$tail"
+  bare="^([A-Za-z0-9_./:@%+,=-][A-Za-z0-9_./:@%+,=~-]*)?$tail"
+  line=$(grep -E "^[[:space:]]*export[[:space:]]+$1=" "$HOME/.zsh.local" 2> /dev/null | tail -1 || true)
+  [ -n "$line" ] || return 1
+  rest=$(sed -E "s/^[[:space:]]*export[[:space:]]+$1=//" <<< "$line")
+  if [[ $rest =~ $sq ]] || [[ $rest =~ $dq ]] || [[ $rest =~ $bare ]]; then
+    [[ ${BASH_REMATCH[1]} != *'$'* ]] || return 2
+    printf '%s\n' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  return 2
+}
+
+# retired_hint <NAME>: what to do about an export the new setup no longer reads, once its phase is here
+retired_hint() {
+  case $1 in
+    DOTFILES_MACOS_YES | DOTFILES_MACOS_NO) phase_present macos && echo "Delete its line from ~/.zsh.local yourself." ;;
+    HOMEBREW_*) phase_present packages && echo "Delete its line from ~/.zsh.local yourself." ;;
+    COMPUTERNAME) phase_present macos && echo "Set it with: dotfiles-settings set macos.computer_name <name>" ;;
+    LOCALHOSTNAME) phase_present macos && echo "Set it with: dotfiles-settings set macos.local_hostname <host>" ;;
+  esac
+}
+
+# The override of <KEY>, exit 1 when it has none. mise is not asked about a file that does not exist
+read_override() { [ -f "$OVERRIDE" ] && mise set --file "$OVERRIDE" "$1" 2> /dev/null; }
+
+step_env() {
+  local names key value rc current hint found='' retired='' overrides=0 backed=false
+  [ -f "$REPO/settings/registry.toml" ] || refuse "refusing env: settings/registry.toml is not in this checkout (phase A2)"
+  names=$(sed -nE 's/^[[:space:]]*export[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)=.*/\1/p' "$HOME/.zsh.local" 2> /dev/null | sort -u || true)
+  while read -r key; do
+    ! grep -qxF "$key" <<< "$names" || found+="$key"$'\n'
+  done < <(registered_env_keys)
+  while read -r key; do
+    hint=$(retired_hint "$key" || true)
+    [ -z "$hint" ] || retired+="$key: retired, no longer read. $hint"$'\n'
+  done <<< "$names"
+  if [ -z "$found" ] && [ -z "$retired" ]; then
+    info "nothing to migrate"
+    return 0
+  fi
+  while read -r key <&3; do
+    [ -n "$key" ] || continue
+    rc=0
+    value=$(zsh_local_value "$key") || rc=$?
+    if [ "$rc" != 0 ]; then
+      info "$key: cannot read its value safely. Set it yourself: mise set --override $key=<value>"
+      continue
+    fi
+    if current=$(read_override "$key"); then
+      if [ "$current" = "$value" ]; then
+        info "$key: already an override"
+        overrides=$((overrides + 1))
+        continue
+      fi
+      info "$key: the override is $current, ~/.zsh.local has $value"
+      ask "Replace the override for $key?" || continue
+    else
+      ask "Make $key=$value from ~/.zsh.local an override?" || continue
+    fi
+    if [ "$backed" = false ] && [ -f "$OVERRIDE" ]; then backup_copy "$OVERRIDE"; fi
+    backed=true
+    # From $HOME: an untrusted mise.toml in the current directory would fail the write
+    cd "$HOME"
+    run mise set --override "$key=$value" || fail "mise could not set the override for $key."
+    cd - > /dev/null
+    overrides=$((overrides + 1))
+  done 3<<< "$found"
+  printf '%s' "$retired"
+  [ "$overrides" = 0 ] || cat << 'EOF'
+~/.zsh.local was not edited. Its export lines stay as seeds.
+An override beats the seed: while KEY has an override, editing ~/.zsh.local does not change KEY.
+Undo one with: mise unset --override KEY
+EOF
+}
+
+# Set by the old script only on an opt-in; A3 documents them as config.local.toml opt-ins
+MACOS_LEFTOVERS=(
+  "com.apple.dock autohide-delay"
+  "com.apple.dock autohide-time-modifier"
+  "com.apple.LaunchServices LSQuarantine"
+  "com.apple.frameworks.diskimages skip-verify"
+  "com.apple.frameworks.diskimages skip-verify-locked"
+  "com.apple.frameworks.diskimages skip-verify-remote"
+)
+
+# switch_at_default <VAR>: neither set in this environment nor an override. An empty value is "off"
+switch_at_default() { [ -z "${!1+x}" ] && ! read_override "$1" > /dev/null; }
+
+# Read without sudo, as setup/macos-extras.sh does. A read that fails is not "on"
+time_machine_on() {
+  local v
+  v=$(defaults read /Library/Preferences/com.apple.TimeMachine AutoBackup 2> /dev/null || true)
+  if [ -n "$v" ] && [ "$v" != 0 ]; then return 0; fi
+  v=$(tmutil destinationinfo 2> /dev/null || true)
+  [ -n "$v" ] && [[ $v != *"No destinations configured"* ]]
+}
+
+# Reports only: the old script already wrote these preferences, and set-defaults writes the declared ones
+step_macos() {
+  local status pair domain key fw
+  status=$(mise bootstrap macos defaults status --json) \
+    || fail 'mise could not report the macOS defaults ("mise bootstrap macos defaults status --json" failed).'
+  /usr/bin/jq -r '[.macos_defaults.entries[]?.state] as $s | def n(x): [$s[] | select(. == x)] | length;
+    "macOS defaults: \(n("set")) set, \(n("differs")) differ, \(n("unset")) unset."' <<< "$status"
+  /usr/bin/jq -r '.macos_defaults.entries[]? | select(.state == "differs" or .state == "unset")
+    | "\(.domain) \(.key)\(if .path then " " + (.path | join(".")) else "" end): wants \(.value | if type == "string" then . else tojson end), has \(if (.current // "") == "" then "nothing" else .current end)"' <<< "$status"
+  for pair in "${MACOS_LEFTOVERS[@]}"; do
+    read -r domain key <<< "$pair"
+    defaults read "$domain" "$key" > /dev/null 2>&1 || continue
+    # One the status lists is declared on purpose, so not a leftover
+    if /usr/bin/jq -e --arg d "$domain" --arg k "$key" 'any(.macos_defaults.entries[]?; .domain == $d and .key == $k)' <<< "$status" > /dev/null; then continue; fi
+    info "$domain $key: set by the old script, not declared now. To keep it, declare it in config.local.toml (the comment at the top of conf.d/20-macos.toml shows the table). To drop it: defaults delete $domain $key"
+  done
+  if switch_at_default DOTFILES_MACOS_DISABLE_TIME_MACHINE && time_machine_on; then
+    cat << 'EOF'
+Time Machine backups are on here. set-defaults now turns them off unless told not to (the old script asked first).
+To keep your backups, run this before set-defaults: dotfiles-settings set macos.disable_time_machine off
+EOF
+  fi
+  fw=$(command -v socketfilterfw || echo /usr/libexec/ApplicationFirewall/socketfilterfw)
+  # State 2 (block all) is on too, as setup/macos-extras.sh reads it
+  if switch_at_default DOTFILES_MACOS_FIREWALL && [[ "$("$fw" --getglobalstate 2> /dev/null || true)" != *"State = "[1-9]* ]]; then
+    info "The firewall is off here. set-defaults now turns it on with stealth mode and asks for your password. To leave it off: dotfiles-settings set macos.firewall off"
+  fi
+  cat << 'EOF'
+Nothing was changed. The old script already wrote these preferences.
+To write the declared values, run: set-defaults
+mise never deletes a preference. One the old script set that no config declares stays as it is.
+Declare it in config.local.toml to keep it on purpose, or run its defaults delete command.
+EOF
+}
 # The seven formulae A4 moved to [tools], as the prune dry-run names them (the Brewfile that listed them is gone)
 MOVED_TO_TOOLS=(azd azure-functions-core-tools@4 flux hunk kubelogin lazydocker talosctl)
 APPDIR="${MIGRATE_APPDIR:-/Applications}"

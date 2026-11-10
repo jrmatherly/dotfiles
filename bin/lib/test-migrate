@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Self-check for migrate/legacy-to-mise against a scratch HOME and stubbed brew, mise, claude, curl and pgrep.
+# Self-check for migrate/legacy-to-mise against a scratch HOME and stubbed brew, mise, claude, curl, pgrep, defaults, tmutil and socketfilterfw.
 #
 # - Run it (pnpm check does too); exits 1 naming the first failed assertion:
 #
@@ -22,7 +22,8 @@ tmp=$(cd "$(mktemp -d)" && pwd -P)
 trap 'rm -rf "$tmp"' EXIT
 
 export HOME="$tmp/home" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/prefix" PATH="$tmp/bin:/usr/bin:/bin"
-unset HOMEBREW_NO_ANALYTICS MISE_CONFIG_DIR
+# The override cache may export the two switches into the shell that runs pnpm check
+unset HOMEBREW_NO_ANALYTICS MISE_CONFIG_DIR DOTFILES_MACOS_DISABLE_TIME_MACHINE DOTFILES_MACOS_FIREWALL
 REPO_COPY="$tmp/repo"
 mkdir -p "$HOME/.config" "$STATE" "$HOMEBREW_PREFIX" "$tmp/bin" "$REPO_COPY/tilde/.config/mise/conf.d" "$REPO_COPY/settings"
 cp -R "$src" "$REPO_COPY/migrate"
@@ -64,6 +65,18 @@ case "$*" in
     jq --arg t "$t" "(.\"brew-cask\".packages[] | select(.package == \$t)) |= (.state = \"installed\" | .managed_by = \"mise\")" "$STATE/status.json" > "$STATE/s" && mv "$STATE/s" "$STATE/status.json"
     while read -r a; do mkdir -p "$MIGRATE_APPDIR/$a"; done < <(cat "$STATE/apps/$t" 2> /dev/null)
     ;;
+  "set --file "*) # set --file <file> KEY: prints $STATE/override/KEY, exit 1 when absent
+    for key; do :; done
+    if [ -f "$STATE/override/$key" ]; then cat "$STATE/override/$key"; else exit 1; fi
+    ;;
+  "set --override "*) # set --override KEY=VALUE, one argument; the real one writes the override file
+    [ $# = 3 ] || { echo "set --override got $# args" >&2; exit 9; }
+    kv=$3
+    mkdir -p "$STATE/override"
+    printf "%s\n" "${kv#*=}" > "$STATE/override/${kv%%=*}"
+    touch "$HOME/.config/mise/config.override.toml"
+    ;;
+  "bootstrap macos defaults status --json") cat "$STATE/defaults.json" ;;
 esac'
 stub brew 'echo "brew $*" >> "$STATE/brew.log"
 [ "${HOMEBREW_NO_ANALYTICS:-}" = 1 ] || { echo "brew ran without HOMEBREW_NO_ANALYTICS=1" >&2; exit 97; }
@@ -102,7 +115,15 @@ stub pgrep '[ -e "$STATE/running" ] || exit 1
 for last; do :; done
 while read -r name; do case $last in *"$name"*) exit 0 ;; esac; done < "$STATE/running"
 exit 1'
-for tool in mise brew claude curl pgrep; do
+stub defaults 'case "$*" in
+  "read com.apple.dock autohide-delay" | "read com.apple.dock autohide-time-modifier") echo 0.2 ;;
+  "read /Library/Preferences/com.apple.TimeMachine AutoBackup") if [ -e "$STATE/tm-on" ]; then echo 1; else exit 1; fi ;;
+  "read "*) exit 1 ;;
+  *) echo "defaults $*" >> "$STATE/defaults.log" ;;
+esac'
+stub tmutil 'echo "tmutil: No destinations configured."'
+stub socketfilterfw 'if [ -e "$STATE/fw-off" ]; then echo "Firewall is disabled. (State = 0)"; else echo "Firewall is enabled. (State = 1)"; fi'
+for tool in mise brew claude curl pgrep defaults tmutil socketfilterfw; do
   [ "$(command -v "$tool")" = "$tmp/bin/$tool" ] || fail "$tool resolves to $(command -v "$tool"), not the stub"
 done
 # The script appends /usr/sbin to PATH, so none of these system folders may hold a real one
@@ -133,6 +154,30 @@ echo '{"casks":[{"artifacts":[{"app":["Freelens.app"]}]}]}' > "$STATE/cask-info/
 echo Ghostty.app > "$STATE/apps/ghostty"
 echo UTM.app > "$STATE/apps/utm"
 echo Freelens.app > "$STATE/apps/freelens"
+echo '{"macos_defaults":{"available":true,"entries":[]}}' > "$STATE/defaults.json"
+cat > "$REPO_COPY/settings/registry.toml" << 'EOF'
+[[setting]]
+id = "updates.trim_ca_roots"
+kind = "env"
+key = "DOTFILES_TRIM_CA_ROOTS"
+access = "rw"
+
+[[setting]]
+access = "rw"
+choices = []
+key = "DOTFILES_MAC_PASSWORD_OP"
+kind = "env"
+
+[[setting]]
+kind = "env"
+key = "DOTNET_CLI_TELEMETRY_OPTOUT"
+access = "ro"
+
+[[setting]]
+kind = "tool"
+key = "NOT_ENV"
+access = "rw"
+EOF
 
 phase() {
   local marker
@@ -209,6 +254,165 @@ helpers_back_up_before_replacing() {
   MIGRATE_SELFTEST="$REPO_COPY/migrate/legacy-to-mise" "$script" > /dev/null 2>&1 && fail "backed up a file inside the clone" || true
   [ -f "$REPO_COPY/migrate/legacy-to-mise" ] || fail "the clone's script was moved"
   rm -rf "$HOME/.dotfiles-migration-backup" "$HOME/victim"
+}
+env_refuses_without_registry() {
+  phase env
+  mv "$REPO_COPY/settings/registry.toml" "$tmp/reg"
+  "$script" --step env > /dev/null 2>&1 && fail "env ran without the registry" || [ $? = 3 ] || fail "env without registry: want exit 3"
+  mv "$tmp/reg" "$REPO_COPY/settings/registry.toml"
+}
+env_value_forms() {
+  local want got rc line
+  eval "$(sed -n '/^zsh_local_value()/,/^}/p' "$script")"
+  # want<TAB>line: 1 no export, 2 not an accepted form, otherwise "0 <value>"; the last export wins
+  while IFS=$'\t' read -r want line; do
+    printf '%s\n' 'export K=earlier' "$line" > "$HOME/.zsh.local"
+    rc=0
+    got=$(zsh_local_value K) || rc=$?
+    [ "$rc" = 0 ] && got="0 $got" || got=$rc
+    [ "$got" = "$want" ] || fail "zsh_local_value on [$line]: got [$got], want [$want]"
+  done << 'EOF'
+0 a b "c"	export K='a b "c"'  # note
+0 a b 'c'	export K="a b 'c'"
+0 op://x/y@z:1,2+3%4=5~6-7.	export K=op://x/y@z:1,2+3%4=5~6-7.
+0 1	  export K=1 # comment
+0 	export K=''
+0 	export K=
+0 later	export K=later
+2	export K=~/x
+2	export K=a$b
+2	export K='a$b'
+2	export K="$HOME"
+2	export K="a`b`"
+2	export K="a\b"
+2	export K="a"b
+2	export K='a'#b
+2	export K=a b
+2	export K=a;b
+0 earlier	# export K=commented
+0 earlier	KK=1
+EOF
+  printf '%s\n' 'K=x' 'export KK=y' '# export K=z' > "$HOME/.zsh.local"
+  rc=0
+  zsh_local_value K > /dev/null || rc=$?
+  [ "$rc" = 1 ] || fail "zsh_local_value with no export of K: exit $rc, want 1"
+  rm "$HOME/.zsh.local"
+}
+env_quoting() {
+  cat > "$HOME/.zsh.local" << 'EOF'
+export DOTFILES_MAC_PASSWORD_OP='op://Private/Mac login/pass "q"'  # note
+export DOTFILES_TRIM_CA_ROOTS=1
+export DOTNET_CLI_TELEMETRY_OPTOUT=0
+export NOT_ENV=x
+export UNREGISTERED="y"
+EOF
+  zsh_local_before=$(cksum < "$HOME/.zsh.local")
+  out=$(yes | "$script" --step env 2>&1) || fail "env: exit $?: $out"
+  [ "$(cat "$STATE/override/DOTFILES_MAC_PASSWORD_OP")" = 'op://Private/Mac login/pass "q"' ] || fail "value with spaces and quotes was changed"
+  [ "$(cat "$STATE/override/DOTFILES_TRIM_CA_ROOTS")" = 1 ] || fail "bare value not written"
+  [ ! -e "$STATE/override/DOTNET_CLI_TELEMETRY_OPTOUT" ] || fail "wrote a read-only setting"
+  [ ! -e "$STATE/override/NOT_ENV" ] && [ ! -e "$STATE/override/UNREGISTERED" ] || fail "wrote an unregistered key"
+  [ "$(cksum < "$HOME/.zsh.local")" = "$zsh_local_before" ] || fail "$HOME/.zsh.local was edited"
+  check_out "explains seed and override" 'An override beats the seed'
+}
+env_second_run_changes_nothing() {
+  before=$(snapshot)
+  : > "$STATE/mise.log"
+  out=$(yes | "$script" --step env 2>&1) || fail "env rerun: exit $?"
+  [ "$(snapshot)" = "$before" ] || fail "env rerun changed something"
+  [ -z "$(mutations)" ] || fail "env rerun made mutating calls: $(mutations)"
+  check_out "says already" 'DOTFILES_TRIM_CA_ROOTS: already an override'
+}
+env_unsafe_values_are_skipped() {
+  rm -rf "$STATE/override"
+  printf '%s\n' 'export DOTFILES_MAC_PASSWORD_OP="$(op read x)"' "export DOTFILES_TRIM_CA_ROOTS='a\$b'" > "$HOME/.zsh.local"
+  out=$(yes | "$script" --step env 2>&1) || fail "env unsafe: exit $?"
+  [ ! -e "$STATE/override" ] || fail "wrote a value it could not read safely"
+  check_out "gives the manual command" 'mise set --override DOTFILES_MAC_PASSWORD_OP=<value>'
+}
+env_names_retired_knobs() {
+  phase macos
+  printf '%s\n' 'export DOTFILES_MACOS_NO=1' "export COMPUTERNAME='Old Mac'" 'export LOCALHOSTNAME=old-mac' 'export HOMEBREW_NO_AUTO_UPDATE=1' > "$HOME/.zsh.local"
+  out=$("$script" --step env < /dev/null 2>&1) || fail "env retired names: exit $?"
+  check_out "names a dead knob" '^DOTFILES_MACOS_NO: retired, no longer read'
+  check_out "points the old prompt variable at its setting" '^COMPUTERNAME: retired, no longer read\. Set it with: dotfiles-settings set macos\.computer_name'
+  check_out "and the hostname one" '^LOCALHOSTNAME: retired, no longer read\. Set it with: dotfiles-settings set macos\.local_hostname <host>$'
+  ! grep -q 'HOMEBREW_NO_AUTO_UPDATE' <<< "$out" || fail "called a HOMEBREW_ export retired before its phase"
+  phase packages
+  out=$("$script" --step env < /dev/null 2>&1) || fail "env retired names, packages phase: exit $?"
+  check_out "a HOMEBREW_ export is retired with the packages phase" '^HOMEBREW_NO_AUTO_UPDATE: retired, no longer read\. Delete its line from ~/\.zsh\.local yourself\.$'
+  [ ! -e "$STATE/override" ] || fail "wrote an override for a retired name"
+}
+env_dry_run_and_closed_stdin_change_nothing() {
+  printf '%s\n' 'export DOTFILES_TRIM_CA_ROOTS=1' > "$HOME/.zsh.local"
+  for how in "--dry-run" ""; do
+    before=$(snapshot)
+    : > "$STATE/mise.log"
+    # shellcheck disable=SC2086 # $how is one flag or nothing
+    out=$("$script" --step env $how < /dev/null 2>&1) || fail "env $how: exit $?"
+    [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] || fail "env $how with closed stdin changed something"
+    if [ -n "$how" ]; then check_out "--dry-run shows the question" '^would ask: Make DOTFILES_TRIM_CA_ROOTS=1 from ~/\.zsh\.local an override\?$'; fi
+  done
+}
+env_backs_up_override_before_replacing() {
+  mkdir -p "$STATE/override"
+  echo 0 > "$STATE/override/DOTFILES_TRIM_CA_ROOTS"
+  echo '[env]' > "$REPO_COPY/tilde/.config/mise/config.override.toml"
+  out=$(yes | "$script" --step env 2>&1) || fail "env replace: exit $?"
+  check_out "shows both values" '^DOTFILES_TRIM_CA_ROOTS: the override is 0, ~/\.zsh\.local has 1$'
+  [ "$(cat "$STATE/override/DOTFILES_TRIM_CA_ROOTS")" = 1 ] || fail "override not replaced"
+  ls "$HOME"/.dotfiles-migration-backup/*/files"$HOME"/.config/mise/config.override.toml > /dev/null 2>&1 || fail "override file not backed up before the write"
+  rm -rf "$HOME/.dotfiles-migration-backup" "$HOME/.zsh.local" "$STATE/override"
+}
+macos_reports_only() {
+  phase macos
+  cat > "$STATE/defaults.json" << 'EOF'
+{"macos_defaults":{"available":true,"entries":[
+ {"domain":"com.apple.dock","host":"any","path":null,"key":"autohide","value":true,"current":"true","state":"set"},
+ {"domain":"com.apple.dock","host":"any","path":null,"key":"autohide-time-modifier","value":0.5,"current":"0.5","state":"set"},
+ {"domain":"com.apple.dock","host":"any","path":null,"key":"tilesize","value":48,"current":"64","state":"differs"},
+ {"domain":"com.apple.finder","host":"any","path":["IconViewSettings","arrangeBy"],"key":"DesktopViewSettings","value":"grid","current":"name","state":"differs"},
+ {"domain":"com.apple.finder","host":"any","path":["IconViewSettings","iconSize"],"key":"DesktopViewSettings","value":48.0,"current":"48","state":"set"},
+ {"domain":"NSGlobalDomain","host":"any","path":null,"key":"KeyRepeat","value":2,"current":"","state":"unset"}]}}
+EOF
+  before=$(snapshot)
+  : > "$STATE/mise.log"
+  for how in "" "--dry-run"; do
+    # shellcheck disable=SC2086 # $how is one flag or nothing
+    out=$(yes | "$script" --step macos $how 2>&1) || fail "macos $how: exit $?"
+    check_out "counts" '^macOS defaults: 3 set, 2 differ, 1 unset\.$'
+    check_out "lists the differing one" '^com\.apple\.dock tilesize: wants 48, has 64$'
+    check_out "names the dictionary path" '^com\.apple\.finder DesktopViewSettings IconViewSettings\.arrangeBy: wants grid, has name$'
+    check_out "lists the unset one" '^NSGlobalDomain KeyRepeat: wants 2, has nothing$'
+    check_out "names the leftover that is present" '^com\.apple\.dock autohide-delay: set by the old script.*config\.local\.toml.*defaults delete com\.apple\.dock autohide-delay$'
+    ! grep -q 'LSQuarantine' <<< "$out" || fail "listed a leftover that is not set"
+    ! grep -q '^com\.apple\.dock autohide-time-modifier: set by the old script' <<< "$out" || fail "called a declared preference a leftover"
+    ! grep -qE '^com\.apple\.(dock autohide|finder DesktopViewSettings IconViewSettings\.iconSize):' <<< "$out" || fail "listed an entry that is set"
+    check_out "states the no-delete rule" 'mise never deletes a preference'
+    check_out "names the command that writes them" '^To write the declared values, run: set-defaults$'
+    check_out "ends with the count" '^Changed 0 thing\(s\)\.$'
+  done
+  [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] && [ ! -s "$STATE/defaults.log" ] || fail "macos changed something"
+  ! grep -qE 'Time Machine backups are on|The firewall is off' <<< "$out" || fail "warned on a Mac that already matches the defaults"
+}
+macos_warns_before_set_defaults_turns_backups_off() {
+  touch "$STATE/tm-on" "$STATE/fw-off"
+  out=$("$script" --step macos < /dev/null 2>&1) || fail "macos warnings: exit $?"
+  check_out "Time Machine warning" '^Time Machine backups are on here\. set-defaults now turns them off'
+  check_out "gives the command that keeps them" 'dotfiles-settings set macos\.disable_time_machine off$'
+  check_out "firewall note" '^The firewall is off here\..*dotfiles-settings set macos\.firewall off$'
+  # a switch the owner already turned off (an empty override) is not warned about
+  mkdir -p "$STATE/override"
+  : > "$STATE/override/DOTFILES_MACOS_DISABLE_TIME_MACHINE"
+  touch "$HOME/.config/mise/config.override.toml"
+  out=$("$script" --step macos < /dev/null 2>&1) || fail "macos warnings, switched off: exit $?"
+  ! grep -q 'Time Machine backups are on' <<< "$out" || fail "warned although the switch is off"
+  check_out "the firewall switch is still at its default" '^The firewall is off here'
+  # so is one exported into the environment
+  out=$(DOTFILES_MACOS_FIREWALL='' "$script" --step macos < /dev/null 2>&1) || fail "macos warnings, exported: exit $?"
+  ! grep -q 'The firewall is off' <<< "$out" || fail "warned although the variable is set"
+  [ ! -s "$STATE/defaults.log" ] || fail "the warnings changed a preference"
+  rm -rf "$STATE/tm-on" "$STATE/fw-off" "$STATE/override"
 }
 shims="$HOME/.local/share/mise/shims"
 # This Mac's layout: Homebrew's mise first on PATH, the new one behind it
@@ -444,6 +648,16 @@ usage_errors
 skips_absent_phases
 dry_run_asks_nothing
 helpers_back_up_before_replacing
+env_refuses_without_registry
+env_value_forms
+env_quoting
+env_second_run_changes_nothing
+env_unsafe_values_are_skipped
+env_names_retired_knobs
+env_dry_run_and_closed_stdin_change_nothing
+env_backs_up_override_before_replacing
+macos_reports_only
+macos_warns_before_set_defaults_turns_backups_off
 # the mise cases first, with Homebrew's mise ahead on PATH; the rest see a mise outside the prefix
 mise_move_declined_or_dry_run_changes_nothing
 mise_move_refused_offline
