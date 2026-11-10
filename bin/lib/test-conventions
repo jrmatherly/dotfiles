@@ -16,7 +16,8 @@
 # that the tracked Claude Code permissions ask before curl and gh api and
 # deny credential paths, git add -f and VS Code's private state, that no allow
 # rule is also retired, that rtk's hook rewrites no command with a Bash ask rule,
-# and that the instruction files stay under their caps.
+# that every setup/*.sh is executable, and that the instruction files stay under
+# their caps.
 #
 # License: MIT
 
@@ -121,6 +122,11 @@ for s in sysup set-defaults; do
   rules .claude/settings.json ask present "Bash($s *)" "Bash(bin/$s*)" "Bash(./bin/$s*)" "Bash(*/bin/$s*)" \
     "Bash(bash bin/$s*)" "Bash(sh bin/$s*)"
 done
+
+# Hooks and setup.sh run these directly, and a test that runs `bash "$script"` cannot see a missing mode bit.
+# :(glob) keeps * from crossing a slash, so setup/tests/*.sh (run with bash) is not matched.
+notexec=$(git ls-files -s ':(glob)setup/*.sh' | awk '$1 != "100755" { print $4 }')
+[ -z "$notexec" ] || fail "setup scripts must be executable (chmod +x): $notexec"
 
 # rtk's hook rewrites a command before Claude Code matches rules, so `curl x` as
 # `rtk curl x` skips `Bash(curl *)`. rtk leaves a deny match alone by itself, but
