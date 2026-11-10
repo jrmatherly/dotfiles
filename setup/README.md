@@ -99,7 +99,7 @@ lazygit's `state.yml` is machine-local and not linked. Finally it rebuilds bat's
 
 Sane macOS defaults, declared in [`20-macos.toml`](../tilde/.config/mise/conf.d/20-macos.toml) and applied with `set-defaults` only. `setup.sh` skips them. A plain `mise bootstrap` run by hand does apply them and runs both hooks. Based on [~/.macos](https://mths.be/macos) by @mathiasbynens, reviewed for macOS 27.
 
-Nothing prompts. Set the computer name in `dotfiles-settings` (`macos.computer_name`, optionally `macos.local_hostname`) or run `set-defaults --computer-name "Name"` (with an optional `--local-hostname host`); the next `set-defaults` renames the Mac when the computer name or the local hostname differs from the Mac's. A local hostname alone, without a computer name, changes nothing.
+Nothing prompts. Set the computer name in `dotfiles-settings` (`macos.computer_name`, optionally `macos.local_hostname`) or run `set-defaults --computer-name "Name"` (with an optional `--local-hostname host`); the next `set-defaults` renames the Mac when the computer name or the local hostname differs from the Mac's. A local hostname alone, without a computer name, changes nothing. A name with no Latin letter or digit derives no local hostname, so the rename is skipped with a warning until you give one.
 
 Higher-impact settings are per-machine choices, because the right answer varies per machine (a work laptop with its firewall or updates managed by MDM, a Mac that backs up with Time Machine):
 

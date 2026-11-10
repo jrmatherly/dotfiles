@@ -189,7 +189,11 @@ if [ -n "$computer_name" ]; then
   if [ -z "$local_hostname" ]; then
     local_hostname=$(printf %s "$computer_name" | tr '[:upper:]' '[:lower:]' | sed -E "s/[^a-z0-9]+/-/g; s/^-+|-+\$//g")
   fi
-  if [ "$(scutil --get ComputerName 2> /dev/null || true)" != "$computer_name" ] \
+  # A name with no Latin letter or digit derives nothing, and renaming with an
+  # empty local hostname would stop halfway
+  if [ -z "$local_hostname" ]; then
+    warn "Not renaming this Mac: no local hostname can be derived from \"$computer_name\". Set macos.local_hostname or pass --local-hostname."
+  elif [ "$(scutil --get ComputerName 2> /dev/null || true)" != "$computer_name" ] \
     || [ "$(scutil --get LocalHostName 2> /dev/null || true)" != "$local_hostname" ]; then
     sudo scutil --set ComputerName "$computer_name"
     sudo scutil --set HostName "$computer_name"

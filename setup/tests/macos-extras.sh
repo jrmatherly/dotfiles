@@ -112,6 +112,10 @@ DOTFILES_MACOS_FIREWALL='' DOTFILES_MACOS_DISABLE_TIME_MACHINE='' run --firewall
 check "a flag turns a switched-off opt-in on" "grep -q '^sudo .*socketfilterfw --setglobalstate on$' '$log' && grep -qx 'sudo tmutil disable' '$log'"
 DOTFILES_MACOS_COMPUTER_NAME='From Setting' run --computer-name 'From Flag' --local-hostname custom-host
 check "the flag's name wins" "grep -qx 'sudo scutil --set ComputerName From Flag' '$log' && grep -qx 'sudo scutil --set LocalHostName custom-host' '$log'"
+DOTFILES_MACOS_COMPUTER_NAME='日本語' run
+check "a name that derives no local hostname renames nothing and the run goes on" "[ \$rc = 0 ] && ! grep -q 'scutil --set' '$log' && grep -q 'chflags nohidden' '$log'"
+DOTFILES_MACOS_COMPUTER_NAME='日本語' run --local-hostname nihongo
+check "the same name with a local hostname given is set" "grep -qx 'sudo scutil --set LocalHostName nihongo' '$log'"
 
 printf ' hibernatemode 3\n womp 0\n disksleep 0\n' > "$pmset_out"
 run
