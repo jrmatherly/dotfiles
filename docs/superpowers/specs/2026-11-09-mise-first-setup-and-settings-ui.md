@@ -301,7 +301,7 @@ The Claude Code panel itself. Publishing to PyPI or a tap. Linux and Intel Macs.
 ## Plans
 
 - `docs/superpowers/plans/completed/2026-11-09-a1-env-settings-on-mise.md` (built)
-- `docs/superpowers/plans/2026-11-09-a2-settings-package.md`
+- `docs/superpowers/plans/completed/2026-11-09-a2-settings-package.md`
 - `docs/superpowers/plans/2026-11-09-a3-macos-defaults.md`
 - `docs/superpowers/plans/2026-11-09-a4-packages.md`
 - `docs/superpowers/plans/2026-11-09-a5-dotfiles.md`
