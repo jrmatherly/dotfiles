@@ -1,0 +1,134 @@
+#!/bin/bash
+#
+# Self-check for conf.d/40-dotfiles.toml in a scratch HOME.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-dotfiles`
+#
+# ---
+# Applies the tracked fragment with the real mise. HOME, the mise config dir
+# and mise's state all live under a temp dir, so only scratch links are made.
+# Skips the apply checks with a note when mise is not installed.
+#
+# License: MIT
+
+# shellcheck disable=SC2088 # "~/x" in messages is display text
+set -euo pipefail
+
+repo="$(cd "$(dirname "$0")/../.." && pwd -P)"
+fragment="$repo/tilde/.config/mise/conf.d/40-dotfiles.toml"
+
+fail() {
+  echo "test-dotfiles: $1" >&2
+  exit 1
+}
+
+# Needs no mise: everything in tilde/ that is linked one by one has an entry
+for path in "$repo"/tilde/.[!.]* "$repo"/tilde/.config/* "$repo"/tilde/.claude/* "$repo"/tilde/.claude/skills/*; do
+  rel=${path#"$repo"/tilde/}
+  case "$rel" in
+    .DS_Store | */.DS_Store | .claude | .config | .claude/skills | .codex | .ssh) continue ;;
+  esac
+  grep -qF "\"~/$rel\" = " "$fragment" || fail "no [dotfiles] entry for ~/$rel"
+done
+
+command -v mise > /dev/null || {
+  echo "test-dotfiles: mise not found, skipping the apply checks" >&2
+  exit 0
+}
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+home="$tmp/home"
+mkdir -p "$home" "$tmp/cfg/conf.d"
+cp "$fragment" "$tmp/cfg/conf.d/"
+ln -s "$repo" "$home/dotfiles"
+
+# MISE_CONFIG_DIR only (never MISE_GLOBAL_CONFIG_FILE); the ceiling keeps a
+# config above the temp dir out. Not run from $home: once applied, its
+# ~/.config/mise links to the clone and mise would read that as project config.
+m() {
+  (cd "$tmp" && env -i HOME="$home" PATH="$PATH" MISE_CONFIG_DIR="$tmp/cfg" MISE_STATE_DIR="$tmp/state" \
+    MISE_DATA_DIR="$tmp/data" MISE_CACHE_DIR="$tmp/cache" MISE_CEILING_PATHS="$tmp" mise "$@")
+}
+# Every link and file under the scratch HOME, with its target
+snapshot() { (cd "$home" && find . \( -type l -o -type f \) -exec stat -f '%N %Y %Sp' {} + | sort); }
+
+# Nothing here may reach the real HOME or read the clone's live mise config
+[ "$home" != "$HOME" ] && [ ! "$home" -ef "$HOME" ] || fail "the scratch HOME is the real HOME"
+only_scratch_config() {
+  [ "$(m config ls --no-header 2>&1 | awk '{print $1}')" = "$tmp/cfg/conf.d/40-dotfiles.toml" ] || fail "mise reads a config outside the scratch dir: $(m config ls 2>&1)"
+}
+only_scratch_config
+
+m dotfiles apply --yes > "$tmp/out" 2>&1 || fail "first apply failed: $(cat "$tmp/out")"
+only_scratch_config
+m dotfiles status --missing > "$tmp/out" 2>&1 || fail "status --missing after apply: $(cat "$tmp/out")"
+
+[ "$home/.zshrc" -ef "$repo/tilde/.zshrc" ] || fail "~/.zshrc is not the tracked file"
+[ -d "$home/.claude/rules" ] && [ ! -L "$home/.claude/rules" ] || fail "~/.claude/rules is not a real directory"
+[ -d "$home/.claude/skills" ] && [ ! -L "$home/.claude/skills" ] || fail "~/.claude/skills is not a real directory"
+[ -L "$home/.claude/rules/index.md" ] || fail "rules are not linked one by one"
+[ -L "$home/.config/gh" ] && [ ! -L "$home/.config" ] || fail "~/.config children are not linked one by one"
+[ ! -e "$home/README.md" ] || fail "tilde/README.md was linked"
+[ -f "$home/.codex/config.toml" ] && [ ! -L "$home/.codex/config.toml" ] || fail "codex config is not a regular file"
+[ "$(stat -f %Lp "$home/.codex/config.toml")" = 600 ] || fail "codex config is not 0600"
+[ "$(stat -f %Lp "$home/.ssh")" = 700 ] && [ "$(stat -f %Lp "$home/.gnupg")" = 700 ] || fail "~/.ssh or ~/.gnupg is not 0700"
+[ ! -L "$home/.ssh" ] && [ ! -L "$home/.codex" ] || fail "~/.ssh or ~/.codex is linked as a folder"
+
+before=$(snapshot)
+m dotfiles apply --yes > "$tmp/out" 2>&1 || fail "second apply failed: $(cat "$tmp/out")"
+[ "$before" = "$(snapshot)" ] || fail "a second apply changed something"
+
+# Codex config, merge = "missing": the Mac's values and keys stay, missing keys come back
+codex="$home/.codex/config.toml"
+sed -i '' -e 's/^model = .*/model = "mine"/' -e '/^sandbox_mode = /d' "$codex"
+echo "token = 1" >> "$codex"
+m dotfiles apply --yes > "$tmp/out" 2>&1 || fail "apply over an edited codex config failed: $(cat "$tmp/out")"
+grep -qx 'model = "mine"' "$codex" || fail "the merge replaced a value the Mac set"
+grep -qx 'token = 1' "$codex" || fail "the merge dropped a key only the Mac has"
+grep -q '^sandbox_mode = ' "$codex" || fail "the merge did not add a missing key"
+cp "$codex" "$tmp/codex.merged"
+m dotfiles apply --yes > "$tmp/out" 2>&1 || fail "apply after the merge failed: $(cat "$tmp/out")"
+cmp -s "$codex" "$tmp/codex.merged" || fail "a second apply changed the merged codex config"
+
+# An invalid live config is reported and never rewritten
+printf 'model = \n' > "$codex"
+cp "$codex" "$tmp/codex.bad"
+if m dotfiles apply --yes > "$tmp/out" 2>&1; then fail "apply succeeded over an invalid codex config"; fi
+grep -q 'failed to parse the TOML target' "$tmp/out" || fail "invalid codex config not reported: $(cat "$tmp/out")"
+cmp -s "$codex" "$tmp/codex.bad" || fail "an invalid codex config was rewritten"
+cp "$tmp/codex.merged" "$codex"
+
+# A real file in the way: apply fails, names it, and writes nothing at all
+rm "$home/.zshrc" "$home/.gitmessage"
+echo mine > "$home/.zshrc"
+before=$(snapshot)
+if m dotfiles apply --yes > "$tmp/out" 2>&1; then fail "apply succeeded over a real ~/.zshrc"; fi
+grep -q 'refusing to overwrite' "$tmp/out" && grep -qx '  ~/.zshrc' "$tmp/out" || fail "conflict not reported: $(cat "$tmp/out")"
+[ "$(cat "$home/.zshrc")" = mine ] || fail "the real ~/.zshrc was touched"
+[ "$before" = "$(snapshot)" ] || fail "a refused apply still wrote something"
+if m dotfiles status --missing > /dev/null 2>&1; then fail "status --missing passed with a conflict"; fi
+
+# A link that points elsewhere is repointed without --force
+rm "$home/.zshrc"
+ln -s /etc/hosts "$home/.zshrc"
+m dotfiles apply --yes > "$tmp/out" 2>&1 || fail "apply over a foreign link failed: $(cat "$tmp/out")"
+[ "$home/.zshrc" -ef "$repo/tilde/.zshrc" ] || fail "a foreign link was not repointed"
+
+# A Mac's own Mole list: config.local.toml replaces the entry, without --force
+echo local > "$tmp/whitelist.local"
+printf '[dotfiles]\n"~/.config/mole/whitelist" = { source = "%s", mode = "symlink" }\n' "$tmp/whitelist.local" > "$tmp/cfg/config.local.toml"
+m dotfiles apply --yes > "$tmp/out" 2>&1 || fail "apply with a config.local.toml entry failed: $(cat "$tmp/out")"
+[ "$home/.config/mole/whitelist" -ef "$tmp/whitelist.local" ] || fail "config.local.toml did not replace the Mole entry"
+rm "$tmp/cfg/config.local.toml"
+
+# Without ~/dotfiles no source resolves: apply fails and writes nothing
+rm "$home/dotfiles" "$home/.gitmessage"
+before=$(snapshot)
+if m dotfiles apply --yes > "$tmp/out" 2>&1; then fail "apply succeeded without ~/dotfiles"; fi
+grep -q 'sources do not exist' "$tmp/out" || fail "missing ~/dotfiles not reported: $(cat "$tmp/out")"
+[ "$before" = "$(snapshot)" ] || fail "an apply without ~/dotfiles still wrote something"
+
+echo ok

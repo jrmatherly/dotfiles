@@ -1,0 +1,82 @@
+# Everything linked or copied into $HOME. Apply with `mise dotfiles apply`,
+# check with `mise dotfiles status`. https://mise.jdx.dev/dotfiles.html
+#
+# Sources go through ~/dotfiles, the link setup.sh makes to the clone: mise
+# does not render templates in `source`, and it joins a relative source to this
+# file's logical directory (~/.config/mise/conf.d), not to the clone.
+#
+# A real file where a link belongs stops the whole apply and nothing is
+# written. `--force` replaces it with no backup. A link that points elsewhere
+# is repointed without asking.
+
+[dotfiles]
+# tilde/ top-level files, one entry each. Not one `"~"` walk: until its first
+# apply has recorded state, mise walks the whole target folder, which on a used
+# Mac is all of $HOME (minutes). A new file needs a line here
+# (bin/lib/test-dotfiles fails without it).
+"~/.ackrc" = { source = "~/dotfiles/tilde/.ackrc", mode = "symlink" }
+"~/.bash_profile" = { source = "~/dotfiles/tilde/.bash_profile", mode = "symlink" }
+"~/.bunfig.toml" = { source = "~/dotfiles/tilde/.bunfig.toml", mode = "symlink" }
+"~/.curlrc" = { source = "~/dotfiles/tilde/.curlrc", mode = "symlink" }
+"~/.gitconfig" = { source = "~/dotfiles/tilde/.gitconfig", mode = "symlink" }
+"~/.gitignore" = { source = "~/dotfiles/tilde/.gitignore", mode = "symlink" }
+"~/.gitmessage" = { source = "~/dotfiles/tilde/.gitmessage", mode = "symlink" }
+"~/.hushlogin" = { source = "~/dotfiles/tilde/.hushlogin", mode = "symlink" }
+"~/.inputrc" = { source = "~/dotfiles/tilde/.inputrc", mode = "symlink" }
+"~/.ripgreprc" = { source = "~/dotfiles/tilde/.ripgreprc", mode = "symlink" }
+"~/.starship.toml" = { source = "~/dotfiles/tilde/.starship.toml", mode = "symlink" }
+"~/.tlrc.toml" = { source = "~/dotfiles/tilde/.tlrc.toml", mode = "symlink" }
+"~/.zprofile" = { source = "~/dotfiles/tilde/.zprofile", mode = "symlink" }
+"~/.zshenv" = { source = "~/dotfiles/tilde/.zshenv", mode = "symlink" }
+"~/.zshrc" = { source = "~/dotfiles/tilde/.zshrc", mode = "symlink" }
+
+# Claude Code: ~/.claude holds its own state and ~/.claude/rules may hold
+# machine-local rules, so both stay real folders. Each tracked rule is linked
+# into it (a new rule needs no entry), and so is the status line script.
+"~/.claude/rules" = { source = "~/dotfiles/tilde/.claude/rules", mode = "symlink-each", exclude = [".DS_Store"] }
+"~/.claude/statusline-command.sh" = { source = "~/dotfiles/tilde/.claude/statusline-command.sh", mode = "symlink" }
+
+# One link per ~/.config child: apps write their own state into these folders
+# (gh's hosts.yml, mise's override files), and ~/.config holds other apps too.
+# A new tilde/.config/<app> needs a line here (bin/lib/test-dotfiles checks).
+"~/.config/amp" = { source = "~/dotfiles/tilde/.config/amp", mode = "symlink" }
+"~/.config/bat" = { source = "~/dotfiles/tilde/.config/bat", mode = "symlink" }
+"~/.config/btop" = { source = "~/dotfiles/tilde/.config/btop", mode = "symlink" }
+"~/.config/cmux" = { source = "~/dotfiles/tilde/.config/cmux", mode = "symlink" }
+"~/.config/fastfetch" = { source = "~/dotfiles/tilde/.config/fastfetch", mode = "symlink" }
+"~/.config/gh" = { source = "~/dotfiles/tilde/.config/gh", mode = "symlink" }
+"~/.config/ghostty" = { source = "~/dotfiles/tilde/.config/ghostty", mode = "symlink" }
+"~/.config/hunk" = { source = "~/dotfiles/tilde/.config/hunk", mode = "symlink" }
+# mise reads this file through this link, so setup.sh creates it first. The
+# entry reports it and repairs a link that points elsewhere.
+"~/.config/mise" = { source = "~/dotfiles/tilde/.config/mise", mode = "symlink" }
+
+# One link per skill folder: the `skills` CLI keeps its own links beside them
+"~/.claude/skills/project-stack" = { source = "~/dotfiles/tilde/.claude/skills/project-stack", mode = "symlink" }
+
+# ~/.ssh and ~/.gnupg are real directories and must be 700 (gpg warns about
+# "unsafe permissions on homedir" otherwise). Only the tracked file is linked.
+"~/.ssh" = { permissions = "0700" }
+"~/.ssh/config" = { source = "~/dotfiles/tilde/.ssh/config", mode = "symlink" }
+"~/.gnupg" = { permissions = "0700" }
+"~/.gnupg/gpg-agent.conf" = { source = "~/dotfiles/gpg/gpg-agent.conf", mode = "symlink" }
+
+# Codex: instructions are linked. config.toml is not: setup's `codex mcp add`,
+# Hindsight and Codex itself write it, and MCP entries can carry tokens. So mise
+# creates it at 0600 when missing and later adds only the keys it lacks. Limits:
+# these comments are not copied, a key deleted from the live file returns on the
+# next apply, the mode is set only on creation, a link there is replaced (or,
+# pointing elsewhere, stops the apply), and invalid TOML stops it untouched.
+"~/.codex/AGENTS.md" = { source = "~/dotfiles/agents/instructions.md", mode = "symlink" }
+"~/.codex/config.toml/defaults" = { source = "~/dotfiles/tilde/.codex/config.toml", merge = "missing", permissions = "0600" }
+
+"~/Library/Application Support/Code/User" = { source = "~/dotfiles/vscode/User", mode = "symlink" }
+"~/Library/Application Support/lazydocker/config.yml" = { source = "~/dotfiles/lazydocker/config.yml", mode = "symlink" }
+# rtk: commands its Claude Code hook leaves alone, so ask rules still match them
+"~/Library/Application Support/rtk/config.toml" = { source = "~/dotfiles/rtk/config.toml", mode = "symlink" }
+
+# Mole writes clean-list.txt and purge_paths beside these, so the two files are
+# linked, not the folder. A Mac with its own mole/<name>.local repeats the entry
+# in config.local.toml with that source (docs/mole.md).
+"~/.config/mole/whitelist" = { source = "~/dotfiles/mole/whitelist", mode = "symlink" }
+"~/.config/mole/whitelist_optimize" = { source = "~/dotfiles/mole/whitelist_optimize", mode = "symlink" }
