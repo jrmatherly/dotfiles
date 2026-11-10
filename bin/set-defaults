@@ -1,16 +1,48 @@
 #!/bin/bash
 #
-# Set sane macOS defaults.
+# Apply this repo's macOS preferences and restart the affected apps. By default this turns the firewall and stealth mode on and turns Time Machine backups off; on a Mac that uses Time Machine, run `dotfiles-settings set macos.disable_time_machine off` first.
 #
-# - Set defaults:
+# - Apply the preferences:
 #
 # `set-defaults`
 #
+# - Keep Time Machine backups on from now on (do this before the first run on a Mac that uses Time Machine):
+#
+# `dotfiles-settings set macos.disable_time_machine off`
+#
+# - Leave Time Machine alone for this run only:
+#
+# `DOTFILES_MACOS_DISABLE_TIME_MACHINE= set-defaults`
+#
+# - Rename this Mac:
+#
+# `set-defaults --computer-name "Jason's MacBook Pro"`
+#
+# - Turn on HiDPI display modes:
+#
+# `set-defaults --hidpi`
+#
+# - Leave Software Update alone from now on; the macOS (this Mac) section of dotfiles-settings has every switch:
+#
+# `dotfiles-settings set macos.software_update off`
+#
 # ---
 # License: MIT
+
+set -euo pipefail
 
 # Resolve the repo location from this script's own path, falling back to
 # $DOTFILES (exported by ~/.zshenv)
 DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 
-exec "$DOTFILES/setup/macos.sh"
+command -v mise > /dev/null || {
+  echo "set-defaults: mise is not installed (run setup.sh first)" >&2
+  exit 1
+}
+# A declined prompt or a failed apply must not leave --before's snapshot behind
+trap 'rm -f "${TMPDIR:-/tmp}/dotfiles-macos-defaults-before"' EXIT
+"$DOTFILES/setup/macos-extras.sh" --before
+# Shows the planned writes and asks before making them
+mise bootstrap macos defaults apply
+# The part command runs no hooks, so the extras script is called here
+"$DOTFILES/setup/macos-extras.sh" --restart "$@"

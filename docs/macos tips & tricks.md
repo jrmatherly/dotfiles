@@ -60,7 +60,7 @@ If you don't know what something is:
 
 Screenshots on this Mac are handled by CleanShot X (Setapp). It takes over ⌘⇧3 (full screen), ⌘⇧4 (area), and ⌘⇧5 (all-in-one), and the matching system shortcuts are turned off in **System Settings** → **Keyboard** → **Keyboard Shortcuts…** → **Screenshots**.
 
-If you turn the system shortcuts back on: while dragging a ⌘⇧4 selection, hold `Space` to move it, `Option` to resize it from the center, or `Shift` to lock one side. `set-defaults` can optionally set the built-in tool to save PNGs named "Shot" to the Desktop, without shadows and with the pointer shown.
+If you turn the system shortcuts back on: while dragging a ⌘⇧4 selection, hold `Space` to move it, `Option` to resize it from the center, or `Shift` to lock one side. `set-defaults` sets the built-in tool (unless `macos.screenshots` is off in `dotfiles-settings`) to save PNGs named "Shot" to the Desktop, without shadows and with the pointer shown.
 
 ## Tip #6
 
@@ -106,7 +106,7 @@ Hold `Shift` and `Option` while you press the volume or brightness keys to chang
 
 Hot Corners.
 
-Hot Corners run an action when the pointer reaches a screen corner, like Mission Control, Show Desktop, or Lock Screen. Set them up in **System Settings** → **Desktop & Dock** → **Hot Corners…**. On this Mac all four corners are set to no action, and running `set-defaults` resets them that way ([details](./macos%20settings.md#desktop--dock)). Remove the hot-corner loop in `setup/macos.sh` if you want to keep your own.
+Hot Corners run an action when the pointer reaches a screen corner, like Mission Control, Show Desktop, or Lock Screen. Set them up in **System Settings** → **Desktop & Dock** → **Hot Corners…**. On this Mac all four corners are set to no action, and running `set-defaults` resets them that way ([details](./macos%20settings.md#desktop--dock)). Remove the eight `wvous-` lines from `tilde/.config/mise/conf.d/20-macos.toml` if you want to keep your own.
 
 ## Tip #15
 

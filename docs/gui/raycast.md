@@ -6,7 +6,7 @@ Installed by `setup/Brewfile` (`cask "raycast"`).
 
 ## Setup
 
-- `set-defaults` (`setup/macos.sh`) turns off macOS's Spotlight shortcuts, freeing ⌘Space — Raycast doesn't take it by itself
+- `set-defaults` (`20-macos.toml`) turns off macOS's Spotlight shortcuts, freeing ⌘Space — Raycast doesn't take it by itself
 - Raycast → **Settings (Cmd+,) → General → Raycast Hotkey:** click the field and press ⌘Space
 - **General → Open at Login:** keep it on
 - If ⌘Space still doesn't register, check **System Settings → Keyboard → Keyboard Shortcuts → Input Sources**, and the Siri shortcut in **System Settings → Apple Intelligence & Siri**

@@ -5,7 +5,7 @@ Jason's personal dotfiles for configuring macOS with Zsh and Homebrew — a pers
 ![terminal screenshot](screenshot.png)
 
 > [!WARNING]  
-> These are personal, opinionated dotfiles. Review `setup/macos.sh` and `setup/Brewfile` before running them on a new machine.
+> These are personal, opinionated dotfiles. Review `tilde/.config/mise/conf.d/20-macos.toml`, `setup/macos-extras.sh` and `setup/Brewfile` before running them on a new machine.
 
 ## Requirements
 
@@ -26,7 +26,7 @@ Jason's personal dotfiles for configuring macOS with Zsh and Homebrew — a pers
 - [Obsidian](obsidian/) setup — settings, theme, plugins, templates and Bases views — installed into the iCloud Drive → Notes vault with `obsidian-vault install` (see [first-time setup](obsidian/README.md#first-time-setup)).
 - [fzf](zsh/fzf.zsh) in Zsh: fuzzy history, file and directory pickers with previews.
 - [hunk](https://github.com/modem-dev/hunk) as the terminal diff viewer for git, lazygit and gh.
-- Sensible [macOS defaults](setup/macos.sh), prompting for a computer name so it's reusable across machines.
+- Sensible [macOS defaults](tilde/.config/mise/conf.d/20-macos.toml), declared as TOML that mise applies and checks for drift.
 - [VS Code settings](vscode/), symlinked from the repo (VS Code's built-in Settings Sync stays off — the dotfiles are the source of truth).
 - [Firefox Developer Edition styles](firefox/) (optional — the browser isn't in the Brewfile).
 - Terminal config for [Ghostty](tilde/.config/ghostty/) and [cmux](tilde/.config/cmux/), and for the tools in them: bat, btop, fastfetch, gh, lazygit.
@@ -123,7 +123,7 @@ Setup leaves these to you:
 set-defaults
 ```
 
-Runs [`setup/macos.sh`](setup/macos.sh): keyboard, trackpad, Finder, Dock and system preferences, with prompts for the security-sensitive and per-machine ones. See [what it changes](setup/README.md#macos). At the end it force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal — so run it from Ghostty, Warp, cmux or iTerm2 rather than Terminal.app. Log out afterwards so key repeat takes effect. Safari isn't configured by it; set Safari up in Safari → Settings.
+Applies the preferences declared in [`20-macos.toml`](tilde/.config/mise/conf.d/20-macos.toml) with `mise bootstrap macos defaults apply`, which lists the planned writes and asks first, then runs [`setup/macos-extras.sh`](setup/macos-extras.sh) for what TOML can't express. See [what it changes](setup/README.md#macos). Nothing prompts any more. The choices the old script asked about are switches in the "macOS (this Mac)" section of [`dotfiles-settings`](settings/README.md): the screenshot, Time Machine new-disk, TextEdit and Software Update groups, the firewall with stealth mode, and turning Time Machine off (all on unless you switch them off), and HiDPI and the computer name (off or empty unless you set them; `set-defaults --hidpi` and `--computer-name "Name"` do the same for one run). **By default `set-defaults` turns Time Machine backups off.** If this Mac (or your fork) uses Time Machine, run `dotfiles-settings set macos.disable_time_machine off` before the first `set-defaults`; the same applies to a plain `mise bootstrap` run by hand. The rest are tables in the git-ignored `config.local.toml`. `mise bootstrap macos defaults status` shows which preferences have drifted. mise never deletes a preference, never uses sudo for one and doesn't restart apps by itself, so the extras script force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal (Terminal is spared when you run it from Terminal.app). Log out afterwards so key repeat takes effect. Safari isn't configured by it; set Safari up in Safari → Settings.
 
 ### Use alternative apps icons
 
@@ -159,7 +159,7 @@ This edits the repo's Dash sync file, so it only takes effect once Dash's sync f
 
 ## Make it yours
 
-Setup already asks for your git identity, commit signing and computer name. These values are hard-coded to me, so change them in your fork:
+Setup already asks for your git identity and commit signing. These values are hard-coded to me, so change them in your fork:
 
 | File | What to change |
 | --- | --- |
@@ -170,6 +170,7 @@ Setup already asks for your git identity, commit signing and computer name. Thes
 | [`agents/claude-*`](agents/) | My Claude Code plugins, settings and skills, including the `jrmatherly-skills` marketplace (`jstack`, `resume`) and the `coding-standards` and `supabase-prompts` skills from my public skills repo — keep them or drop those lines. Run `claude-config save` once yours are installed and commit the result |
 | [`agents/catalog/curated.toml`](agents/catalog/curated.toml) | Notes on my tools. `claude-catalog` still builds but exits 1 (a warning in setup) for each skill, command or agent you don't have installed — delete those. An `[mcp.*]` entry you lack, like my `coolify` server, only prints a `lint:` note, because MCP registration is per machine |
 | [`setup/Brewfile`](setup/Brewfile) | My apps. Trim it, or pick a subset with `bin/brewpick` |
+| [`settings/registry.toml`](settings/registry.toml) | `macos.disable_time_machine` and `macos.firewall` default to on, my choice. **If you use Time Machine, run `dotfiles-settings set macos.disable_time_machine off` before `set-defaults`, which otherwise stops all backups.** |
 | [`package.json`](package.json) | The `author` field |
 | [`setup/bootstrap-runtime.archify.json`](setup/bootstrap-runtime.archify.json) | The `meta.repository.url` clone URL (Archify's source for the setup diagram; the exported SVG doesn't show it) |
 | [`LICENSE`](LICENSE) | Add your copyright line; keep the existing ones (MIT requires it) |

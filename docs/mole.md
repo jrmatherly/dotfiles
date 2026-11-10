@@ -38,7 +38,7 @@ The optimize tasks, by effect:
   - Runs `sudo diskutil resetUserPermissions` only when your home folders are not writable (`lib/optimize/tasks.sh`).
   - Runs `sudo mdutil -E /`, a full Spotlight reindex, only when two search probes are slow and the Mac is on AC power.
 - **Settings writes.**
-  - `DSDontWriteNetworkStores` and `DSDontWriteUSBStores`. `setup/macos.sh` already sets both.
+  - `DSDontWriteNetworkStores` and `DSDontWriteUSBStores`. `tilde/.config/mise/conf.d/20-macos.toml` already declares both.
   - Removes legacy App Nap and disk-image overrides.
   - Prunes Spotlight rules for removed apps.
 - **Report-only.** Login items and LaunchAgents.

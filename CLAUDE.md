@@ -37,7 +37,7 @@ There is no build. `pnpm check` (`bin/lib/check`) is the gate: syntax checks, sh
 
 ```text
 setup.sh          orchestrator → setup/{brew,zsh,misc,symlinks}.sh (+ dash.sh with --dash)
-setup/            Brewfile, per-step scripts, macos.sh (defaults), README.md (per-script docs)
+setup/            Brewfile, per-step scripts, macos-extras.sh (what the macOS TOML can't express), README.md (per-script docs)
 tilde/            mirrors $HOME (dotfiles, .config/*, .codex, .ssh/config)
 zsh/              sourced by tilde/.zshrc
 bin/              CLI scripts on PATH (see bin/CLAUDE.md); bin/lib/ helpers also on PATH

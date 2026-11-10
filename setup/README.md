@@ -12,7 +12,7 @@ It resolves its own location, so the repo can live anywhere; it creates a `~/dot
 
 When run from a terminal, it records the whole run (prompts included) to `private/setup-logs/<timestamp>.log`, which is git-ignored, by re-running itself under macOS `script`. `/validate-setup after` reads the newest log, so there's no need to paste output.
 
-`macos.sh` is deliberately not part of the run; use `set-defaults`.
+The macOS preferences are deliberately not part of the run; use `set-defaults`.
 
 ## brew
 
@@ -97,23 +97,18 @@ lazygit's `state.yml` is machine-local and not linked. Finally it rebuilds bat's
 
 ## macos
 
-Sane macOS defaults, run with `set-defaults`. Based on [~/.macos](https://mths.be/macos) by @mathiasbynens, reviewed for macOS 27.
+Sane macOS defaults, declared in [`20-macos.toml`](../tilde/.config/mise/conf.d/20-macos.toml) and applied with `set-defaults` only. `setup.sh` skips them. A plain `mise bootstrap` run by hand does apply them and runs both hooks. Based on [~/.macos](https://mths.be/macos) by @mathiasbynens, reviewed for macOS 27.
 
-Prompts for a computer name/local hostname (skippable) so the same script works unmodified across machines. Pre-set `COMPUTERNAME`/`LOCALHOSTNAME` env vars to skip the prompt in non-interactive runs.
+Nothing prompts. Set the computer name in `dotfiles-settings` (`macos.computer_name`, optionally `macos.local_hostname`) or run `set-defaults --computer-name "Name"` (with an optional `--local-hostname host`); the next `set-defaults` renames the Mac when the computer name or the local hostname differs from the Mac's. A local hostname alone, without a computer name, changes nothing.
 
-A handful of higher-impact/opinionated settings are asked about interactively rather than applied unconditionally, since the right answer varies per machine (e.g. a work laptop with firewall/updates managed by MDM). Defaults in brackets:
+Higher-impact settings are per-machine choices, because the right answer varies per machine (a work laptop with its firewall or updates managed by MDM, a Mac that backs up with Time Machine):
 
-- Disable the "downloaded from the internet" confirmation for new apps **[N]** — weakens security
-- Skip disk image (.dmg) verification **[N]** — weakens security
-- Custom screenshot preferences (Desktop, PNG, no shadow, cursor, named "Shot") [Y]
-- Custom Dock auto-hide timing [N] — if yes, asks for the reveal delay (0.2 s) and slide animation (0 s); if no, both are left at macOS defaults
-- HiDPI display modes [N], firewall + stealth mode [N]
-- Suppress Time Machine's new-disk prompt [Y]; disable Time Machine entirely **[N]**
-- TextEdit plain text + UTF-8 [Y]; automatic Software Update [Y]
+- Settings in the "macOS (this Mac)" section of `dotfiles-settings`. They need sudo, and `set-defaults` asks for it only when the Mac differs. Turning one off later changes nothing on the Mac. Two are **on unless you switch them off**: `macos.firewall` (firewall and stealth mode) and `macos.disable_time_machine`. **With its default, `set-defaults` stops all Time Machine backups.** A fork, or any Mac that uses Time Machine, must run `dotfiles-settings set macos.disable_time_machine off` (or export `DOTFILES_MACOS_DISABLE_TIME_MACHINE=` in `~/.zsh.local`) before the first `set-defaults` or plain `mise bootstrap`. To skip it for one run only: `DOTFILES_MACOS_DISABLE_TIME_MACHINE= set-defaults`. The rest are off or empty unless you set them: `macos.hidpi` (HiDPI display modes, needs a restart), and the text settings `macos.computer_name` and `macos.local_hostname` (derived from the name when empty, and used only together with a computer name). The `set-defaults` flags `--firewall`, `--disable-time-machine` and `--hidpi` turn a switch on for one run even when its setting is off, and `--computer-name` and `--local-hostname` replace the setting for one run (`--local-hostname` only together with a computer name).
+- Tables in the git-ignored `tilde/.config/mise/config.local.toml`, which outranks the fragment: disabling the "downloaded from the internet" confirmation and skipping disk image verification (**both weaken security**), and custom Dock auto-hide timing. The fragment's header has the tables to copy.
 
-Non-interactive runs use the defaults above. `DOTFILES_MACOS_NO=1` answers every prompt no. **`DOTFILES_MACOS_YES=1` answers every prompt yes — including the two security-weakening ones and disabling Time Machine**, so avoid it unless that's really what you want.
+Four groups the old script asked about are on unless you switch them off in the same section: `macos.screenshots` (save to the Desktop as PNG named "Shot", no window shadow, pointer shown), `macos.time_machine_new_disks` (stop Time Machine offering new disks for backup), `macos.textedit` (plain text and UTF-8) and `macos.software_update` (daily check, background download, security and system data installs). Switch a group off on a Mac whose updates or backups are managed by MDM; `set-defaults` then leaves it as it is. Each setting is the variable `DOTFILES_MACOS_<NAME>`, stored in the git-ignored override file, so an export in `~/.zsh.local` works too (empty means off for a group). The old script's two answer-everything variables are gone.
 
-Applied unconditionally:
+Always applied, from the fragment or by the extras script (`pmset`, the file flags, the `$HOME` path):
 
 - Keyboard: very fast key repeat (1 / 10, beyond System Settings' fastest) with press-and-hold off; system-wide autocorrect and smart punctuation off.
 - Trackpad: no swipe between pages (natural scrolling is left alone).
@@ -124,7 +119,15 @@ Applied unconditionally:
 - Energy (`pmset`): lid wake on, disk sleep 10 min, no wake for network access, hibernation mode 3.
 - Crash-reporter dialog off; Terminal.app uses UTF-8 and Secure Keyboard Entry.
 
-Safari isn't configured — it's sandboxed, so its preferences can't be set from a script; use Safari → Settings. At the end the script force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal (so run it from another terminal app), and key repeat needs a logout to take effect.
+Safari isn't configured — it's sandboxed, so its preferences can't be set from a script; use Safari → Settings.
+
+What changed from the old script:
+
+- mise never deletes a preference. Removing a line from the fragment leaves the value in place; run `defaults delete <domain> <key>` to return to the macOS default. The old script deleted the Dock timing keys when you declined them.
+- mise never uses sudo. The settings that need it (`pmset`, unhiding `/Volumes`, the opt-ins) are in `setup/macos-extras.sh`, which asks for sudo only when a value differs.
+- mise doesn't restart apps. The extras script force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal when the apply wrote a preference (always under `set-defaults`), and spares Terminal when it is the terminal you ran it from. Key repeat needs a logout to take effect.
+- TextEdit, Preview and Help Viewer are sandboxed, so mise can't read their preferences back; the extras script writes them and `status` doesn't list them. Finder's new-window path holds `$HOME` and is written there too, as are the four switchable groups, since mise applies every preference the fragment declares.
+- `mise bootstrap macos defaults status` lists every declared preference as set, differs or unset. `pnpm check` warns about drift and fails only on a type mismatch.
 
 ## dash
 

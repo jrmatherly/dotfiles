@@ -2,8 +2,9 @@
 
 A manual checklist for **System Settings** on this Mac (MacBook Pro, Apple M3 Pro, built-in display, macOS 27). Labels match the macOS 27 System Settings wording.
 
-- **(set-defaults)**: [`set-defaults`](../bin/set-defaults) already applies this setting by running [`setup/macos.sh`](../setup/macos.sh). You don't need to change it by hand, and running `set-defaults` again resets it to the value shown.
-- **(set-defaults, prompt)**: `set-defaults` asks before it applies this one.
+- **(set-defaults)**: [`set-defaults`](../bin/set-defaults) already applies this setting from [`20-macos.toml`](../tilde/.config/mise/conf.d/20-macos.toml) or [`setup/macos-extras.sh`](../setup/macos-extras.sh). You don't need to change it by hand, and running `set-defaults` again resets it to the value shown. `mise bootstrap macos defaults status` shows which ones have drifted.
+- **(set-defaults, opt-in)**: applied only when you turn on the named setting in `dotfiles-settings` (or pass the named flag to `set-defaults`), or declare it in `config.local.toml`.
+- **(set-defaults, switch)**: applied unless you turn off the named setting in `dotfiles-settings`.
 - Everything else has to be set by hand.
 
 ## System Settings
@@ -20,8 +21,8 @@ A manual checklist for **System Settings** on this Mac (MacBook Pro, Apple M3 Pr
 
 ### Network
 
-- **Firewall** − `On` (set-defaults, prompt)
-- **Firewall** → **Options…** → **Enable stealth mode** − `On` (set-defaults, prompt)
+- **Firewall** − `On` (set-defaults, switch: `macos.firewall`, on by default)
+- **Firewall** → **Options…** → **Enable stealth mode** − `On` (set-defaults, switch: `macos.firewall`, on by default)
 
 ### Notifications
 
@@ -52,13 +53,13 @@ A manual checklist for **System Settings** on this Mac (MacBook Pro, Apple M3 Pr
 
 ### General
 
-- **Software Update** → **Automatic Updates**: turn on every option (set-defaults, prompt: turns on the automatic check, download, and critical/security installs)
+- **Software Update** → **Automatic Updates**: turn on every option (set-defaults, switch: `macos.software_update`; turns on the automatic check, download, and critical/security installs)
 - **AutoFill & Passwords** → verification codes → **Delete After Use** − `On`
 - **Sharing** → **Content & Media**: turn off every option
 - **Sharing** → **Accessories & Internet**: turn off every option
 - **Sharing** → **Advanced**: turn off every option
-- **Sharing** → **Local hostname**: change it (set-defaults sets it when you type a computer name at its prompt)
-- **Time Machine**: backups are off on this Mac (set-defaults, prompt: "Disable Time Machine backups entirely"). A separate prompt stops Time Machine asking to use new disks for backup.
+- **Sharing** → **Local hostname**: change it (set-defaults, opt-in: `macos.computer_name` and `macos.local_hostname`, or `--computer-name`)
+- **Time Machine**: backups are off on this Mac (set-defaults, switch: `macos.disable_time_machine`, on by default). **set-defaults stops all Time Machine backups unless you switch this off first**: on a Mac that uses Time Machine, run `dotfiles-settings set macos.disable_time_machine off` before set-defaults. set-defaults also stops Time Machine asking to use new disks for backup (set-defaults, switch: `macos.time_machine_new_disks`).
 
 ### Appearance
 
@@ -131,7 +132,7 @@ Raycast handles ⌘Space on this Mac, and `set-defaults` turns off the Spotlight
 - **Minimized window animation**: set-defaults uses the hidden `suck` effect, which isn't one of the pane's choices (Genie/Scale)
 - **Window title bar double-click action** − `Fill` (set-defaults)
 - **Minimize windows into application icon** − `On` (set-defaults)
-- **Automatically hide and show the Dock** − `On` (set-defaults; reveal delay and slide animation stay at macOS defaults unless you opt in to custom values when prompted)
+- **Automatically hide and show the Dock** − `On` (set-defaults; reveal delay and slide animation stay at macOS defaults unless you declare `autohide-delay` and `autohide-time-modifier` in `config.local.toml`)
 - **Animate opening applications** − `On` (this Mac; set-defaults separately turns off Dock icon bouncing)
 - **Show indicators for open applications** − `On` (set-defaults)
 - **Show suggested and recent apps in Dock** − `Off` (set-defaults)
@@ -167,7 +168,7 @@ Raycast handles ⌘Space on this Mac, and `set-defaults` turns off the Spotlight
 - **True Tone** − `On`
 - **Color profile** − `Color LCD`
 - **Night Shift…** − `Off`
-- HiDPI display modes: off unless you opt in (set-defaults, prompt, default No)
+- HiDPI display modes: off unless you opt in (set-defaults, opt-in: `macos.hidpi` or `--hidpi`)
 
 ### Battery
 
@@ -290,12 +291,11 @@ Run [`set-defaults`](../bin/set-defaults) to apply the scripted settings marked 
 
 - Save and print panels open expanded
 - No `.DS_Store` files on network or USB volumes
-- Quick Look text selection
 - Terminal secure keyboard entry
 - Activity Monitor defaults
 - Preview doesn't reopen previous files
 
-The script also has optional prompts for screenshot preferences, TextEdit plain text, and download quarantine or disk-image verification (both prompts default to No, which keeps the protection on). It runs [`setup/macos.sh`](../setup/macos.sh).
+It also sets the screenshot preferences and TextEdit plain text, unless you switch off `macos.screenshots` or `macos.textedit` in `dotfiles-settings`. Download quarantine and disk-image verification stay on unless you opt out in `config.local.toml` (see the header of [`20-macos.toml`](../tilde/.config/mise/conf.d/20-macos.toml)).
 
 ## Built-in macOS Applications
 
