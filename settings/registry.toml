@@ -453,19 +453,6 @@ choices = []
 default = ""
 access = "ro"
 
-[[setting]]
-id = "privacy.homebrew_no_analytics"
-section = "Privacy"
-label = "Homebrew"
-help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
-kind = "env"
-key = "HOMEBREW_NO_ANALYTICS"
-type = "string"
-true_value = ""
-choices = []
-default = ""
-access = "ro"
-
 # macOS preferences declared in tilde/.config/mise/conf.d/20-macos.toml. Exposed when a settings pane or
 # docs/macos settings.md has it, its type is bool, int, string or a fully named enum, and it is not security-sensitive.
 

@@ -2,9 +2,8 @@ command_exists() {
   command -v "$@" &> /dev/null
 }
 
-source_brew_plugin() {
-  # HOMEBREW_PREFIX comes from `brew shellenv` in tilde/.zprofile; `brew --prefix`
-  # cost a Ruby start per call
+source_prefix_plugin() {
+  # HOMEBREW_PREFIX is exported by tilde/.zprofile
   local plugin_path prefix=${HOMEBREW_PREFIX:-/opt/homebrew}
   for plugin_path in "$prefix/share/$1/$1.zsh" "$prefix/share/$1/${1#zsh-}.plugin.zsh"; do
     [[ -r "$plugin_path" ]] && source "$plugin_path"
@@ -32,12 +31,12 @@ if command_exists mise; then
 fi
 
 # Activate Fish-like autosuggestions: https://github.com/zsh-users/zsh-autosuggestions/blob/master/INSTALL.md#homebrew
-source_brew_plugin "zsh-autosuggestions"
+source_prefix_plugin "zsh-autosuggestions"
 
 # Enable zsh-fast-syntax-highlighting: https://github.com/zdharma-continuum/fast-syntax-highlighting#installation
-source_brew_plugin "zsh-fast-syntax-highlighting"
+source_prefix_plugin "zsh-fast-syntax-highlighting"
 # Only themeable once the plugin is actually installed (e.g. before the first
-# `brew bundle` on a new machine it isn't)
+# package apply on a new machine it isn't)
 # The plugin loads the stored theme ($FAST_WORK_DIR/current_theme.zsh) itself,
 # so fast-theme reruns only when the repo's ini is newer than that file
 if (( $+functions[fast-theme] )) && [[ $DOTFILES/colors/fast-syntax-highlighting.ini -nt $FAST_WORK_DIR/current_theme.zsh ]]; then

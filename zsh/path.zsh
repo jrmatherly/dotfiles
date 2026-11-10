@@ -11,7 +11,7 @@ prepend() {
 # CotEditor and VSCode install their CLI tools here
 prepend "/usr/local/bin"
 
-# Cursor CLI installs here
+# Cursor CLI and mise install here
 prepend "$HOME/.local/bin"
 
 # .NET global tools (e.g. pwsh); tilde/.zprofile appends it too, for login and GUI shells
@@ -28,11 +28,13 @@ prepend "$HOME/Projects/flutter/bin"
 prepend "$HOME/.cargo/bin"
 prepend "/opt/homebrew/opt/rustup/bin"
 
-# Homebrew binaries
-# > $(brew --prefix)
+# Formulae and casks mise installs (conf.d/30-packages.toml)
 homebrew_path="/opt/homebrew"
 prepend "$homebrew_path/bin"
 prepend "$homebrew_path/sbin"
+# trash-cli is keg-only (macOS ships its own /usr/bin/trash), and mise has no
+# force-link, so its commands are reached through the keg's bin dir
+prepend "$homebrew_path/opt/trash-cli/bin"
 
 # Node/Python/etc runtime versions are managed by mise (activated in
 # tilde/.zprofile for shims and zsh/init.zsh for full shell activation).

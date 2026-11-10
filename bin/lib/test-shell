@@ -53,8 +53,8 @@ printf 'echo sourced-ok\n' > "$tmp/s.zsh"
 [ "$(user_zsh ". $tmp/s.zsh")" = sourced-ok ] || fail "user shell: . does not source"
 
 # A shell that never prompts (Claude Desktop's PATH probe, agent shells) has
-# mise's shims and no install dirs, the shims ahead of Homebrew's bin (it has
-# its own node); full activation waits for the first prompt. Each starts from
+# mise's shims and no install dirs, the shims ahead of /opt/homebrew/bin (it
+# has its own node); full activation waits for the first prompt. Each starts from
 # the PATH macOS gives apps, as Claude Desktop does, not this shell's
 zsh_bin=$(command -v zsh)
 # Skipped unless a shell started from that PATH finds mise: CI's mise-action
@@ -72,6 +72,14 @@ if [ -n "$(run_zsh PATH=/usr/bin:/bin:/usr/sbin:/sbin "$zsh_bin" -i -c 'command 
   done
   [ "$(user_zsh 'for f in $precmd_functions; do $f; done > /dev/null 2>&1; print -r -- $MISE_SHELL')" = zsh ] \
     || fail "user shell: mise not fully activated at the first prompt"
+fi
+
+# trash-cli is keg-only, so its bin dir must come before macOS's /usr/bin/trash
+if [ -d /opt/homebrew/opt/trash-cli/bin ]; then
+  out=$(run_zsh PATH=/usr/bin:/bin:/usr/sbin:/sbin "$zsh_bin" -i -c 'print -l $path')
+  trash=$(grep -nx /opt/homebrew/opt/trash-cli/bin <<< "$out" | cut -d: -f1 | head -1) || true
+  usr_bin=$(grep -nx /usr/bin <<< "$out" | cut -d: -f1 | head -1) || true
+  [ -n "$trash" ] && [ "$trash" -lt "$usr_bin" ] || fail "trash-cli's bin dir is not ahead of /usr/bin"
 fi
 
 # Agent shells keep the builtin cd (zoxide as z); user shells keep zoxide's cd
@@ -120,7 +128,7 @@ touch -t 202601271200 "$tmp/old"
 out=$(user_zsh "for d in $tmp/new $tmp/old $tmp/none; do zcompdump_is_stale \$d && echo stale || echo fresh; done" | tr '\n' ' ')
 [ "$out" = "fresh stale fresh " ] || fail "zcompdump_is_stale says '$out' for new, old, missing"
 
-# The Homebrew zsh plugins load (source_brew_plugin finds them under HOMEBREW_PREFIX)
+# The prefix's zsh plugins load (source_prefix_plugin finds them under HOMEBREW_PREFIX)
 if [ -r "${HOMEBREW_PREFIX:-/opt/homebrew}/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]; then
   user_zsh 'whence -w _zsh_autosuggest_start' | grep -q function || fail "zsh-autosuggestions did not load"
 fi
@@ -163,9 +171,15 @@ if need fzf; then
   [ "$n" = 0 ] || fail "shell start printed $n \"can't change option\" lines"
 fi
 
-# tilde/.zprofile starts cleanly on a Mac without Homebrew (its brew path swapped for a missing one)
-sed 's#/opt/homebrew/bin/brew#/nonexistent/brew#g' "$repo/tilde/.zprofile" > "$tmp/zprofile-nobrew"
-out=$(env -i HOME="$HOME" PATH=/usr/bin:/bin /bin/zsh -fc "source $tmp/zprofile-nobrew" 2>&1)
-[ -z "$out" ] || fail "tilde/.zprofile without Homebrew printed: $out"
+# tilde/.zprofile starts cleanly on a Mac with nothing installed yet, and never runs brew
+mkdir -p "$tmp/empty-home"
+out=$(env -i HOME="$tmp/empty-home" PATH=/usr/bin:/bin /bin/zsh -fc "source $repo/tilde/.zprofile; print -r -- \$PATH; print -r -- \$HOMEBREW_PREFIX; print -r -- \$fpath[1]" 2>&1)
+[ "$(sed -n 2p <<< "$out")" = /opt/homebrew ] || fail "tilde/.zprofile: HOMEBREW_PREFIX is not /opt/homebrew: $out"
+[ "$(sed -n 3p <<< "$out")" = /opt/homebrew/share/zsh/site-functions ] || fail "tilde/.zprofile: site-functions not first in fpath"
+# Where a mise is already installed, .zprofile's shim activation puts its shims dir first
+p=$(sed -n 1p <<< "$out")
+case ${p#"$tmp/empty-home/.local/share/mise/shims:"} in "$tmp/empty-home/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:"*) ;; *) fail "tilde/.zprofile: PATH does not start with ~/.local/bin and the prefix: $out" ;; esac
+[ "$(wc -l <<< "$out" | tr -d ' ')" = 3 ] || fail "tilde/.zprofile printed something on a bare Mac: $out"
+! grep -nE '(^|[^[:alnum:]_.-])brew[[:space:]]' "$repo/tilde/.zprofile" "$repo"/zsh/*.zsh | grep -v '^[^:]*:[0-9]*:[[:space:]]*#' || fail "shell startup still calls brew"
 
 echo "shell: all checks passed"

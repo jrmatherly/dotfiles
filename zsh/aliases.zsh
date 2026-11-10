@@ -32,7 +32,6 @@ alias sl="ls"
 alias gut="git"
 alias gti="git"
 alias mdkir="mkdir"
-alias brwe="brew"
 
 # Shortcuts
 alias -- +x="chmod +x"

@@ -1,8 +1,14 @@
 # ~/.zprofile — runs once for login shells (including shells spawned by GUI
 # apps like VSCode/Finder). Interactive-only setup belongs in .zshrc instead.
 
-# Homebrew (absent on a fresh Mac until setup installs it)
-[[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv zsh)"
+# /opt/homebrew is where mise puts formulae and casks (conf.d/30-packages.toml)
+# and ~/.local/bin is where mise itself lives. These are the lines `brew
+# shellenv` used to print; nothing here runs a command.
+export HOMEBREW_PREFIX=/opt/homebrew
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+fpath=(/opt/homebrew/share/zsh/site-functions $fpath)
+export FPATH
+export INFOPATH="/opt/homebrew/share/info:${INFOPATH:-}"
 
 # mise: make tool shims available to non-interactive/GUI-launched processes
 # (e.g. VSCode's integrated Python/Node resolution). Full shell activation
