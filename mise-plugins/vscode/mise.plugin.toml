@@ -1,0 +1,5 @@
+[package-manager]
+requires = ["code"]
+# mise can't install an old extension version through code, and the config pins none
+supports_version_pins = false
+os = ["macos"]

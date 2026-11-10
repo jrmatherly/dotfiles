@@ -1,14 +1,15 @@
 #!/bin/bash
 #
-# Self-check for the package fragment: key shape, the tap list and no version pins.
+# Self-check for the package fragment (key shape, the tap list, no version pins) and the vscode plugin.
 #
 # - Run it (pnpm check does too); exits 1 naming the first failed assertion:
 #
 # `test-packages`
 #
 # ---
-# Reads tilde/.config/mise/conf.d/30-packages.toml with tomllib. Installs
-# nothing and never runs mise against the live config.
+# Reads tilde/.config/mise/conf.d/30-packages.toml with tomllib. Runs the
+# mise-plugins/vscode hooks against a fake code with every mise dir in a temp
+# dir. Installs nothing and never runs mise against the live config.
 #
 # License: MIT
 
@@ -94,3 +95,88 @@ first=$(env -i HOME="$tmp/home" DOTFILES="$repo" /bin/zsh -fc 'source "$DOTFILES
 [ "$first" = "$comp" ] || fail "zsh/completion.zsh does not put $comp first in fpath (got $first)"
 first=$(env -i HOME="$tmp/empty" DOTFILES="$repo" /bin/zsh -fc 'source "$DOTFILES/zsh/completion.zsh"; print -r -- $fpath[1]')
 case $first in "$tmp/empty"*) fail "zsh/completion.zsh adds a completions dir that does not exist" ;; esac
+
+# The vscode plugin against a fake code, with every mise dir and HOME in the temp dir
+if ! command -v mise > /dev/null; then
+  echo "test-packages: mise is not on PATH, skipping the vscode plugin cases" >&2
+  exit 0
+fi
+v="$tmp/vscode"
+mkdir -p "$v/bin" "$v/misebin" "$v/home" "$v/cfg/conf.d" "$v/cfg2/conf.d"
+# mise alone on PATH: its own dir (/opt/homebrew/bin here) also holds the real code
+ln -s "$(command -v mise)" "$v/misebin/mise"
+log="$v/code.log"
+cat > "$v/bin/code" << FAKE
+#!/bin/sh
+echo "\$*" >> "$log"
+case "\$*" in
+  "--list-extensions --show-versions") printf 'ms-python.python@2026.1.0\nGolang.Go@0.50.0\n' ;;
+  "--install-extension bad.ext") exit 1 ;;
+esac
+FAKE
+chmod +x "$v/bin/code"
+{ echo '[bootstrap.packages]'; printf '"vscode:%s" = "latest"\n' ms-python.python golang.go eamodio.gitlens; } \
+  > "$v/cfg/conf.d/30-packages.toml"
+{ echo '[bootstrap.packages]'; printf '"vscode:%s" = "latest"\n' aaa.first bad.ext zzz.last; } \
+  > "$v/cfg2/conf.d/30-packages.toml"
+
+# mise with only temp state, from the temp dir; cfg= and path= override the config dir and PATH
+vmise() {
+  (cd "$v" && env -i HOME="$v/home" TMPDIR="$v" PATH="${path:-$v/bin:$v/misebin:/usr/bin:/bin}" \
+    MISE_CONFIG_DIR="$v/${cfg:-cfg}" MISE_TRUSTED_CONFIG_PATHS="$v/${cfg:-cfg}" \
+    MISE_DATA_DIR="$v/data" MISE_STATE_DIR="$v/state" MISE_CACHE_DIR="$v/cache" mise "$@")
+}
+
+vmise plugins link --force vscode "$repo/mise-plugins/vscode" > /dev/null 2>&1 || fail "vscode: link"
+# link exits 0 for a missing dir too; plugins ls lists only a plugin that loads
+vmise plugins ls 2> /dev/null | grep -qx vscode || fail "vscode: link (plugins ls does not list vscode)"
+
+: > "$log"
+vmise bootstrap packages status --json 2> /dev/null > "$v/status.json" || fail "vscode: status --json"
+"${py[@]}" - "$v/status.json" << 'PY' || fail "vscode: status --json states"
+import json, sys
+
+pkgs = {p["package"]: p for p in json.load(open(sys.argv[1]))["vscode"]["packages"]}
+got = {k: (p["state"], p["installed_version"]) for k, p in pkgs.items()}
+want = {"ms-python.python": ("installed", "2026.1.0"), "golang.go": ("installed", "0.50.0"), "eamodio.gitlens": ("missing", "")}
+assert got == want, got
+PY
+[ -s "$log" ] && ! grep -vqx -- '--list-extensions --show-versions' "$log" \
+  || fail "vscode: status ran code with something other than --list-extensions --show-versions"
+
+rc=0
+vmise bootstrap packages status --missing > /dev/null 2>&1 || rc=$?
+[ "$rc" = 1 ] || fail "vscode: status --missing exited $rc, not 1"
+
+out=$(vmise bootstrap packages apply --dry-run 2>&1) || fail "vscode: apply --dry-run"
+grep -q 'would install eamodio.gitlens' <<< "$out" || fail "vscode: dry run does not print 'would install eamodio.gitlens'"
+! grep -q -- '--install-extension' "$log" || fail "vscode: dry run ran code --install-extension"
+
+vmise bootstrap packages apply --yes > /dev/null 2>&1 || fail "vscode: apply --yes"
+[ "$(grep -c -- '--install-extension' "$log")" = 1 ] && grep -qx -- '--install-extension eamodio.gitlens' "$log" \
+  || fail "vscode: apply did not run exactly one install, for eamodio.gitlens"
+
+vmise bootstrap packages upgrade --yes > /dev/null 2>&1 || fail "vscode: upgrade --yes"
+[ "$(grep -c -- '--install-extension' "$log")" = 1 ] || fail "vscode: upgrade ran code --install-extension"
+
+: > "$log"
+rc=0
+out=$(cfg=cfg2 vmise bootstrap packages apply --yes 2>&1) || rc=$?
+[ "$rc" != 0 ] || fail "vscode: apply with a failing extension exited 0"
+for id in aaa.first bad.ext zzz.last; do
+  grep -qx -- "--install-extension $id" "$log" || fail "vscode: one failed install stopped the install of $id"
+done
+failed=$(grep 'failed to install' <<< "$out") || fail "vscode: no 'failed to install' error in: $out"
+grep -q 'bad\.ext' <<< "$failed" && ! grep -qE 'aaa\.first|zzz\.last' <<< "$failed" \
+  || fail "vscode: the error names the wrong ids: $failed"
+
+nocode="$v/misebin:/usr/bin:/bin"
+! env -i PATH="$nocode" /bin/sh -c 'command -v code' > /dev/null || fail "vscode: code is on the no-code PATH"
+path=$nocode vmise bootstrap packages status --json 2> /dev/null > "$v/nocode.json" \
+  || fail "vscode: status --json fails without code on PATH"
+"${py[@]}" - "$v/nocode.json" << 'PY' || fail "vscode: without code the manager is not reported unavailable"
+import json, sys
+
+doc = json.load(open(sys.argv[1]))
+assert "vscode" not in doc or doc["vscode"]["available"] is False, doc.get("vscode")
+PY

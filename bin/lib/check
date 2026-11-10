@@ -90,7 +90,7 @@ bash bin/lib/test-claude-config > /dev/null
 bash bin/lib/test-sysup > /dev/null
 # zsh/ and tilde/.zshrc in interactive agent and user shells, through a temp ZDOTDIR
 bash bin/lib/test-shell > /dev/null
-# conf.d/30-packages.toml: key shape, tap list, no pins; the flux2 and talosctl completion hooks
+# conf.d/30-packages.toml: key shape, tap list, no pins; the flux2 and talosctl completion hooks; the vscode plugin against a fake code
 bash bin/lib/test-packages > /dev/null
 # mise's override layer: the version floor, the gitignored local files and zsh/override-env.zsh under a temp HOME and MISE_CONFIG_DIR
 bash bin/lib/test-override-env > /dev/null
