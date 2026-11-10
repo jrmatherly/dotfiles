@@ -338,7 +338,8 @@ reregister_mise_mcp() {
 # 0: moved, nothing to move, or declined. 1: a check failed
 # mise links each shim to the first mise on PATH, not to the binary that runs, and
 # rewrites an existing link only with --force (measured on 2026.11.5)
-reshim() { run env PATH="$(dirname "$MISE"):$PATH" "$MISE" reshim --force; }
+# PATH as a prefix, not through env, so run echoes the command without the whole PATH
+reshim() { PATH="$(dirname "$MISE"):$PATH" run "$MISE" reshim --force; }
 
 move_mise() {
   local new="$HOME/.local/bin/mise" shims="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims" old n=0
