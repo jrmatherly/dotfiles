@@ -95,6 +95,22 @@ sandboxed() {
   defaults write "$@" 2> /dev/null || warn "Could not write $1 $2. Give this terminal Full Disk Access (System Settings → Privacy & Security) and run again."
 }
 
+# sudo keeps the caller's PATH on macOS, so a command that runs as root is
+# looked up in the system folders only. A same-named file earlier on PATH
+# never runs as root, and no per-tool path is fixed here.
+sys() {
+  local dir
+  # Not `command -v`: bash answers from its hash of an earlier PATH lookup
+  for dir in /usr/bin /bin /usr/sbin /sbin; do
+    if [ -x "$dir/$1" ]; then
+      echo "$dir/$1"
+      return
+    fi
+  done
+  echo "macos-extras: $1 is not in a system folder" >&2
+  return 1
+}
+
 # The groups below are written here, not declared in mise's fragment, because a
 # declared preference cannot be switched off. An empty value is the settings UI's off.
 
@@ -157,7 +173,7 @@ pmset_ensure() {
   local have
   have=$(pmset -g custom | awk -v k="$1" '$1 == k { print $2 }' | sort -u)
   if [ -n "$have" ] && [ "$have" != "$2" ]; then
-    sudo pmset -a "$1" "$2"
+    sudo "$(sys pmset)" -a "$1" "$2"
   fi
 }
 # Enable lid wakeup
@@ -174,7 +190,7 @@ pmset_ensure hibernatemode 3
 
 # Show the /Volumes folder
 if [[ "$(ls -ldO /Volumes)" == *hidden* ]]; then
-  sudo chflags nohidden /Volumes
+  sudo "$(sys chflags)" nohidden /Volumes
 fi
 
 # Each opt-in below reads the Mac's state without sudo and calls sudo only when
@@ -195,16 +211,16 @@ if [ -n "$computer_name" ]; then
     warn "Not renaming this Mac: no local hostname can be derived from \"$computer_name\". Set macos.local_hostname or pass --local-hostname."
   elif [ "$(scutil --get ComputerName 2> /dev/null || true)" != "$computer_name" ] \
     || [ "$(scutil --get LocalHostName 2> /dev/null || true)" != "$local_hostname" ]; then
-    sudo scutil --set ComputerName "$computer_name"
-    sudo scutil --set HostName "$computer_name"
-    sudo scutil --set LocalHostName "$local_hostname"
-    sudo defaults write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "$local_hostname"
+    sudo "$(sys scutil)" --set ComputerName "$computer_name"
+    sudo "$(sys scutil)" --set HostName "$computer_name"
+    sudo "$(sys scutil)" --set LocalHostName "$local_hostname"
+    sudo "$(sys defaults)" write /Library/Preferences/SystemConfiguration/com.apple.smb.server NetBIOSName -string "$local_hostname"
   fi
 fi
 
 # Enable HiDPI display modes (requires restart)
 if [ -n "$hidpi" ] && [ "$(defaults read /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled 2> /dev/null || true)" != 1 ]; then
-  sudo defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true
+  sudo "$(sys defaults)" write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true
 fi
 
 # Enable macOS Firewall + Stealth Mode. socketfilterfw is not on PATH; the
@@ -225,7 +241,7 @@ fi
 # It is on by default and stops all backups, so a Mac that uses Time Machine
 # switches macos.disable_time_machine off.
 if [ -n "$disable_tm" ] && [ "$(defaults read /Library/Preferences/com.apple.TimeMachine AutoBackup 2> /dev/null || true)" != 0 ]; then
-  if hash tmutil &> /dev/null; then sudo tmutil disable; fi
+  if hash tmutil &> /dev/null; then sudo "$(sys tmutil)" disable; fi
 fi
 
 # Drift alone must not restart anything (a value macOS keeps rewriting would

@@ -60,7 +60,7 @@ run() {
 
 printf ' hibernatemode 3\n womp 0\n disksleep 10\n' > "$pmset_out"
 run
-check "matching pmset values need no sudo" "! grep -q '^sudo pmset' '$log'"
+check "matching pmset values need no sudo" "! grep -q '^sudo .*/pmset' '$log'"
 check "no restart without a snapshot" "! grep -q '^killall' '$log'"
 
 check "screenshots are written when unset" "grep -q 'defaults write com.apple.screencapture location -string $HOME/Desktop' '$log' && grep -q 'defaults write com.apple.screencapture name -string Shot' '$log'"
@@ -80,26 +80,26 @@ check "a group switched on is written" "grep -q 'defaults write com.apple.Softwa
 
 run
 check "the firewall is turned on by default" "grep -q '^sudo .*socketfilterfw --setglobalstate on$' '$log' && grep -q '^sudo .*socketfilterfw --setstealthmode on$' '$log'"
-check "sudo runs the system socketfilterfw, never one found on PATH" "! grep '^sudo .*socketfilterfw' '$log' | grep -qv '^sudo /usr/libexec/ApplicationFirewall/socketfilterfw '"
-check "Time Machine is turned off by default" "grep -qx 'sudo tmutil disable' '$log'"
+check "every command sudo runs is in a system folder, never one found on PATH" "grep -q '^sudo /' '$log' && ! grep '^sudo ' '$log' | grep -qv '^sudo /\(usr/bin\|bin\|usr/sbin\|sbin\|usr/libexec/ApplicationFirewall\)/'"
+check "Time Machine is turned off by default" "grep -qx 'sudo .*/tmutil disable' '$log'"
 check "HiDPI and the name are left alone by default" "! grep -q 'scutil --set\|windowserver' '$log'"
 
 DOTFILES_MACOS_FIREWALL=1 DOTFILES_MACOS_HIDPI=1 DOTFILES_MACOS_DISABLE_TIME_MACHINE=1 DOTFILES_MACOS_COMPUTER_NAME="Jason's Mac" run
 check "the firewall is turned on" "grep -q '^sudo .*socketfilterfw --setglobalstate on$' '$log' && grep -q '^sudo .*socketfilterfw --setstealthmode on$' '$log'"
-check "HiDPI is turned on" "grep -q '^sudo defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true' '$log'"
-check "Time Machine is turned off" "grep -qx 'sudo tmutil disable' '$log'"
-check "the Mac is renamed" "grep -qx \"sudo scutil --set ComputerName Jason's Mac\" '$log'"
-check "the local hostname is derived" "grep -qx 'sudo scutil --set LocalHostName jason-s-mac' '$log'"
+check "HiDPI is turned on" "grep -q '^sudo .*/defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true' '$log'"
+check "Time Machine is turned off" "grep -qx 'sudo .*/tmutil disable' '$log'"
+check "the Mac is renamed" "grep -qx \"sudo .*/scutil --set ComputerName Jason's Mac\" '$log'"
+check "the local hostname is derived" "grep -qx 'sudo .*/scutil --set LocalHostName jason-s-mac' '$log'"
 
 echo 1 > "$reads/DisplayResolutionEnabled"
 echo 0 > "$reads/AutoBackup"
 export FW_GLOBAL='Firewall is enabled. (State = 1)' FW_STEALTH='Firewall stealth mode is on'
 DOTFILES_MACOS_HIDPI=1 DOTFILES_MACOS_COMPUTER_NAME='Old Name' run
-check "a matching Mac needs no sudo for the default-on opt-ins" "! grep -q '^sudo \(.*socketfilterfw\|tmutil\|scutil\|defaults\)' '$log'"
+check "a matching Mac needs no sudo for the default-on opt-ins" "! grep -q '^sudo .*\(socketfilterfw\|tmutil\|scutil\|defaults\)' '$log'"
 DOTFILES_MACOS_FIREWALL=1 DOTFILES_MACOS_HIDPI=1 DOTFILES_MACOS_DISABLE_TIME_MACHINE=1 DOTFILES_MACOS_COMPUTER_NAME='Old Name' run
-check "a matching Mac needs no sudo for the opt-ins set to 1" "! grep -q '^sudo \(.*socketfilterfw\|tmutil\|scutil\|defaults\)' '$log'"
+check "a matching Mac needs no sudo for the opt-ins set to 1" "! grep -q '^sudo .*\(socketfilterfw\|tmutil\|scutil\|defaults\)' '$log'"
 DOTFILES_MACOS_COMPUTER_NAME='Old Name' DOTFILES_MACOS_LOCAL_HOSTNAME=new-host run
-check "a rename left half done is finished" "grep -qx 'sudo scutil --set LocalHostName new-host' '$log'"
+check "a rename left half done is finished" "grep -qx 'sudo .*/scutil --set LocalHostName new-host' '$log'"
 FW_GLOBAL='Firewall is enabled. (State = 2)' run
 check "a firewall in another enabled state is left alone" "! grep -q 'setglobalstate' '$log'"
 unset FW_GLOBAL FW_STEALTH
@@ -109,18 +109,18 @@ DOTFILES_MACOS_FIREWALL='' DOTFILES_MACOS_DISABLE_TIME_MACHINE='' DOTFILES_MACOS
 check "an opt-in switched off does nothing" "! grep -q 'socketfilterfw --set\|tmutil\|scutil --set\|windowserver' '$log'"
 
 DOTFILES_MACOS_FIREWALL='' DOTFILES_MACOS_DISABLE_TIME_MACHINE='' run --firewall --disable-time-machine
-check "a flag turns a switched-off opt-in on" "grep -q '^sudo .*socketfilterfw --setglobalstate on$' '$log' && grep -qx 'sudo tmutil disable' '$log'"
+check "a flag turns a switched-off opt-in on" "grep -q '^sudo .*socketfilterfw --setglobalstate on$' '$log' && grep -qx 'sudo .*/tmutil disable' '$log'"
 DOTFILES_MACOS_COMPUTER_NAME='From Setting' run --computer-name 'From Flag' --local-hostname custom-host
-check "the flag's name wins" "grep -qx 'sudo scutil --set ComputerName From Flag' '$log' && grep -qx 'sudo scutil --set LocalHostName custom-host' '$log'"
+check "the flag's name wins" "grep -qx 'sudo .*/scutil --set ComputerName From Flag' '$log' && grep -qx 'sudo .*/scutil --set LocalHostName custom-host' '$log'"
 DOTFILES_MACOS_COMPUTER_NAME='日本語' run
 check "a name that derives no local hostname renames nothing and the run goes on" "[ \$rc = 0 ] && ! grep -q 'scutil --set' '$log' && grep -q 'chflags nohidden' '$log'"
 DOTFILES_MACOS_COMPUTER_NAME='日本語' run --local-hostname nihongo
-check "the same name with a local hostname given is set" "grep -qx 'sudo scutil --set LocalHostName nihongo' '$log'"
+check "the same name with a local hostname given is set" "grep -qx 'sudo .*/scutil --set LocalHostName nihongo' '$log'"
 
 printf ' hibernatemode 3\n womp 0\n disksleep 0\n' > "$pmset_out"
 run
-check "a differing value is set" "grep -qx 'sudo pmset -a disksleep 10' '$log'"
-check "only that one" "[ \"\$(grep -c '^sudo pmset' '$log')\" = 1 ]"
+check "a differing value is set" "grep -qx 'sudo .*/pmset -a disksleep 10' '$log'"
+check "only that one" "[ \"\$(grep -c '^sudo .*/pmset' '$log')\" = 1 ]"
 check "an unreported key is skipped" "! grep -q 'lidwake' '$log'"
 
 snapshot="$TMPDIR/dotfiles-macos-defaults-before"
