@@ -56,15 +56,18 @@ printf 'echo sourced-ok\n' > "$tmp/s.zsh"
 # mise's shims and no install dirs, the shims ahead of Homebrew's bin (it has
 # its own node); full activation waits for the first prompt. Each starts from
 # the PATH macOS gives apps, as Claude Desktop does, not this shell's
-if need mise; then
+zsh_bin=$(command -v zsh)
+# Skipped unless a shell started from that PATH finds mise: CI's mise-action
+# installs it where only the runner's own PATH reaches
+if [ -n "$(run_zsh PATH=/usr/bin:/bin:/usr/sbin:/sbin "$zsh_bin" -i -c 'command -v mise')" ]; then
   mise_dir="${MISE_DATA_DIR:-$HOME/.local/share/mise}"
-  zsh_bin=$(command -v zsh)
   for kind in agent user; do
     flag=$([ "$kind" = agent ] && echo CLAUDECODE=1 || echo NOT_AGENT=1)
     out=$(run_zsh PATH=/usr/bin:/bin:/usr/sbin:/sbin "$flag" "$zsh_bin" -i -c 'print -l $path')
     ! grep -q "^$mise_dir/installs/" <<< "$out" || fail "$kind shell without a prompt: mise install dirs on PATH"
-    shims=$(grep -nx "$mise_dir/shims" <<< "$out" | cut -d: -f1 | head -1)
-    brew=$(grep -nx '/opt/homebrew/bin' <<< "$out" | cut -d: -f1 | head -1)
+    # || true: a missing line must reach the fail below, not stop the script under pipefail
+    shims=$(grep -nx "$mise_dir/shims" <<< "$out" | cut -d: -f1 | head -1) || true
+    brew=$(grep -nx '/opt/homebrew/bin' <<< "$out" | cut -d: -f1 | head -1) || true
     [ -n "$shims" ] && { [ -z "$brew" ] || [ "$shims" -lt "$brew" ]; } || fail "$kind shell: mise shims not ahead of /opt/homebrew/bin"
   done
   [ "$(user_zsh 'for f in $precmd_functions; do $f; done > /dev/null 2>&1; print -r -- $MISE_SHELL')" = zsh ] \
