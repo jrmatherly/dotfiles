@@ -50,4 +50,79 @@ rc=0
 PATH=/usr/bin:/bin bash "$repo/setup/mise-floor.sh" 2> /dev/null || rc=$?
 [ "$rc" = 1 ] || fail "mise-floor: passes without mise"
 
+# A mise that logs each call, so a fresh cache can be shown to start none
+real=$(command -v mise)
+mkdir -p "$tmp/bin" "$tmp/cfg" "$tmp/home" "$tmp/zd"
+printf '#!/bin/bash\necho "$*" >> "%s/mise.log"\nexec "%s" "$@"\n' "$tmp" "$real" > "$tmp/bin/mise"
+chmod +x "$tmp/bin/mise"
+printf 'source %q\n' "$repo/tilde/.zshenv" > "$tmp/zd/.zshenv"
+printf 'source "$DOTFILES/tilde/.zshrc"\n' > "$tmp/zd/.zshrc"
+override="$tmp/cfg/config.override.toml"
+cache="$tmp/home/.cache/dotfiles/override-env.${override//[^A-Za-z0-9]/_}.zsh"
+
+# Run a command with nothing inherited but the temp HOME, mise config and ZDOTDIR
+iso() { env -i HOME="$tmp/home" MISE_CONFIG_DIR="$tmp/cfg" ZDOTDIR="$tmp/zd" PATH="$tmp/bin:/usr/bin:/bin" "$@"; }
+# val <name> [VAR=value]: the variable in a shell that never prompts, seeded with K=seed
+val() { iso K=seed "${@:2}" zsh -c "print -r -- \"\${$1-unset}\"" 2> /dev/null; }
+# How many times a shell started mise
+calls() { [ -f "$tmp/mise.log" ] && wc -l < "$tmp/mise.log" | tr -d ' ' || echo 0; }
+# The real mise against the temp config, from the temp HOME as the UI will run it
+m() { (cd "$tmp/home" && iso "$real" "$@"); }
+
+[ "$(val K)" = seed ] || fail "no override file: the seed is not kept"
+[ ! -e "$cache" ] && [ "$(calls)" = 0 ] || fail "no override file: a cache was written or mise ran"
+
+m set --override K=over "SP=a b 'q' \"d\"" > /dev/null
+[ "$(val K)" = over ] || fail "override does not beat the seed"
+[ "$(val SP)" = "a b 'q' \"d\"" ] || fail "a value with spaces and quotes is not kept: $(val SP)"
+[ "$(calls)" = 1 ] || fail "stale cache: expected one mise run, saw $(calls)"
+! grep -q "^export PATH=" "$cache" || fail "the cache holds keys the override file does not set"
+
+: > "$tmp/mise.log"
+[ "$(val K)" = over ] && [ "$(calls)" = 0 ] || fail "fresh cache: mise ran at shell startup"
+
+[ "$(val K DOTFILES_NO_OVERRIDE_ENV=1)" = seed ] || fail "DOTFILES_NO_OVERRIDE_ENV does not skip the cache"
+
+m set --override K=again > /dev/null
+[ "$(val K)" = again ] && [ "$(calls)" = 1 ] || fail "a changed override file does not refresh the cache once"
+
+# Another mise config dir under the same HOME gets its own cache
+mkdir -p "$tmp/cfgB"
+printf '[env]\nK = "other"\n' > "$tmp/cfgB/config.override.toml"
+[ "$(val K MISE_CONFIG_DIR="$tmp/cfgB")" = other ] || fail "a second mise config dir: its override is not applied"
+[ "$(val K)" = again ] || fail "a second mise config dir changed the first one's values"
+
+# A broken override file keeps the last good values
+cp "$tmp/cfg/config.override.toml" "$tmp/good.toml"
+echo '[env' > "$tmp/cfg/config.override.toml"
+[ "$(val K)" = again ] || fail "unreadable override file: last good value lost"
+out=$(iso zsh -i -c : < /dev/null 2>&1)
+[ "$(grep -c '^override-env: mise could not read ' <<< "$out")" = 1 ] || fail "unreadable override file, interactive: expected one warning, got: $out"
+cp "$tmp/good.toml" "$tmp/cfg/config.override.toml"
+
+m unset --override K > /dev/null
+[ "$(val K)" = seed ] || fail "reset does not restore the seed"
+[ "$(val SP)" = "a b 'q' \"d\"" ] || fail "reset of one key dropped another"
+
+# Interactive shells: ~/.zsh.local (a seed) exports after .zshenv, and the override still wins
+m set --override K=over > /dev/null
+echo 'export K=local' > "$tmp/home/.zsh.local"
+out=$(iso PATH="$tmp/bin:/opt/homebrew/bin:/usr/bin:/bin" zsh -i -c 'print -r -- $K' < /dev/null 2> /dev/null)
+[ "$out" = over ] || fail "interactive shell: ~/.zsh.local beat the override ($out)"
+
+# A new terminal window runs .zshenv before PATH has mise. With mise at none of
+# the fallback paths either (HOME is the temp one, HOMEBREW_PREFIX an empty
+# folder), a stale cache keeps its values: silently, or with one warning at a prompt
+touch "$tmp/cfg/config.override.toml"
+nomise() { iso K=seed PATH=/usr/bin:/bin HOMEBREW_PREFIX="$tmp/none" "$@"; }
+out=$(nomise zsh -c 'print -r -- $K' 2>&1)
+[ "$out" = over ] || fail "stale cache without mise: expected only the last good value, got: $out"
+out=$(nomise zsh -i -c 'print -r -- $K' < /dev/null 2>&1)
+[ "$(grep -c '^override-env: mise could not read ' <<< "$out")" = 1 ] || fail "stale cache without mise, interactive: expected one warning, got: $out"
+[ "$(tail -1 <<< "$out")" = over ] || fail "stale cache without mise, interactive: last good value lost: $out"
+
+# Resetting the last key empties the cache
+m unset --override K SP > /dev/null
+[ "$(val K)" = seed ] && ! grep -q '^export ' "$cache" || fail "resetting every key left exports in the cache"
+
 echo "override-env: all checks passed"

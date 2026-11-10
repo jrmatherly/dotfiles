@@ -22,3 +22,6 @@ export HINDSIGHT_API_LLM_PROVIDER=claude-code
 export HINDSIGHT_API_LLM_MODEL=claude-sonnet-5-5
 export HINDSIGHT_API_RETAIN_LLM_MODEL=claude-haiku-5-5
 export HINDSIGHT_API_CONSOLIDATION_LLM_MODEL=claude-haiku-5-5
+
+# Values set with `mise set --override` beat the exports above (zsh/override-env.zsh)
+source "$DOTFILES/zsh/override-env.zsh"

@@ -36,6 +36,8 @@ source $DOTFILES/zsh/init.zsh
 
 # Allow local (private) overrides if present (PATH additions, work-specific aliases, etc.)
 [ -f ~/.zsh.local ] && source ~/.zsh.local
+# Again, because zsh/env.zsh and ~/.zsh.local exported since .zshenv
+source $DOTFILES/zsh/override-env.zsh
 
 # Add GPG key
 export GPG_TTY=$(tty)
