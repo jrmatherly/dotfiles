@@ -30,8 +30,9 @@ def seed_env(keys: set[str]) -> dict[str, str]:
     # A fresh `zsh -ic` never reaches the prompt, so mise activate never runs; the guard skips A1's override cache
     child = {k: v for k, v in os.environ.items() if k not in keys} | {"DOTFILES_NO_OVERRIDE_ENV": "1"}
     try:
+        # New session: an interactive zsh on the TUI's terminal left every later keypress read failing with EIO
         r = subprocess.run(["zsh", "-ic", "/usr/bin/env -0"], env=child, stdin=subprocess.DEVNULL,
-                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=20)
+                           stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=20, start_new_session=True)
     except (OSError, subprocess.TimeoutExpired) as e:
         raise SettingsError(f"could not start a zsh to read the seed values: {e}") from None
     if r.returncode != 0:

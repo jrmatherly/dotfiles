@@ -57,6 +57,12 @@ else
   python3 agents/catalog/test_stack.py > /dev/null
   for t in "${settings_tests[@]}"; do python3 "$t" > /dev/null; done
 fi
+# The dotfiles-settings UI tests need Textual, so they run in the package's locked uv env
+if command -v uv > /dev/null; then
+  uv run --quiet --locked --project settings python settings/tests/test_tui.py > /dev/null
+else
+  echo "check: uv not found, skipping the dotfiles-settings UI tests" >&2
+fi
 # Parse the Brewfile the way brewpick does (`manual` lines stripped: raw
 # `brew bundle` rejects them) so a typo fails here, not on the next install
 if command -v brew > /dev/null; then
