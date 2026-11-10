@@ -74,6 +74,7 @@ node = ["24", "22", "26"]
 # "always", on every `mise install` too); zsh/completion.zsh puts the dir first
 # in fpath
 azd = "latest" # Azure Developer CLI (aqua:Azure/azure-dev)
+azure-functions-core-tools = "4" # `func`; 4 is the product line, as the formula name `@4` was
 "aqua:Azure/kubelogin" = "latest" # Azure AD login for kubectl; the short name `kubelogin` is int128's, a different tool
 flux2 = { version = "latest", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && flux completion zsh > "$HOME/.cache/dotfiles/completions/_flux"', when = "always" } } # `flux`, the Flux CD CLI
 hunk = "latest" # Git pager used by tilde/.gitconfig, lazygit and gh
