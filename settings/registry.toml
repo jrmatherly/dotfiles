@@ -465,3 +465,394 @@ true_value = ""
 choices = []
 default = ""
 access = "ro"
+
+# macOS preferences declared in tilde/.config/mise/conf.d/20-macos.toml. Exposed when a settings pane or
+# docs/macos settings.md has it, its type is bool, int, string or a fully named enum, and it is not security-sensitive.
+
+[[setting]]
+id = "macos.dock.autohide"
+section = "macOS (tracked in git)"
+label = "Hide the Dock automatically"
+help = "The Dock slides away until the pointer reaches its edge."
+kind = "macos-default"
+key = "com.apple.dock/autohide"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.dock.tilesize"
+section = "macOS (tracked in git)"
+label = "Dock icon size"
+help = "In pixels."
+kind = "macos-default"
+key = "com.apple.dock/tilesize"
+type = "int"
+access = "rw"
+
+[[setting]]
+id = "macos.dock.show_recents"
+section = "macOS (tracked in git)"
+label = "Show suggested and recent apps in the Dock"
+help = "Adds a section of apps you are not keeping in the Dock."
+kind = "macos-default"
+key = "com.apple.dock/show-recents"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.dock.minimize_to_application"
+section = "macOS (tracked in git)"
+label = "Minimize windows into the app icon"
+help = "Off puts each minimized window at the right of the Dock."
+kind = "macos-default"
+key = "com.apple.dock/minimize-to-application"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.dock.mineffect"
+section = "macOS (tracked in git)"
+label = "Minimize animation"
+help = "suck is hidden: the settings pane offers only Genie and Scale."
+kind = "macos-default"
+key = "com.apple.dock/mineffect"
+type = "enum"
+choices = ["genie", "scale", "suck"]
+access = "rw"
+
+[[setting]]
+id = "macos.dock.show_process_indicators"
+section = "macOS (tracked in git)"
+label = "Show a dot under open apps"
+help = ""
+kind = "macos-default"
+key = "com.apple.dock/show-process-indicators"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.dock.no_bouncing"
+section = "macOS (tracked in git)"
+label = "Stop Dock icons bouncing"
+help = "Apps that want attention no longer bounce."
+kind = "macos-default"
+key = "com.apple.dock/no-bouncing"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.dock.showhidden"
+section = "macOS (tracked in git)"
+label = "Dim the icons of hidden apps"
+help = ""
+kind = "macos-default"
+key = "com.apple.dock/showhidden"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.dock.group_apps"
+section = "macOS (tracked in git)"
+label = "Group windows by app in Mission Control"
+help = ""
+kind = "macos-default"
+key = "com.apple.dock/expose-group-apps"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.finder.show_hidden_files"
+section = "macOS (tracked in git)"
+label = "Show hidden files"
+help = "The same as pressing Command-Shift-Period in a Finder window."
+kind = "macos-default"
+key = "com.apple.finder/AppleShowAllFiles"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.finder.show_extensions"
+section = "macOS (tracked in git)"
+label = "Show all filename extensions"
+help = ""
+kind = "macos-default"
+key = "NSGlobalDomain/AppleShowAllExtensions"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.finder.show_pathbar"
+section = "macOS (tracked in git)"
+label = "Show the path bar"
+help = ""
+kind = "macos-default"
+key = "com.apple.finder/ShowPathbar"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.finder.show_status_bar"
+section = "macOS (tracked in git)"
+label = "Show the status bar"
+help = ""
+kind = "macos-default"
+key = "com.apple.finder/ShowStatusBar"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.finder.show_sidebar"
+section = "macOS (tracked in git)"
+label = "Show the sidebar"
+help = ""
+kind = "macos-default"
+key = "com.apple.finder/ShowSidebar"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.finder.view_style"
+section = "macOS (tracked in git)"
+label = "Default view"
+help = "List, icon, column, gallery."
+kind = "macos-default"
+key = "com.apple.finder/FXPreferredViewStyle"
+type = "enum"
+choices = ["Nlsv", "icnv", "clmv", "glyv"]
+access = "rw"
+
+[[setting]]
+id = "macos.finder.folders_first"
+section = "macOS (tracked in git)"
+label = "Keep folders on top when sorting by name"
+help = ""
+kind = "macos-default"
+key = "com.apple.finder/_FXSortFoldersFirst"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.finder.extension_change_warning"
+section = "macOS (tracked in git)"
+label = "Warn before changing a file extension"
+help = ""
+kind = "macos-default"
+key = "com.apple.finder/FXEnableExtensionChangeWarning"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.keyboard.key_repeat"
+section = "macOS (tracked in git)"
+label = "Key repeat rate"
+help = "Lower is faster. 1 is faster than the slider's fastest position. Needs a logout."
+kind = "macos-default"
+key = "NSGlobalDomain/KeyRepeat"
+type = "int"
+access = "rw"
+
+[[setting]]
+id = "macos.keyboard.initial_key_repeat"
+section = "macOS (tracked in git)"
+label = "Delay until repeat"
+help = "Lower is shorter. 10 is shorter than the slider's shortest position. Needs a logout."
+kind = "macos-default"
+key = "NSGlobalDomain/InitialKeyRepeat"
+type = "int"
+access = "rw"
+
+[[setting]]
+id = "macos.keyboard.press_and_hold"
+section = "macOS (tracked in git)"
+label = "Hold a key for accented characters"
+help = "Off makes a held key repeat."
+kind = "macos-default"
+key = "NSGlobalDomain/ApplePressAndHoldEnabled"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.keyboard.auto_capitalization"
+section = "macOS (tracked in git)"
+label = "Capitalize words automatically"
+help = ""
+kind = "macos-default"
+key = "NSGlobalDomain/NSAutomaticCapitalizationEnabled"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.keyboard.auto_correct"
+section = "macOS (tracked in git)"
+label = "Correct spelling automatically"
+help = ""
+kind = "macos-default"
+key = "NSGlobalDomain/NSAutomaticSpellingCorrectionEnabled"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.keyboard.smart_quotes"
+section = "macOS (tracked in git)"
+label = "Use smart quotes"
+help = "Off keeps straight quotes, which code needs."
+kind = "macos-default"
+key = "NSGlobalDomain/NSAutomaticQuoteSubstitutionEnabled"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.keyboard.smart_dashes"
+section = "macOS (tracked in git)"
+label = "Use smart dashes"
+help = ""
+kind = "macos-default"
+key = "NSGlobalDomain/NSAutomaticDashSubstitutionEnabled"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.keyboard.period_substitution"
+section = "macOS (tracked in git)"
+label = "Add a period with a double space"
+help = ""
+kind = "macos-default"
+key = "NSGlobalDomain/NSAutomaticPeriodSubstitutionEnabled"
+type = "bool"
+true_value = "true"
+access = "rw"
+
+[[setting]]
+id = "macos.general.scroll_bars"
+section = "macOS (tracked in git)"
+label = "Show scroll bars"
+help = ""
+kind = "macos-default"
+key = "NSGlobalDomain/AppleShowScrollBars"
+type = "enum"
+choices = ["WhenScrolling", "Automatic", "Always"]
+access = "rw"
+
+# Read by setup/macos-extras.sh, which set-defaults runs. Stored in the git-ignored override file.
+
+[[setting]]
+id = "macos.screenshots"
+section = "macOS (this Mac)"
+label = "Apply the screenshot preferences"
+help = "Save to the Desktop as PNG named Shot, no window shadow, pointer shown. Off leaves them as they are. Applied by the next set-defaults."
+kind = "env"
+key = "DOTFILES_MACOS_SCREENSHOTS"
+type = "bool"
+true_value = "1"
+default = "1"
+access = "rw"
+
+[[setting]]
+id = "macos.time_machine_new_disks"
+section = "macOS (this Mac)"
+label = "Stop Time Machine offering new disks"
+help = "Time Machine stops asking to use each new drive for backups. Off leaves the prompt as it is. Applied by the next set-defaults."
+kind = "env"
+key = "DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS"
+type = "bool"
+true_value = "1"
+default = "1"
+access = "rw"
+
+[[setting]]
+id = "macos.textedit"
+section = "macOS (this Mac)"
+label = "Make TextEdit default to plain text"
+help = "New documents are plain text, opened and saved as UTF-8. Off leaves TextEdit as it is. Applied by the next set-defaults."
+kind = "env"
+key = "DOTFILES_MACOS_TEXTEDIT"
+type = "bool"
+true_value = "1"
+default = "1"
+access = "rw"
+
+[[setting]]
+id = "macos.software_update"
+section = "macOS (this Mac)"
+label = "Turn on automatic macOS updates"
+help = "Daily check, background download, security and system data installs. Turn off on a Mac whose updates are managed by MDM. Applied by the next set-defaults."
+kind = "env"
+key = "DOTFILES_MACOS_SOFTWARE_UPDATE"
+type = "bool"
+true_value = "1"
+default = "1"
+access = "rw"
+
+[[setting]]
+id = "macos.firewall"
+section = "macOS (this Mac)"
+label = "Turn on the firewall and stealth mode"
+help = "On by default. set-defaults asks for your password when the firewall or stealth mode is off. Turn this off on a Mac whose firewall is managed by MDM. Turning it off leaves the firewall as it is."
+kind = "env"
+key = "DOTFILES_MACOS_FIREWALL"
+type = "bool"
+true_value = "1"
+default = "1"
+access = "rw"
+
+[[setting]]
+id = "macos.hidpi"
+section = "macOS (this Mac)"
+label = "Offer HiDPI display modes"
+help = "Needs your password and a restart. Turning this off later leaves the modes on."
+kind = "env"
+key = "DOTFILES_MACOS_HIDPI"
+type = "bool"
+true_value = "1"
+access = "rw"
+
+[[setting]]
+id = "macos.disable_time_machine"
+section = "macOS (this Mac)"
+label = "Turn off Time Machine backups"
+help = "On by default: the next set-defaults stops all Time Machine backups on this Mac, and asks for your password when backups are on. If this Mac uses Time Machine, turn this off before running set-defaults. Turning it off later does not turn backups back on: use System Settings."
+kind = "env"
+key = "DOTFILES_MACOS_DISABLE_TIME_MACHINE"
+type = "bool"
+true_value = "1"
+default = "1"
+access = "rw"
+
+[[setting]]
+id = "macos.computer_name"
+section = "macOS (this Mac)"
+label = "Computer name"
+help = "set-defaults renames the Mac when this or the local hostname differs from the Mac's, and asks for your password. Empty leaves the name alone."
+kind = "env"
+key = "DOTFILES_MACOS_COMPUTER_NAME"
+type = "string"
+access = "rw"
+
+[[setting]]
+id = "macos.local_hostname"
+section = "macOS (this Mac)"
+label = "Local hostname"
+help = "The Bonjour name (name.local). Used only when the computer name is set. Empty derives it from the computer name: lower case, other characters as hyphens."
+kind = "env"
+key = "DOTFILES_MACOS_LOCAL_HOSTNAME"
+type = "string"
+access = "rw"

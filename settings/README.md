@@ -39,6 +39,8 @@ Some rows are read-only (`access = "ro"`). `set` and `reset` refuse them with ex
 - The telemetry opt-outs in the Privacy section. `zsh/env.zsh` and `setup.sh` keep that list in step (`.claude/rules/telemetry-sync.md`).
 - The three Hindsight models (`HINDSIGHT_API_LLM_MODEL`, `HINDSIGHT_API_RETAIN_LLM_MODEL`, `HINDSIGHT_API_CONSOLIDATION_LLM_MODEL`). `tilde/.zshenv` sets them for shells and `agents/claude-settings.json` sets the same three for Claude Code, so an override would reach shells only. Change both files together.
 
+The macOS preferences in the "macOS (tracked in git)" section are the `macos-default` kind. Their value is the one declared in `tilde/.config/mise/conf.d/20-macos.toml`, `seed` when it matches the committed file and `override` when it does not, and `drift` is true when the Mac's preference differs. `set` edits that one line of the tracked fragment in place and writes that one preference with `defaults write`. It never applies the whole fragment, so commit the file to keep the change. `reset` returns the line to the committed value. `dotfiles-settings apply macos-default` applies every declared preference. The "macOS (this Mac)" switches are `env` settings that `setup/macos-extras.sh` reads at the next `set-defaults`.
+
 ## Commands and exit codes
 
 | Command | Output | Exit |
@@ -113,16 +115,16 @@ After you upgrade textual-serve in `uv.lock`, `tests/test_serve.py` fails if ups
 
 Add one `[[setting]]` table to `registry.toml`. These eight fields are required:
 
-| Field     | Value                                             |
-| --------- | ------------------------------------------------- |
-| `id`      | Dotted lowercase, such as `updates.trim_ca_roots` |
-| `section` | The group the UI shows it under                   |
-| `label`   | The row's name                                    |
-| `help`    | One or two sentences under the row                |
-| `kind`    | The adapter, `env` in this phase                  |
-| `key`     | For `env`, the variable name (`[A-Z_][A-Z0-9_]*`) |
-| `type`    | `bool`, `string`, `int`, `enum` or `path`         |
-| `access`  | `rw` or `ro`                                      |
+| Field | Value |
+| --- | --- |
+| `id` | Dotted lowercase, such as `updates.trim_ca_roots` |
+| `section` | The group the UI shows it under |
+| `label` | The row's name |
+| `help` | One or two sentences under the row |
+| `kind` | The adapter, `env` or `macos-default` |
+| `key` | For `env`, the variable name (`[A-Z_][A-Z0-9_]*`). For `macos-default`, `<domain>/<key>` |
+| `type` | `bool`, `string`, `int`, `enum` or `path` |
+| `access` | `rw` or `ro` |
 
 These four are optional:
 

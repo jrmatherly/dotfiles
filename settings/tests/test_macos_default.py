@@ -1,5 +1,5 @@
 """Checks the macos-default adapter against a temp fragment, a stubbed mise and stubbed defaults. Run: python3 test_macos_default.py"""
-import atexit, contextlib, io, json, os, shutil, sys, tempfile, tomllib
+import atexit, contextlib, io, json, os, re, shutil, sys, tempfile, tomllib
 from dataclasses import replace
 from pathlib import Path
 
@@ -14,7 +14,7 @@ os.environ.pop("DOTFILES_SETTINGS_MISE", None)
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from dotfiles_settings import cli, mise, registry
 from dotfiles_settings.adapters import ADAPTERS, macos_default
-from dotfiles_settings.adapters.macos_default import (MacosDefaultAdapter, fragment_path, remove_key, set_key,
+from dotfiles_settings.adapters.macos_default import (MacosDefaultAdapter, fragment_path, remove_key, set_key, split_key,
                                                       to_literal)
 from dotfiles_settings.model import InvalidValue, Setting, SettingsError, Source
 
@@ -214,4 +214,32 @@ assert fragment_path().read_text() == FRAGMENT and written == []
 assert 'Run: defaults delete com.apple.dock "showhidden"' in err.getvalue()
 
 assert ADAPTERS["macos-default"].__class__ is MacosDefaultAdapter and "macos-default" in registry.KINDS
+
+# every macos-default registry entry is declared in the real fragment with a matching type
+repo = Path(__file__).resolve().parents[2]
+declared = tomllib.loads((repo / "tilde/.config/mise/conf.d/20-macos.toml").read_text())["bootstrap"]["macos"]["defaults"]
+settings = registry.load()
+macos = [s for s in settings if s.kind == "macos-default"]
+assert len(macos) == 26
+for s in macos:
+    domain, key = split_key(s.key)
+    value = declared[domain][key]
+    assert type(value) is {"bool": bool, "int": int, "string": str, "enum": str}[s.type], s.id
+    assert s.type != "enum" or value in s.choices, s.id
+    assert s.section == "macOS (tracked in git)" and s.access == "rw", s.id
+    assert s.type != "bool" or s.true_value == "true", s.id
+
+# every variable the extras script reads is a setting in "macOS (this Mac)", and the reverse
+extras = (repo / "setup/macos-extras.sh").read_text()
+local = {s.key: s for s in settings if s.section == "macOS (this Mac)"}
+assert set(local) == set(re.findall(r"DOTFILES_MACOS_[A-Z_]+", extras)), sorted(local)
+on_by_default = {"DOTFILES_MACOS_SCREENSHOTS", "DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS", "DOTFILES_MACOS_TEXTEDIT",
+                 "DOTFILES_MACOS_SOFTWARE_UPDATE", "DOTFILES_MACOS_FIREWALL", "DOTFILES_MACOS_DISABLE_TIME_MACHINE"}
+for key, s in local.items():
+    assert s.kind == "env" and s.access == "rw", key
+    assert s.type == "string" or s.true_value == "1", key
+    # on unless switched off: the script's ${VAR-1} and the registry default must agree
+    assert (s.default == "1") == (key in on_by_default), key
+    assert (f"${{{key}-1}}" in extras) == (key in on_by_default), key
+assert "${DOTFILES_MACOS_HIDPI:-}" in extras
 print("ok")
