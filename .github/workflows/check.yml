@@ -30,11 +30,21 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      # No mise here, so bin/lib/check runs the catalog test with plain
-      # python3, which must be 3.11+ for tomllib
+      # mise's python is not installed here, so bin/lib/check runs the catalog
+      # test with plain python3, which must be 3.11+ for tomllib
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.15'
+      # The floor in setup/mise-floor.sh (bin/lib/test-override-env checks they
+      # match). install: false, because the repo's global config is not linked here
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # v5.2.7
+        with:
+          version: 2026.11.5
+          install: false
+      # No lockfile to key a cache on until the settings package lands
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
       - run: brew install actionlint shellcheck minijinja-cli rtk
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1

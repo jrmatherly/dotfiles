@@ -44,7 +44,8 @@ zsh -n "${zsh_syntax_files[@]}"
 shellcheck --severity=warning "${shell_scripts[@]}"
 # The Claude Code catalog generator's status/cleanup rules (agents/catalog)
 # (Python 3.11+ for tomllib: mise's, not macOS's 3.9 — like bin/claude-catalog)
-if command -v mise > /dev/null; then
+# CI has mise but no mise-installed Python, and `mise exec python` would download one
+if command -v mise > /dev/null && mise where python > /dev/null 2>&1; then
   mise exec python -- python3 agents/catalog/test_build_catalog.py > /dev/null
   mise exec python -- python3 agents/catalog/test_stack.py > /dev/null
 else

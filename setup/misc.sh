@@ -136,6 +136,8 @@ fi
 # repo; link it first (symlinks.sh runs later and will skip it as already done)
 # so `mise install` picks up the tracked tool versions.
 if command_exists mise; then
+  # The settings layer needs mise's override file; stop before installing with an older mise
+  bash "$DOTFILES_DIR/setup/mise-floor.sh" || exit 1
   info "📦 Installing runtimes with mise…"
   if ! link_config_dir mise; then
     # This `mise install` uses that other config, not the repo's
