@@ -4,7 +4,7 @@
 
 **Goal:** A new Mac goes from `git clone` to a finished setup with `./setup.sh`, which installs mise, links the repo's mise config, installs the packages and runs `mise bootstrap`. It never applies macOS preferences. Those stay with `set-defaults`.
 
-**Architecture:** `setup.sh` shrinks to a wrapper. It checks the Command Line Tools, links `~/dotfiles` and `~/.config/mise` into the clone, installs mise when missing, holds sudo, applies the packages one manager at a time (a failed package warns and the run goes on), runs `mise bootstrap --skip macos-defaults,packages` from `$HOME`, and then runs `setup/dotfiles-extras.sh`. `conf.d/50-bootstrap.toml` declares Touch ID for sudo, the login shell, a `pre-packages` hook for a bare `mise bootstrap`, a `pre-tools` hook that drops sudo, and one `[tasks.bootstrap]` that runs `setup/misc.sh`. `setup/misc.sh` keeps every step no declarative section covers. `sysup` gains a prune report.
+**Architecture:** `setup.sh` shrinks to a wrapper. It checks the Command Line Tools, links `~/dotfiles` and `~/.config/mise` into the clone, installs mise when missing, holds sudo, applies the packages one manager at a time (a failed package warns and the run goes on, and with `-- --upgrade` each manager is upgraded right after its apply), runs `mise bootstrap --skip macos-defaults,packages` from `$HOME`, and then runs `setup/dotfiles-extras.sh`. `conf.d/50-bootstrap.toml` declares Touch ID for sudo, the login shell, a `pre-packages` hook for a bare `mise bootstrap`, a `pre-tools` hook that drops sudo, and one `[tasks.bootstrap]` that runs `setup/misc.sh`. `setup/misc.sh` keeps every step no declarative section covers. `sysup` gains a prune report.
 
 **Tech Stack:** bash 3.2 (`/bin/bash`), mise 2026.11.5, TOML, the repo's stub-based self-checks.
 
@@ -20,11 +20,11 @@
 - Bash scripts start with `#!/bin/bash` and a header comment, define their output helpers inline, and pass `pnpm check`.
 - Commit subjects are short, imperative, sentence case, with no conventional-commit prefix.
 - Every phase updates the docs that describe what it changed, in the same commit (D12).
-- Never run `./setup.sh`, `mise bootstrap` without `--dry-run`, or `sysup` yourself. Task 5 is the only place the real thing runs, and the user runs it.
+- Never run `./setup.sh`, `mise bootstrap` without `--dry-run`, or `sysup` yourself. Tasks 5 and 6 are the only places the real thing runs (this Mac, then a VM), and the user runs both. Until A7 adds the `ask` rule `Bash(mise bootstrap*)` (spec decision 7), nothing in `.claude/settings.json` stops an agent from running `mise bootstrap`. This rule and the owner's go-ahead in chat are the guard.
 - Tests that isolate mise set `HOME` and `MISE_CONFIG_DIR` only. Never set `MISE_GLOBAL_CONFIG_FILE`.
 - Line numbers in this plan are from commit `9af6244`. An earlier phase may have moved them, so find each quoted sentence with `grep -n` before editing it.
 - A commit names its paths. No `git add -A`, no `git add .`, no bare directory. The working tree holds an unrelated change to `agents/claude-settings.json` that must stay out of every commit.
-- The phase is done when `pnpm check` and `bin/lib/test-bootstrap` pass. `mise bootstrap status --missing` is informational. `setup.sh` never applies macOS preferences, and apps rewrite their own, so that command can list `macos-defaults` entries and exit 1 on a healthy Mac.
+- The phase is done when `pnpm check` and `bin/lib/test-bootstrap` pass and Task 6's VM results are recorded in this plan. `mise bootstrap status --missing` is informational. `setup.sh` never applies macOS preferences, and apps rewrite their own, so that command can list `macos-defaults` entries and exit 1 on a healthy Mac.
 
 ## Review Focus
 
@@ -36,6 +36,7 @@
 6. A rerun of `./setup.sh` on a configured Mac. Expected: no macOS preference is written and no app is quit. Pinned by case a (`--skip macos-defaults,packages`) and case b3 (`--only` is refused).
 7. One cask fails to install on a new Mac. Expected: a warning, and the run still links the dotfiles, sets the login shell and installs the tools. Pinned by case f2.
 8. `mise dotfiles apply` started from the settings UI. Expected: no sudo prompt, because `setup/dotfiles-extras.sh` is not a hook. Pinned by the static check that `50-bootstrap.toml` has no `post-dotfiles` line.
+9. `./setup.sh -- --upgrade` (spec decision 11). Expected: each package manager is applied, then upgraded, a failed upgrade only warns, and mise's own `--upgrade` still reaches the tools part. A plain rerun never upgrades a package, and `-- --skip packages --upgrade` upgrades tools only. Pinned by cases a (no `packages upgrade` line), b2, b4 (`--dry-run` reaches each upgrade), b6 and f3.
 
 ---
 
@@ -58,7 +59,9 @@
 
 **`setup.sh` applies the packages itself, before `mise bootstrap`.** mise stops at the first part that fails, and no flag makes it continue (`mise bootstrap --help` lists none). One failed cask would then skip the dotfiles, the login shell, the tools and the task, where the old `brew.sh` warned and went on. So `setup.sh` keeps what A4's `setup/packages.sh` did: `mise bootstrap packages apply --yes --manager brew`, then `brew-cask`, then `vscode` when `code` is on PATH, each followed by `|| warning`. Then it runs `mise bootstrap` with `packages` added to the skip list. Measured: the part names compose (`--skip macos-defaults,packages`), and `mise bootstrap packages apply --dry-run --yes --manager brew` runs on its own and prints no hook block, so `setup.sh` links the vscode plugin itself first. The `pre-packages` hook stays for a bare `mise bootstrap`, which does run the `packages` part and does stop on a failure. With `code` missing, `setup.sh` skips the vscode manager and says so. Under a bare `mise bootstrap` the manager reports `available: false` and every extension `skipped`, exit 0 (measured by the reviewer of A4). Either way the extensions install on the next run.
 
-**GitHub token for tap resolution.** `setup.sh` exports `MISE_GITHUB_TOKEN` from `gh auth token` when the variable is unset and `gh` is signed in. Otherwise it prints one warning. A run over the five remaining taps uses about 20 of the 60 anonymous API calls an hour (measured in A4), so one run works without a token and several runs within an hour can hit the limit.
+**`-- --upgrade` upgrades packages too (spec decision 11), and only then.** mise's `--upgrade` upgrades packages only in the `packages` part ("runs the equivalent of `mise bootstrap packages upgrade` after installing", `mise bootstrap --help`), and `setup.sh` skips that part. So when `--upgrade` is among the arguments after `--`, `setup.sh` runs `mise bootstrap packages upgrade --yes --manager <m>` right after each manager's apply, with its own `|| warning`, and still passes `--upgrade` to `mise bootstrap` for the tools part. `packages apply` has no upgrade flag (`mise bootstrap packages apply --help` lists `--manager`, `--dry-run`, `--yes`, `--update`), so a run without `--upgrade` stays install-only. Measured in a scratch `HOME` with temp `MISE_CONFIG_DIR`, `MISE_DATA_DIR`, `MISE_STATE_DIR`, `MISE_CACHE_DIR` and an empty `MISE_SYSTEM_BREW_PREFIX`, a config of `brew:jq` and `brew-cask:firefox`: `packages upgrade --dry-run --yes --manager brew` (and `brew-cask`) on packages not yet installed prints `mise WARN  brew: 1 package(s) not installed — run mise bootstrap packages apply first` and exits 0, so apply comes first and a package the apply failed on does not fail the upgrade. `--manager vscode` with no plugin linked exits 1 with `no packages requested for manager 'vscode'`, which is why the vscode upgrade runs under the same `code` guard and after the same plugin link as its apply. `mise bootstrap --dry-run --upgrade --only packages` printed the install lines, then `mise bootstrap: upgrading packages`, exit 0: the per-manager form does what the part does, with the warning instead of a stop. `--dry-run` reaches each upgrade call. A user `--skip packages` skips the upgrades with the applies, so `-- --skip packages --upgrade` upgrades tools only. Neither form updates mise itself, macOS or the agent tooling: that stays `sysup`, the command that upgrades everything.
+
+**GitHub token for tap resolution.** `setup.sh` exports `MISE_GITHUB_TOKEN` from `gh auth token` when the variable is unset and `gh` is signed in. Otherwise it prints one warning. The export comes before the package step, so it covers the upgrade calls too. A run over the five remaining taps uses about 20 of the 60 anonymous API calls an hour (measured in A4), so one run works without a token and several runs within an hour can hit the limit. An `--upgrade` run refreshes metadata again ("Refreshes package manager metadata, then upgrades", `packages upgrade --help`), so it uses more calls than an install-only run. How many is unmeasured: the scratch run above had nothing installed, so the upgrade skipped every package. Task 6 settles it on a VM (item 12 of its checklist).
 
 **`setup/dotfiles-extras.sh` is not a hook.** mise runs `post-dotfiles` on every `mise dotfiles apply` too, including one started from the settings UI, where a sudo prompt cannot be answered. `setup.sh` runs the script after `mise bootstrap` returns 0, and not when the run is a `--dry-run` or skips `dotfiles`. The git identity prompt therefore runs from `setup.sh` in the user's terminal. Without a terminal the script takes its non-interactive path.
 
@@ -77,7 +80,7 @@
 | `--dash` | Runs `setup/dash.sh` after a successful bootstrap. |
 | `-h`, `--help` | Unchanged. |
 | `--skip-brew` | Removed. It exits 1 and names the replacement, `./setup.sh -- --skip packages`. |
-| `-- <args>` | New. Everything after `--` goes to `mise bootstrap`, with three exceptions. `--skip <parts>` (or `--skip=<parts>`, repeatable) is merged into the one `--skip macos-defaults,<parts>,packages`. When `<parts>` names `packages`, `setup.sh` skips its own package step too. `--only` exits 1. `--dry-run` is also passed to the package step, and the plugin link and `setup/dotfiles-extras.sh` are left out. The two links and the mise install still happen. |
+| `-- <args>` | New. Everything after `--` goes to `mise bootstrap`, with three exceptions. `--skip <parts>` (or `--skip=<parts>`, repeatable) is merged into the one `--skip macos-defaults,<parts>,packages`. When `<parts>` names `packages`, `setup.sh` skips its own package step too. `--only` exits 1. `--upgrade` stays in the mise arguments (tools) and also adds a `packages upgrade` after each manager's apply. `--dry-run` is also passed to the package step, upgrades included, and the plugin link and `setup/dotfiles-extras.sh` are left out. The two links and the mise install still happen. |
 
 **`sysup` reports prune, it never prunes.** `mise bootstrap packages prune` removes every linked formula no config declares, including ones installed by hand. `sysup` runs it with `--dry-run` and prints a notice with the command.
 
@@ -180,8 +183,8 @@ Totals for the 60 rows:
 ## Interfaces from A1 to A5
 
 - A1: `setup/mise-floor.sh` is the version check, called from `setup/misc.sh`. Task 1 moves the call to `setup.sh`. CI has `mise` 2026.11.5 and `uv` on PATH (`jdx/mise-action` with `install: false`), with no `~/.config/mise` link, so part two of `test-bootstrap` runs there.
-- A3: `tilde/.config/mise/conf.d/20-macos.toml` declares `[bootstrap.hooks]` `pre-defaults` and `post-defaults`. Measured: hooks from two fragments combine, and both hooks run only when the `macos-defaults` part runs. A3 adds the `ask` rule `Bash(mise bootstrap*)` to `.claude/settings.json` with its `test-conventions` assertion, and the `test-conventions` check that tracked `setup/*.sh` files are executable. A6 relies on both and adds neither.
-- A4: `conf.d/30-packages.toml` declares `brew:zsh`. `setup/packages.sh` installs mise with `curl -fsSL https://mise.run | sh`, exports `MISE_GITHUB_TOKEN` from `gh auth token` or warns, links the vscode plugin and applies packages one manager at a time (the vscode manager only when `code` exists, a warning per failed manager, exit 0), behind the `--skip-brew` flag. `setup/tests/packages.sh` tests it and `bin/lib/check` runs that test. A6 moves those behaviours into `setup.sh` and deletes the script, the test and the check line. `setup/misc.sh` already has `export PATH="$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"` in place of `brew shellenv`, so inventory row M2 is done. `sysup` already has `mise self-update`, `packages` (status JSON compared before and after) and `packages status` steps, and exports `GITHUB_TOKEN` from `gh auth token`. A4 adds no hooks. `fresh-install.yml` applies packages piecewise with a `casks` input.
+- A3: `tilde/.config/mise/conf.d/20-macos.toml` declares `[bootstrap.hooks]` `pre-defaults` and `post-defaults`. Measured: hooks from two fragments combine, and both hooks run only when the `macos-defaults` part runs. A3 adds the `test-conventions` check that tracked `setup/*.sh` files are executable. A6 relies on it and does not add it. A3 adds no `ask` rule (spec decision 7): `Bash(mise bootstrap*)` lands in A7 Task 8, after this phase, so A6 neither adds nor checks for it.
+- A4: `conf.d/30-packages.toml` declares `brew:zsh`. `setup/packages.sh` installs mise with `curl -fsSL https://mise.run | sh`, exports `MISE_GITHUB_TOKEN` from `gh auth token` or warns, links the vscode plugin and applies packages one manager at a time (the vscode manager only when `code` exists, a warning per failed manager, exit 0), behind the `--skip-brew` flag. `setup/tests/packages.sh` tests it and `bin/lib/check` runs that test. A6 moves those behaviours into `setup.sh` and deletes the script, the test and the check line. `setup/misc.sh` already has `export PATH="$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"` in place of `brew shellenv`, so inventory row M2 is done. `sysup` already has `mise self-update`, `packages` (status JSON compared before and after) and `packages status` steps, and exports `GITHUB_TOKEN` from `gh auth token`. A4 adds no hooks. `.github/workflows/fresh-install.yml` is manual (`workflow_dispatch`) and has no inputs (A4 P8, spec decision 12). Its one job deletes the runner's Homebrew, asserts no `mise` is on PATH, runs `bash setup/packages.sh` as the path a new Mac takes, and then checks with `packages status --json` that every formula, cask and extension is installed. Decision 12 adds to A4's job the `df -h /` and bottle-cache readings at the start and after each package manager, and the `xcode-27` image with `macos-26` as the fallback. Because A4 is being revised for that decision, Task 2 Step 5 reads the committed workflow file rather than this summary. `.claude/rules/ci.md` describes the job with `setup/packages.sh` in it.
 - A5: `conf.d/40-dotfiles.toml` links `tilde/` with sources written `~/dotfiles/...`, so `~/dotfiles` must exist before the `dotfiles` part. A real directory at `~/.config/mise` makes `mise dot apply` refuse. A5 defines no task and no hook. It creates `setup/dotfiles-extras.sh` (git identity prompt, the two `sudo ln -s` links into `/usr/local/bin`, Firefox hard links, `bat cache --build`), safe to repeat, which the old `setup.sh` calls after `mise dotfiles apply --yes`. Measured here: when two fragments both define `[tasks.bootstrap]`, the later file wins silently, so `test-bootstrap` asserts there is exactly one.
 
 ## File Structure
@@ -211,7 +214,7 @@ Totals for the 60 rows:
 
 **Interfaces:**
 - Consumes: the A1 to A5 interfaces above.
-- Produces: `./setup.sh [-y|--yes] [--skip-codegraph] [--dash] [-h|--help] [-- <mise bootstrap args>]`. It runs `mise bootstrap --skip macos-defaults[,<user parts>],packages`, never `--only`. The environment mise and the task see: `DOTFILES`, `DOTFILES_SKIP_CODEGRAPH`, `MISE_DISABLE_TOOLS`, `MISE_GITHUB_TOKEN` when `gh` is signed in, and the ten telemetry opt-outs. Task 2 documents these. Task 5 runs them.
+- Produces: `./setup.sh [-y|--yes] [--skip-codegraph] [--dash] [-h|--help] [-- <mise bootstrap args>]`. It runs `mise bootstrap --skip macos-defaults[,<user parts>],packages`, never `--only`. With `--upgrade` after `--`, it also runs `mise bootstrap packages upgrade --yes --manager <m>` after each manager's apply. The environment mise and the task see: `DOTFILES`, `DOTFILES_SKIP_CODEGRAPH`, `MISE_DISABLE_TOOLS`, `MISE_GITHUB_TOKEN` when `gh` is signed in, and the ten telemetry opt-outs. Task 2 documents these. Task 5 runs them.
 
 - [ ] **Step 1: Write `bin/lib/test-bootstrap`**
 
@@ -222,6 +225,7 @@ stub mise 'case $1 in
   --version) echo "${STUB_MISE_VERSION:-2026.11.5} macos-arm64 (2026-11-08)" ;;
   *) echo "pwd=$(pwd -P) args=$* disable=${MISE_DISABLE_TOOLS:-} dotfiles=${DOTFILES:-} skip=${DOTFILES_SKIP_CODEGRAPH:-} token=${MISE_GITHUB_TOKEN:-} telemetry=${CODEGRAPH_TELEMETRY:-}" >> "$STATE/mise.log"
     case "$*" in
+      "bootstrap packages upgrade "*) [ ! -e "$STATE/upgrade-fails" ] ;;
       *"--manager brew-cask"*) [ ! -e "$STATE/casks-fail" ] ;;
       "bootstrap packages "* | plugins*) ;;
       bootstrap*) [ ! -e "$STATE/bootstrap-fails" ] ;;
@@ -232,22 +236,24 @@ stub xcode-select '[ ! -e "$STATE/no-clt" ]'
 stub curl 'echo "$*" >> "$STATE/curl.log"; echo "mkdir -p \"\$HOME/.local/bin\" && cp \"$STATE/mise-stub\" \"\$HOME/.local/bin/mise\""'
 ```
 
-Cases i and f2 add a `gh` stub (`auth token` prints `tok`) and a `code` stub (`exit 0`). No other case has them. Each case starts from an empty `HOME` and `STATE`, runs `"$fix/setup.sh" <args> < /dev/null` and asserts with `check_true`, as `test-sysup` does. "The bootstrap line" is the one `mise.log` line whose `args=` starts with `bootstrap --` or is exactly `bootstrap`.
+Case i adds a `gh` stub (`auth token` prints `tok`). Cases b2 and f2 add a `code` stub (`exit 0`). No other case has them. Each case starts from an empty `HOME` and `STATE`, runs `"$fix/setup.sh" <args> < /dev/null` and asserts with `check_true`, as `test-sysup` does. "The bootstrap line" is the one `mise.log` line whose `args=` starts with `bootstrap --` or is exactly `bootstrap`.
 
 | Case | Setup | Assertions |
 | --- | --- | --- |
-| a | empty `HOME` | exit 0. `~/.config/mise` and `~/dotfiles` are links whose `-ef` targets are `$fix/tilde/.config/mise` and `$fix`. `mise.log` has, in order, `args=plugins link --force vscode <fix>/mise-plugins/vscode`, `args=bootstrap packages apply --yes --manager brew`, `args=bootstrap packages apply --yes --manager brew-cask`, then the bootstrap line `pwd=<HOME> args=bootstrap --skip macos-defaults,packages disable= dotfiles=<fix> skip= token= telemetry=0`. Every line has `pwd=<HOME>`. No line has `--manager vscode`, and the output says extensions are skipped until VS Code is installed. The output has the rate-limit warning. `extras.log` has one line. `sudo.log` has no `-v` line. |
+| a | empty `HOME` | exit 0. `~/.config/mise` and `~/dotfiles` are links whose `-ef` targets are `$fix/tilde/.config/mise` and `$fix`. `mise.log` has, in order, `args=plugins link --force vscode <fix>/mise-plugins/vscode`, `args=bootstrap packages apply --yes --manager brew`, `args=bootstrap packages apply --yes --manager brew-cask`, then the bootstrap line `pwd=<HOME> args=bootstrap --skip macos-defaults,packages disable= dotfiles=<fix> skip= token= telemetry=0`. Every line has `pwd=<HOME>`. No line has `packages upgrade`. No line has `--manager vscode`, and the output says extensions are skipped until VS Code is installed. The output has the rate-limit warning. `extras.log` has one line. `sudo.log` has no `-v` line. |
 | b | `-y --skip-codegraph -- --skip packages` | `args=bootstrap --yes --skip macos-defaults,packages disable=npm:@colbymchenry/codegraph` and `skip=true`. `mise.log` has no `packages apply` and no `plugins link` line. |
-| b2 | `-- --skip tools --skip=files --upgrade` | The bootstrap line has `args=bootstrap --skip macos-defaults,tools,files,packages --upgrade`. The two `packages apply` lines are present. |
+| b2 | `-- --skip tools --skip=files --upgrade`, `code` stub | The bootstrap line has `args=bootstrap --skip macos-defaults,tools,files,packages --upgrade`. `mise.log` has, in order, `args=bootstrap packages apply --yes --manager brew`, `args=bootstrap packages upgrade --yes --manager brew`, the same pair for `brew-cask`, then the same pair for `vscode`, all before the bootstrap line. |
 | b3 | `-- --only tools` | exit 1. Output matches `--only` and `mise bootstrap --only`. `mise.log` gained no line. |
-| b4 | `-- --dry-run` | The two `packages apply` lines end in `--dry-run`. The bootstrap line has `--skip macos-defaults,packages --dry-run`. No `plugins link` line. `extras.log` is empty. |
+| b4 | `-- --dry-run --upgrade` | The two `packages apply` lines and the two `packages upgrade` lines end in `--dry-run`. The bootstrap line has `--skip macos-defaults,packages --dry-run --upgrade`. No `plugins link` line. `extras.log` is empty. |
 | b5 | `-- --skip dotfiles` | exit 0. The bootstrap line has `--skip macos-defaults,dotfiles,packages`. `extras.log` is empty. |
+| b6 | `-- --skip packages --upgrade` | exit 0. `mise.log` has no `packages apply`, no `packages upgrade` and no `plugins link` line. The bootstrap line has `--skip macos-defaults,packages --upgrade`. |
 | c | `mkdir -p ~/.config/mise` with a file in it | exit 1. Output matches `is not a link to`. `mise.log` gained no line. |
 | c2 | `~/dotfiles` is a link to another directory | exit 1. Output matches `~/dotfiles is not a link to`. `mise.log` gained no line. |
 | d | no `mise` stub on PATH, `mise-stub` in `STATE` | exit 0. `curl.log` has `https://mise.run`. `mise.log` has the bootstrap line. |
 | e | `STUB_MISE_VERSION=2026.10.1` | exit 1. Output matches `mise 2026\.11\.5 or newer is required, found 2026\.10\.1`. `mise.log` gained no line. |
 | f | `touch $STATE/bootstrap-fails` | exit is non-zero. Output matches `rerun \./setup\.sh`. `extras.log` is empty. |
 | f2 | `touch $STATE/casks-fail`, `code` stub | exit 0. Output has the casks warning. `mise.log` has the `--manager vscode` line and the bootstrap line after the failed one. `extras.log` has one line. |
+| f3 | `-- --upgrade`, `touch $STATE/upgrade-fails` | exit 0. Output has `failed to upgrade`. `mise.log` has the `--manager brew-cask` apply after the failed brew upgrade, and the bootstrap line with `--upgrade`. `extras.log` has one line. |
 | g | `--skip-brew` | exit 1. Output matches `-- --skip packages`. `--help` output lacks `skip-brew`. |
 | h | `touch $STATE/no-clt` | exit 1. Output matches `xcode-select --install`. |
 | i | `gh` stub | Every `mise.log` line has `token=tok`. The output has no rate-limit warning. A second run with `MISE_GITHUB_TOKEN=mine` in the environment has `token=mine`. |
@@ -328,7 +334,7 @@ run = '"${DOTFILES:-$HOME/dotfiles}/setup/misc.sh"'
 Keep the header style and update the usage line to the Produces signature. Order of the body, with the lines that are decisions:
 
 1. `set -euo pipefail`, then `DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd -P)"` and `export DOTFILES_DIR DOTFILES="$DOTFILES_DIR"`. Then the ten telemetry `export` lines with their comment, unchanged (lines 24-37).
-2. Flags per the flag table. `--skip-brew` prints `--skip-brew is gone: use ./setup.sh -- --skip packages` to stderr and exits 1. Arguments after `--` are sorted into three places. `--skip <parts>` and `--skip=<parts>` append to `user_skip` (comma-joined). `--only` and `--only=*` print `--only cannot be combined with the --skip macos-defaults that setup always passes. Run it yourself: cd ~ && mise bootstrap --only <parts>` to stderr and exit 1. `--dry-run` and `-n` set `dry_run=true` and stay in `mise_args`. Everything else collects in `mise_args`. Then:
+2. Flags per the flag table. `--skip-brew` prints `--skip-brew is gone: use ./setup.sh -- --skip packages` to stderr and exits 1. Arguments after `--` are sorted into three places. `--skip <parts>` and `--skip=<parts>` append to `user_skip` (comma-joined). `--only` and `--only=*` print `--only cannot be combined with the --skip macos-defaults that setup always passes. Run it yourself: cd ~ && mise bootstrap --only <parts>` to stderr and exit 1. `--dry-run` and `-n` set `dry_run=true` and stay in `mise_args`. `--upgrade` sets `upgrade=true` and stays in `mise_args`, where it upgrades the tools part. Everything else collects in `mise_args`. Then:
 
    ```bash
    # macOS preferences are never part of setup (set-defaults owns them), and
@@ -351,10 +357,10 @@ Keep the header style and update the usage line to the Produces signature. Order
 11. When `[ -t 0 ]`: `sudo -v`, then `sudo_keepalive_start` (lines 152-160, unchanged). The `EXIT` trap runs `sudo_keepalive_stop` (lines 164-170, unchanged).
 12. GitHub token. When `MISE_GITHUB_TOKEN` is unset and `gh auth token` succeeds, export `MISE_GITHUB_TOKEN` from it. When it is unset and `gh` is missing or signed out, print one `warning`: `No GitHub token: tap formulae use the anonymous API limit (60 calls an hour). If packages fail to resolve, run gh auth login and rerun ./setup.sh`.
 13. `cd "$HOME"`. Every mise call below runs from here.
-14. Packages, when `run_packages` is true. This is what `setup/packages.sh` did. Each apply is followed by `|| warning "Some <formulae|casks|extensions> failed to install. See above, then rerun ./setup.sh"`, so a failed package never stops the run.
+14. Packages, when `run_packages` is true. This is what `setup/packages.sh` did, plus the upgrade of spec decision 11. One helper, `packages_for <manager> <noun>`, does one manager. It runs `mise bootstrap packages apply --yes --manager "$1" ${dry_run_flag} || warning "Some $2 failed to install. See above, then rerun ./setup.sh"`. Then, when `upgrade` is true, `mise bootstrap packages upgrade --yes --manager "$1" ${dry_run_flag} || warning "Some $2 failed to upgrade. See above, then rerun ./setup.sh -- --upgrade"`. A failed package never stops the run. `dry_run_flag` is `--dry-run` or empty.
     - Unless `dry_run`: `mise plugins link --force vscode "$DOTFILES_DIR/mise-plugins/vscode"`.
-    - `mise bootstrap packages apply --yes --manager brew ${dry_run_flag}`, then the same with `--manager brew-cask`. `dry_run_flag` is `--dry-run` or empty.
-    - When `command -v code` succeeds, the same with `--manager vscode`. Otherwise print `VS Code is not installed yet: extensions are skipped. Rerun ./setup.sh once it is.`
+    - `packages_for brew formulae`, then `packages_for brew-cask casks`. Formulae first: the cask step needs the `brew:ruby` the formula step installs (A4 P12).
+    - When `command -v code` succeeds, `packages_for vscode extensions`. Otherwise print `VS Code is not installed yet: extensions are skipped. Rerun ./setup.sh once it is.`
 15. `mise bootstrap ${yes:+--yes} --skip "$skip" ${mise_args[@]+"${mise_args[@]}"}`. On failure print `mise bootstrap stopped. Earlier steps stay applied. Fix what it reported, then rerun ./setup.sh` and exit with mise's status.
 16. `sudo_keepalive_stop`. Then, when `run_extras` is true, `"$DOTFILES_DIR/setup/dotfiles-extras.sh"`, followed by `sudo -k 2> /dev/null || true`. The script asks for sudo itself, in the terminal, when a `/usr/local/bin` link is missing. A failure of the script fails the run with its status.
 17. `--dash`, the closing line and `"$DOTFILES_DIR/bin/nyan"`.
@@ -391,10 +397,7 @@ In `bin/lib/check`, delete the two lines that run `setup/tests/packages.sh` and 
 
 In `bin/lib/test-conventions`, the `tput` loop (line 92 at `9af6244`, where it names `setup/brew.sh setup/zsh.sh setup/misc.sh`) names `setup.sh setup/misc.sh`. Then run `grep -l tput setup/*.sh`. `setup/dash.sh` guards each call inline (`|| true`) and stays out. Any other file it prints (`mise-floor.sh`, `macos-extras.sh` and `dotfiles-extras.sh` come from A1, A3 and A5) joins the loop, and gets the wrapper line if it lacks one. The telemetry check (line 34) and its header line (10) keep reading `setup.sh` and do not change.
 
-A3 already added the `ask` rule `Bash(mise bootstrap*)` and its assertion. Confirm, and add nothing:
-
-Run: `grep -c 'Bash(mise bootstrap\*)' .claude/settings.json bin/lib/test-conventions`
-Expected: a count of 1 or more for each file. If either prints `:0`, stop: A3 has not landed.
+This phase adds no `ask` rule and asserts none (spec decision 7). `Bash(mise bootstrap*)` lands in A7 Task 8, and its assertion with it. Do not check for it here: until A7 lands the rule is absent on purpose, and the owner's go-ahead in chat guards `mise bootstrap` (Global Constraints).
 
 Run: `ls -l setup/*.sh | grep -v '^-rwxr-xr-x'`
 Expected: no output. `setup.sh` runs `setup/dotfiles-extras.sh` directly, and mise runs `setup/misc.sh` directly, so both need mode 755 (A3's `test-conventions` check enforces it).
@@ -421,7 +424,7 @@ Task 1 is verified on its own by the two runs above. It is not committed on its 
 ### Task 2: Docs and agent instructions for the new entry point
 
 **Files:**
-- Modify: `.github/workflows/fresh-install.yml`, `README.md`, `setup/README.md`, `CLAUDE.md`, `.claude/rules/setup.md`, `.claude/skills/validate-setup/SKILL.md`, `.claude/skills/validate-setup/snapshot.sh`, `.claude/agents/docs-auditor.md`, `docs/README.md`, `docs/rea.md`, `bin/dotfiles`, `bin/sysup:210`, `.claude/skills/add-tool/SKILL.md`
+- Modify: `.github/workflows/fresh-install.yml`, `.claude/rules/ci.md`, `README.md`, `setup/README.md`, `CLAUDE.md`, `.claude/rules/setup.md`, `.claude/skills/validate-setup/SKILL.md`, `.claude/skills/validate-setup/snapshot.sh`, `.claude/agents/docs-auditor.md`, `docs/README.md`, `docs/rea.md`, `bin/dotfiles`, `bin/sysup:210`, `.claude/skills/add-tool/SKILL.md`
 
 **Interfaces:**
 - Consumes: Task 1's signature and environment.
@@ -438,15 +441,15 @@ Facts every edit must state where it applies: mise is installed first, by `setup
 | `README.md:61` | "install 1Password (`brew install --cask 1password`)", which A4 turned into "`mise bootstrap packages apply brew-cask:1password`, after `setup/packages.sh` has installed mise, or download it" | Download it. mise is not installed before `./setup.sh` runs, and `setup/packages.sh` is gone. Keep A5's "`setup/dotfiles-extras.sh` asks how to sign commits". |
 | `README.md:67-80` | The "Manually" section and "`setup.sh` also does a few things the manual path skips…". A4 and A5 edited lines 73, 76 and 80 inside it (`./setup/packages.sh`, `mise dotfiles apply`, the sudo sentence). | Delete the section, those edits included. Replace with a short "Preview" section: `cd ~ && MISE_CONFIG_DIR=~/dev/dotfiles/tilde/.config/mise mise bootstrap --dry-run --skip macos-defaults`. Say that `./setup.sh` is the rerun, and that a bare `mise bootstrap` also applies the macOS preferences and restarts Finder and the Dock. |
 | `README.md:93` | "This will install all required dotfiles in your home directory as symlinks." | Add the order: Command Line Tools check, the two links, mise, the packages, `mise bootstrap`, then `setup/dotfiles-extras.sh`. Add the rerun sentence, that a failed package only warns, and that macOS preferences are not applied (`set-defaults` does that). |
-| `README.md:100` | "`--skip-brew` \| Skip `brew update` and the Brewfile install…" | Remove the row. Add a `-- <args>` row with `./setup.sh -- --skip packages` as the example. Say `--skip` lists are merged with `macos-defaults`, and `--only` is refused (run `mise bootstrap --only <parts>` from `~` instead). |
+| `README.md:100` | "`--skip-brew` \| Skip `brew update` and the Brewfile install…" | Remove the row. Add a `-- <args>` row with `./setup.sh -- --skip packages` as the example. Say `--skip` lists are merged with `macos-defaults`, `--only` is refused (run `mise bootstrap --only <parts>` from `~` instead), and `-- --upgrade` upgrades packages and tools. |
 | `README.md:105` | "If `/etc/pam.d/sudo_local` doesn't exist yet, it's created to enable Touch ID" | mise declares the file (content, mode, `root:wheel`) and rewrites it when any of them differs. |
 | `README.md`, the paragraph on `gh` near line 53 | "`setup/misc.sh` offers `gh auth login` later" | Keep, and add what is true about the token: `setup.sh` passes `MISE_GITHUB_TOKEN` to mise when `gh` is signed in and warns when it is not. One run fits the anonymous limit (about 20 of 60 API calls an hour). Several runs within an hour can hit it. Do not write that `gh` must be signed in first. |
 | `README.md:242` | `"$DOTFILES/setup.sh" --skip-brew # drop --skip-brew to also install new Brewfile entries` | `"$DOTFILES/setup.sh"`, with `-- --skip packages` to leave packages alone. |
-| `README.md:245` | "`setup.sh` installs what's missing but doesn't upgrade… the dependencies `brew bundle` upgrades on its own…" | Drop the `brew bundle` clause. Add that `./setup.sh -- --upgrade` upgrades the tools, and that packages upgrade through `sysup`. |
-| `setup/README.md:9` | "`../setup.sh` runs these in order: **brew → zsh → misc → symlinks**…" | The order: packages (applied by `setup.sh`, one manager at a time, a failure warns), then mise's parts from `mise bootstrap --help` without the two that are skipped: files, dotfiles, login shell, tools, the `bootstrap` task. Then `setup/dotfiles-extras.sh`. The new flag list, with the `--skip` merge and the refused `--only`. |
+| `README.md:245` | "`setup.sh` installs what's missing but doesn't upgrade… the dependencies `brew bundle` upgrades on its own…" | Drop the `brew bundle` clause. Add the two ways to upgrade and how they differ. `./setup.sh -- --upgrade` upgrades what the mise config declares: the packages, one manager at a time with a warning on failure, and the tools. `sysup` upgrades everything: macOS updates, mise itself, the packages, the tools and the agent tooling, and it reports packages no config declares. Take the `sysup` list from its `step` lines (`grep -n '^ *step ' bin/sysup`), not from this row. |
+| `setup/README.md:9` | "`../setup.sh` runs these in order: **brew → zsh → misc → symlinks**…" | The order: packages (applied by `setup.sh`, one manager at a time, a failure warns), then mise's parts from `mise bootstrap --help` without the two that are skipped: files, dotfiles, login shell, tools, the `bootstrap` task. Then `setup/dotfiles-extras.sh`. The new flag list, with the `--skip` merge, the refused `--only`, and `-- --upgrade` (packages after each apply, then tools; `sysup` for everything, macOS and mise included). |
 | `setup/README.md:11` | "After its `sudo -v` it exports `DOTFILES_SUDO_KEPT=1`… Sudo is held only around the steps that use it…", as A5 left it | One span of sudo. The `pre-tools` hook and `misc.sh` drop it. `setup/dotfiles-extras.sh` runs after that and asks itself when a `/usr/local/bin` link is missing (keep A5's sentence). The `~/.config/mise` link and its failure message. |
 | `setup/README.md:15` | A3's sentence that macOS preferences are not part of the run | Still true. Add how: `setup.sh` passes `--skip macos-defaults`, which also drops the two hooks around that part. |
-| `setup/README.md`, the "## packages" section A4 wrote | What `setup/packages.sh` does | Same facts with `setup.sh` as the subject: the mise installer, the token or the warning, the plugin link, one apply per manager with a warning on failure, extensions skipped until `code` exists. Add that a bare `mise bootstrap` runs the `packages` part without that tolerance and stops at the first failure. |
+| `setup/README.md`, the "## packages" section A4 wrote | What `setup/packages.sh` does | Same facts with `setup.sh` as the subject: the mise installer, the token or the warning, the plugin link, one apply per manager with a warning on failure, extensions skipped until `code` exists, and with `-- --upgrade` a `packages upgrade` after each apply, also warning on failure. Add that a bare `mise bootstrap` runs the `packages` part without that tolerance and stops at the first failure. |
 | `setup/README.md:35-37` | The `## zsh` section | Three sentences on `[bootstrap.user]`. |
 | `setup/README.md:41` | "Run on its own, it asks for sudo first; under `setup.sh` (`DOTFILES_SUDO_KEPT=1`) it skips that prompt." | It is the `bootstrap` task, runs on every bootstrap, never uses sudo, and warns instead of failing. |
 | `setup/README.md:43` | "Installs the Xcode Command Line Tools if missing… It waits at most 30 minutes…" | `setup.sh` checks for them and stops with the command. |
@@ -476,7 +479,7 @@ Facts every edit must state where it applies: mise is installed first, by `setup
 - mise comes first. `setup.sh` links `~/dotfiles` and `~/.config/mise` into the clone, installs mise with its own installer when missing, checks the version floor and runs every mise command from `$HOME`. Started inside the clone, mise reads `.nvmrc` and adds a node to the tools part.
 - Not `--from` or `--adopt`: `--adopt` clones a whole repo into `~/.config/mise`, and `--from` loads the checkout root as a project and needs a matching `origin` (measured on 2026.11.5).
 - Setup never applies macOS preferences. `setup.sh` always passes `--skip macos-defaults`, which also drops the `pre-defaults` and `post-defaults` hooks. `--only` cannot be combined with `--skip`, so a user's `--skip` list is merged into that one argument and `--only` is refused. A bare `mise bootstrap` does apply them.
-- `setup.sh` applies the packages itself, one manager at a time, and only warns on a failure, because mise stops at the first failed part. It then skips the `packages` part. The telemetry opt-outs are exported in `setup.sh` so they cover the package and tool installs.
+- `setup.sh` applies the packages itself, one manager at a time, and only warns on a failure, because mise stops at the first failed part. It then skips the `packages` part, so mise's `--upgrade` alone would upgrade only the tools: with `-- --upgrade`, `setup.sh` runs `mise bootstrap packages upgrade` after each manager's apply. A run without it never upgrades a package. `sysup` is the command that upgrades everything, macOS and mise included. The telemetry opt-outs are exported in `setup.sh` so they cover the package and tool installs.
 - The order after that is mise's: files, dotfiles, login shell, tools, then the `bootstrap` task. Everything that needs root runs before `tools`. The `pre-tools` hook and the first line of `setup/misc.sh` run `sudo -k`, so nothing in `misc.sh` may call sudo (`test-bootstrap` asserts it).
 - `setup/dotfiles-extras.sh` is never a hook. mise runs `post-dotfiles` on every `mise dotfiles apply`, including one from the settings UI, where a sudo prompt cannot be answered. `setup.sh` runs the script after `mise bootstrap` succeeds.
 - A run is not a transaction: a failed part leaves the earlier ones applied, and the fix is to rerun `./setup.sh`. Hooks and the task run on every bootstrap, so each `misc.sh` step checks state first and warns instead of failing.
@@ -486,7 +489,7 @@ Facts every edit must state where it applies: mise is installed first, by `setup
 - `aspire certs trust` has no y/N prompt and macOS may ask for the password, so it is skipped when already trusted and only a hint when non-interactive.
 - `--skip-codegraph` must leave an existing CodeGraph install untouched, including its mise shim: `setup.sh` sets `MISE_DISABLE_TOOLS` for the run and `misc.sh` reshims once without it.
 - Every behavior change updates `setup/README.md` (and `README.md` for flags) in the same commit.
-- A fresh install can't be verified on this machine. The `fresh-install` workflow is the test; say so when a change touches that path.
+- A fresh install can't be verified on this machine. The `fresh-install` workflow runs `./setup.sh` on a hosted runner, which is not a clean Mac (Xcode is preinstalled, no first-launch prompts). The full proof is a run in a disposable macOS VM, checklist in the A6 plan's Task 6 (in `docs/superpowers/plans/completed/` once done). Say which of the two a change needs when it touches that path.
 - Validate with `/validate-setup before`, then `./setup.sh` in a terminal (it is interactive), then `/validate-setup after`.
 - `setup/bootstrap-runtime.svg` (embedded in `setup/README.md`) is generated by Archify from `setup/bootstrap-runtime.archify.json` (source line refs pinned to a commit). When step order, sudo use or download sources change, update the JSON, re-run `archify finalize` and re-export the SVG. Archify's per-run `.archify/` folder is gitignored; commit only the exported image.
 ```
@@ -517,13 +520,23 @@ echo "## mise bootstrap status"
 mise bootstrap status 2>&1
 ```
 
-- [ ] **Step 4: The ask rule for `mise bootstrap` is A3's**
+- [ ] **Step 4: No ask rule for `mise bootstrap` in this phase**
 
-Nothing to add. A3 put `"Bash(mise bootstrap*)"` in `permissions.ask` of `.claude/settings.json` and asserts it in `test-conventions`. Task 1 Step 7 confirmed both.
+Nothing to add to `.claude/settings.json`. Spec decision 7 puts every `ask` rule the plans add, `Bash(mise bootstrap*)` included, in A7 Task 8, which also adds the `test-conventions` assertion. The validate-setup skill's own `allowed-tools` (Step 3) are not permission rules in `.claude/settings.json` and stay in this phase.
 
 - [ ] **Step 5: Point the fresh-install workflow at the entry point**
 
-In `.github/workflows/fresh-install.yml` (from A4), keep A4's piecewise job and add a second manually triggered job, `entry-point`, that runs `./setup.sh -y --skip-codegraph`. Its exit status is the test. A last step prints `MISE_DISABLE_TOOLS=npm:@colbymchenry/codegraph mise bootstrap status --missing || true` for the log. It is informational: the run never applies macOS preferences, so those entries are listed. The runner has no terminal, so `setup.sh` skips `sudo -v` and mise elevates with the runner's passwordless sudo. This is the only test of the mise installer path (D11). `pnpm check` lints the file with actionlint.
+A4's one job runs `bash setup/packages.sh`, and Task 1 deleted that script, so the job must change in this commit. Read the committed file first (`git show HEAD:.github/workflows/fresh-install.yml`) and edit that, not the A4 plan's description: A4 is being revised for spec decision 12. Keep one job, the runner choice A4 made (the `xcode-27` image first, `macos-26` as the fallback, and the line that says which one ran), `on: workflow_dispatch` with no inputs, the Homebrew removal, and the "no `mise` on PATH" assertion. Then:
+
+1. Replace the `bash setup/packages.sh` step with `./setup.sh -y --skip-codegraph`, run from `$GITHUB_WORKSPACE`. Its exit status is the test. The runner has no terminal, so `setup.sh` skips `sudo -v`, the Enter prompt and the `script` log, and mise elevates with the runner's passwordless sudo. The runner has the Command Line Tools, so the precheck passes: the path without them is Task 6's.
+2. Directly before it, a step `ls -la ~` for the log. Unverified: whether the runner image's home already holds files that `conf.d/40-dotfiles.toml` links (a `~/.zshrc` or `~/.bashrc`, say). A5 makes such a conflict stop the `dotfiles` part, so `setup.sh` would exit non-zero there. If the first run stops on one, add a step before `setup.sh` that moves each file the error names into `$RUNNER_TEMP/home-backup`, with the comment `# The runner is not a new Mac: its image ships these files`. Do not pass `-- --force-dotfiles`: the command under test stays the one a new Mac runs.
+3. Disk readings. Keep A4's reading at the start (`df -h /` and the size of mise's bottle cache, at the path A4's step reads). A4's readings after each package manager cannot stay where they are: `setup.sh` applies the three managers inside one step. Replace them with one step after `setup.sh`, `if: always()`, that prints `df -h /`, the bottle-cache size, and `du -sh` of where each manager and the tools part write: `/opt/homebrew/Cellar` (formulae), `/opt/homebrew/Caskroom` and `/Applications` (casks), `~/.vscode/extensions` (extensions), `~/.local/share/mise/installs` (tools), each with `2> /dev/null || true`. What is lost: free space between managers, so the peak (one manager's downloads on top of the previous manager's installs) is not read, and a run that fills the disk is located by the failing line of the `setup.sh` log instead of by a reading. The per-manager footprint is kept, from the `du` lines.
+4. Delete A4's `mise install --yes` step. The `tools` part of `mise bootstrap` installed the tools inside `setup.sh`. Keep A4's `GITHUB_PATH` step and its `MISE_CONFIG_DIR` line (harmless now that `setup.sh` links `~/.config/mise`), and the formula, cask and extension status checks with their `if: always()`.
+5. A last step, `if: always()`, prints `MISE_DISABLE_TOOLS=npm:@colbymchenry/codegraph mise bootstrap status --missing || true` for the log. It is informational: the run never applies macOS preferences, so those entries are listed.
+
+If the job does not fit on the runner, spec decision 12 splits it into one job per manager. The entry point cannot be split that way. In that case the per-manager jobs run `mise bootstrap packages apply --yes --manager <m>` after the mise installer, as A4 would, `.claude/rules/ci.md` says the workflow no longer runs `./setup.sh`, and Task 6's VM run is then the only test of the entry point. Report it to the owner when it happens. Do not shrink the package list to make it fit.
+
+In `.claude/rules/ci.md`, replace A4's "runs `setup/packages.sh` (which installs mise and applies `conf.d/30-packages.toml`), installs the global tools" with "runs `./setup.sh -y --skip-codegraph` (mise's installer, the packages, then `mise bootstrap` without macOS preferences)". Add one sentence: a hosted runner is not a clean Mac, and the full proof is the VM checklist in the A6 plan's Task 6. `pnpm check` lints the workflow with actionlint.
 
 - [ ] **Step 6: Prove nothing stale is left**
 
@@ -546,7 +559,7 @@ git add setup.sh setup/misc.sh setup/README.md tilde/.config/mise/conf.d/50-boot
   bin/lib/test-bootstrap bin/lib/check bin/lib/test-conventions bin/dotfiles bin/sysup \
   .claude/rules/setup.md .claude/skills/validate-setup/SKILL.md .claude/skills/validate-setup/snapshot.sh \
   .claude/skills/add-tool/SKILL.md .claude/agents/docs-auditor.md \
-  .github/workflows/fresh-install.yml README.md CLAUDE.md docs/README.md docs/rea.md
+  .github/workflows/fresh-install.yml .claude/rules/ci.md README.md CLAUDE.md docs/README.md docs/rea.md
 git status --short
 ```
 
@@ -656,7 +669,66 @@ This task changes the machine. Stop and ask the user for an explicit go-ahead be
 | `command -v codegraph` | still resolves |
 
 - [ ] **Step 4: Second run changes nothing (the user runs it).** Copy `after.txt` to `before.txt`, have the user run `./setup.sh -y` again, take a new `after.txt`. `diff -u` is empty outside `macos-defaults` lines of the `mise bootstrap status` section, which apps can change on their own. The new log has no line that reports an install, a link or a write outside the task's own "already" lines.
-- [ ] **Step 5: Close the phase.** The phase is done when `pnpm check` and `bash bin/lib/test-bootstrap` pass and Steps 3 and 4 hold. `git mv docs/superpowers/plans/2026-11-09-a6-bootstrap-entry-point.md docs/superpowers/plans/completed/`, then `git commit -m "Complete the A6 bootstrap entry point plan"` (the `git mv` staged the only two paths) and push.
+- [ ] **Step 5: Hand on to Task 6.** This Mac is set up already, so Steps 3 and 4 prove a rerun, not a new Mac. The plan stays open until Task 6 has run.
+
+### Task 6: Prove a new Mac in a disposable macOS 27 VM (the owner runs it, after a go-ahead in chat)
+
+Spec decision 12 (c). A hosted runner is not a clean Mac: Xcode and other tools are preinstalled, and nobody sees a first-launch prompt. This run is the full proof of the entry point, and the gate plan B's Homebrew-removal task cites. It is a checklist with evidence to capture, not a script. The owner runs every step. An agent never creates, starts or deletes the VM and never runs anything in it unasked. It may read the evidence the owner copies out and write the results section. Run it after Tasks 1 to 5 are pushed, because the VM clones the public repo from GitHub.
+
+**Measured on this Mac (2026-11-09).** Host macOS 27.2.1 (`sw_vers`). UTM 5.0.8 (`defaults read /Applications/UTM.app/Contents/Info.plist CFBundleShortVersionString`), `utmctl` on PATH. 140 GiB free on `/` (`df -h /`). The full install measured about 32 GB on this Mac (spec decision 12).
+
+**From UTM's docs, read 2026-11-09.** `docs.getutm.app/guest-support/macos/`: a macOS guest is made with the wizard's "Virtualize", then "macOS 12+", on Apple Silicon. UTM downloads the latest compatible IPSW, or takes one you supply. Snapshots and disposable mode need macOS 27 on the Apple Virtualization backend, and a shared folder uses VirtioFS (`mount_virtiofs share <mount point>` in the guest, macOS 13 or newer on both sides). `docs.getutm.app/advanced/disposable/`: disposable mode is "Run without saving changes" in the VM's action menu, and the window title then shows "Disposable Mode". For a macOS guest, EFI and auxiliary storage changes are discarded too, and nothing can be suspended or snapshotted while it runs. The page does not say whether macOS 27 is needed on the host or the guest. Both are 27 here.
+
+**Unverified, each with the check that settles it.**
+
+- That UTM offers a macOS 27 IPSW. Check: the build the wizard names before the download, and `sw_vers` in the guest.
+- That "Run without saving changes" is offered for this macOS guest on UTM 5.0.8. Check: the action menu of the stopped base VM. When it is missing, use a clone: `utmctl clone <base> --name a6-proof` (read `utmctl help clone` first), run the clone, and `utmctl delete a6-proof` afterwards, which asks no confirmation.
+- Apple ID, iCloud and App Store sign-in inside a guest. UTM's docs do not cover them. Setup needs none: no `mas` entry is declared (`grep -c '^mas ' setup/Brewfile` printed 0 at HEAD; after A4 run `grep -c '"mas:' tilde/.config/mise/conf.d/*.toml`). So skip sign-in in Setup Assistant and record only whether it let you skip.
+- Touch ID. A guest has no sensor. `sudo_local` makes `pam_tid.so` `sufficient`, so sudo should fall back to the password. Checklist item 8 records what happens.
+- Whether the disk image is allocated sparsely. Check: `du -sh` of the VM's `.utm` bundle on the host right after creating it.
+
+- [ ] **Step 1: Get the owner's go-ahead in chat.** Name the disk space (up to the image size below), the time (expect one to two hours) and that nothing on the host changes except UTM's VM folder and one shared folder.
+
+- [ ] **Step 2: Make the base VM (once, kept).** UTM, Create a New Virtual Machine, Virtualize, macOS 12+, let UTM download the IPSW. 4 cores, 8 GB of memory, a 100 GB disk (about 32 GB of packages plus macOS, inside the 140 GiB free). In Setup Assistant: a local admin account, no Apple ID, no migration. Do not install the Command Line Tools, Xcode or Homebrew. In the guest Terminal record `sw_vers` and `xcode-select -p; echo $?` (expected: a non-zero exit, no developer directory). In the VM's settings, share one empty host folder, for example `~/vm-proof`. Shut down. This base is the clean Mac, so it never runs setup outside disposable mode.
+
+- [ ] **Step 3: Start it disposable.** Action menu, "Run without saving changes". Confirm the title says "Disposable Mode". Everything below is lost at shutdown, so evidence goes to the shared folder: `mkdir -p ~/share && mount_virtiofs share ~/share`. Then `df -h / > ~/share/df-before.txt` and `curl -s https://api.github.com/rate_limit > ~/share/rate-before.json`.
+
+- [ ] **Step 4: Setup without the Command Line Tools stops.** `curl -fsSL https://github.com/jrmatherly/dotfiles/archive/refs/heads/main.tar.gz | tar -xz -C ~ && ~/dotfiles-main/setup.sh; echo "exit $?"`. Expected: `Command Line Tools missing; run: xcode-select --install, then rerun ./setup.sh` and `exit 1`, before any link or download. Then `rm -rf ~/dotfiles-main`.
+
+- [ ] **Step 5: The README's path.** `xcode-select --install` and accept the dialog. Then `mkdir -p ~/dev && git clone https://github.com/jrmatherly/dotfiles.git ~/dev/dotfiles && cd ~/dev/dotfiles && time ./setup.sh`. Answer the prompts as a new owner would: Enter, the sudo password, the git identity prompt. Write down every dialog that appears, and what it asked.
+
+- [ ] **Step 6: Capture the evidence.** Copy `private/setup-logs/*.log` to `~/share/`. Then record each row, with its output saved to `~/share/`:
+
+| # | Item | Evidence | Pass |
+| --- | --- | --- | --- |
+| 1 | No Command Line Tools | Step 4 output | exit 1 with the `xcode-select --install` message |
+| 2 | mise installer path | `command -v mise; mise --version`, the log's mise.run lines | `~/.local/bin/mise`, 2026.11.5 or newer |
+| 3 | Formulae | `mise bootstrap packages status --json \| jq '[.brew.packages[] \| select(.state != "installed")]'` | `[]` |
+| 4 | Casks, the two pkg installers included | the same for `."brew-cask"`, then `git credential-manager --version`, `dotnet --info \| head -3`, `pkgutil --pkgs \| grep -E 'gitcredentialmanager\|microsoft\.dotnet'` | `[]`, both commands answer, both receipt families listed (`com.microsoft.gitcredentialmanager` and `com.microsoft.dotnet.*` on this Mac) |
+| 5 | Extensions | `mise bootstrap packages status --json \| jq '.vscode.available, [.vscode.packages[] \| select(.state != "installed")]'` | `true` and `[]`. Record whether they installed in this run or were skipped because `code` came later |
+| 6 | Dotfiles links | `ls -l ~/dotfiles ~/.config/mise ~/.zshrc`, `mise bootstrap status --missing` | the links point into `~/dev/dotfiles`, and no `dotfiles` entry is missing |
+| 7 | Login shell | `dscl . -read ~ UserShell`, then a new Terminal window | `/opt/homebrew/bin/zsh`, and the window opens with no error |
+| 8 | Touch ID file, sudo | `cat /etc/pam.d/sudo_local`, then `sudo -k; sudo true; echo $?` | the one `pam_tid.so` line. Record whether sudo asked for the password and exited 0 |
+| 9 | First-launch prompts | the dialogs from Step 5. `for a in /Applications/*.app; do xattr -p com.apple.quarantine "$a" > /dev/null 2>&1 && echo "$a"; done`. Open Ghostty, VS Code, 1Password and OrbStack once and note each prompt | every prompt named. The quarantine list says which apps show Gatekeeper's first-launch dialog |
+| 10 | Ruby for source formulae | `grep -inE 'ruby\|from source\|requires Ruby' <log>`, `command -v ruby`, `ruby --version` | Record whether any formula built from source and whether the cask step needed the declared `brew:ruby` (A4 P12). A `requires Ruby 3` error fails the item |
+| 11 | Disk used | `df -h /` against `df-before.txt`; `du -sh /opt/homebrew ~/.local/share/mise ~/Library/Caches/mise /Applications`; on the host, `du -sh` of the `.utm` bundle | Record the numbers. They are the figure the runner's 14 GB is compared with |
+| 12 | GitHub API calls without a token | `curl -s https://api.github.com/rate_limit` against `rate-before.json`, then again after `./setup.sh -y -- --upgrade` | Record both differences. Shared NAT means the host's own anonymous calls count too, so keep the host quiet meanwhile. This settles the upgrade-calls question in Decisions |
+| 13 | A second run changes nothing | `./setup.sh -y` again, the new log | no install, link or write lines outside the task's "already" lines |
+| 14 | Warnings | `grep -inE 'error\|warn\|deprecat\|fail\|not found' <each log>` | each hit explained: expected, upstream noise, or a problem |
+| 15 | macOS preferences untouched | `defaults read com.apple.dock autohide` before Step 5 and after Step 6 | the same output both times |
+
+Shut the VM down when the evidence is copied. Disposable mode discards the guest's changes. Check the base still starts clean (`xcode-select -p` fails) before using it again.
+
+- [ ] **Step 7: Record the results and close the phase.** Add a `#### Results` heading under this task: the date, host, guest build and UTM version, one line per row (pass or fail, and the evidence line), each failure with the commit that fixed it and the rerun that passed. A failure in rows 2 to 8, 10 or 13 blocks the gate until a fixed rerun passes. Row 9, 11, 12 and 14 findings are recorded, and become plan or doc changes where they need one. Plan B's Homebrew removal (B Task 5) cites this section as its gate. Then:
+
+```bash
+git mv docs/superpowers/plans/2026-11-09-a6-bootstrap-entry-point.md docs/superpowers/plans/completed/
+git add docs/superpowers/plans/completed/2026-11-09-a6-bootstrap-entry-point.md
+git status --short
+git commit -m "Complete the A6 bootstrap entry point plan"
+```
+
+Expected before the commit: only the rename is staged, and ` M agents/claude-settings.json` stays unstaged. Push.
 
 ## Part B hook: what the `setup` step needs
 
