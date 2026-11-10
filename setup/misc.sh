@@ -173,7 +173,7 @@ else
   echo "mise not found — skipping runtime installation" | indent
 fi
 
-# Rust — Homebrew's rustup (Brewfile) is the system toolchain manager. Make
+# Rust — the rustup formula (conf.d/30-packages.toml) is the system toolchain manager. Make
 # stable the default when it isn't: a proxy with no default toolchain downloads
 # one on first use, which Hindsight's daemon start runs inside a 10 s
 # `cargo --version` check. `rustup default` alone is a local read.
@@ -338,10 +338,10 @@ else
 fi
 
 # REA — reverse-engineering MCP server (`rea-agents`, a mise npm tool) for
-# Claude Code, driving the Brewfile's Ghidra formula and Hopper cask. The
+# Claude Code, driving the Ghidra formula and Hopper cask (conf.d/30-packages.toml). The
 # registered command is bin/rea-mcp, which resolves GHIDRA_INSTALL_DIR and
-# JAVA_HOME from Homebrew at every launch (the ghidra formula's openjdk@N, the
-# JDK Homebrew's own ghidraRun wrapper uses) and execs the mise shim. The
+# JAVA_HOME from the installed keg at every launch (the ghidra formula's openjdk@N, the
+# JDK the formula's own ghidraRun wrapper uses) and execs the mise shim. The
 # registration therefore holds no versioned path: a JAVA_HOME pinned here
 # dangled when Ghidra 12.2 moved from openjdk@21 to @25 (2026-10-22). Hopper's
 # cask path is REA's default launcher. The reverse-engineer-anything skill is
@@ -365,7 +365,7 @@ else
   echo "rea shim or the ghidra formula not found — skipping REA's MCP server" | indent
 fi
 
-# SnippetsLab (Mac App Store, not in the Brewfile): its `lab` helper gives an
+# SnippetsLab (Mac App Store, so not a mise package): its `lab` helper gives an
 # agent skill (a static copy, so sysup refreshes it; no git source, so not in
 # agents/claude-skills.txt) and a stdio MCP server, registered with Claude
 # Code and Codex. The server launches the app on the first tool call, not at
@@ -422,7 +422,7 @@ siderolabs-docs https://docs.siderolabs.com/mcp
 EOF
 fi
 
-# rtk (Brewfile) — a Claude Code PreToolUse hook that rewrites Bash calls to
+# rtk (a brew: package) — a Claude Code PreToolUse hook that rewrites Bash calls to
 # their compact rtk form (`git status` → `rtk git status`). --hook-only: no
 # RTK.md or @RTK.md line in ~/.claude/CLAUDE.md. Re-run every time because
 # `claude-config` doesn't track hooks; rtk skips it when already present.
@@ -434,7 +434,7 @@ if command_exists rtk; then
     || warning "rtk init failed — run it later: rtk init -g --hook-only"
 fi
 
-# Supabase CLI (Brewfile) — persisted telemetry opt-out, for runs that don't
+# Supabase CLI (a brew: package) — persisted telemetry opt-out, for runs that don't
 # inherit DO_NOT_TRACK from zsh/env.zsh (GUI-launched tools, scripts). The
 # variable here keeps this call itself from reporting.
 if command_exists supabase; then
@@ -497,7 +497,7 @@ if command_exists npm; then
   # (Bun: the same rules live in tilde/.bunfig.toml)
 
   # Global npm CLIs (serverless, @antfu/ni) are `npm:` tools in the mise config,
-  # installed by `mise install` above. aws-cdk comes from the Brewfile.
+  # installed by `mise install` above. aws-cdk is a brew: package.
 
   # This repo's own dependencies: `prettier` (+ prettier-plugin-sh) for `pnpm
   # format`, and `avif`, which bin/optimize-image expects at node_modules/.bin

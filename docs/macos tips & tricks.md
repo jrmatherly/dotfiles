@@ -46,14 +46,14 @@ yarn global remove x
 ```
 
 ```sh
-brew list
-brew uninstall x
+mise bootstrap packages status
+# to uninstall: delete the entry, then see Tip #22
 ```
 
 If you don't know what something is:
 
 ```sh
-[pnpm | npm | yarn | brew] info x
+[pnpm | npm | yarn] info x
 ```
 
 ## Tip #5
@@ -167,22 +167,23 @@ Both commands are in this repo's [`bin/`](../bin) folder (`bin/node-modules-size
 
 ## Tip #22
 
-Manage apps with the `Brewfile`.
+Manage formulae, apps and VS Code extensions with mise's package list.
 
-The Brewfile lives at [`setup/Brewfile`](../setup/Brewfile), and `HOMEBREW_BUNDLE_FILE` points to it. Raw `brew bundle` commands, including `brew bundle cleanup`, fail on its `manual "MonoLisa"` line (`Invalid Brewfile: undefined method 'manual'`), so strip that line first.
+The list is [`tilde/.config/mise/conf.d/30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml). Each entry is `"brew:<formula>"`, `"brew-cask:<cask>"` or `"vscode:<publisher.id>"`, and every value is `"latest"`: mise installs no older versions.
 
-- Install everything: `brewpick --all` (it strips the `manual` lines for you), or run `brewpick` to pick entries with fzf.
-- Dump what's currently installed: `brew bundle dump --file Brewfile.dump`
-- Preview what isn't in the Brewfile (read-only):
+- See what is installed, missing or different: `mise bootstrap packages status`
+- Install what is missing: `mise bootstrap packages apply`
+- Add one: write its line in the file, then `mise bootstrap packages apply brew:<formula>`
+- Remove one: delete its line. That uninstalls nothing. Then preview what mise would uninstall (read-only):
 
   ```sh
-  grep -v '^manual ' "$DOTFILES/setup/Brewfile" | brew bundle cleanup --file -
+  mise bootstrap packages prune --manager brew --dry-run
   ```
 
 - After you've reviewed that list, uninstall everything on it:
 
   ```sh
-  grep -v '^manual ' "$DOTFILES/setup/Brewfile" | brew bundle cleanup --force --file -
+  mise bootstrap packages prune --manager brew
   ```
 
-> [!CAUTION] `cleanup --force` also removes VS Code extensions and taps that aren't in the Brewfile. Add anything you want to keep to the Brewfile first.
+> [!CAUTION] `prune` removes every formula no config declares, including ones you installed by hand. Add anything you want to keep to the file first.

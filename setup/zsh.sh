@@ -28,7 +28,7 @@ title() {
 
 zsh_path=$(command -v zsh)
 
-# We're all good already — either Homebrew's zsh, or whatever zsh we'd switch to
+# We're all good already — either the zsh formula's, or whatever zsh we'd switch to
 if [ "$SHELL" == "/opt/homebrew/bin/zsh" ] || [ "$SHELL" == "$zsh_path" ]; then
   echo "Nothing to update. You're already using Zsh as your default shell 👏"
   exit 0

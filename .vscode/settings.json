@@ -46,5 +46,5 @@
   "shellcheck.ignorePatterns": {
     "**/zsh-completions/**": true
   },
-  "cSpell.words": ["brewfile", "Catppuccin", "dotfiles", "Ghostty", "gitignore"]
+  "cSpell.words": ["Catppuccin", "dotfiles", "Ghostty", "gitignore"]
 }

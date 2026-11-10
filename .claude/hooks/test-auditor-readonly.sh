@@ -27,7 +27,7 @@ deny() {
   [ "$rc" -eq 2 ] || fail "allowed (rc=$rc): $1"
 }
 
-allow 'brew list --versions shellcheck'
+allow 'mise bootstrap packages status'
 # Another agent's calls get no decision from this hook, so normal permissions apply
 run 'rm -rf x' general-purpose
 [ "$rc" -eq 0 ] && [ -z "$out" ] || fail "decided for another agent: rc=$rc out=$out"
@@ -37,7 +37,7 @@ allow "grep -E 'a|b' README.md"
 allow "grep '=>' zsh/aliases.zsh"
 deny "sed -n '1p;2p' setup.sh"
 allow 'head -n 20 setup.sh | tail -n 5'
-allow 'grep -n Brewfile README.md'
+allow 'grep -n mise README.md'
 allow 'curl -sf http://127.0.0.1:9077/health 2>&1'
 allow 'ls /nonexistent > /dev/null 2>&1'
 allow 'git -C /tmp/x show HEAD'
@@ -115,7 +115,7 @@ allow 'git remote -v'
 allow 'sort x | uniq -c'
 allow 'uniq -c x'
 allow 'git -C /tmp/x log --oneline -3'
-allow 'brew list --versions jq'
+allow 'mise bootstrap packages where brew:jq'
 allow 'gh api --jq .x repos/a/b'
 allow 'git log --since 2.days --format=%h -- setup.sh'
 allow 'sort -t , -k 2,3 -nr x'

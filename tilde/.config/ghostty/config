@@ -1,7 +1,7 @@
 # https://ghostty.org/docs/config/reference
 
-# Hack Nerd Font Mono comes from the Brewfile (font-hack-nerd-font). MonoLisa
-# (paid, optional) is a Brewfile `manual` entry if you ever want it back.
+# Hack Nerd Font Mono is the font-hack-nerd-font cask (mise's
+# conf.d/30-packages.toml). MonoLisa (paid, optional) is a manual install.
 font-family = Hack Nerd Font Mono
 font-size = 17
 

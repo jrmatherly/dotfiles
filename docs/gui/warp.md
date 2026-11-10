@@ -4,7 +4,7 @@
 
 ## Repo setup
 
-- **Install:** `cask "warp"` in `setup/Brewfile`. The repo doesn't track any Warp settings
+- **Install:** `"brew-cask:warp"` in `tilde/.config/mise/conf.d/30-packages.toml`. The repo doesn't track any Warp settings
 - **Shell config:** Warp runs your normal zsh, so `zsh/` and the Starship prompt (`tilde/.starship.toml`, loaded in `zsh/init.zsh`) apply here too
 
 ## Using the Starship prompt

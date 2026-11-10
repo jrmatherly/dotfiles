@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "packageManager": "pnpm@12.17.0",
   "type": "module",
-  "description": "My personal dotfiles for configuring macOS with Zsh and Homebrew.",
+  "description": "My personal dotfiles for configuring macOS with Zsh and mise.",
   "private": true,
   "engines": {
     "node": ">=24"

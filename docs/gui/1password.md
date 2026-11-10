@@ -2,7 +2,7 @@
 
 > Password manager, SSH agent for all hosts, and Git commit signer.
 
-Installed by `setup/Brewfile` (`cask "1password"`, `cask "1password-cli"`).
+Installed by mise from `tilde/.config/mise/conf.d/30-packages.toml` (`"brew-cask:1password"`, `"brew-cask:1password-cli"`).
 
 ## Settings this repo depends on
 

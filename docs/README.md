@@ -41,7 +41,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `grep` | Runs as `grep -i --color=auto` (case-insensitive, colored) |
 | `mkdir` | Runs as `mkdir -p` (creates parent directories) |
 | `sudo {{alias}}` | Aliases also work after `sudo` |
-| `sl` `gut` `gti` `mdkir` `brwe` `cd..` | Typo fixes for `ls`, `git`, `git`, `mkdir`, `brew`, `cd ..` |
+| `sl` `gut` `gti` `mdkir` `cd..` | Typo fixes for `ls`, `git`, `git`, `mkdir`, `cd ..` |
 
 ## Key bindings
 
@@ -150,7 +150,6 @@ Each replacement only applies when the tool is installed. Run the original comma
 | Command | Description |
 | --- | --- |
 | `dotfiles` | Pull the latest dotfiles (re-run `setup.sh --skip-brew` afterwards to apply new links) |
-| `brewpick` `brewpick --all` | Install packages, casks and VS Code extensions from `setup/Brewfile`, picked via fzf or all at once |
 | `set-defaults` | Apply this repo's macOS defaults |
 | `install-color-themes` | Install the repo's Squirrelsong themes into apps — bat cache, Obsidian vault, import hints (see [colors](../colors/README.md)) |
 | `obsidian-vault install` `obsidian-vault capture` | Install the repo's Obsidian settings/templates into the vault, or bring vault changes back (see [obsidian](../obsidian/README.md)) |
@@ -160,11 +159,11 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `claude-catalog` `claude-catalog --open` `claude-catalog --out {{path/to/dir}}` | Build the catalog of installed Claude Code skills, commands, subagents and MCP servers in `~/.claude/catalog` (`--open` opens `catalog.html`) |
 | `claude-stack scan` `claude-stack apply` `claude-stack apply --keep {{plugin@marketplace}}` `claude-stack reset` | Select which installed Claude Code plugins a project needs: `scan` shows the evidence and writes nothing, `apply` turns the rest off in its `.claude/settings.local.json`, `reset` undoes it |
 | `hindsight-memory status` `hindsight-memory paths add {{~/dev/project}}` `hindsight-memory off` | Opt-in per-repo Hindsight memory for Claude Code and Codex: show the daemon and config, add or remove a repo prefix memory is active in, or switch every hook off (`on` again); `init` and `upgrade` are run by setup and `sysup` (see [setup](../setup/README.md)) |
-| `ca-roots status` `ca-roots trim` `ca-roots restore` | Show, remove or restore the compromised eMudhra roots in `/etc/ssl/cert.pem` with Homebrew's script; `sysup` trims when `DOTFILES_TRIM_CA_ROOTS` is set (see [Updating](../README.md#removing-the-compromised-emudhra-roots-optional)) |
+| `ca-roots status` `ca-roots trim` `ca-roots restore` | Show, remove or restore the compromised eMudhra roots in `/etc/ssl/cert.pem` (`trim` needs Homebrew's own script, so it works only on a Mac that still has Homebrew); `sysup` trims when `DOTFILES_TRIM_CA_ROOTS` is set (see [Updating](../README.md#removing-the-compromised-emudhra-roots-optional)) |
 | `vscode-settings` | Render VS Code's `settings.json` from its template with a font preset (`--choose`, `--preset warp`, `--check`); refuses to overwrite edits VS Code made (see [vscode](../vscode/README.md#fonts-and-the-settings-template)) |
 | `dotfiles-settings tui` `dotfiles-settings serve` `dotfiles-settings list` `dotfiles-settings set {{id}} {{value}}` `dotfiles-settings reset {{id}}` | See and change the settings this repo manages, in the terminal or a browser tab; a change is stored in mise's override file and beats the export in `zsh/env.zsh` or `~/.zsh.local` (see [settings](../settings/README.md)) |
 | `sync-all` | Run `obsidian-vault install`, then `install-color-themes` |
-| `sysup` | Run macOS, Homebrew, mise, dotfiles and other software updates; one status line per step, a summary of changes, notices, failures and actions, full output in `logs/sysup-<timestamp>.log` |
+| `sysup` | Run macOS, mise package and tool, dotfiles and other software updates; one status line per step, a summary of changes, notices, failures and actions, full output in `logs/sysup-<timestamp>.log` |
 | `impeccable` `impeccable telemetry status` | Run the installed Impeccable plugin's engine launcher from a terminal (the plugin never puts it on PATH); `impeccable help` lists its verbs |
 | `flush-dns` | Flush the DNS cache |
 | `shutdownmac` | Shut down macOS system |

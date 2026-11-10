@@ -1,23 +1,24 @@
 # ~jason 🛠️
 
-Jason's personal dotfiles for configuring macOS with Zsh and Homebrew — a personalized fork of [nicksp/dotfiles](https://github.com/nicksp/dotfiles).
+Jason's personal dotfiles for configuring macOS with Zsh and mise — a personalized fork of [nicksp/dotfiles](https://github.com/nicksp/dotfiles).
 
 ![terminal screenshot](screenshot.png)
 
 > [!WARNING]  
-> These are personal, opinionated dotfiles. Review `tilde/.config/mise/conf.d/20-macos.toml`, `setup/macos-extras.sh` and `setup/Brewfile` before running them on a new machine.
+> These are personal, opinionated dotfiles. Review `tilde/.config/mise/conf.d/20-macos.toml`, `setup/macos-extras.sh` and `tilde/.config/mise/conf.d/30-packages.toml` before running them on a new machine.
 
 ## Requirements
 
-- macOS on Apple Silicon (the scripts expect Homebrew at `/opt/homebrew`); the macOS defaults were reviewed for macOS 27
-- Homebrew (installed in step 1 below, or by `setup/brew.sh` if missing)
-- Zsh — Homebrew's, from the Brewfile; `setup/zsh.sh` makes it your login shell
+- macOS on Apple Silicon (mise installs formulae and casks into `/opt/homebrew`; Homebrew itself isn't needed); the macOS defaults were reviewed for macOS 27
+- Zsh — the `brew:zsh` package; `setup/zsh.sh` makes it your login shell
+
+Installing on a new Mac with mise alone has not been run end to end on a clean Mac yet.
 
 ## What's in there?
 
 - Custom color scheme: [Squirrelsong](colors/).
-- Handy [CLI scripts](bin/), including [`brewpick`](bin/brewpick) — the Brewfile installer used by `setup/brew.sh` (`brewpick --all`), which can also run as an fzf checklist to install just a subset of the formulae/casks/VS Code extensions.
-- [`sysup`](bin/sysup): one command to update macOS, Homebrew, runtimes and the rest (see [Updating](#updating)).
+- Handy [CLI scripts](bin/).
+- [`sysup`](bin/sysup): one command to update macOS, mise and its packages, runtimes and the rest (see [Updating](#updating)).
 - Coding agents [config automation](agents/): shared instructions for Amp and Codex, plus Claude Code's plugins, settings and skills, restored by setup along with a catalog of everything installed, and opt-in per-repo [Hindsight](https://github.com/vectorize-io/hindsight) memory for Claude Code and Codex (`hindsight-memory`).
 - [Custom zsh theme](tilde/.starship.toml) with Git status, etc. using [Starship](https://starship.rs/).
 - Runtime versions (Node, Python, etc.) managed by [mise](https://mise.jdx.dev/), activated in [`tilde/.zprofile`](tilde/.zprofile) (shims, for GUI apps) and [`zsh/init.zsh`](zsh/init.zsh) (full shell integration).
@@ -28,10 +29,10 @@ Jason's personal dotfiles for configuring macOS with Zsh and Homebrew — a pers
 - [hunk](https://github.com/modem-dev/hunk) as the terminal diff viewer for git, lazygit and gh.
 - Sensible [macOS defaults](tilde/.config/mise/conf.d/20-macos.toml), declared as TOML that mise applies and checks for drift.
 - [VS Code settings](vscode/), symlinked from the repo (VS Code's built-in Settings Sync stays off — the dotfiles are the source of truth).
-- [Firefox Developer Edition styles](firefox/) (optional — the browser isn't in the Brewfile).
+- [Firefox Developer Edition styles](firefox/) (optional — the browser isn't in `30-packages.toml`).
 - Terminal config for [Ghostty](tilde/.config/ghostty/) and [cmux](tilde/.config/cmux/), and for the tools in them: bat, btop, fastfetch, gh, lazygit.
-- [Fonts](fonts/README.md): Hack Nerd Font Mono in the terminals (Ghostty, cmux, fastfetch) and Iosevka Code in VS Code. The Nerd Fonts are Brewfile casks; Iosevka Code has no cask, so `bin/install-iosevka-code` installs it. MonoLisa is an optional paid font (`bin/brewpick` → MonoLisa opens its download page).
-- [macOS apps and VS Code extensions](setup/Brewfile) I use.
+- [Fonts](fonts/README.md): Hack Nerd Font Mono in the terminals (Ghostty, cmux, fastfetch) and Iosevka Code in VS Code. The Nerd Fonts are casks in `30-packages.toml`; Iosevka Code has no cask, so `bin/install-iosevka-code` installs it. [MonoLisa](https://www.monolisa.dev/) is an optional paid font you install by hand.
+- [Command-line tools, macOS apps and VS Code extensions](tilde/.config/mise/conf.d/30-packages.toml) I use, installed by mise.
 - [macOS tips & tricks](docs/macos%20tips%20%26%20tricks.md).
 - [Mole](docs/mole.md) (`mo`) cleanup guide, with its whitelists tracked in [`mole/`](mole/) and a per-Mac `.local` override.
 - [REA](docs/rea.md), the reverse-engineering MCP server and CLI: how it is installed and registered, which engines work on this Mac, and how to check.
@@ -42,12 +43,10 @@ Jason's personal dotfiles for configuring macOS with Zsh and Homebrew — a pers
 
 On a new Mac, clone over HTTPS — SSH only works after 1Password is set up (keys live there, see [`~/.ssh/github_personal.pub`](#sshgithub_personalpub)).
 
-1. Install the Command Line Tools (for `git`) and [Homebrew](https://brew.sh):
+1. Install the Command Line Tools (for `git`):
 
    ```shell
    xcode-select --install
-   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-   eval "$(/opt/homebrew/bin/brew shellenv)" # the installer doesn't put brew on PATH
    ```
 
 1. Clone the repo (no GitHub login needed; `setup/misc.sh` offers `gh auth login` later):
@@ -58,7 +57,7 @@ On a new Mac, clone over HTTPS — SSH only works after 1Password is set up (key
 
    Setting up your own Mac? Fork the repo, clone your fork instead, and go through [Make it yours](#make-it-yours) before running setup.
 
-1. Optional, for signed commits from the start: install 1Password (`brew install --cask 1password`), sign in and turn on **Settings → Developer → Use the SSH agent**. `setup/symlinks.sh` asks how to sign commits — [SSH via 1Password](https://www.1password.dev/ssh/git-commit-signing) (`op-ssh-sign`; paste your public key when asked), GPG, or none — and writes `~/.gitconfig.local`. Choose none if 1Password isn't ready yet and add signing to `~/.gitconfig.local` later.
+1. Optional, for signed commits from the start: install 1Password (download it, or run `mise bootstrap packages apply brew-cask:1password` once `setup/packages.sh` has installed mise), sign in and turn on **Settings → Developer → Use the SSH agent**. `setup/symlinks.sh` asks how to sign commits — [SSH via 1Password](https://www.1password.dev/ssh/git-commit-signing) (`op-ssh-sign`; paste your public key when asked), GPG, or none — and writes `~/.gitconfig.local`. Choose none if 1Password isn't ready yet and add signing to `~/.gitconfig.local` later.
 1. Run the setup — [automatically](#automatically) or [manually](#manually).
 1. Finish the steps setup can't do for you: see [After setup](#after-setup).
 
@@ -70,14 +69,14 @@ The repo can live anywhere — the scripts resolve their own location, and `~/.z
 # after cloning as in step 2 above
 cd ~/dev/dotfiles
 ln -s "$PWD" ~/dotfiles # compatibility path for configs that can't expand variables
-./setup/brew.sh         # must run first: the later scripts use Homebrew tools
+./setup/packages.sh     # must run first: the later scripts use the tools it installs
 ./setup/zsh.sh
 ./setup/misc.sh
 ./setup/symlinks.sh
 ./setup/dash.sh # optional: Dash docsets from local folders
 ```
 
-`setup.sh` also does a few things the manual path skips: it enables Touch ID for `sudo` (`/etc/pam.d/sudo_local`), keeps `sudo` authorized during the Homebrew, Zsh and symlink steps so long installs don't ask for the password again (it's released while `misc.sh` runs its installers, so the symlink step asks once more), and exports telemetry opt-outs (.NET, PowerShell, Azure CLI, Azure MCP server, Azure Functions Core Tools, Aspire, CodeGraph, rtk, Claude Code error reports) before `misc.sh` installs those tools.
+`setup.sh` also does a few things the manual path skips: it enables Touch ID for `sudo` (`/etc/pam.d/sudo_local`), keeps `sudo` authorized during the package, Zsh and symlink steps so long installs don't ask for the password again (it's released while `misc.sh` runs its installers, so the symlink step asks once more), and exports telemetry opt-outs (.NET, PowerShell, Azure CLI, Azure MCP server, Azure Functions Core Tools, Aspire, CodeGraph, rtk, Claude Code error reports) before `misc.sh` installs those tools.
 
 ### Automatically
 
@@ -97,7 +96,7 @@ Options:
 | Flag | Effect |
 | --- | --- |
 | `-y`, `--yes` | Don't wait for confirmation before starting |
-| `--skip-brew` | Skip `brew update` and the Brewfile install (use when re-running for dotfiles changes) |
+| `--skip-brew` | Skip `setup/packages.sh`, the package install (use when re-running for dotfiles changes) |
 | `--skip-codegraph` | Don't install [CodeGraph](https://github.com/colbymchenry/codegraph) or connect it to Claude Code (an existing install is left alone) |
 | `--dash` | Also run the optional [Dash docset setup](setup/dash.sh) |
 | `-h`, `--help` | Print usage and exit |
@@ -169,7 +168,7 @@ Setup already asks for your git identity and commit signing. These values are ha
 | [`lazygit/config.yml`](lazygit/config.yml) | The author name under `authorColors` |
 | [`agents/claude-*`](agents/) | My Claude Code plugins, settings and skills, including the `jrmatherly-skills` marketplace (`jstack`, `resume`) and the `coding-standards` and `supabase-prompts` skills from my public skills repo — keep them or drop those lines. Run `claude-config save` once yours are installed and commit the result |
 | [`agents/catalog/curated.toml`](agents/catalog/curated.toml) | Notes on my tools. `claude-catalog` still builds but exits 1 (a warning in setup) for each skill, command or agent you don't have installed — delete those. An `[mcp.*]` entry you lack, like my `coolify` server, only prints a `lint:` note, because MCP registration is per machine |
-| [`setup/Brewfile`](setup/Brewfile) | My apps. Trim it, or pick a subset with `bin/brewpick` |
+| [`30-packages.toml`](tilde/.config/mise/conf.d/30-packages.toml), and the tools in [`config.toml`](tilde/.config/mise/config.toml) | My formulae, apps and VS Code extensions. Trim them before the first run. The `jrmatherly/tap` entries (`claude-multipass` and its app) are my own projects |
 | [`settings/registry.toml`](settings/registry.toml) | `macos.disable_time_machine` and `macos.firewall` default to on, my choice. **If you use Time Machine, run `dotfiles-settings set macos.disable_time_machine off` before `set-defaults`, which otherwise stops all backups.** |
 | [`package.json`](package.json) | The `author` field |
 | [`setup/bootstrap-runtime.archify.json`](setup/bootstrap-runtime.archify.json) | The `meta.repository.url` clone URL (Archify's source for the setup diagram; the exported SVG doesn't show it) |
@@ -222,13 +221,14 @@ If this file exists, it will be automatically included after the configurations 
 sysup
 ```
 
-[`sysup`](bin/sysup) is the routine update command, and it works from any directory. It prints one status line per step (green ✔ up to date, cyan ↻ changed with what changed, yellow ● a notice such as a release held back, red ✖ a failed step with the command to rerun) and ends with a summary: a `Done in <time> · <n> changed · …` headline, then what changed, notices and failures in aligned columns, the actions you still have to take (restart Claude Code after plugin updates, review the tracked config, open a new terminal, reopen an app Homebrew replaced while it ran) under a highlighted `▶ ACTION NEEDED` banner, and clickable links to the rebuilt catalog and the log (shown as `~/…` paths). A list such as Homebrew's or mise's upgraded versions, the versions `mise prune` removed or the plugins updated prints as a two-column table under its step, and long lines wrap under the detail column. Each run's full tool output goes to `logs/sysup-<timestamp>.log` (git-ignored); only a step that changed something or failed shows its output on screen. On a terminal, the step in progress shows as a `…` line, and a step that took 10 seconds or more names its time. It:
+[`sysup`](bin/sysup) is the routine update command, and it works from any directory. It prints one status line per step (green ✔ up to date, cyan ↻ changed with what changed, yellow ● a notice such as a release held back, red ✖ a failed step with the command to rerun) and ends with a summary: a `Done in <time> · <n> changed · …` headline, then what changed, notices and failures in aligned columns, the actions you still have to take (restart Claude Code after plugin updates, review the tracked config, open a new terminal) under a highlighted `▶ ACTION NEEDED` banner, and clickable links to the rebuilt catalog and the log (shown as `~/…` paths). A list such as the upgraded packages or mise tools, the versions `mise prune` removed or the plugins updated prints as a two-column table under its step, and long lines wrap under the detail column. Each run's full tool output goes to `logs/sysup-<timestamp>.log` (git-ignored); only a step that changed something or failed shows its output on screen. On a terminal, the step in progress shows as a `…` line, and a step that took 10 seconds or more names its time. It:
 
 - pulls the latest dotfiles (`git pull` in the clone)
 - installs macOS software updates (a macOS update asks for your login password: see [below](#macos-update-password-from-1password-optional)); one that needs a restart, such as a new macOS version, is only downloaded, and the summary tells you to install it from System Settings → General → Software Update → Restart Now or with `sudo softwareupdate -ia --restart`, since a plain restart doesn't install it
-- upgrades Homebrew formulae and casks (VS Code included) without asking for confirmation (`brew upgrade --yes`; the outdated list goes to the log, the upgraded pairs to the screen), then cleans up
-- removes the compromised eMudhra roots from `/etc/ssl/cert.pem` if you opted in (see [below](#removing-the-compromised-emudhra-roots-optional)), before `brew doctor` so its warning about them goes away; `ca-roots restore` puts them back
-- upgrades mise tools (Node/Python patch releases, CodeGraph, the npm CLIs, the Aspire CLI and flate), the stable Rust toolchain (Homebrew's `rustup update` called by path, with a notice when `cargo --version` fails in that shell, since the keg-only rustup keeps its proxies in `/opt/homebrew/opt/rustup/bin`, and a notice when a mise rust toolchain no config pins shadows it; a tool mise could not reinstall is a notice too). Before upgrading, it runs `mise prune`, which deletes the versions the previous run replaced that no project's mise config still uses, and reports how much it freed; the versions this run replaces stay until the next run, so you can go back to one. It skips the prune while a leftover mise rust install would make it hang and uv tools (Serena and Scrapling, re-running `scrapling install` so its Chromium matches)
+- updates mise itself (`mise self-update`)
+- upgrades the formulae and casks in [`30-packages.toml`](tilde/.config/mise/conf.d/30-packages.toml), VS Code included, without asking for confirmation (`mise bootstrap packages upgrade --yes`; the pairs whose installed version moved go to the screen). VS Code updates its own extensions. Afterwards it lists any declared package that is still not installed
+- removes the compromised eMudhra roots from `/etc/ssl/cert.pem` if you opted in and Homebrew's script is on this Mac (see [below](#removing-the-compromised-emudhra-roots-optional)); `ca-roots restore` puts them back
+- upgrades mise tools (Node/Python patch releases, CodeGraph, the npm CLIs, the Aspire CLI and flate), the stable Rust toolchain (`rustup update`, the `brew:rustup` package called by path, with a notice when `cargo --version` fails in that shell, since the keg-only rustup keeps its proxies in `/opt/homebrew/opt/rustup/bin`, and a notice when a mise rust toolchain no config pins shadows it; a tool mise could not reinstall is a notice too). Before upgrading, it runs `mise prune`, which deletes the versions the previous run replaced that no project's mise config still uses, and reports how much it freed; the versions this run replaces stay until the next run, so you can go back to one. It skips the prune while a leftover mise rust install would make it hang and uv tools (Serena and Scrapling, re-running `scrapling install` so its Chromium matches)
 - reinstalls the Iosevka Code font if its upstream zip changed
 - updates Claude Code itself (`claude update`) and reports its version, before the steps below so they run on the new binary
 - reinstalls each tracked agent skill whose source changed since it was installed, for the agents it is listed for (`claude-config restore skills --update`); the skills CLI records a GitHub folder's git SHA or a well-known site's digest, so unchanged skills are left alone, and a skill it can't check is reinstalled every time
@@ -239,15 +239,17 @@ sysup
 - asks Raycast to check for app and extension updates
 - updates Amp, if it's installed
 
+On a Mac that Homebrew set up before the move to mise, two things stay as they were: mise is still Homebrew's copy, which nothing upgrades, and a cask that Homebrew put there is left alone unless the app updates itself. `sysup` prints a notice for each. The command that hands both to mise, `migrate/legacy-to-mise --step packages`, is not in the repo yet.
+
 It doesn't re-apply the dotfiles. When a pull brings new symlinks, tools or config, run setup again:
 
 ```shell
-"$DOTFILES/setup.sh" --skip-brew # drop --skip-brew to also install new Brewfile entries
+"$DOTFILES/setup.sh" --skip-brew # drop --skip-brew to also install new package entries
 ```
 
-`setup.sh` installs what's missing but doesn't upgrade what's already there, except PowerShell (`dotnet tool update`), the dependencies `brew bundle` upgrades on its own and the Iosevka Code font; the rest is `sysup`'s job.
+`setup.sh` installs what's missing but doesn't upgrade what's already there, except PowerShell (`dotnet tool update`) and the Iosevka Code font; the rest is `sysup`'s job.
 
-The repo's own pins get update PRs from [Renovate](https://docs.renovatebot.com/) (config in [`renovate.json`](renovate.json)): `package.json` and its `packageManager` pnpm, the single-version tools in the global mise config, and the action pins and `setup-python` version in `.github/workflows/`. It waits 7 days after a release, like `pnpm-workspace.yaml`'s `minimumReleaseAge`, opens or refreshes the daily `@ampcode/plugin` snapshots only early on Monday (New York time), and keeps mise's `npm:typescript` on major 6. It skips mise's `node` and `python`: its mise manager reads only the first entry of a version list, so it would rewrite the default and leave the rest. Those, like `.nvmrc`'s `lts/*`, stay manual. The `check` workflow ([`.github/workflows/check.yml`](.github/workflows/check.yml)) runs `pnpm check` on macOS for every PR, its PRs included, and every push to `main`. Its Dependency Dashboard issue lists held and pending updates; tick a PR's rebase box there to re-run the check on a PR opened before a workflow change. The Brewfile, VS Code extensions and mise's `latest` entries stay with `sysup`.
+The repo's own pins get update PRs from [Renovate](https://docs.renovatebot.com/) (config in [`renovate.json`](renovate.json)): `package.json` and its `packageManager` pnpm, the single-version tools in the global mise config, and the action pins and `setup-python` version in `.github/workflows/`. It waits 7 days after a release, like `pnpm-workspace.yaml`'s `minimumReleaseAge`, opens or refreshes the daily `@ampcode/plugin` snapshots only early on Monday (New York time), and keeps mise's `npm:typescript` on major 6. It skips mise's `node` and `python`: its mise manager reads only the first entry of a version list, so it would rewrite the default and leave the rest. Those, like `.nvmrc`'s `lts/*`, stay manual. The `check` workflow ([`.github/workflows/check.yml`](.github/workflows/check.yml)) runs `pnpm check` on macOS for every PR, its PRs included, and every push to `main`. Its Dependency Dashboard issue lists held and pending updates; tick a PR's rebase box there to re-run the check on a PR opened before a workflow change. The packages in `30-packages.toml` and mise's `latest` entries stay with `sysup`; VS Code updates its own extensions.
 
 An update of VS Code replaces the files the SpaceBox UI Enhancer patched, so run **SpaceBox Enable UI Enhancer** again afterwards (see [vscode](vscode/README.md#spacebox-ui-enhancer)).
 
@@ -256,7 +258,7 @@ An update of VS Code replaces the files the SpaceBox UI Enhancer patched, so run
 `sysup` starts with a fingerprint for `sudo`, but a macOS update still stops at `Password:`. That prompt comes from `softwareupdate` itself: on Apple Silicon only the account password authorizes an OS update, and neither `sudo` nor Touch ID counts. If you keep that password in 1Password, `sysup` can fetch it with a fingerprint instead. Without this setup nothing changes and you type the password as before.
 
 1. In 1Password, save your Mac login password as an item (a Login or Password item; any vault).
-1. Turn on **Settings → Developer → Integrate with 1Password CLI**. The `op` command comes from the Brewfile (`1password-cli`).
+1. Turn on **Settings → Developer → Integrate with 1Password CLI**. The `op` command is the `brew-cask:1password-cli` package.
 1. Copy the field's secret reference: open the item, click the arrow next to the password field → **Copy Secret Reference**. It looks like `op://Private/Mac login/password`.
 1. Store it with [`dotfiles-settings`](settings/README.md), which keeps it in a git-ignored file inside the clone:
 
@@ -276,7 +278,9 @@ An update of VS Code replaces the files the SpaceBox UI Enhancer patched, so run
 
 ### Removing the compromised eMudhra roots (optional)
 
-Keys of eMudhra intermediate CAs were compromised ([Apple](https://support.apple.com/en-us/149555)). Apple's frameworks already block them, but `/etc/ssl/cert.pem`, which Apple's bundled `curl`, `python3`, `git` and `openssl` read, still carries the two roots that trust them, `emSign ECC Root CA - G3` and `AAA Certificate Services`. Homebrew's `curl` verifies through Apple's trust store and its `openssl` and `git` through Homebrew's own `ca-certificates`, so they don't read it. `brew doctor` warns about this, and `sysup` shows that warning as a notice.
+Keys of eMudhra intermediate CAs were compromised ([Apple](https://support.apple.com/en-us/149555)). Apple's frameworks already block them, but `/etc/ssl/cert.pem`, which Apple's bundled `curl`, `python3`, `git` and `openssl` read, still carries the two roots that trust them, `emSign ECC Root CA - G3` and `AAA Certificate Services`. The `curl` formula verifies through Apple's trust store and the `openssl` and `git` formulae through the `ca-certificates` formula, so they don't read it.
+
+Removing them works only on a Mac that still has Homebrew itself: `ca-roots trim` runs Homebrew's own script (`/opt/homebrew/Library/Homebrew/utils/emudhra_certificates.rb`), which mise does not install. Without it `ca-roots trim` fails with a message, `sysup` prints a notice instead of trimming, and `ca-roots status` still shows whether the roots are there.
 
 To let `sysup` remove the roots, turn the setting on:
 
@@ -284,7 +288,7 @@ To let `sysup` remove the roots, turn the setting on:
 dotfiles-settings set updates.trim_ca_roots on
 ```
 
-`sysup` then runs `ca-roots trim` each run, before `brew doctor`; while a root is present it runs Homebrew's own script with `sudo`, otherwise it does nothing. The script keeps a backup in `/etc/ssl/cert.pem.bak` (and the first original in `.orig`). A macOS update can put the roots back, so while the variable is set each `sysup` after one removes them again. `ca-roots status` shows whether they're there.
+`sysup` then runs `ca-roots trim` each run; while a root is present it runs Homebrew's script with `sudo`, otherwise it does nothing. The script keeps a backup in `/etc/ssl/cert.pem.bak` (and the first original in `.orig`). A macOS update can put the roots back, so while the variable is set each `sysup` after one removes them again. `ca-roots status` shows whether they're there.
 
 To undo it, run `ca-roots restore` (it copies the backup back with `sudo`; it does nothing if the roots are already back, and refuses if the bundle is no longer the backup minus the roots, as after a macOS update) and run `dotfiles-settings reset updates.trim_ca_roots` (delete the line from `~/.zsh.local` too if you exported it there). Removing the roots can break HTTPS connections to some websites.
 

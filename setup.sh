@@ -6,8 +6,8 @@
 #   ./setup.sh [-y|--yes] [--skip-brew] [--skip-codegraph] [--dash] [-h|--help]
 #
 #   -y, --yes         Don't wait for confirmation before starting
-#   --skip-brew       Skip `brew update` and the Brewfile install (`brewpick
-#                     --all`) — handy when re-running for dotfiles changes only
+#   --skip-brew       Skip setup/packages.sh (the mise package install) —
+#                     handy when re-running for dotfiles changes only
 #   --skip-codegraph  Don't install CodeGraph or wire it into Claude Code
 #   --dash            Also run the optional Dash docset configuration
 #   -h, --help        Print this help and exit
@@ -169,7 +169,7 @@ sudo_keepalive_stop() {
   echo "Sudo released"
 }
 
-# Ask for the administrator password upfront; sudo is held for Homebrew, Zsh
+# Ask for the administrator password upfront; sudo is held for the packages, Zsh
 # and the symlinks, and released around misc.sh (curl | bash, npm, uv, dotnet)
 warning "Activate sudo"
 sudo -v
@@ -179,7 +179,7 @@ sudo_keepalive_start
 echo "Sudo activated!"
 echo
 
-# Install Homebrew and packages/apps
+# Install mise and the packages/apps
 if [ "$SKIP_BREW" = true ]; then
   title "🫖 Skipping packages (--skip-brew)…"
 else

@@ -1,6 +1,6 @@
 ---
 name: docs-audit
-description: Audit this repo's Markdown docs and agent instructions against the scripts, configs, installed tools and vendor docs they describe, and report mismatches (never edits). Use after changing setup scripts, the Brewfile, mise config or bin/ scripts, or before a docs pass.
+description: Audit this repo's Markdown docs and agent instructions against the scripts, configs, installed tools and vendor docs they describe, and report mismatches (never edits). Use after changing setup scripts, the package list, mise config or bin/ scripts, or before a docs pass.
 argument-hint: '[doc path or directory; default: all docs]'
 context: fork
 agent: docs-auditor

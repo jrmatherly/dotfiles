@@ -4,7 +4,7 @@
 
 ## Repo setup
 
-- **Install:** `cask "cmux"` in `setup/Brewfile`
+- **Install:** `"brew-cask:cmux"` in `tilde/.config/mise/conf.d/30-packages.toml`
 - **Config:** `tilde/.config/cmux/cmux.json`, symlinked to `~/.config/cmux` by `setup/symlinks.sh`. cmux watches the file and applies changes on save, with no restart
 - **Terminal look:** cmux renders terminals with your Ghostty config, so the theme, Hack Nerd Font Mono font and cursor from `tilde/.config/ghostty/config` carry over. After editing the Ghostty config, run `cmux reload-config` from a terminal inside cmux (or just reopen cmux); edits to `cmux.json` apply on save
 
@@ -15,7 +15,7 @@
 - **`app.openMarkdownInCmuxViewer: true`:** Cmd-clicking a `.md` file opens cmux's rendered Markdown viewer, which reloads live
 - **`app.keepWorkspaceOpenWhenClosingLastSurface: true`:** closing the last surface keeps the workspace open
 - **`app.sendAnonymousTelemetry: false`:** telemetry off
-- **`automation.ripgrepBinaryPath: "/opt/homebrew/bin/rg"`:** the Homebrew `rg` used for project search
+- **`automation.ripgrepBinaryPath: "/opt/homebrew/bin/rg"`:** the `brew:ripgrep` package's `rg`, used for project search
 - **`automation.cursorIntegration: true`, `claudeCodeIntegration: false`:** installs cmux's integration hooks for Cursor but not for Claude Code
 - **`automation.socketControlMode: "cmuxOnly"`:** the default socket control mode
 - **`terminal.copyOnSelect: true`:** selecting text copies it to the system clipboard

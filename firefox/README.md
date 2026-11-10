@@ -1,7 +1,7 @@
 # Firefox Developer Edition Setup
 
 > [!NOTE]  
-> Optional — not installed by setup; install manually if you use it. This config targets **Firefox Developer Edition** only (it isn't in the Brewfile, and regular Firefox profiles are not touched).
+> Optional — not installed by setup; install manually if you use it. This config targets **Firefox Developer Edition** only (it isn't in `30-packages.toml`, and regular Firefox profiles are not touched).
 
 ## Configuration and UI styles
 
@@ -29,7 +29,7 @@ After installing Developer Edition, launch it once so it creates its profile, qu
     - Click `Apply changes`
 - [Privacy Badger](https://addons.mozilla.org/en-US/firefox/addon/privacy-badger17/) — _Run in Private Windows_
   - Firefox [includes tracker blocking](https://blog.mozilla.org/security/2021/02/23/total-cookie-protection/) already; Privacy Badger is optional on top of it.
-- [1Password: Password Manager](https://addons.mozilla.org/en-US/firefox/addon/1password-x-password-manager/) — pairs with the 1Password app installed by the Brewfile
+- [1Password: Password Manager](https://addons.mozilla.org/en-US/firefox/addon/1password-x-password-manager/) — pairs with the 1Password app that setup installs
 - [UnTrap for YouTube](https://addons.mozilla.org/en-US/firefox/addon/untrap-for-youtube/)
   - [Settings](./settings/untrap.txt)
 - [Instapaper](https://addons.mozilla.org/en-US/firefox/addon/instapaper-official/)

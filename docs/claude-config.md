@@ -40,6 +40,6 @@ Agents map to folders: `claude-code` is `~/.claude/skills`, `codex` is `~/.agent
 
 ## Dependencies
 
-`jq` from Homebrew; `npx` with Node from mise for skills. Reads `~/.claude` (or `$CLAUDE_CONFIG_DIR`) and `~/.agents`.
+`jq` (a `brew:` package); `npx` with Node from mise for skills. Reads `~/.claude` (or `$CLAUDE_CONFIG_DIR`) and `~/.agents`.
 
 See also `help claude-catalog` and [`agents/README.md`](../agents/README.md).

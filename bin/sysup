@@ -4,7 +4,7 @@
 #
 # > Reads like a report: one status line per step and a summary at the end. Full tool output goes to `logs/sysup-<timestamp>.log` in the dotfiles repo, and to the screen only when a step changed something or failed.
 # > A macOS update asks for your login password. Run `dotfiles-settings set updates.mac_password_op 'op://vault/item/password'` (a 1Password secret reference) to supply it with a fingerprint instead.
-# > Run `dotfiles-settings set updates.trim_ca_roots on` to let it remove the two compromised eMudhra roots from /etc/ssl/cert.pem (`ca-roots restore` puts them back).
+# > Run `dotfiles-settings set updates.trim_ca_roots on` to let it remove the two compromised eMudhra roots from /etc/ssl/cert.pem, on a Mac that still has Homebrew's own script (`ca-roots restore` puts them back).
 #
 # - Run updates:
 #
@@ -329,7 +329,7 @@ else
       status ok packages "up to date"
     fi
   fi
-  # mise leaves a cask Homebrew installed unchanged; one that updates itself
+  # mise leaves a cask that Homebrew put there unchanged; one that updates itself
   # needs nothing
   brew_casks=0
   [ -z "$pkg_after" ] || brew_casks=$(jq '[."brew-cask".packages[]? | select(.managed_by == "homebrew" and (.auto_updates | not))] | length' <<< "$pkg_after")
@@ -480,7 +480,7 @@ if [ -n "$rustup_bin" ]; then
   else
     status notice Rust "unrecognized output, see the log"
   fi
-  # Homebrew's rustup is keg-only, so cargo and rustc are its proxies in
+  # The rustup formula is keg-only, so cargo and rustc are its proxies in
   # /opt/homebrew/opt/rustup/bin, which only shells started after that PATH
   # entry landed can see (zsh/path.zsh, tilde/.zprofile). Hindsight's daemon
   # preflight runs `cargo --version`, so a stale shell can't cold-start it

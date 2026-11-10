@@ -140,7 +140,7 @@ minijinja-cli -t "{{ presets[preset].editor_family }}
 {{ presets[preset].terminal_family }}" -D "preset=$preset" '' "$presets" \
   | sed -E "s/^'([^']+)'.*/\1/" | sort -u | while IFS= read -r font; do
   grep -qxF "$font" <<< "$installed_fonts" \
-    || echo "warning: font '$font' isn't installed (Brewfile font casks, bin/install-iosevka-code)" >&2
+    || echo "warning: font '$font' isn't installed (font casks in 30-packages.toml, bin/install-iosevka-code)" >&2
 done
 
 mkdir -p "$dir" "$(dirname "$env_file")"

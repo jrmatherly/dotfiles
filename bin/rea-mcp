@@ -19,9 +19,9 @@ set -euo pipefail
 # it to openjdk@25 (2026-10-22). A JAVA_HOME pinned in the Claude Code
 # registration dangled until the next setup run, so nothing versioned is
 # registered. This reads both paths from the installed keg every start: the
-# JAVA_HOME default in Homebrew's own ghidraRun wrapper, which brew rewrites
-# with each Ghidra install, so it is the JDK the GUI uses and never one that a
-# `brew update` without `brew upgrade` only promises. A JAVA_HOME already in the
+# JAVA_HOME default in the formula's own ghidraRun wrapper, rewritten with each
+# Ghidra install, so it is the JDK the GUI uses and never one that a newer
+# formula definition only promises. A JAVA_HOME already in the
 # environment wins, as in that wrapper. Ghidra problems only cost the Ghidra
 # provider: the server still starts for Hopper and the built-in providers.
 # The keg is found by its opt link, since an app-launched Claude Code has no

@@ -4,11 +4,11 @@
 
 ## Repo setup
 
-- **Install:** `cask "ghostty"` in `setup/Brewfile`
+- **Install:** `"brew-cask:ghostty"` in `tilde/.config/mise/conf.d/30-packages.toml`. mise links no man pages, so `man ghostty` finds nothing where mise installed the cask
 - **Config:** `tilde/.config/ghostty/config`, symlinked to `~/.config/ghostty` by `setup/symlinks.sh` (Ghostty reads the XDG path `~/.config/ghostty/config` on macOS)
 - **Theme:** `dark:Squirrelsong Dark Deep Purple,light:Squirrelsong Light`, switching automatically with the system appearance
 - **Theme files:** `tilde/.config/ghostty/themes` (Ghostty looks up theme names in `~/.config/ghostty/themes`). The theme files are owned by this repo (nothing is downloaded); edit them here and commit
-- **Font:** Hack Nerd Font Mono 17pt, installed by the Brewfile (`font-hack-nerd-font`). Ligatures are off (`-liga`, `-clig`), with slashed zero (`zero`) on
+- **Font:** Hack Nerd Font Mono 17pt, the `brew-cask:font-hack-nerd-font` package. Ligatures are off (`-liga`, `-clig`), with slashed zero (`zero`) on
 
 ## Notable settings
 

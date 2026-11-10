@@ -8,9 +8,9 @@
 
 ## Settings and keybindings
 
-- `User/settings.json` holds the day-to-day preferences: the editor and terminal fonts, the SpaceBox color theme, formatter and linter config, etc. It's **generated and gitignored**: `bin/vscode-settings` renders it from the tracked template `User/settings.json.j2` with [minijinja-cli](https://github.com/mitsuhiko/minijinja) (Brewfile), filling in the font preset, `$HOME` (for `notes.notesLocation`) and the repo path (for `dev.containers.dockerPath`, which points at `bin/docker-devcontainer`: a `docker` wrapper that sets `BUILDX_BAKE_ENTITLEMENTS_FS=0` so Compose-based dev containers build on buildx 0.37.2+, at the cost of the file-read check that buildx added; delete the wrapper and the setting once a Compose release carries docker/compose#14325). See [Fonts and the settings template](#fonts-and-the-settings-template).
+- `User/settings.json` holds the day-to-day preferences: the editor and terminal fonts, the SpaceBox color theme, formatter and linter config, etc. It's **generated and gitignored**: `bin/vscode-settings` renders it from the tracked template `User/settings.json.j2` with [minijinja-cli](https://github.com/mitsuhiko/minijinja) (a `brew:` package), filling in the font preset, `$HOME` (for `notes.notesLocation`) and the repo path (for `dev.containers.dockerPath`, which points at `bin/docker-devcontainer`: a `docker` wrapper that sets `BUILDX_BAKE_ENTITLEMENTS_FS=0` so Compose-based dev containers build on buildx 0.37.2+, at the cost of the file-read check that buildx added; delete the wrapper and the setting once a Compose release carries docker/compose#14325). See [Fonts and the settings template](#fonts-and-the-settings-template).
 - `User/keybindings.json` is intentionally empty (`[]`), so VS Code uses its stock shortcuts — see `help gui/visual-studio-code`. Add bindings there if you want to customize.
-- `.vscode/settings.json` at the repo root is a different file: workspace settings that apply only while this repo is open (the Brewfile as Ruby, ShellCheck skipping the zsh completion functions, spell-check words). `vscode/User` applies to every project.
+- `.vscode/settings.json` at the repo root is a different file: workspace settings that apply only while this repo is open (file associations, ShellCheck skipping the zsh completion functions, spell-check words). `vscode/User` applies to every project.
 
 Settings in the template that are there for a non-obvious reason (each has a comment next to it):
 
@@ -32,7 +32,7 @@ Settings in the template that are there for a non-obvious reason (each has a com
 
 `VSCODE_FONT_PRESET` in the environment, which `dotfiles-settings set apps.vscode_font_preset` sets for new shells, beats the saved preset for that render and is not saved. `--preset` and `--choose` beat both.
 
-Each preset except `fira` falls back to FiraCode Nerd Font Mono. Iosevka Code comes from `bin/install-iosevka-code` (see [fonts](../fonts/README.md)), ProFont and FiraCode from the Brewfile's font casks; the renderer warns when a preset's font isn't installed. `vscode-settings --preset warp` switches directly, `--check` compares without writing.
+Each preset except `fira` falls back to FiraCode Nerd Font Mono. Iosevka Code comes from `bin/install-iosevka-code` (see [fonts](../fonts/README.md)), ProFont and FiraCode from the font casks in `30-packages.toml`; the renderer warns when a preset's font isn't installed. `vscode-settings --preset warp` switches directly, `--check` compares without writing.
 
 Edit **`User/settings.json.j2`**, never `settings.json`, then run `vscode-settings`. When you change a setting in VS Code's UI (or an extension writes one), it lands only in the generated file. The renderer remembers a hash of what it last wrote, so the next render refuses to overwrite such a change: it shows the diff, you copy the change into the template and re-run, or pass `--force` to drop it. `pnpm check` runs the renderer's tests and Prettier-checks every preset's render.
 
@@ -63,20 +63,17 @@ No manual step needed: the `visual-studio-code` cask links `code` into `/opt/hom
 
 ## Install extensions
 
-The extensions are listed in the [Brewfile](../setup/Brewfile). VS Code keeps them up to date itself; `sysup` upgrades VS Code through Homebrew. Install all of them with:
+The extensions are the `"vscode:<publisher.id>"` entries in [`30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml). mise installs them through the in-repo plugin [`mise-plugins/vscode`](../mise-plugins/vscode), which calls `code --install-extension`; `setup/packages.sh` links the plugin and applies them. VS Code keeps them up to date itself, and `sysup` upgrades VS Code, a cask in the same file. Install all the missing ones with:
 
 ```shell
-bin/brewpick --all
+mise bootstrap packages apply --manager vscode
 ```
 
-Or pick a subset interactively via fzf:
+Or one:
 
 ```shell
-bin/brewpick
+mise bootstrap packages apply vscode:<publisher.id>
 ```
-
-> [!WARNING]  
-> Don't run `brew bundle --file setup/Brewfile` directly: it rejects the `manual "MonoLisa"` entry. `bin/brewpick --all` strips `manual` entries before calling `brew bundle`.
 
 ## Optional layout tweaks
 
@@ -86,4 +83,4 @@ These are UI state (not stored in `settings.json`), so apply them by hand if you
 1. Move `Search`, `Source Control`, `Outline` and `GitHub Pull Requests` from the **Activity Bar** to the Panel, and put the Panel at the bottom (**View** → **Appearance** → **Panel Position** → **Bottom**).
 1. Stack panels in order: `Search`, `Terminal`, `Source Control`, `Problems`, `GitHub Pull Requests`, `Comments`, `Output`, `Outline`, and hide the rest.
 
-`vscode/spellright.dict` is a leftover word list for the Spell Right extension (not in the Brewfile); nothing in setup links or references it.
+`vscode/spellright.dict` is a leftover word list for the Spell Right extension (not in `30-packages.toml`); nothing in setup links or references it.

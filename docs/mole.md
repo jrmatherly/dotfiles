@@ -1,6 +1,6 @@
 # Mole (`mo`)
 
-Mole is a Mac cleaner and maintenance tool from the Brewfile (`brew "mole"`). This page says what each command does on a Mac set up from this repo, which of them to use, and how its config is tracked. It was checked against Mole 1.64.0. Source citations are relative to the install, `$(brew --prefix mole)/libexec`.
+Mole is a Mac cleaner and maintenance tool, the `brew:mole` package in `tilde/.config/mise/conf.d/30-packages.toml`. mise installs it and this setup has no `brew` command, so wherever this page says Mole calls `brew`, that branch does nothing on a Mac without Homebrew. This page says what each command does on a Mac set up from this repo, which of them to use, and how its config is tracked. It was checked against Mole 1.64.0. Source citations are relative to the install, `/opt/homebrew/opt/mole/libexec`.
 
 ## Summary
 
@@ -18,15 +18,15 @@ Mole is a Mac cleaner and maintenance tool from the Brewfile (`brew "mole"`). Th
 | `mo optimize` | Runs 19 maintenance tasks (`lib/optimize/catalog.sh`), listed after this table. | Use. |
 | `mo purge` | Deletes project artifacts under project roots such as `~/dev`. It matches 34 folder names (`lib/clean/purge_shared.sh`), including `node_modules`, `.venv`, `build`, `dist`, `target`, `.next`, `obj`, `bin` (.NET projects only) and `vendor` (Composer projects only). | Interactive only. Never with `--yes` from a script. |
 | `mo installer` | Finds `.dmg`, `.pkg`, `.iso`, `.xip` and installer zips in Downloads, Desktop, Documents, Homebrew's cache, Mail and Telegram. | Fine. |
-| `mo uninstall` | Moves `.app` bundles and their leftovers to Trash (`bin/uninstall.sh`). Casks go through `brew uninstall --cask --zap` (`lib/uninstall/brew.sh`). | Fine for GUI apps. For a cask, also delete its line in `setup/Brewfile`, or the next `setup.sh` reinstalls it. Formulae, mise and uv tools are out of scope. |
+| `mo uninstall` | Moves `.app` bundles and their leftovers to Trash (`bin/uninstall.sh`). Casks go through `brew uninstall --cask --zap` (`lib/uninstall/brew.sh`). | Fine for GUI apps. For a cask, also delete its line in `30-packages.toml`, or the next `setup.sh` reinstalls it. Formulae, mise and uv tools are out of scope. |
 | `mo analyze` | Interactive disk explorer. It moves items to Trash after you confirm. | Use it to find what clean doesn't cover. |
 | `mo status` | Read-only live dashboard. It prints JSON when piped. | Use freely. |
 | `mo history` | Reads `~/Library/Logs/mole/operations.log`. | Use after a run. |
 | `mo touchid` | Writes `pam_tid.so` to `/etc/pam.d/sudo_local`. | Skip. `setup.sh` writes the same line, and Mole reports "already enabled" (`bin/touchid.sh`). |
-| `mo completion` | Appends an `eval` line to `~/.zshrc`. It follows the link chain and edits the final file (`_completion_rc_target`, `bin/completion.sh`). | Skip. `~/.zshrc` links to `tilde/.zshrc`, so the line would land in the repo. Homebrew's `share/zsh/site-functions/_mole` already completes `mo`. |
-| `mo update` | For a Homebrew install, runs `brew update` and `brew upgrade mole` (`lib/core/common.sh`). | Skip. `sysup` already upgrades Homebrew. |
+| `mo completion` | Appends an `eval` line to `~/.zshrc`. It follows the link chain and edits the final file (`_completion_rc_target`, `bin/completion.sh`). | Skip. `~/.zshrc` links to `tilde/.zshrc`, so the line would land in the repo. The formula's `share/zsh/site-functions/_mole` already completes `mo`. |
+| `mo update` | For a Homebrew install, runs `brew update` and `brew upgrade mole` (`lib/core/common.sh`). | Skip. `sysup` upgrades the `brew:mole` package. |
 | `mo slim` | Removes the Intel code from universal apps in `/Applications` and `~/Applications` (`bin/slim.sh`). It thins a clone of each app and swaps it in only if `codesign --verify`, the same Developer ID team and `spctl --assess` all pass. The original goes to Trash. It skips App Store, Apple, running and not-owned apps. Without a TTY it only lists apps. | Optional, and safe for casks. Each cask upgrade or app update brings the Intel code back. The space returns once the Trash is emptied. Run `mo slim --dry-run` first. |
-| `mo remove` | For a Homebrew install, runs `brew uninstall --force mole` and moves `~/.config/mole` to Trash (`lib/manage/remove.sh`). It refuses to run without a TTY. | Skip. `setup.sh` reinstalls Mole from the Brewfile. To drop it, delete `brew "mole"` from `setup/Brewfile` and run `brew uninstall mole`. |
+| `mo remove` | For a Homebrew install, runs `brew uninstall --force mole` and moves `~/.config/mole` to Trash (`lib/manage/remove.sh`). It refuses to run without a TTY. | Skip. `setup.sh` reinstalls Mole from `30-packages.toml`. To drop it, delete the `"brew:mole"` line there, then run `mise bootstrap packages prune --manager brew --dry-run` and review what it lists before pruning. |
 
 The optimize tasks, by effect:
 
@@ -129,7 +129,7 @@ The defaults left out cover Gradle, Ollama, Surge, R, JetBrains and tealdeer.
 - R's `renv` cache is also a hard safety entry, so it stays protected regardless.
 - Mole never targets `~/.ollama` outside its cache.
 - tealdeer isn't used here (`tlrc` is).
-- Add `~/.gradle/caches/*` and `~/.gradle/daemon/*` to a `.local` if a Mac builds with Gradle. The Brewfile's Java and Gradle VS Code extensions can create `~/.gradle`.
+- Add `~/.gradle/caches/*` and `~/.gradle/daemon/*` to a `.local` if a Mac builds with Gradle. The Java and Gradle VS Code extensions in `30-packages.toml` can create `~/.gradle`.
 
 To keep Trash, add `~/.Trash` to a `.local`. Mole dropped the `MOLE_SKIP_TRASH_CLEANUP` switch in 1.62; 1.63 checks the whitelist for `~/.Trash` instead (`lib/clean/user.sh`).
 

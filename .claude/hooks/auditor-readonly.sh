@@ -32,7 +32,7 @@ deny() {
 curl='^curl -sf https?://127\.0\.0\.1(:[0-9]+)?(/[^[:space:]]*)?$'
 allowed=(
   '^(sw_vers|mdfind|ls|wc|du|jq|cat|bat|head|tail|grep|rg|find|stat|which|sort|uniq|cut|tr|diff|test|\[|echo|printf|cd|pwd|true|command -v|help|shellcheck)([[:space:]]|$)'
-  '^brew (list|info)([[:space:]]|$)'
+  '^mise bootstrap packages (status|where)([[:space:]]|$)'
   '^mise (--version|ls)([[:space:]]|$)'
   '^defaults read([[:space:]]|$)'
   '^claude (--version|mcp get|plugin list)([[:space:]]|$)'

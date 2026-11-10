@@ -17,7 +17,7 @@ An existing file in `~` is never replaced silently: the script asks to skip, ove
 | File | What it configures |
 | --- | --- |
 | `.zshenv` | Runs for every zsh. Exports `$DOTFILES`, the repo's location, then the values set with `mise set --override` |
-| `.zprofile` | Login shells, including ones started by GUI apps: Homebrew and mise shims |
+| `.zprofile` | Login shells, including ones started by GUI apps: the `/opt/homebrew` prefix, `~/.local/bin` and mise shims |
 | `.zshrc` | Interactive shells: loads everything in [`zsh/`](../zsh/), then `~/.zsh.local` if it exists, then the `mise set --override` values again so they win |
 | `.bash_profile` | Empty on purpose; bash isn't configured |
 | `.hushlogin` | Silences the "Last login" line in new terminals |
