@@ -41,6 +41,8 @@ Some rows are read-only (`access = "ro"`). `set` and `reset` refuse them with ex
 
 The macOS preferences in the "macOS (tracked in git)" section are the `macos-default` kind. Their value is the one declared in `tilde/.config/mise/conf.d/20-macos.toml`, `seed` when it matches the committed file and `override` when it does not, and `drift` is true when the Mac's preference differs. `set` edits that one line of the tracked fragment in place and writes that one preference with `defaults write`. It never applies the whole fragment, so commit the file to keep the change. `reset` returns the line to the committed value. Applying every declared preference is `set-defaults`' job, which shows mise's planned writes and runs the extras script; `dotfiles-settings apply macos-default` has nothing to apply. The "macOS (this Mac)" switches are `env` settings that `setup/macos-extras.sh` reads at the next `set-defaults`.
 
+The four rows in the Packages section are the `package` kind and are read-only. Each shows how many formulae, casks, VS Code extensions or mise tools are installed and names the ones that are not; the casks row also counts those Homebrew still manages. `dotfiles-settings apply package` installs what is missing (`mise bootstrap packages apply` per manager, then `mise install`). It never upgrades or prunes.
+
 ## Commands and exit codes
 
 | Command | Output | Exit |
