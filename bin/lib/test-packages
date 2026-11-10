@@ -57,7 +57,7 @@ assert len(taps) <= 5, "more than 5 taps: a new Mac runs out of anonymous GitHub
 assert "brew:mise" not in pk, "mise is installed by its own installer"
 assert "brew:ruby" in pk, "mise needs Ruby 3+ to read the claude-multipass-app tap cask; macOS ships 2.6"
 count = lambda m: sum(k.startswith(m + ":") for k in pk)
-assert (count("brew"), count("brew-cask"), count("vscode")) == (144, 33, 183), "counts changed: update this line with the entry you added or removed"
+assert (count("brew"), count("brew-cask"), count("vscode")) == (144, 33, 184), "counts changed: update this line with the entry you added or removed"
 PY
 
 # The flux2 and talosctl postinstall hooks write their zsh completions (P13)

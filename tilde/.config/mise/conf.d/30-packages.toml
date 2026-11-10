@@ -253,6 +253,7 @@ adopt = true
 # AI / Copilot / agents
 "vscode:anthropic.claude-code" = "latest"
 "vscode:coder.coder-remote" = "latest"
+"vscode:coderabbit.coderabbit-vscode" = "latest" # AI code review in the editor; sends the changes under review to CodeRabbit (docs/privacy.md)
 "vscode:mintlify.document" = "latest"
 "vscode:ms-azuretools.vscode-azure-github-copilot" = "latest"
 "vscode:ms-vscode.vscode-chat-customizations-evaluations" = "latest"
