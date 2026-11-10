@@ -4,11 +4,11 @@
 
 **Goal:** The macOS preferences `setup/macos.sh` wrote become TOML that mise applies and checks for drift, and the settings UI can read and change them.
 
-**Architecture:** `tilde/.config/mise/conf.d/20-macos.toml` declares 79 preferences as raw `[bootstrap.macos.defaults."<domain>"]` tables and `[[bootstrap.macos.defaults_entries]]`. `setup/macos-extras.sh` does what TOML cannot (sudo, `$HOME` paths, `pmset`, file flags, sandboxed apps, app restarts, and the preference groups a user can switch off) and is run by the `pre-defaults` and `post-defaults` hooks and by `set-defaults`. It reads nine `env` settings that the settings UI shows: four switches for the preference groups the old script asked about (on unless switched off) and five security and per-machine opt-ins (off unless switched on). The `macos-default` adapter reads `mise bootstrap macos defaults status --json` and writes by a minimal text edit of the tracked fragment plus one `defaults write` of that key.
+**Architecture:** `tilde/.config/mise/conf.d/20-macos.toml` declares 79 preferences as raw `[bootstrap.macos.defaults."<domain>"]` tables and `[[bootstrap.macos.defaults_entries]]`. `setup/macos-extras.sh` does what TOML cannot (sudo, `$HOME` paths, `pmset`, file flags, sandboxed apps, app restarts, and the preference groups a user can switch off) and is run by the `pre-defaults` and `post-defaults` hooks and by `set-defaults`. It reads nine `env` settings that the settings UI shows: four switches for the preference groups the old script asked about, two security switches (the firewall with stealth mode, and turning Time Machine off), all six on unless switched off, and three per-machine opt-ins (HiDPI, off unless switched on, and the computer name and local hostname, empty unless set). The `macos-default` adapter reads `mise bootstrap macos defaults status --json` and writes by a minimal text edit of the tracked fragment plus one `defaults write` of that key.
 
 **Tech Stack:** mise 2026.11.5 (`bootstrap.macos`), bash, Python 3.11+ standard library (`tomllib`, `json`, `subprocess`).
 
-**Spec:** `docs/superpowers/specs/2026-11-09-mise-first-setup-and-settings-ui.md`, phase "A3. macOS defaults", and its "Decisions" section: 1 (setup never applies macOS preferences), 2 (the security opt-ins are env settings in the UI), 7 (the `mise bootstrap*` ask rule is A7's, not this plan's) and 9 (a UI switch for each preference group that used to ask). Phases A1 and A2 have landed.
+**Spec:** `docs/superpowers/specs/2026-11-09-mise-first-setup-and-settings-ui.md`, phase "A3. macOS defaults", and its "Decisions" section: 1 (setup never applies macOS preferences), 2 (the security opt-ins are env settings in the UI; the firewall and turning Time Machine off are on by default, HiDPI is off and the computer name empty), 7 (the `mise bootstrap*` ask rule is A7's, not this plan's) and 9 (a UI switch for each preference group that used to ask). Phases A1 and A2 have landed.
 
 **Line numbers** are from commit `9af6244`. An earlier phase may have moved them, so find the quoted text with `grep -n` before editing.
 
@@ -45,7 +45,7 @@ Measured on this Mac on 2026-11-09 with mise 2026.11.5, in a scratch `MISE_CONFI
 - `defaults read com.apple.TextEdit` from an agent shell fails with `Domain '~/Library/Containers/com.apple.TextEdit/...' not found`, while `~/Library/Preferences/com.apple.TextEdit.plist` holds the three values the old script wrote. mise reported those keys, `com.apple.Preview` and `com.apple.helpviewer` as `unset`. The completed plan `docs/superpowers/plans/completed/2026-10-27-setup-robustness.md` (Task 10) records that the owner proved the TextEdit and Preview writes are honoured.
 - `pmset -g cap` on this Mac does not list `lidwake`, and `pmset -g custom` does not report it.
 - `setup.sh` does not run `setup/macos.sh`. Only `bin/set-defaults` does.
-- The state of the sudo opt-ins reads without sudo. `/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate` printed `Firewall is enabled. (State = 1)` and `--getstealthmode` printed `Firewall stealth mode is on`. `socketfilterfw` is not on `PATH` (`command -v` finds nothing). `defaults read /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled` printed `Domain 'com.apple.windowserver' not found` (HiDPI never enabled here). `defaults read /Library/Preferences/com.apple.TimeMachine AutoBackup` printed `0`. `scutil --get ComputerName` printed the current name.
+- The state of the sudo opt-ins reads without sudo. `/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate` printed `Firewall is enabled. (State = 1)` and `--getstealthmode` printed `Firewall stealth mode is on`. `socketfilterfw` is not on `PATH` (`command -v` finds nothing). `defaults read /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled` printed `Domain 'com.apple.windowserver' not found` (HiDPI never enabled here). `defaults read /Library/Preferences/com.apple.TimeMachine AutoBackup` printed `0`. `scutil --get ComputerName` printed the current name. Re-measured on 2026-11-09 for the new defaults of Decision 2: the firewall and stealth mode read as above, `tmutil destinationinfo` printed `tmutil: No destinations configured.`, `/Library/Preferences/com.apple.TimeMachine` holds only `AutoBackup = 0` and `PreferencesVersion = 6`, and `socketfilterfw --getblockall` printed `Firewall has block all state set to disabled.` (block-all is reported by its own flag, not by `--getglobalstate`). So with the two switches on by default, this Mac already matches and asks for no sudo.
 - An `env` setting set to false reaches a shell as an empty, set variable. In a scratch `MISE_CONFIG_DIR`, `mise set --override DOTFILES_MACOS_SCREENSHOTS=` stored `""`, and `mise env --dotenv` printed `DOTFILES_MACOS_SCREENSHOTS=`, which A1's `zsh/override-env.zsh` exports as `''`. So `${VAR-1}` tells "switched off" (empty) from "never set" (unset, on by default). A value with an apostrophe (`Jason's MacBook Pro`) round-tripped unchanged.
 
 From mise's docs, not run here: mise never uses `sudo` for a preference, never deletes one, and does not restart apps. A declared value replaces the whole preference, except a `defaults_entries` item with `path`, which replaces one dictionary key and creates missing dictionaries. Two conflicting `defaults_entries` are rejected before any write.
@@ -68,7 +68,7 @@ The file has 91 uncommented `defaults write` lines (the spec says 87). 2 use `su
 
 Total declared: 68 + 2 + 3 + 6 = 79 preferences. Of the 91 lines, 67 move to TOML, 6 become opt-ins and 18 go to the extras script.
 
-Why the three groups leave the fragment: Decision 9 gives each group that used to ask a switch, and a switch that is off must leave the group alone. mise applies every declared preference, has no per-domain filter (`mise bootstrap macos defaults apply --help` lists only `--dry-run` and `--yes`), does not template values, and `config.local.toml` can pin another value but cannot undeclare one. So a switchable group can only live in the extras script. The cost: those 9 preferences are no longer in `status` (no drift report) and no longer editable one by one in the UI. TextEdit and the screenshot folder were already in the extras script.
+Why the three groups leave the fragment: Decision 9 gives each group that used to ask a switch, and a switch that is off must leave the group alone. mise applies every declared preference, has no per-domain filter (`mise bootstrap macos defaults apply --help` lists only `--dry-run` and `--yes`), does not template values, and `config.local.toml` can pin another value but cannot undeclare one. So a switchable group can only live in the extras script. The cost: those 9 preferences are no longer in `status` (no drift report) and no longer editable one by one in the UI. The owner accepted it: these groups are choices, not mandated settings, so a drift report for them is not needed (Decision 9). TextEdit and the screenshot folder were already in the extras script.
 
 Named keys. 14 of the 62 table lines have a named equivalent: `dock.tilesize` (316), `dock.autohide` (341), `dock.show_recents` (375), `finder.show_all_files` (224), `finder.show_status_bar` (233), `finder.show_pathbar` (236), `finder.sort_folders_first` (239), `finder.show_extensions_warning` (245), `finder.preferred_view_style` (285), `keyboard.automatic_capitalization` (111), `keyboard.automatic_spelling_correction` (123), `keyboard.press_and_hold` (135), `keyboard.key_repeat` (138), `keyboard.initial_key_repeat` (140). The opt-in lines 364 and 365 match `dock.autohide_delay` and `dock.autohide_time_modifier`. No trackpad line has one. **Decision: the fragment uses no named section.** They cover 14 of 68 keys, so each domain would be split across two tables. A raw value silently beats a named one in the same file. And one addressing rule, `<domain>/<key>`, keeps the adapter free of a name-mapping table.
 
@@ -79,14 +79,14 @@ Commands that are not `defaults write` and cannot move to TOML, by line:
 | 16 to 27 | computer name prompts | env settings `DOTFILES_MACOS_COMPUTER_NAME` and `DOTFILES_MACOS_LOCAL_HOSTNAME`, or `macos-extras.sh --computer-name` and `--local-hostname` |
 | 31 | `osascript` quits System Settings | `macos-extras.sh --before`, failure ignored |
 | 34, 38 to 42 | `sudo -v` and its keep-alive | dropped. `sudo` is asked only when a value differs |
-| 48 to 61 | `confirm()` and the two knobs | dropped. Each default-yes prompt becomes a switch that is on unless set off, each default-no prompt that needs sudo becomes a switch that is off unless set on |
+| 48 to 61 | `confirm()` and the two knobs | dropped. Each default-yes prompt becomes a switch that is on unless set off. Of the default-no prompts that need sudo, the firewall and turning Time Machine off become switches that are on unless set off (Decision 2: this Mac runs both), and HiDPI a switch that is off unless set on |
 | 69, 70, 71 | `sudo scutil --set` | `macos-extras.sh`, when the computer name setting or flag differs from `scutil --get ComputerName` |
 | 157, 160, 163, 169 | `sudo pmset -a` | `macos-extras.sh`, guarded |
-| 204, 205 | `socketfilterfw` | `macos-extras.sh`, when `DOTFILES_MACOS_FIREWALL` or `--firewall` is on and the state differs |
+| 204, 205 | `socketfilterfw` | `macos-extras.sh`, unless `DOTFILES_MACOS_FIREWALL` is set to the empty string (`--firewall` overrides that for one run), and only when the state differs |
 | 292, 293, 294 | `xattr` and `chflags nohidden ~/Library` | `macos-extras.sh` |
 | 297 | `sudo chflags nohidden /Volumes` | `macos-extras.sh`, guarded |
 | 367, 368 | `defaults delete` of the Dock timing keys | dropped. mise never deletes. Documented in Task 3 |
-| 468 | `sudo tmutil disable` | `macos-extras.sh`, when `DOTFILES_MACOS_DISABLE_TIME_MACHINE` or `--disable-time-machine` is on and backups are not already off |
+| 468 | `sudo tmutil disable` | `macos-extras.sh`, unless `DOTFILES_MACOS_DISABLE_TIME_MACHINE` is set to the empty string (`--disable-time-machine` overrides that for one run), and only when backups are not already off |
 | 535 to 542 | `killall` loop | `macos-extras.sh`, when the apply wrote something |
 
 `systemsetup` appears only in a comment (line 150). No line writes a date or binary data.
@@ -113,8 +113,10 @@ Commands that are not `defaults write` and cannot move to TOML, by line:
 
 - **The fragment uses no named section** (see "Named keys" above).
 - **The four groups that used to ask are switches in the extras script, not tables in the fragment** (Decision 9). `DOTFILES_MACOS_SCREENSHOTS`, `DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS`, `DOTFILES_MACOS_TEXTEDIT` and `DOTFILES_MACOS_SOFTWARE_UPDATE` are on unless set to the empty string, which is what A2 writes for a false bool. Unset means on, because the old prompts defaulted to yes. The script reads them as `${VAR-1}` (no colon), and the registry gives each `default = "1"`, the script's own fallback, as A2 defines `default`.
-- **The security and per-machine opt-ins are env settings** (Decision 2). `DOTFILES_MACOS_FIREWALL`, `DOTFILES_MACOS_HIDPI` and `DOTFILES_MACOS_DISABLE_TIME_MACHINE` are switches, off unless set to `1`. `DOTFILES_MACOS_COMPUTER_NAME` and `DOTFILES_MACOS_LOCAL_HOSTNAME` are text, empty meaning "leave the name alone". The `set-defaults` flags stay as one-run equivalents, and a flag wins over its setting.
-- **A sudo opt-in runs sudo only when the Mac's state differs**, read without sudo first. Under the `post-defaults` hook the same settings apply, so a `mise bootstrap` run by hand asks for sudo only when something is out of step. Setup never runs the hook (Decision 1).
+- **The security and per-machine opt-ins are env settings** (Decision 2). `DOTFILES_MACOS_FIREWALL` and `DOTFILES_MACOS_DISABLE_TIME_MACHINE` are switches that are on unless set to the empty string, read as `${VAR-1}` like the group switches, with `default = "1"`: the owner does not use Time Machine and runs the firewall with stealth mode, and this Mac already matches both. `DOTFILES_MACOS_HIDPI` stays off unless set to `1`, read as `${VAR:-}`. `DOTFILES_MACOS_COMPUTER_NAME` and `DOTFILES_MACOS_LOCAL_HOSTNAME` are text, empty meaning "leave the name alone".
+- **A flag wins over its setting, in the direction it can.** `--firewall`, `--disable-time-machine` and `--hidpi` turn a switch on for one run even when its setting is off, and `--computer-name` and `--local-hostname` replace the setting's text. No `--no-*` flag is added: an empty variable on the command line already turns an on-by-default switch off for one run (`DOTFILES_MACOS_DISABLE_TIME_MACHINE= set-defaults`), because `set-defaults` passes its environment to the extras script unchanged.
+- **The default disables Time Machine, and the docs say so where a fork reads first.** With nothing set, `set-defaults` (and a plain `mise bootstrap` run by hand) runs `sudo tmutil disable` on any Mac whose backups are on. That stops all Time Machine backups. The setting's help text, `set-defaults`'s header, `README.md` and `setup/README.md` each say that a Mac which uses Time Machine must switch `macos.disable_time_machine` off before its first `set-defaults`.
+- **A sudo opt-in runs sudo only when the Mac's state differs**, read without sudo first. Because two of them are on by default, "differs" now includes a Mac where nothing is set: a Mac whose firewall or stealth mode is off, or whose `AutoBackup` is not `0` (including a Mac where the key cannot be read), asks for a password on its first `set-defaults`, and then no more once the write took. This Mac matches both and asks for none. Under the `post-defaults` hook the same settings apply, so a `mise bootstrap` run by hand also asks on such a Mac. Setup never runs the hook (Decision 1).
 - **Turning an opt-in off changes nothing on the Mac.** The old prompts' "no" left the state as it was. The settings say so in their help text.
 - **The nine env settings sit in their own section, "macOS (this Mac)"**, apart from the tracked "macOS (tracked in git)" section, because they are stored in the git-ignored override file.
 
@@ -127,7 +129,8 @@ Commands that are not `defaults write` and cannot move to TOML, by line:
 4. The fragment is not in git `HEAD` (a tarball checkout, or before the first commit). Expected: `read` works with `source` `SEED` and `seed` `None`, and `reset` fails with a clear message. Test in Task 5.
 5. `status --json` prints `{}` (the fragment is missing, or the config has no macOS section). Expected: `read` returns `UNSET`, not a traceback. Test in Task 5.
 6. A group switch set off in the UI arrives as an empty, set variable. Expected: the group is skipped, while an unset variable applies it. A `${VAR:-1}` (with a colon) would apply it in both cases. Test in Task 1.
-7. A sudo opt-in is on and the Mac already matches it. Expected: no `sudo` call at all, so a repeat `set-defaults` or a `mise bootstrap` hook run does not ask for a password. Test in Task 1.
+7. A sudo opt-in is on, from its setting or by default (unset), and the Mac already matches it. Expected: no `sudo` call at all, so a repeat `set-defaults` or a `mise bootstrap` hook run does not ask for a password. Test in Task 1.
+8. `DOTFILES_MACOS_DISABLE_TIME_MACHINE` or `DOTFILES_MACOS_FIREWALL` is unset, empty, or `1`. Expected: unset and `1` act when the Mac differs, empty never calls `tmutil` or `socketfilterfw --set*`. A `${VAR:-}` read would leave them off by default, and a `${VAR:-1}` read would make the UI's off do nothing, which for Time Machine means backups stopped on a Mac whose owner switched the setting off. HiDPI keeps the opposite reading: unset does nothing. Test in Task 1, and the consistency block of Task 6 ties each `default = "1"` to a `${KEY-1}` read in the script.
 
 ---
 
@@ -143,7 +146,9 @@ Commands that are not `defaults write` and cannot move to TOML, by line:
 - Produces: `setup/macos-extras.sh [--before] [--restart] [--computer-name NAME] [--local-hostname HOST] [--hidpi] [--firewall] [--disable-time-machine]`, committed with mode 755. Exit 0 on success, 2 on an unknown flag. Snapshot file: `${TMPDIR:-/tmp}/dotfiles-macos-defaults-before`, the `status --json` output taken by `--before`.
 - Produces: nine environment variables, registered as `env` settings in Task 6. They are variables, not only flags, because a hook's command line is fixed and the settings UI writes variables.
   - Group switches, read as `${VAR-1}`: on unless set to the empty string. `DOTFILES_MACOS_SCREENSHOTS`, `DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS`, `DOTFILES_MACOS_TEXTEDIT`, `DOTFILES_MACOS_SOFTWARE_UPDATE`.
-  - Opt-in switches, read as `${VAR:-}`: on when non-empty. `DOTFILES_MACOS_FIREWALL`, `DOTFILES_MACOS_HIDPI`, `DOTFILES_MACOS_DISABLE_TIME_MACHINE`. The flags `--firewall`, `--hidpi` and `--disable-time-machine` turn the same switch on for one run.
+  - Security switches, read as `${VAR-1}` like the groups: on unless set to the empty string. `DOTFILES_MACOS_FIREWALL`, `DOTFILES_MACOS_DISABLE_TIME_MACHINE`.
+  - Opt-in switch, read as `${VAR:-}`: on when non-empty. `DOTFILES_MACOS_HIDPI`.
+  - The flags `--firewall`, `--disable-time-machine` and `--hidpi` turn the same switch on for one run, whatever its variable holds.
   - Text: `DOTFILES_MACOS_COMPUTER_NAME` and `DOTFILES_MACOS_LOCAL_HOSTNAME`, empty meaning unset. `--computer-name` and `--local-hostname` replace them for one run.
 - Produces: the `bin/lib/test-conventions` check that every tracked `setup/*.sh` has mode 755. Later plans that add a setup script rely on it.
 
@@ -165,17 +170,17 @@ Behaviour, in this order. Each row keeps the comment the old script had beside t
 | always | `sudo chflags nohidden /Volumes` | only when `ls -ldO /Volumes` contains `hidden` |
 | a computer name, from `--computer-name NAME` or else `DOTFILES_MACOS_COMPUTER_NAME` | the three `sudo scutil --set` lines and the `sudo defaults write ... NetBIOSName` line (69 to 72). The host name comes from `--local-hostname`, else `DOTFILES_MACOS_LOCAL_HOSTNAME`, else the old line 22 expression applied to the name. | only when `scutil --get ComputerName` differs from the name |
 | `--hidpi` or `DOTFILES_MACOS_HIDPI` non-empty | `sudo defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true` (194) | only when `defaults read` of that key is not `1` (it fails, domain not found, on this Mac) |
-| `--firewall` or `DOTFILES_MACOS_FIREWALL` non-empty | the two `socketfilterfw` lines (204, 205), the tool found as `fw=$(command -v socketfilterfw \|\| echo /usr/libexec/ApplicationFirewall/socketfilterfw)` so the test can put a stub on `PATH` | `--setglobalstate on` only when `"$fw" --getglobalstate` does not contain `State = 1`, and `--setstealthmode on` only when `"$fw" --getstealthmode` does not contain `mode is on`. Both reads need no sudo. |
-| `--disable-time-machine` or `DOTFILES_MACOS_DISABLE_TIME_MACHINE` non-empty | `hash tmutil &> /dev/null && sudo tmutil disable` (468) | only when `defaults read /Library/Preferences/com.apple.TimeMachine AutoBackup` does not print `0` |
+| `--firewall`, or `${DOTFILES_MACOS_FIREWALL-1}` non-empty (on by default) | the two `socketfilterfw` lines (204, 205), the tool found as `fw=$(command -v socketfilterfw \|\| echo /usr/libexec/ApplicationFirewall/socketfilterfw)` so the test can put a stub on `PATH` | `--setglobalstate on` only when `"$fw" --getglobalstate` does not contain `State = 1`, and `--setstealthmode on` only when `"$fw" --getstealthmode` does not contain `mode is on`. Both reads need no sudo. |
+| `--disable-time-machine`, or `${DOTFILES_MACOS_DISABLE_TIME_MACHINE-1}` non-empty (on by default) | `hash tmutil &> /dev/null && sudo tmutil disable` (468). Keep the old comment, and add one: this is on by default and stops all backups, so a Mac that uses Time Machine switches `macos.disable_time_machine` off. | only when `defaults read /Library/Preferences/com.apple.TimeMachine AutoBackup` does not print `0` (a read that fails, the key or the file missing, counts as "not `0`") |
 | `--restart`, or the snapshot exists and differs from the status now | The second case is `[ -e "$snapshot" ] && ! mise bootstrap macos defaults status --json 2> /dev/null \| cmp -s - "$snapshot"`. Then `killall "$app" > /dev/null 2>&1 \|\| true` for Activity Monitor, Dock, Finder, NotificationCenter, SystemUIServer, Terminal. Skip Terminal and print a `warn` line when `$TERM_PROGRAM` is `Apple_Terminal`. Then print the old closing line about logout. | |
 
 Why a snapshot and not `status --missing`: drift alone must not restart anything. Two entries differ on this Mac today, and a value macOS keeps rewriting would otherwise kill Finder and the Dock on every bootstrap. The status changes between `--before` and the later run only when the apply wrote a preference. When the user declines mise's prompt under `mise bootstrap`, the `post-defaults` hook does not run and the snapshot stays in `$TMPDIR` until the next `--before` overwrites it. `bin/set-defaults` removes it with its own trap (Task 3). One limit is left and is accepted: after a declined bootstrap, a run of `setup/macos-extras.sh` by hand compares against that old snapshot.
 
 The four group switches exist because the old script asked before each group (default yes) and `DOTFILES_MACOS_NO=1` declined them, and Decision 9 puts each in the UI. A group's preferences are written only here, because a preference declared in the fragment cannot be switched off (see the classification). A group's writes that change only `status`-invisible preferences restart nothing under the hook; under `set-defaults` the `--restart` path always restarts.
 
-The opt-ins run on every run that is not `--before`, so the same settings apply under `set-defaults` and under a hand-run `mise bootstrap`. Each one reads the Mac's state first and calls `sudo` only when it differs. A read that fails (a domain not found) counts as "differs" and must not stop the script under `set -e`, so each read is `$(... 2> /dev/null || true)`. Turning one off does nothing: the script never turns the firewall or HiDPI off, re-enables Time Machine or renames the Mac back.
+The opt-ins run on every run that is not `--before`, so the same settings apply under `set-defaults` and under a hand-run `mise bootstrap`. Each one reads the Mac's state first and calls `sudo` only when it differs. The firewall and Time Machine switches are on when unset, so on a Mac where nothing is set the first run writes whichever of the two differs (with sudo), and later runs find it matching and call no sudo. To skip one for a single run, set its variable empty on the command line: `DOTFILES_MACOS_DISABLE_TIME_MACHINE= set-defaults`. A read that fails (a domain not found) counts as "differs" and must not stop the script under `set -e`, so each read is `$(... 2> /dev/null || true)`. Turning one off does nothing: the script never turns the firewall or HiDPI off, re-enables Time Machine or renames the Mac back.
 
-The script uses `set -euo pipefail` and inline `info` and `warn` helpers, like the other setup scripts. Under `set -u`, `${VAR-1}` and `${VAR:-}` are both safe on an unset variable. Its header says: what it is, that mise's hooks and `set-defaults` run it, one usage line per flag, one line for the four group switches (on unless set to the empty string) and one for the five opt-in variables, and that `dotfiles-settings` sets all nine.
+The script uses `set -euo pipefail` and inline `info` and `warn` helpers, like the other setup scripts. Under `set -u`, `${VAR-1}` and `${VAR:-}` are both safe on an unset variable. Its header says: what it is, that mise's hooks and `set-defaults` run it, one usage line per flag, one line for the six switches that are on unless set to the empty string (the four groups, the firewall, turning Time Machine off), one for HiDPI and the two names (off or empty unless set), one line warning that by default it turns Time Machine backups off, and that `dotfiles-settings` sets all nine.
 
 - [ ] **Step 1: Write the failing test `setup/tests/macos-extras.sh`**
 
@@ -206,10 +211,14 @@ check "the other writes still happen" "grep -q 'defaults write com.apple.helpvie
 DOTFILES_MACOS_SOFTWARE_UPDATE=1 run
 check "a group switched on is written" "grep -q 'defaults write com.apple.SoftwareUpdate AutomaticCheckEnabled -bool true' '$log'"
 
-# the opt-ins are off by default: no sudo apart from pmset and /Volumes
-check "no opt-in runs unasked" "! grep -q 'scutil --set\|socketfilterfw --set\|tmutil disable\|windowserver' '$log'"
+# unset (the stubs report the firewall off and AutoBackup unreadable): the firewall and Time Machine
+# switches act by default (Review Focus 8), HiDPI and the name do not
+run
+check "the firewall is turned on by default" "grep -q '^sudo .*socketfilterfw --setglobalstate on$' '$log' && grep -q '^sudo .*socketfilterfw --setstealthmode on$' '$log'"
+check "Time Machine is turned off by default" "grep -qx 'sudo tmutil disable' '$log'"
+check "HiDPI and the name are left alone by default" "! grep -q 'scutil --set\|windowserver' '$log'"
 
-# each opt-in, from its env setting, when the Mac differs
+# the UI's true is 1: the same as unset for the two security switches, and HiDPI and the name act
 DOTFILES_MACOS_FIREWALL=1 DOTFILES_MACOS_HIDPI=1 DOTFILES_MACOS_DISABLE_TIME_MACHINE=1 DOTFILES_MACOS_COMPUTER_NAME="Jason's Mac" run
 check "the firewall is turned on" "grep -q '^sudo .*socketfilterfw --setglobalstate on$' '$log' && grep -q '^sudo .*socketfilterfw --setstealthmode on$' '$log'"
 check "HiDPI is turned on" "grep -q '^sudo defaults write /Library/Preferences/com.apple.windowserver DisplayResolutionEnabled -bool true' '$log'"
@@ -217,18 +226,23 @@ check "Time Machine is turned off" "grep -qx 'sudo tmutil disable' '$log'"
 check "the Mac is renamed" "grep -qx \"sudo scutil --set ComputerName Jason's Mac\" '$log'"
 check "the local hostname is derived" "grep -qx 'sudo scutil --set LocalHostName jason-s-mac' '$log'"
 
-# the same opt-ins when the Mac already matches: no sudo for them (Review Focus 7)
+# the Mac already matches: no sudo for the opt-ins, whether on by default or from a setting (Review Focus 7)
 echo 1 > "$reads/DisplayResolutionEnabled"; echo 0 > "$reads/AutoBackup"
-FW_GLOBAL='Firewall is enabled. (State = 1)' FW_STEALTH='Firewall stealth mode is on' \
-  DOTFILES_MACOS_FIREWALL=1 DOTFILES_MACOS_HIDPI=1 DOTFILES_MACOS_DISABLE_TIME_MACHINE=1 DOTFILES_MACOS_COMPUTER_NAME='Old Name' run
-check "a matching Mac needs no sudo for the opt-ins" "! grep -q '^sudo \(.*socketfilterfw\|tmutil\|scutil\|defaults\)' '$log'"
+export FW_GLOBAL='Firewall is enabled. (State = 1)' FW_STEALTH='Firewall stealth mode is on'
+DOTFILES_MACOS_HIDPI=1 DOTFILES_MACOS_COMPUTER_NAME='Old Name' run
+check "a matching Mac needs no sudo for the default-on opt-ins" "! grep -q '^sudo \(.*socketfilterfw\|tmutil\|scutil\|defaults\)' '$log'"
+DOTFILES_MACOS_FIREWALL=1 DOTFILES_MACOS_HIDPI=1 DOTFILES_MACOS_DISABLE_TIME_MACHINE=1 DOTFILES_MACOS_COMPUTER_NAME='Old Name' run
+check "a matching Mac needs no sudo for the opt-ins set to 1" "! grep -q '^sudo \(.*socketfilterfw\|tmutil\|scutil\|defaults\)' '$log'"
+unset FW_GLOBAL FW_STEALTH
 rm -f "$reads/DisplayResolutionEnabled" "$reads/AutoBackup"
 
-# the UI's false for an opt-in, and an empty name, do nothing
-DOTFILES_MACOS_FIREWALL= DOTFILES_MACOS_COMPUTER_NAME= run
-check "an opt-in switched off does nothing" "! grep -q 'socketfilterfw --set\|scutil --set' '$log'"
+# the UI's false for an opt-in, and an empty name, do nothing, on a Mac that differs (Review Focus 8)
+DOTFILES_MACOS_FIREWALL= DOTFILES_MACOS_DISABLE_TIME_MACHINE= DOTFILES_MACOS_HIDPI= DOTFILES_MACOS_COMPUTER_NAME= run
+check "an opt-in switched off does nothing" "! grep -q 'socketfilterfw --set\|tmutil\|scutil --set\|windowserver' '$log'"
 
 # a flag wins over its setting for one run
+DOTFILES_MACOS_FIREWALL= DOTFILES_MACOS_DISABLE_TIME_MACHINE= run --firewall --disable-time-machine
+check "a flag turns a switched-off opt-in on" "grep -q '^sudo .*socketfilterfw --setglobalstate on$' '$log' && grep -qx 'sudo tmutil disable' '$log'"
 DOTFILES_MACOS_COMPUTER_NAME='From Setting' run --computer-name 'From Flag' --local-hostname custom-host
 check "the flag's name wins" "grep -qx 'sudo scutil --set ComputerName From Flag' '$log' && grep -qx 'sudo scutil --set LocalHostName custom-host' '$log'"
 
@@ -772,12 +786,12 @@ mise bootstrap macos defaults apply
 "$DOTFILES/setup/macos-extras.sh" --restart "$@"
 ```
 
-Add `set -euo pipefail` after the header. Rewrite the header as a tldr page: description "Apply this repo's macOS preferences and restart the affected apps.", then one example each for `set-defaults`, `set-defaults --computer-name "Jason's MacBook Pro"`, `set-defaults --firewall`, `set-defaults --hidpi`, `set-defaults --disable-time-machine`, and `dotfiles-settings set macos.software_update off` (described as "Leave Software Update alone from now on; the macOS (this Mac) section of dotfiles-settings has every switch").
+Add `set -euo pipefail` after the header. Rewrite the header as a tldr page: description "Apply this repo's macOS preferences and restart the affected apps. By default this turns the firewall and stealth mode on and turns Time Machine backups off; on a Mac that uses Time Machine, run `dotfiles-settings set macos.disable_time_machine off` first.", then one example each for `set-defaults`, `dotfiles-settings set macos.disable_time_machine off` (described as "Keep Time Machine backups on from now on (do this before the first run on a Mac that uses Time Machine)"), `DOTFILES_MACOS_DISABLE_TIME_MACHINE= set-defaults` (described as "Leave Time Machine alone for this run only"), `set-defaults --computer-name "Jason's MacBook Pro"`, `set-defaults --hidpi`, and `dotfiles-settings set macos.software_update off` (described as "Leave Software Update alone from now on; the macOS (this Mac) section of dotfiles-settings has every switch"). `--firewall` and `--disable-time-machine` stay as flags (they turn a switched-off setting on for one run) and are listed in `setup/macos-extras.sh`'s header and `setup/README.md`, not as examples here.
 
 - [ ] **Step 2: Render the header**
 
 Run: `help set-defaults`
-Expected: the six examples render.
+Expected: the description with its Time Machine warning, and the six examples, render.
 
 - [ ] **Step 3: Delete the old script and check nothing names it**
 
@@ -806,7 +820,7 @@ paths:
 # macOS defaults
 
 - Preferences are declared in `conf.d/20-macos.toml` and applied by `bin/set-defaults` only. `setup.sh` never applies them. A plain `mise bootstrap` run by hand does. `setup/macos-extras.sh` holds only what TOML cannot express: sudo, `$HOME` paths, `pmset`, file flags, sandboxed apps (TextEdit, Preview, Help Viewer), the groups a user can switch off, and the app restarts.
-- Security-sensitive and per-machine settings are never declared in the tracked fragment (`setup/tests/macos-defaults.py` fails on two of them). They are opt-ins: an `env` setting the extras script reads (firewall, HiDPI, Time Machine, computer name), or a table in the git-ignored `config.local.toml`. An opt-in that needs sudo reads the Mac's state first and calls sudo only when it differs. Turning one off changes nothing.
+- Security-sensitive and per-machine settings are never declared in the tracked fragment (`setup/tests/macos-defaults.py` fails on two of them). They are an `env` setting the extras script reads, or a table in the git-ignored `config.local.toml`. The firewall and turning Time Machine off are on unless set to the empty string (`${VAR-1}`, `default = "1"`); HiDPI is off unless set (`${VAR:-}`) and the computer name is empty unless set. A setting that needs sudo reads the Mac's state first and calls sudo only when it differs. Turning one off changes nothing. The Time Machine default stops all backups, so every doc that describes `set-defaults` says to switch `macos.disable_time_machine` off first on a Mac that uses Time Machine.
 - `config.local.toml` can pin another value but cannot say "leave it as it is", and mise applies every declared key. So a preference group a user may want left alone (screenshots, Time Machine's new-disk prompt, TextEdit, Software Update) is written by the extras script behind a switch that is on unless set to the empty string (`${VAR-1}`, no colon: the settings UI writes `""` for off). Never move such a group back into the fragment.
 - Every `DOTFILES_MACOS_*` variable the extras script reads has an `env` entry in `settings/registry.toml`, section "macOS (this Mac)". Add both together.
 - Types matter: mise treats `1` and `true` as different values. Before adding a key, run `defaults read-type <domain> <key>` on a Mac where the setting is already on, and verify the domain and key against the current macOS release. Prefer leaving a value at the macOS default over pinning it.
@@ -827,9 +841,11 @@ Each row quotes the stale text with its current line number. Replace it with the
 | --- | --- | --- |
 | 8 | "Review `setup/macos.sh` and `setup/Brewfile` before running them on a new machine." | "Review `tilde/.config/mise/conf.d/20-macos.toml`, `setup/macos-extras.sh` and `setup/Brewfile` before running them on a new machine." |
 | 29 | "- Sensible [macOS defaults](setup/macos.sh), prompting for a computer name so it's reusable across machines." | "- Sensible [macOS defaults](tilde/.config/mise/conf.d/20-macos.toml), declared as TOML that mise applies and checks for drift." |
+| 162 | "Setup already asks for your git identity, commit signing and computer name." | "Setup already asks for your git identity and commit signing." (nothing asks for the computer name any more; it is `macos.computer_name`) |
+| "Make it yours" table, after the `setup/Brewfile` row | (new row) | "\| [`settings/registry.toml`](settings/registry.toml) \| `macos.disable_time_machine` and `macos.firewall` default to on, my choice. **If you use Time Machine, run `dotfiles-settings set macos.disable_time_machine off` before `set-defaults`, which otherwise stops all backups.** \|" (do not tell forks to edit `default`: the extras script's `${VAR-1}` is the real default, and Task 6's consistency block requires the two to agree) |
 | 126 | "Runs [`setup/macos.sh`](setup/macos.sh): keyboard, trackpad, Finder, Dock and system preferences, with prompts for the security-sensitive and per-machine ones. See [what it changes](setup/README.md#macos). At the end it force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal — so run it from Ghostty, Warp, cmux or iTerm2 rather than Terminal.app. Log out afterwards so key repeat takes effect. Safari isn't configured by it; set Safari up in Safari → Settings." | The paragraph below. |
 
-> Applies the preferences declared in [`20-macos.toml`](tilde/.config/mise/conf.d/20-macos.toml) with `mise bootstrap macos defaults apply`, which lists the planned writes and asks first, then runs [`setup/macos-extras.sh`](setup/macos-extras.sh) for what TOML can't express. See [what it changes](setup/README.md#macos). Nothing prompts any more. The choices the old script asked about are switches in the "macOS (this Mac)" section of [`dotfiles-settings`](settings/README.md): the screenshot, Time Machine new-disk, TextEdit and Software Update groups (on unless you switch them off), and the firewall, HiDPI, turning Time Machine off and the computer name (off or empty unless you set them; `set-defaults --firewall`, `--hidpi`, `--disable-time-machine` and `--computer-name "Name"` do the same for one run). The rest are tables in the git-ignored `config.local.toml`. `mise bootstrap macos defaults status` shows which preferences have drifted. mise never deletes a preference, never uses sudo for one and doesn't restart apps by itself, so the extras script force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal (Terminal is spared when you run it from Terminal.app). Log out afterwards so key repeat takes effect. Safari isn't configured by it; set Safari up in Safari → Settings.
+> Applies the preferences declared in [`20-macos.toml`](tilde/.config/mise/conf.d/20-macos.toml) with `mise bootstrap macos defaults apply`, which lists the planned writes and asks first, then runs [`setup/macos-extras.sh`](setup/macos-extras.sh) for what TOML can't express. See [what it changes](setup/README.md#macos). Nothing prompts any more. The choices the old script asked about are switches in the "macOS (this Mac)" section of [`dotfiles-settings`](settings/README.md): the screenshot, Time Machine new-disk, TextEdit and Software Update groups, the firewall with stealth mode, and turning Time Machine off (all on unless you switch them off), and HiDPI and the computer name (off or empty unless you set them; `set-defaults --hidpi` and `--computer-name "Name"` do the same for one run). **By default `set-defaults` turns Time Machine backups off.** If this Mac (or your fork) uses Time Machine, run `dotfiles-settings set macos.disable_time_machine off` before the first `set-defaults`; the same applies to a plain `mise bootstrap` run by hand. The rest are tables in the git-ignored `config.local.toml`. `mise bootstrap macos defaults status` shows which preferences have drifted. mise never deletes a preference, never uses sudo for one and doesn't restart apps by itself, so the extras script force-quits Finder, Dock, Activity Monitor, Notification Center, SystemUIServer and Terminal (Terminal is spared when you run it from Terminal.app). Log out afterwards so key repeat takes effect. Safari isn't configured by it; set Safari up in Safari → Settings.
 
 `setup/README.md`:
 
@@ -845,9 +861,9 @@ Each row quotes the stale text with its current line number. Replace it with the
 
 Opt-in list for lines 104 to 112:
 
-> Higher-impact settings are opt-in, because the right answer varies per machine (a work laptop with its firewall or updates managed by MDM):
+> Higher-impact settings are per-machine choices, because the right answer varies per machine (a work laptop with its firewall or updates managed by MDM, a Mac that backs up with Time Machine):
 >
-> - Switches in the "macOS (this Mac)" section of `dotfiles-settings`, off unless you turn them on. They need sudo, and `set-defaults` asks for it only when the Mac differs. Turning one off later changes nothing on the Mac. `macos.firewall` (firewall and stealth mode), `macos.hidpi` (HiDPI display modes, needs a restart), `macos.disable_time_machine` (**stops all Time Machine backups**), and the text settings `macos.computer_name` and `macos.local_hostname` (derived from the name when empty). The `set-defaults` flags `--firewall`, `--hidpi`, `--disable-time-machine`, `--computer-name` and `--local-hostname` do the same for one run.
+> - Settings in the "macOS (this Mac)" section of `dotfiles-settings`. They need sudo, and `set-defaults` asks for it only when the Mac differs. Turning one off later changes nothing on the Mac. Two are **on unless you switch them off**: `macos.firewall` (firewall and stealth mode) and `macos.disable_time_machine`. **With its default, `set-defaults` stops all Time Machine backups.** A fork, or any Mac that uses Time Machine, must run `dotfiles-settings set macos.disable_time_machine off` (or export `DOTFILES_MACOS_DISABLE_TIME_MACHINE=` in `~/.zsh.local`) before the first `set-defaults` or plain `mise bootstrap`. To skip it for one run only: `DOTFILES_MACOS_DISABLE_TIME_MACHINE= set-defaults`. The rest are off or empty unless you set them: `macos.hidpi` (HiDPI display modes, needs a restart), and the text settings `macos.computer_name` and `macos.local_hostname` (derived from the name when empty). The `set-defaults` flags `--firewall`, `--disable-time-machine` and `--hidpi` turn a switch on for one run even when its setting is off, and `--computer-name` and `--local-hostname` replace the setting for one run.
 > - Tables in the git-ignored `tilde/.config/mise/config.local.toml`, which outranks the fragment: disabling the "downloaded from the internet" confirmation and skipping disk image verification (**both weaken security**), and custom Dock auto-hide timing. The fragment's header has the tables to copy.
 >
 > Four groups the old script asked about are on unless you switch them off in the same section: `macos.screenshots` (save to the Desktop as PNG named "Shot", no window shadow, pointer shown), `macos.time_machine_new_disks` (stop Time Machine offering new disks for backup), `macos.textedit` (plain text and UTF-8) and `macos.software_update` (daily check, background download, security and system data installs). Switch a group off on a Mac whose updates or backups are managed by MDM; `set-defaults` then leaves it as it is. Each setting is the variable `DOTFILES_MACOS_<NAME>`, stored in the git-ignored override file, so an export in `~/.zsh.local` works too (empty means off for a group). The old script's two answer-everything variables are gone.
@@ -870,10 +886,10 @@ In the `README.md` paragraph above and in these lists, every sentence agrees on 
 | --- | --- | --- |
 | 5 | "- **(set-defaults)**: [`set-defaults`](../bin/set-defaults) already applies this setting by running [`setup/macos.sh`](../setup/macos.sh). You don't need to change it by hand, and running `set-defaults` again resets it to the value shown." | "- **(set-defaults)**: [`set-defaults`](../bin/set-defaults) already applies this setting from [`20-macos.toml`](../tilde/.config/mise/conf.d/20-macos.toml) or [`setup/macos-extras.sh`](../setup/macos-extras.sh). You don't need to change it by hand, and running `set-defaults` again resets it to the value shown. `mise bootstrap macos defaults status` shows which ones have drifted." |
 | 6 | "- **(set-defaults, prompt)**: `set-defaults` asks before it applies this one." | "- **(set-defaults, opt-in)**: applied only when you turn on the named setting in `dotfiles-settings` (or pass the named flag to `set-defaults`), or declare it in `config.local.toml`.\n- **(set-defaults, switch)**: applied unless you turn off the named setting in `dotfiles-settings`." (two bullets) |
-| 23, 24 | "(set-defaults, prompt)" twice | "(set-defaults, opt-in: `macos.firewall` or `--firewall`)" |
+| 23, 24 | "(set-defaults, prompt)" twice | "(set-defaults, switch: `macos.firewall`, on by default)" |
 | 55 | "(set-defaults, prompt: turns on the automatic check, download, and critical/security installs)" | "(set-defaults, switch: `macos.software_update`; turns on the automatic check, download, and critical/security installs)" |
 | 60 | "(set-defaults sets it when you type a computer name at its prompt)" | "(set-defaults, opt-in: `macos.computer_name` and `macos.local_hostname`, or `--computer-name`)" |
-| 61 | "(set-defaults, prompt: \"Disable Time Machine backups entirely\"). A separate prompt stops Time Machine asking to use new disks for backup." | "(set-defaults, opt-in: `macos.disable_time_machine` or `--disable-time-machine`). set-defaults also stops Time Machine asking to use new disks for backup (set-defaults, switch: `macos.time_machine_new_disks`)." |
+| 61 | "(set-defaults, prompt: \"Disable Time Machine backups entirely\"). A separate prompt stops Time Machine asking to use new disks for backup." | "(set-defaults, switch: `macos.disable_time_machine`, on by default). **set-defaults stops all Time Machine backups unless you switch this off first**: on a Mac that uses Time Machine, run `dotfiles-settings set macos.disable_time_machine off` before set-defaults. set-defaults also stops Time Machine asking to use new disks for backup (set-defaults, switch: `macos.time_machine_new_disks`)." |
 | 134 | "reveal delay and slide animation stay at macOS defaults unless you opt in to custom values when prompted" | "reveal delay and slide animation stay at macOS defaults unless you declare `autohide-delay` and `autohide-time-modifier` in `config.local.toml`" |
 | 170 | "(set-defaults, prompt, default No)" | "(set-defaults, opt-in: `macos.hidpi` or `--hidpi`)" |
 | 293 | "- Quick Look text selection" | Delete. The key was removed in commit 893c53a. |
@@ -1244,7 +1260,7 @@ Entries are short, as A2's loader allows: `true_value`, `choices`, `default` and
 | `macos.keyboard.period_substitution` | Add a period with a double space | bool | `NSGlobalDomain/NSAutomaticPeriodSubstitutionEnabled` | |
 | `macos.general.scroll_bars` | Show scroll bars | enum `WhenScrolling`, `Automatic`, `Always` | `NSGlobalDomain/AppleShowScrollBars` | |
 
-The nine `env` settings of Task 1 go in their own section, "macOS (this Mac)", because they are stored in the git-ignored override file, not in the tracked fragment. Every entry writes `kind = "env"`, `access = "rw"` and the fields below. A `bool` writes `true_value = "1"`, the value A2's CLI and TUI write for on; off arrives as `""`. `default` is the extras script's own fallback, as A2 defines it: `"1"` for a group switch (the script reads `${VAR-1}`, so unset means on), `""` for the rest. `help` names what `set-defaults` does and that the change applies at its next run.
+The nine `env` settings of Task 1 go in their own section, "macOS (this Mac)", because they are stored in the git-ignored override file, not in the tracked fragment. Every entry writes `kind = "env"`, `access = "rw"` and the fields below. A `bool` writes `true_value = "1"`, the value A2's CLI and TUI write for on; off arrives as `""`. `default` is the extras script's own fallback, as A2 defines it: `"1"` for the four group switches, the firewall and turning Time Machine off (the script reads `${VAR-1}`, so unset means on), `""` for HiDPI and the two names. `help` names what `set-defaults` does and that the change applies at its next run.
 
 | id | label | type | default | key | help |
 | --- | --- | --- | --- | --- | --- |
@@ -1252,9 +1268,9 @@ The nine `env` settings of Task 1 go in their own section, "macOS (this Mac)", b
 | `macos.time_machine_new_disks` | Stop Time Machine offering new disks | bool | `"1"` | `DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS` | Time Machine stops asking to use each new drive for backups. Off leaves the prompt as it is. Applied by the next set-defaults. |
 | `macos.textedit` | Make TextEdit default to plain text | bool | `"1"` | `DOTFILES_MACOS_TEXTEDIT` | New documents are plain text, opened and saved as UTF-8. Off leaves TextEdit as it is. Applied by the next set-defaults. |
 | `macos.software_update` | Turn on automatic macOS updates | bool | `"1"` | `DOTFILES_MACOS_SOFTWARE_UPDATE` | Daily check, background download, security and system data installs. Turn off on a Mac whose updates are managed by MDM. Applied by the next set-defaults. |
-| `macos.firewall` | Turn on the firewall and stealth mode | bool | `""` | `DOTFILES_MACOS_FIREWALL` | set-defaults asks for your password when the firewall is off. Turning this off later leaves the firewall on. |
+| `macos.firewall` | Turn on the firewall and stealth mode | bool | `"1"` | `DOTFILES_MACOS_FIREWALL` | On by default. set-defaults asks for your password when the firewall or stealth mode is off. Turn this off on a Mac whose firewall is managed by MDM. Turning it off leaves the firewall as it is. |
 | `macos.hidpi` | Offer HiDPI display modes | bool | `""` | `DOTFILES_MACOS_HIDPI` | Needs your password and a restart. Turning this off later leaves the modes on. |
-| `macos.disable_time_machine` | Turn off Time Machine backups | bool | `""` | `DOTFILES_MACOS_DISABLE_TIME_MACHINE` | Stops all Time Machine backups on this Mac. set-defaults asks for your password when backups are on. Turning this off later does not turn backups back on: use System Settings. |
+| `macos.disable_time_machine` | Turn off Time Machine backups | bool | `"1"` | `DOTFILES_MACOS_DISABLE_TIME_MACHINE` | On by default: the next set-defaults stops all Time Machine backups on this Mac, and asks for your password when backups are on. If this Mac uses Time Machine, turn this off before running set-defaults. Turning it off later does not turn backups back on: use System Settings. |
 | `macos.computer_name` | Computer name | string | `""` | `DOTFILES_MACOS_COMPUTER_NAME` | set-defaults renames the Mac when this differs from its current name, and asks for your password. Empty leaves the name alone. |
 | `macos.local_hostname` | Local hostname | string | `""` | `DOTFILES_MACOS_LOCAL_HOSTNAME` | The Bonjour name (name.local), set together with the computer name. Empty derives it from the computer name: lower case, other characters as hyphens. |
 
@@ -1281,13 +1297,15 @@ for s in macos:
 extras = (repo / "setup/macos-extras.sh").read_text()
 local = {s.key: s for s in settings if s.section == "macOS (this Mac)"}
 assert set(local) == set(re.findall(r"DOTFILES_MACOS_[A-Z_]+", extras)), sorted(local)
-groups = {"DOTFILES_MACOS_SCREENSHOTS", "DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS", "DOTFILES_MACOS_TEXTEDIT", "DOTFILES_MACOS_SOFTWARE_UPDATE"}
+on_by_default = {"DOTFILES_MACOS_SCREENSHOTS", "DOTFILES_MACOS_TIME_MACHINE_NEW_DISKS", "DOTFILES_MACOS_TEXTEDIT",
+                 "DOTFILES_MACOS_SOFTWARE_UPDATE", "DOTFILES_MACOS_FIREWALL", "DOTFILES_MACOS_DISABLE_TIME_MACHINE"}
 for key, s in local.items():
     assert s.kind == "env" and s.access == "rw", key
     assert s.type == "string" or s.true_value == "1", key
-    # a group is on unless switched off; the script's ${VAR-1} and the registry default must agree
-    assert (s.default == "1") == (key in groups), key
-    assert (f"${{{key}-1}}" in extras) == (key in groups), key
+    # on unless switched off: the script's ${VAR-1} and the registry default must agree
+    assert (s.default == "1") == (key in on_by_default), key
+    assert (f"${{{key}-1}}" in extras) == (key in on_by_default), key
+assert "${DOTFILES_MACOS_HIDPI:-}" in extras
 ```
 
 The counts are of this plan's own entries only. No test here counts the whole registry or its kinds. The file imports `re`.
@@ -1332,7 +1350,7 @@ Run: `uv run --project settings dotfiles-settings get macos.dock.tilesize --json
 Expected: `["38","seed",false]` (A2's JSON writes `source` as the lowercase enum value).
 
 Run: `uv run --project settings dotfiles-settings list --section "macOS (this Mac)" --json | jq -c 'map([.setting_id, .value, .source])'`
-Expected on a Mac with none of the nine set: the four group switches read `["…","1","default"]`, the other five `["…",null,"unset"]`.
+Expected on a Mac with none of the nine set: the four group switches, `macos.firewall` and `macos.disable_time_machine` read `["…","1","default"]`, and `macos.hidpi`, `macos.computer_name` and `macos.local_hostname` read `["…",null,"unset"]`.
 
 These commands only read. Do not run `set` on these nine here: it writes the live override file, which every new shell then exports. Task 7 Step 5 exercises one.
 
@@ -1358,7 +1376,7 @@ Expected: `77 value(s) already set` and two planned writes: `DesktopViewSettings
 - [ ] **Step 2: Apply**
 
 Run: `set-defaults`
-Expected: mise lists the two writes and asks. After a yes, the extras script runs and Finder, Dock and the others restart.
+Expected: mise lists the two writes and asks. After a yes, the extras script runs and Finder, Dock and the others restart. With none of the nine settings stored, no password prompt comes from the firewall or Time Machine: this Mac already has both on and backups off (measured 2026-11-09). A prompt here means a guard misread the state; note which command asked.
 
 - [ ] **Step 3: Settle whatever macOS writes back**
 
@@ -1420,13 +1438,18 @@ The spec says that step reports drift only. It can rely on:
 - The screenshot, Time Machine new-disk and Software Update preferences are not in `status`: the extras script writes them behind switches. The report cannot show drift for them.
 - The dead knobs `DOTFILES_MACOS_YES` and `DOTFILES_MACOS_NO`, and the old prompt variables `COMPUTERNAME` and `LOCALHOSTNAME`. If `~/.zsh.local` exports any of them, the `env` step should say they no longer do anything, and point the last two at `macos.computer_name` and `macos.local_hostname`.
 - The fix for drift is `set-defaults`. The migration script prints that and does not run it.
+- `set-defaults` now turns Time Machine backups off unless `macos.disable_time_machine` is switched off, where the old script only did so after a "yes" (default No). A Mac set up the old way that kept its backups loses them on its next `set-defaults`. When `defaults read /Library/Preferences/com.apple.TimeMachine AutoBackup` prints something other than `0` (or `tmutil destinationinfo` lists a destination) and `DOTFILES_MACOS_DISABLE_TIME_MACHINE` is unset, the step should say so and give `dotfiles-settings set macos.disable_time_machine off`. The same holds, less harmfully, for the firewall switch on a Mac whose firewall is off.
 
 ## Self-review notes
 
 - Spec coverage for A3: the non-sudo `defaults write` lines move (Task 2), the sudo and non-`defaults` commands move to `setup/macos-extras.sh` run by a `post-defaults` hook (Tasks 1 and 2), `setup/macos.sh` and both knobs are deleted (Task 3), the adapter (Task 5) and registry entries (Task 6) exist, the Documentation table's four files are rewritten (Task 3), and the phase gate (`pnpm check` and the self-check) runs in Task 7.
-- Decisions coverage: 1 (setup never applies; the docs say `set-defaults` is the only applier, and A6 writes `--skip macos-defaults`), 2 (five opt-in env settings, Tasks 1 and 6), 7 (no permission rule in this plan, Task 3 points to A7), 9 (four group switches, Tasks 1 and 6, each tested on, off and unset).
+- Decisions coverage: 1 (setup never applies; the docs say `set-defaults` is the only applier, and A6 writes `--skip macos-defaults`), 2 (five env settings, the firewall and turning Time Machine off on by default and HiDPI and the names off, each tested unset, empty and `1`, with the Time Machine warning in the help text, the `set-defaults` header, `README.md`, `setup/README.md` and `docs/macos settings.md`; Tasks 1, 3 and 6), 7 (no permission rule in this plan, Task 3 points to A7), 9 (four group switches, Tasks 1 and 6, each tested on, off and unset).
 - Where this plan differs from the spec's wording: the spec counts 87 `defaults write` lines and 85 non-sudo ones. The file has 91 and 89. Of the 89, 67 are declared (plus 6 that were `PlistBuddy`, for 79 entries; the spec's A3 paragraph says 88), 6 become opt-ins and 16 go to the extras script, for the reasons in the classification. The spec's A3 paragraph predates Decision 9, which moves 9 of its 88 out.
 - `setup.sh` never applies macOS preferences. A6 passes `--skip macos-defaults`; this plan's docs already say so, and they are true only once A6 lands that line. Until then nothing in the repo runs `mise bootstrap`.
 - A UI write touches one preference (`defaults write`), never the whole fragment.
-- Task 1's test covers every opt-in from its setting and from a flag, with the Mac differing and matching. The firewall tool is looked up on `PATH` first so a stub can stand in. Not verified on a real Mac: that `sudo tmutil disable` leaves `AutoBackup` at `0` (the guard's assumption; this Mac reads `0` already), and the `socketfilterfw` output wording when the firewall is off (the guard matches the "on" wording, so any other text leads to a write).
-- Not verified: that `mise bootstrap` passes the override file's `[env]` to the `post-defaults` hook. If it does not, a hand-run `mise bootstrap` sees only the shell's exports, which A1's cache already holds, so the result is the same in a zsh-started run.
+- Task 1's test covers every opt-in from its setting and from a flag, with the Mac differing and matching. The firewall tool is looked up on `PATH` first so a stub can stand in. With the firewall and Time Machine switches on by default, the guards decide whether a default run asks for sudo, so their limits matter more than when the switches were opt-in. What each guard does: it writes when the read does not show the "already done" state, and an unreadable state counts as "differs". So an unknown state leads to a sudo write by default; that write is the action the setting asks for, and the cost of a wrong read is a password prompt on every run, not a wrong setting. Measured on this Mac: the "on" wording (`State = 1`, `mode is on`), `AutoBackup = 0`, no Time Machine destination, block-all disabled and reported by `--getblockall`. Not verified on a real Mac:
+  - That `sudo tmutil disable` sets `AutoBackup` to `0`. If it does not, every `set-defaults` on a Mac that had backups on asks for a password again. Settles it: on a Mac or CI runner with backups on, `defaults read /Library/Preferences/com.apple.TimeMachine AutoBackup` before and after `sudo tmutil disable`.
+  - What `AutoBackup` reads on a fresh Mac that never configured Time Machine. If the key is missing, the first default run calls `sudo tmutil disable` there (harmless, one prompt). Settles it: the same `defaults read` on the fresh-install CI runner.
+  - The `socketfilterfw --getglobalstate` wording when the firewall is off or in another state (a block-all state shown here, if one exists). Any wording without `State = 1` leads to `--setglobalstate on`. Settles it: `--getglobalstate` on a Mac with the firewall off, and with "Block all incoming connections" on.
+  - What `--setglobalstate on` does when the firewall is managed by an MDM profile. If the write fails, `set -e` stops the extras script. The help text tells such a Mac to switch `macos.firewall` off. Settles it: a run on an MDM-managed Mac.
+- Not verified: that `mise bootstrap` passes the override file's `[env]` to the `post-defaults` hook. If it does not, a hand-run `mise bootstrap` sees only the shell's exports, which A1's cache already holds, so the result is the same in a zsh-started run. If it does, a stored override value beats a one-run `VAR=` prefix under the hook (not under `set-defaults`, which calls the extras script itself). Settles it: in a scratch `MISE_CONFIG_DIR` whose only content is an `[env]` override and a `post-defaults` hook that runs `env`, a `mise bootstrap` run by the owner (Global Constraints: an agent runs `mise bootstrap` only with `--dry-run`, which prints hooks without running them).
