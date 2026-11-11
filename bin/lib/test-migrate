@@ -78,7 +78,75 @@ case "$*" in
     touch "$HOME/.config/mise/config.override.toml"
     ;;
   "bootstrap macos defaults status --json") cat "$STATE/defaults.json" ;;
+  "dot "*)
+    shift
+    exec "$STATE/../fake-dot" "$@"
+    ;;
 esac'
+# The dotfiles half of the fake mise. $STATE/dot-targets holds one absolute target<TAB>source per line.
+# The Codex edit behaves as A5's E9 and E18 measured it, after the file conflicts, which stop the real apply first
+cat > "$tmp/fake-dot" << 'EOF'
+#!/bin/bash
+codex="$HOME/.codex/config.toml"
+src="$REPO_COPY/tilde/.codex/config.toml"
+tilde() { case $1 in "$HOME"/*) echo "~/${1#"$HOME"/}" ;; *) echo "$1" ;; esac; }
+targets() { grep . "$STATE/dot-targets" || true; }
+conflicts() {
+  targets | while IFS=$'\t' read -r t s; do
+    if [ -e "$t" ] && [ ! -L "$t" ]; then echo "  $(tilde "$t")"; fi
+  done
+}
+edit_error() {
+  local reason
+  if [ -L "$codex" ] && [ ! "$codex" -ef "$src" ]; then
+    reason="target is a symlink; replace it with a copy of the real file before merging"
+  elif [ -f "$codex" ] && [ ! -L "$codex" ] && [ "$(head -1 "$codex")" = "model = " ]; then
+    reason="failed to parse the TOML target: expected a value"
+  else
+    return 1
+  fi
+  printf 'mise ERROR edits: cannot apply these entries, fix them manually:\n  "~/.codex/config.toml" (merge:defaults): %s\n' "$reason" >&2
+}
+case "$*" in
+  "status --json")
+    targets | jq -Rn --arg home "$HOME" --arg repo "$REPO_COPY" '
+      def t: if startswith($home + "/") then "~/" + .[($home | length) + 1:] else . end;
+      def s: if startswith($repo + "/") then "~/dotfiles/" + .[($repo | length) + 1:] else . end;
+      {files: ([inputs | split("\t") | {target: (.[0] | t), source: (.[1] | s), mode: "symlink", state: "applied"}]
+        + [{target: "~/.claude/rules", source: ($repo + "/tilde/.claude/rules"), mode: "symlink-each", state: "applied"}]),
+       edits: [{path: "~/.codex/config.toml", edit: "merge:defaults", state: "applied"}]}'
+    ;;
+  "status --missing")
+    targets | while IFS=$'\t' read -r t s; do [ -L "$t" ] && [ "$t" -ef "$s" ] || exit 1; done || exit 1
+    [ -f "$codex" ] && [ ! -L "$codex" ] && [ "$(head -1 "$codex")" != "model = " ]
+    ;;
+  "apply --dry-run" | "apply --yes")
+    c=$(conflicts)
+    if [ -n "$c" ]; then
+      printf 'mise ERROR files: refusing to overwrite existing files (use --force):\n%s\n' "$c" >&2
+      exit 1
+    fi
+    if [ "$2" = --yes ]; then
+      if [ -e "$STATE/dot-apply-fails" ]; then
+        echo "mise ERROR files: the apply failed" >&2
+        exit 1
+      fi
+      targets | while IFS=$'\t' read -r t s; do mkdir -p "$(dirname "$t")" && ln -sfn "$s" "$t"; done
+    fi
+    ! edit_error || exit 1
+    [ "$2" = --yes ] || exit 0
+    if [ ! -e "$codex" ] && [ ! -L "$codex" ]; then
+      mkdir -p "$(dirname "$codex")" && cp "$src" "$codex" && chmod 600 "$codex"
+    elif [ -L "$codex" ]; then
+      # as the real one: the file existed, so permissions do not apply
+      rm "$codex" && cp "$src" "$codex" && chmod 644 "$codex"
+    fi
+    ;;
+  *) exit 2 ;;
+esac
+EOF
+chmod +x "$tmp/fake-dot"
+export REPO_COPY
 stub brew 'echo "brew $*" >> "$STATE/brew.log"
 [ "${HOMEBREW_NO_ANALYTICS:-}" = 1 ] || { echo "brew ran without HOMEBREW_NO_ANALYTICS=1" >&2; exit 97; }
 for t; do :; done # the last argument: the cask token
@@ -156,6 +224,17 @@ echo Ghostty.app > "$STATE/apps/ghostty"
 echo UTM.app > "$STATE/apps/utm"
 echo Freelens.app > "$STATE/apps/freelens"
 echo '{"macos_defaults":{"available":true,"entries":[]}}' > "$STATE/defaults.json"
+# The dotfiles fixture: every source goes through ~/dotfiles, as on a real Mac
+ln -s "$REPO_COPY" "$HOME/dotfiles"
+mkdir -p "$REPO_COPY/tilde/.claude/rules" "$REPO_COPY/tilde/.claude/skills" "$REPO_COPY/tilde/.codex" "$REPO_COPY/mole" "$REPO_COPY/firefox/chrome" "$HOME/.claude"
+for f in .zshrc .gitconfig .starship.toml .zshenv .zprofile .claude/rules/a.md .claude/skills/x firefox/user.js firefox/chrome/userContent.css firefox/chrome/userChrome.css; do
+  case $f in firefox/*) echo "$f" > "$REPO_COPY/$f" ;; *) echo "$f" > "$REPO_COPY/tilde/$f" ;; esac
+done
+printf 'model = "o3"\nsandbox_mode = "workspace-write"\n' > "$REPO_COPY/tilde/.codex/config.toml"
+{
+  for f in .zshrc .gitconfig .starship.toml .zshenv; do printf '%s\t%s\n' "$HOME/$f" "$REPO_COPY/tilde/$f"; done
+  printf '%s\t%s\n' "$HOME/.config/mise" "$REPO_COPY/tilde/.config/mise"
+} > "$STATE/dot-targets"
 cat > "$REPO_COPY/settings/registry.toml" << 'EOF'
 [[setting]]
 id = "updates.trim_ca_roots"
@@ -242,19 +321,6 @@ skips_absent_phases() {
 dry_run_asks_nothing() {
   out=$("$script" --dry-run < /dev/null 2>&1) || fail "--dry-run: exit $?: $out"
   check_out "--dry-run ends with the count" '^Changed 0 thing\(s\)\.$'
-}
-helpers_back_up_before_replacing() {
-  # MIGRATE_SELFTEST runs: backup_move "$1"; echo replaced > "$1"
-  echo original > "$HOME/victim"
-  MIGRATE_SELFTEST="$HOME/victim" "$script" > /dev/null 2>&1 || fail "selftest hook failed"
-  bak=$(echo "$HOME"/.dotfiles-migration-backup/*/files"$HOME"/victim)
-  [ "$(cat "$bak")" = original ] || fail "backup does not hold the original"
-  [ "$(cat "$HOME/victim")" = replaced ] || fail "selftest did not replace the file"
-  grep -qF "mv '$bak' '$HOME/victim'" "$HOME"/.dotfiles-migration-backup/*/RESTORE.txt || fail "no restore command"
-  [ "$(stat -f %Lp "$HOME"/.dotfiles-migration-backup/*)" = 700 ] || fail "backup folder is not mode 700"
-  MIGRATE_SELFTEST="$REPO_COPY/migrate/legacy-to-mise" "$script" > /dev/null 2>&1 && fail "backed up a file inside the clone" || true
-  [ -f "$REPO_COPY/migrate/legacy-to-mise" ] || fail "the clone's script was moved"
-  rm -rf "$HOME/.dotfiles-migration-backup" "$HOME/victim"
 }
 env_refuses_without_registry() {
   phase env
@@ -621,6 +687,185 @@ staging_leftovers() {
   [ -d "$HOMEBREW_PREFIX/Cellar/jq/1.8.2" ] || fail "removed a Cellar folder that holds a keg"
   ls -d "$HOME"/.dotfiles-migration-backup/*/files"$HOMEBREW_PREFIX"/Cellar/hello > /dev/null || fail "leftover not backed up"
 }
+dotfiles_backs_up_then_applies() {
+  phase dotfiles
+  rm -rf "$HOME/.dotfiles-migration-backup"  # the packages cases left theirs, and $bak below must be one folder
+  : > "$STATE/mise.log"                      # the packages cases logged reshim --force
+  echo mine > "$HOME/.zshrc"                 # a real file in the way
+  ln -s /etc/hosts "$HOME/.gitconfig"        # a foreign link
+  ln -s "$REPO_COPY/tilde/.old" "$HOME/.old" # an old link nothing declares, dangling
+  ln -s "$HOME/dotfiles/tilde/.starship.toml" "$HOME/.starship.toml"
+  out=$(echo y | "$script" --step dotfiles 2>&1) || fail "dotfiles: exit $?: $out"
+  bak=$(echo "$HOME"/.dotfiles-migration-backup/*)
+  [ "$(cat "$bak/files$HOME/.zshrc")" = mine ] || fail "real file not backed up before apply"
+  grep -qF "mv '$bak/files$HOME/.zshrc' '$HOME/.zshrc'" "$bak/RESTORE.txt" || fail "no restore command for the moved file"
+  [ "$(stat -f %Lp "$bak")" = 700 ] || fail "backup folder is not mode 700"
+  grep -qF "ln -sfn '/etc/hosts' '$HOME/.gitconfig'" "$bak/RESTORE.txt" || fail "foreign link not recorded"
+  [ "$HOME/.zshrc" -ef "$REPO_COPY/tilde/.zshrc" ] && [ "$HOME/.gitconfig" -ef "$REPO_COPY/tilde/.gitconfig" ] || fail "not linked after the apply"
+  ! grep -q -- '--force' "$STATE/mise.log" || fail "passed --force"
+  awk '/dot apply --yes/ { exit !seen } /dot apply --dry-run/ { seen = 1 }' "$STATE/mise.log" || fail "applied before the dry run listed the conflicts"
+  check_out "old-style count: ~/.starship.toml and ~/.config/mise" '^2 old-style link\(s\)'
+  check_out "names the conflict" '^~/\.zshrc: a real file or folder is in the way$'
+  check_out "names the foreign link" '^~/\.gitconfig: a link to /etc/hosts will be repointed$'
+  check_out "undeclared old link" '\.old .*\(dangling\)'
+  check_out "ends clean" '^All dotfiles are in their declared state\.$'
+}
+dotfiles_second_run_changes_nothing() {
+  before=$(snapshot)
+  : > "$STATE/mise.log"
+  out=$(echo y | "$script" --step dotfiles 2>&1) || fail "dotfiles rerun: exit $?: $out"
+  [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] || fail "dotfiles rerun changed something"
+  ! grep -q 'Back up\|Run mise dot apply' <<< "$out" || fail "dotfiles rerun asked something"
+}
+dotfiles_needs_the_dotfiles_link() {
+  rm "$HOME/dotfiles"
+  before=$(snapshot)
+  : > "$STATE/mise.log"
+  out=$(yes | "$script" --step dotfiles 2>&1) && fail "ran without ~/dotfiles" || [ $? = 1 ] || fail "no ~/dotfiles: want exit 1"
+  check_out "says how to fix it" "^~/dotfiles is missing.*ln -s '$REPO_COPY' ~/dotfiles"
+  [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] || fail "changed something without ~/dotfiles"
+  ln -s "$REPO_COPY" "$HOME/dotfiles"
+}
+dotfiles_declined_or_dry_run_changes_nothing() {
+  echo mine > "$HOME/.zprofile"
+  printf '%s\t%s\n' "$HOME/.zprofile" "$REPO_COPY/tilde/.zprofile" >> "$STATE/dot-targets"
+  for how in "--dry-run" ""; do
+    before=$(snapshot)
+    : > "$STATE/mise.log"
+    # shellcheck disable=SC2086 # $how is one flag or nothing
+    out=$("$script" --step dotfiles $how < /dev/null 2>&1) || true
+    [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] || fail "dotfiles $how changed something"
+  done
+  check_out "closed stdin leaves them" '^Left as they are\. Finish with: mise dot apply$'
+  out=$("$script" --step dotfiles --dry-run < /dev/null 2>&1) || true
+  check_out "--dry-run shows the one question" '^would ask: Back up the 1 item\(s\) above and let mise link them\?$'
+}
+dotfiles_failed_apply_keeps_the_backup() {
+  rm -rf "$HOME/.dotfiles-migration-backup"
+  touch "$STATE/dot-apply-fails"
+  out=$(echo y | "$script" --step dotfiles 2>&1) && fail "a failed apply must exit 1" || [ $? = 1 ] || fail "failed apply: want exit 1"
+  rm "$STATE/dot-apply-fails"
+  check_out "points at the backup" '^mise dot apply failed\. What this step moved is in .*RESTORE\.txt there puts each item back'
+  check_out "the summary still runs" '^Restore commands: '
+  bak=$(echo "$HOME"/.dotfiles-migration-backup/*)
+  [ "$(cat "$bak/files$HOME/.zprofile")" = mine ] || fail "the moved file is not in the backup after a failed apply"
+  # the rerun finds nothing in the way, only what is missing, and finishes
+  : > "$STATE/mise.log"
+  out=$(echo y | "$script" --step dotfiles 2>&1) || fail "rerun after a failed apply: exit $?: $out"
+  grep -qx 'mise dot apply --yes' "$STATE/mise.log" || fail "the rerun did not apply what was missing"
+  check_out "ends clean" '^All dotfiles are in their declared state\.$'
+  rm -rf "$HOME/.dotfiles-migration-backup"
+}
+dotfiles_never_moves_a_repo_file() {
+  ln -s "$REPO_COPY/tilde/.claude/skills" "$HOME/.claude/skills" # a whole-directory link the script does not know
+  printf '%s\t%s\n' "$HOME/.claude/skills/x" "$REPO_COPY/tilde/.claude/skills/x" >> "$STATE/dot-targets"
+  out=$(echo y | "$script" --step dotfiles 2>&1) && fail "want exit 1" || [ $? = 1 ] || fail "want exit 1"
+  [ -e "$REPO_COPY/tilde/.claude/skills/x" ] || fail "moved a tracked file out of the clone"
+  check_out "says why" '^~/\.claude/skills/x: resolves into the clone, not touched$'
+}
+dotfiles_leaves_the_whole_rules_link_to_mise() {
+  ln -s "$REPO_COPY/tilde/.claude/rules" "$HOME/.claude/rules"
+  out=$("$script" --step dotfiles < /dev/null 2>&1) || true
+  check_out "says mise handles it" 'mise replaces it with a real folder of links'
+  [ -e "$REPO_COPY/tilde/.claude/rules/a.md" ] || fail "removed the clone's rules"
+  rm "$HOME/.claude/rules"
+}
+dotfiles_keeps_the_local_mole_list() {
+  local entry='"~/.config/mole/whitelist" = { source = "~/dotfiles/mole/whitelist.local", mode = "symlink" }'
+  echo x > "$REPO_COPY/mole/whitelist.local"
+  local_toml="$REPO_COPY/tilde/.config/mise/config.local.toml"
+  out=$("$script" --step dotfiles --dry-run < /dev/null 2>&1) || true
+  check_out "--dry-run shows the question" "^would ask: Keep this Mac's Mole whitelist list by adding it to config\.local\.toml\?$"
+  [ ! -e "$local_toml" ] || fail "--dry-run wrote config.local.toml"
+  out=$(echo y | "$script" --step dotfiles 2>&1) || true
+  grep -qxF "$entry" "$local_toml" || fail "local Mole entry not written"
+  [ "$(grep -c '^\[dotfiles\]' "$local_toml")" = 1 ] || fail "wrote a second [dotfiles] table"
+  ! grep -q 'whitelist_optimize' <<< "$out" || fail "asked about a list with no .local file"
+  before=$(cksum < "$local_toml")
+  out=$(echo y | "$script" --step dotfiles 2>&1) || true
+  [ "$(cksum < "$local_toml")" = "$before" ] || fail "wrote the Mole entry twice"
+  # a [dotfiles] table without the entry: it goes under that header, as step_packages adds its packages
+  rm -rf "$HOME/.dotfiles-migration-backup"
+  printf '[dotfiles]\n"~/.x" = { source = "~/x", mode = "symlink" }\n' > "$local_toml"
+  out=$(echo y | "$script" --step dotfiles 2>&1) || true
+  [ "$(sed -n 2p "$local_toml")" = "$entry" ] && grep -qxF '"~/.x" = { source = "~/x", mode = "symlink" }' "$local_toml" || fail "entry not added under the existing [dotfiles] table: $(cat "$local_toml")"
+  [ "$(grep -c '^\[dotfiles\]' "$local_toml")" = 1 ] || fail "wrote a second [dotfiles] table into one that had it"
+  ls "$HOME"/.dotfiles-migration-backup/*/files"$local_toml" > /dev/null 2>&1 || fail "config.local.toml not backed up before the write"
+  # this Mac's case: the owner added the entry by hand under a comment header, so nothing is asked or written
+  rm -rf "$HOME/.dotfiles-migration-backup"
+  printf '# Machine-local mise config (gitignored).\n\n[dotfiles]\n# This Mac keeps its own list\n%s\n' "$entry" > "$local_toml"
+  before=$(cksum < "$local_toml")
+  out=$(echo y | "$script" --step dotfiles 2>&1) || true
+  ! grep -q "Keep this Mac's Mole" <<< "$out" || fail "asked about a Mole entry that is already there"
+  [ "$(cksum < "$local_toml")" = "$before" ] || fail "rewrote a config.local.toml that already had the entry"
+  ! ls "$HOME"/.dotfiles-migration-backup/*/files"$local_toml" > /dev/null 2>&1 || fail "backed up config.local.toml with nothing to write"
+  rm -rf "$local_toml" "$REPO_COPY/mole/whitelist.local" "$HOME/.dotfiles-migration-backup"
+}
+dotfiles_replaces_a_codex_config_link() {
+  codex="$HOME/.codex/config.toml"
+  src="$REPO_COPY/tilde/.codex/config.toml"
+  # only the Codex edit is in play: the earlier cases' targets (the ~/.claude/skills conflict among them) would stop each run first
+  cp "$STATE/dot-targets" "$tmp/dot-targets.saved"
+  : > "$STATE/dot-targets"
+  rm -f "$codex"
+  ln -s "$src" "$codex" # an old symlinks.sh link into the clone
+  before=$(snapshot)
+  : > "$STATE/mise.log"
+  out=$("$script" --step dotfiles < /dev/null 2>&1) || true # declined: the apply never runs, so the exit is the status check's 1
+  [ -L "$codex" ] && [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] || fail "a declined run touched the codex link"
+  check_out "names the codex link" '^~/\.codex/config\.toml: a link into the clone\. Removed before the apply'
+  out=$(yes | "$script" --step dotfiles 2>&1) || fail "codex link into the clone: exit $?: $out"
+  [ -f "$codex" ] && [ ! -L "$codex" ] || fail "codex config is still a link"
+  [ "$(stat -f %Lp "$codex")" = 600 ] || fail "codex config is not 0600: the link was not removed before the apply"
+  grep -qF "ln -sfn '$src' '$codex'" "$HOME"/.dotfiles-migration-backup/*/RESTORE.txt || fail "codex link not recorded"
+  printf 'model = "x"\n\n[mcp_servers.t]\ncommand = "t"\n' > "$tmp/elsewhere.toml"
+  rm "$codex"
+  ln -s "$tmp/elsewhere.toml" "$codex" # a link somewhere else
+  out=$(yes | "$script" --step dotfiles 2>&1) || fail "codex link elsewhere: exit $?: $out"
+  [ -f "$codex" ] && [ ! -L "$codex" ] && cmp -s "$codex" "$tmp/elsewhere.toml" || fail "a link elsewhere was not replaced by a copy of its file"
+  [ "$(stat -f %Lp "$codex")" = 600 ] || fail "the copy is not 0600"
+  [ -f "$tmp/elsewhere.toml" ] || fail "removed the file the link pointed to"
+  rm "$codex"
+  printf 'model = "mine"\n' > "$codex" # valid TOML, the Mac's own
+  chmod 644 "$codex"
+  out=$(yes | "$script" --step dotfiles 2>&1) || fail "regular codex config: exit $?: $out"
+  [ "$(cat "$codex")" = 'model = "mine"' ] && [ "$(stat -f %Lp "$codex")" = 644 ] || fail "touched a regular codex config"
+  printf 'model = \n' > "$codex" # invalid TOML
+  cp "$codex" "$tmp/codex.bad"
+  : > "$STATE/mise.log"
+  out=$(yes | "$script" --step dotfiles 2>&1) && fail "want exit 1 over an invalid codex config" || [ $? = 1 ] || fail "invalid codex config: want exit 1"
+  check_out "names the invalid file" '^~/\.codex/config\.toml is not valid TOML'
+  cmp -s "$codex" "$tmp/codex.bad" || fail "an invalid codex config was rewritten"
+  ! grep -q 'dot apply --yes' "$STATE/mise.log" || fail "applied over an invalid codex config"
+  printf 'model = "mine"\n' > "$codex"
+  mv "$tmp/dot-targets.saved" "$STATE/dot-targets"
+  rm -rf "$HOME/.dotfiles-migration-backup"
+}
+half_way_dotfiles() {
+  # the conflict was backed up by an earlier run but apply never ran: ~/.zprofile is absent.
+  # The ~/.claude/skills link with its target stops every run at "resolves into the clone" before the prompt, so it goes first
+  rm -f "$HOME/.zprofile" "$HOME/.claude/skills"
+  grep -v '/\.claude/skills/x' "$STATE/dot-targets" > "$STATE/t" && mv "$STATE/t" "$STATE/dot-targets"
+  : > "$STATE/mise.log"
+  out=$("$script" --step dotfiles --dry-run < /dev/null 2>&1) || true
+  check_out "--dry-run shows the half-way question" '^would ask: Run mise dot apply to link what is missing\?$'
+  out=$("$script" --step dotfiles < /dev/null 2>&1) || true
+  check_out "closed stdin: tells the user what is left" '^Left as they are\. Finish with: mise dot apply$'
+  out=$(echo y | "$script" --step dotfiles 2>&1) || fail "half-way rerun: exit $?: $out"
+  grep -qx 'mise dot apply --yes' "$STATE/mise.log" || fail "did not finish the apply on the rerun"
+  rm -rf "$HOME/.dotfiles-migration-backup"
+}
+firefox_hard_links_are_reported() {
+  out=$("$script" --step dotfiles < /dev/null 2>&1) || fail "dotfiles without a Firefox profile: exit $?: $out"
+  check_out "no profile" '^Firefox: no Developer Edition profile here'
+  p="$HOME/Library/Application Support/Firefox/Profiles/abc.dev-edition-default"
+  mkdir -p "$p/chrome"
+  ln "$REPO_COPY/firefox/user.js" "$p/user.js"
+  echo other > "$p/chrome/userChrome.css"
+  out=$("$script" --step dotfiles < /dev/null 2>&1) || fail "dotfiles with a Firefox profile: exit $?: $out"
+  check_out "linked one" 'user\.js: hard link ok'
+  check_out "unlinked one" 'userChrome\.css: not linked to the clone'
+}
 never_old() {
   for s in env macos packages dotfiles setup; do phase "$s"; done
   # the cases before this one leave their backup folders and their logged calls behind
@@ -648,7 +893,6 @@ refuses_foreign_mise_config
 usage_errors
 skips_absent_phases
 dry_run_asks_nothing
-helpers_back_up_before_replacing
 env_refuses_without_registry
 env_value_forms
 env_quoting
@@ -677,6 +921,17 @@ half_way_cask
 packages_dry_run_changes_nothing
 packages_without_brew_only_lists
 staging_leftovers
+dotfiles_backs_up_then_applies
+dotfiles_second_run_changes_nothing
+dotfiles_needs_the_dotfiles_link
+dotfiles_declined_or_dry_run_changes_nothing
+dotfiles_failed_apply_keeps_the_backup
+dotfiles_never_moves_a_repo_file
+dotfiles_leaves_the_whole_rules_link_to_mise
+dotfiles_keeps_the_local_mole_list
+dotfiles_replaces_a_codex_config_link
+half_way_dotfiles
+firefox_hard_links_are_reported
 # last: it creates every marker file
 never_old
 # every network and process probe went to a stub: the real curl logs nothing here

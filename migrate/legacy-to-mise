@@ -634,7 +634,232 @@ EOF
   fi
   clean_staging_leftovers
 }
-step_dotfiles() { info "nothing to migrate yet"; }
+DOT_STATUS=
+
+# mise prints paths as ~/…, and these turn them into absolute ones and back
+untilde() { case $1 in "~"/*) echo "$HOME/${1#"~"/}" ;; *) echo "$1" ;; esac }
+# shellcheck disable=SC2088 # display text
+tildify() { case $1 in "$HOME"/*) echo "~/${1#"$HOME"/}" ;; *) echo "$1" ;; esac }
+
+# A link the old symlinks.sh made: its text starts with the clone's path
+old_style() {
+  [ -L "$1" ] || return 1
+  case $(readlink "$1") in "$REPO"/* | "$HOME"/dotfiles/*) return 0 ;; esac
+  return 1
+}
+
+# target<TAB>source, both absolute, for every link the status declares; a symlink-each entry gives one per source file
+declared_links() {
+  local mode target source f
+  while IFS=$'\t' read -r mode target source; do
+    target=$(untilde "$target")
+    source=$(untilde "$source")
+    if [ "$mode" = symlink ]; then
+      printf '%s\t%s\n' "$target" "$source"
+    elif [ -d "$source" ]; then
+      find "$source" -type f | while IFS= read -r f; do printf '%s\t%s\n' "$target${f#"$source"}" "$f"; done
+    fi
+  done < <(/usr/bin/jq -r '.files[]? | select(.mode == "symlink" or .mode == "symlink-each") | [.mode, .target, .source] | @tsv' <<< "$DOT_STATUS")
+}
+
+# old<TAB>target for a declared link the old script made, foreign<TAB>target<TAB>link text for one that points elsewhere
+dot_links() {
+  local target source
+  while IFS=$'\t' read -r target source; do
+    [ -L "$target" ] || continue
+    if old_style "$target"; then
+      printf 'old\t%s\n' "$target"
+    elif [ ! "$target" -ef "$source" ]; then
+      printf 'foreign\t%s\t%s\n' "$target" "$(readlink "$target")"
+    fi
+  done < <(declared_links)
+}
+
+# dot_conflicts <dry run stderr>: the absolute path of each file the apply refuses to overwrite.
+# Only the lines under the files header: an `edits:` error is never a conflict
+dot_conflicts() {
+  local p
+  awk '/files: refusing to overwrite/ { on = 1; next } on && /^  / { sub(/^  /, ""); print; next } { on = 0 }' <<< "$1" \
+    | while IFS= read -r p; do untilde "$p"; done
+}
+
+# shellcheck disable=SC2088 # every "~/…" here is display text
+step_dotfiles() {
+  local codex="$HOME/.codex/config.toml" name c p real out q links conflicts foreign
+  local dry_err dry_rc=0 n_old n codex_line='' codex_old='' codex_bad=false blocked=false declared found ff file rc=0
+
+  # Every source in conf.d/40-dotfiles.toml goes through ~/dotfiles, and without it mise links nothing
+  if [ ! "$HOME/dotfiles" -ef "$REPO" ]; then
+    if [ -e "$HOME/dotfiles" ] || [ -L "$HOME/dotfiles" ]; then
+      info "~/dotfiles is not a link to this clone, and every declared source goes through it. Move it aside, link it with: ln -s '$REPO' ~/dotfiles, and run this step again."
+    else
+      info "~/dotfiles is missing, and every declared source goes through it. Link it with: ln -s '$REPO' ~/dotfiles, and run this step again."
+    fi
+    return 1
+  fi
+  # mise reads the dotfiles relative to $HOME, and an untrusted mise.toml in another directory would stop it
+  cd "$HOME"
+
+  if [ -L "$HOME/.claude/rules" ] && [ "$HOME/.claude/rules" -ef "$REPO/tilde/.claude/rules" ]; then
+    info "~/.claude/rules is one link into the clone. mise replaces it with a real folder of links."
+  fi
+  # --force there would replace the tracked file with a link to itself, and the key files are not this script's to move
+  if [ -L "$HOME/.ssh" ] && [ "$HOME/.ssh" -ef "$REPO/tilde/.ssh" ]; then
+    cat << EOF
+~/.ssh is one link into the clone. Fix it by hand, then run this step again:
+  rm ~/.ssh && mkdir -m 700 ~/.ssh
+  mv $REPO/tilde/.ssh/<every file except config> ~/.ssh/
+EOF
+    return 1
+  fi
+
+  # The old script linked a Mac's own mole/<name>.local, and a plain apply would repoint it to the shared list
+  for name in whitelist whitelist_optimize; do
+    [ -e "$REPO/mole/$name.local" ] || continue
+    ! grep -qF "\"~/.config/mole/$name\" =" "$LOCAL_TOML" 2> /dev/null || continue
+    if ask "Keep this Mac's Mole $name list by adding it to config.local.toml?"; then
+      local_toml_add dotfiles "~/.config/mole/$name" "{ source = \"~/dotfiles/mole/$name.local\", mode = \"symlink\" }"
+    else
+      declined "~/.config/mole/$name will point at the shared list."
+    fi
+  done
+
+  DOT_STATUS=$(mise dot status --json) || fail 'mise could not report the dotfiles ("mise dot status --json" failed).'
+  out=$(mktemp)
+  dry_err=$(mise dot apply --dry-run 2>&1 > "$out") || dry_rc=$?
+  rm "$out"
+  [ "$DRY_RUN" = false ] || printf '%s\n' "$dry_err"
+
+  if [ -L "$codex" ]; then
+    codex_old=$(readlink "$codex")
+    if old_style "$codex"; then
+      codex_line="~/.codex/config.toml: a link into the clone. Removed before the apply, which then creates the file at mode 600."
+    else
+      codex_line="~/.codex/config.toml: a link to $codex_old. Replaced before the apply by a copy of that file at mode 600, which mise then gives only the keys it lacks."
+    fi
+  elif [ -f "$codex" ] && grep -q 'failed to parse the TOML target' <<< "$dry_err"; then
+    codex_bad=true
+  fi
+
+  conflicts=$(dot_conflicts "$dry_err")
+  links=$(dot_links)
+  foreign=$(awk -F'\t' '$1 == "foreign" { print $2 "\t" $3 }' <<< "$links")
+  n_old=$(grep -c '^old' <<< "$links" || true)
+
+  info "$n_old old-style link(s): already in place or repointed by mise, nothing is lost."
+  while IFS= read -r c; do
+    [ -n "$c" ] || continue
+    real="$(cd -P "$(dirname "$c")" && pwd)/$(basename "$c")"
+    case $real in
+      "$REPO"/*)
+        # A whole-directory link this script does not know: moving the path would move a tracked file
+        info "$(tildify "$c"): resolves into the clone, not touched"
+        blocked=true
+        ;;
+      *) info "$(tildify "$c"): a real file or folder is in the way" ;;
+    esac
+  done <<< "$conflicts"
+  while IFS=$'\t' read -r c p; do
+    [ -z "$c" ] || info "$(tildify "$c"): a link to $p will be repointed"
+  done <<< "$foreign"
+  [ -z "$codex_line" ] || info "$codex_line"
+
+  if [ "$codex_bad" = true ]; then
+    info "~/.codex/config.toml is not valid TOML, so mise cannot add the keys it lacks. Fix it by hand and run this step again. It was not changed."
+    return 1
+  fi
+  [ "$blocked" = false ] || return 1
+  if [ "$dry_rc" != 0 ] && [ -z "$conflicts" ] && [ -z "$codex_line" ]; then
+    printf '%s\n' "$dry_err" >&2
+    info "mise dot apply --dry-run failed for a reason this step does not know. Nothing was changed."
+    return 1
+  fi
+
+  n=$(($(grep -c . <<< "$conflicts" || true) + $(grep -c . <<< "$foreign" || true)))
+  [ -z "$codex_line" ] || n=$((n + 1))
+  q=
+  if [ "$n" -gt 0 ]; then
+    q="Back up the $n item(s) above and let mise link them?"
+  elif ! mise dot status --missing > /dev/null 2>&1; then
+    q="Run mise dot apply to link what is missing?"
+  fi
+  if [ -n "$q" ] && ! ask "$q"; then
+    declined "Left as they are. Finish with: mise dot apply"
+  elif [ -n "$q" ]; then
+    while IFS= read -r c; do
+      [ -n "$c" ] || continue
+      backup_move "$c"
+      CHANGED=$((CHANGED + 1))
+    done <<< "$conflicts"
+    while IFS=$'\t' read -r c p; do
+      [ -n "$c" ] || continue
+      backup_note links.tsv "$c	$p"
+      backup_note RESTORE.txt "ln -sfn '$p' '$c'"
+    done <<< "$foreign"
+    if [ -n "$codex_line" ]; then
+      backup_note links.tsv "$codex	$codex_old"
+      backup_note RESTORE.txt "ln -sfn '$codex_old' '$codex'"
+      # Removed first: mise would turn a link into the clone into a regular file at 644, and stops at any other link
+      if old_style "$codex"; then
+        run rm "$codex"
+      else
+        real=$(realpath "$codex" 2> /dev/null || true)
+        run rm "$codex"
+        if [ -f "$real" ]; then
+          run cp "$real" "$codex"
+          run chmod 600 "$codex"
+        fi
+      fi
+    fi
+    # Never --force: it replaces a file with no copy
+    run mise dot apply --yes \
+      || fail "mise dot apply failed. What this step moved is in $BACKUP_DIR, and RESTORE.txt there puts each item back. Fix what mise names above, then run this step again."
+  fi
+
+  # Report only: links the old script made into places that no entry declares any more
+  declared=$({
+    /usr/bin/jq -r '.files[]?.target' <<< "$DOT_STATUS" | while IFS= read -r p; do untilde "$p"; done
+    declared_links | cut -f1
+  })
+  found=$(
+    for p in "$HOME" "$HOME/.claude/rules" "$HOME/.claude/skills" "$HOME/.codex" "$HOME/.gnupg" "$HOME/.ssh" "$HOME/.config/mole" "$HOME/.config"; do
+      if [ -d "$p" ]; then find "$p" -maxdepth 1 -type l; fi
+    done
+    for p in "$HOME/Library/Application Support/Code/User" "$HOME/Library/Application Support/lazydocker/config.yml" "$HOME/Library/Application Support/rtk/config.toml"; do
+      if [ -L "$p" ]; then echo "$p"; fi
+    done
+  )
+  while IFS= read -r p; do
+    [ -n "$p" ] && old_style "$p" && ! grep -qxF "$p" <<< "$declared" || continue
+    if [ -e "$p" ]; then
+      info "Old link nothing declares, left in place: $(tildify "$p") -> $(readlink "$p")"
+    else
+      info "Old link nothing declares, left in place: $(tildify "$p") -> $(readlink "$p") (dangling)"
+    fi
+  done <<< "$found"
+
+  # Report only: the old script hard-linked these, and setup/dotfiles-extras.sh does now
+  ff=$(find "$HOME/Library/Application Support/Firefox/Profiles" -maxdepth 1 -type d -name '*dev-edition*' 2> /dev/null | head -1 || true)
+  if [ -z "$ff" ]; then
+    info "Firefox: no Developer Edition profile here, so no hard links to check."
+  else
+    for file in user.js chrome/userContent.css chrome/userChrome.css; do
+      if [ "$ff/$file" -ef "$REPO/firefox/$file" ]; then
+        info "Firefox $file: hard link ok"
+      else
+        info "Firefox $file: not linked to the clone (setup/dotfiles-extras.sh links it)"
+      fi
+    done
+  fi
+
+  out=$(mise dot status --missing 2>&1) || rc=$?
+  if [ "$rc" = 0 ]; then
+    info "All dotfiles are in their declared state."
+  else
+    printf '%s\n' "$out"
+  fi
+  return "$rc"
+}
 step_setup() { info "nothing to migrate yet"; }
 
 summary() {
@@ -670,12 +895,6 @@ version_ok "$have" \
   || refuse "refusing: this needs mise $MIN_MISE or newer (found: ${have:-no mise on PATH})"
 [ "$HOME/.config/mise" -ef "$REPO/tilde/.config/mise" ] \
   || refuse "refusing: ~/.config/mise is not this clone's tilde/.config/mise, so mise would report on another config"
-
-if [ -n "${MIGRATE_SELFTEST:-}" ]; then
-  backup_move "$MIGRATE_SELFTEST"
-  echo replaced > "$MIGRATE_SELFTEST"
-  exit 0
-fi
 
 if [ -n "$only" ]; then
   phase_present "$only" || refuse "refusing $only: $(phase_marker "$only") is not in this checkout"

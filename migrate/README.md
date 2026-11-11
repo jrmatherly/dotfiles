@@ -81,7 +81,19 @@ Moves what Homebrew still owns over to mise. Removing the Homebrew program itsel
 
 ### dotfiles
 
-Not written yet. Lands with phase A5.
+Hands the links the old `setup/symlinks.sh` made over to `mise dot apply`. It runs mise from `$HOME`. In order:
+
+1. **`~/dotfiles`.** Every source in `conf.d/40-dotfiles.toml` goes through it. When it is missing or is not a link to this clone, the step prints the `ln -s` command and exits 1 before anything else.
+2. **Whole-directory links.** A `~/.claude/rules` that is one link into the clone is left to mise, which replaces it with a real folder of links. A `~/.ssh` that is one link into the clone stops the step with the commands to fix it by hand (`rm ~/.ssh && mkdir -m 700 ~/.ssh`, then move every file except `config` out of `tilde/.ssh`). The script does not move key files.
+3. **Mole's per-Mac lists.** For `whitelist` and `whitelist_optimize`, when `mole/<name>.local` exists and `tilde/.config/mise/config.local.toml` has no `"~/.config/mole/<name>"` key, it asks to add `"~/.config/mole/<name>" = { source = "~/dotfiles/mole/<name>.local", mode = "symlink" }` under `[dotfiles]` (under an existing header, or a new one). Without it the apply repoints the link to the shared list. A key already there, written by hand or by an earlier run, is left as it is and nothing is asked. The file is copied to the backup folder before the first write.
+4. **Codex.** `~/.codex/config.toml` as a link into the clone is removed before the apply, which then creates the file at mode 600 (mise would otherwise leave a regular file at 644). A link elsewhere is replaced before the apply by a copy of the file it points to, at mode 600, and mise adds only the keys it lacks (mise stops at any other link). The file it pointed to stays. A regular file is never touched. When it is not valid TOML, the step says so and exits 1 before any prompt: fixing it is yours.
+5. **What is in the way.** From `mise dot apply --dry-run`, the paths under `files: refusing to overwrite existing files` are the real files or folders in the way. One that resolves into the clone (through a whole-directory link the script does not know) is named and stops the step, so a tracked file is never moved. From `mise dot status --json`, a declared link that points elsewhere is listed to be repointed. A link whose text starts with the clone's path or `~/dotfiles/` is old-style: it is counted, and mise reads it as applied. A dry run that fails for any other reason is printed and stops the step.
+6. **One question.** With anything listed: `Back up the <n> item(s) above and let mise link them?`. With nothing listed but `mise dot status --missing` failing (a run that stopped half way): `Run mise dot apply to link what is missing?`. On yes, each file in the way is moved to the backup folder, each repointed link is recorded in `links.tsv` with an `ln -sfn` line in `RESTORE.txt`, the Codex link is handled as in 4, and then `mise dot apply --yes` runs. When the apply fails, the step exits 1, names the backup folder, and a second run finishes the apply.
+7. **Old links nothing declares** are listed, with `(dangling)` when their target is gone, and left in place. It looks at depth 1 in `~`, `~/.claude/rules`, `~/.claude/skills`, `~/.codex`, `~/.gnupg`, `~/.ssh`, `~/.config/mole` and `~/.config`, and at the VS Code `User`, lazydocker and rtk paths: the places the old script linked into.
+8. **Firefox.** For `user.js`, `chrome/userContent.css` and `chrome/userChrome.css` in the first `*dev-edition*` profile, it reports whether each is a hard link to the clone's file. `setup/dotfiles-extras.sh` makes the links.
+9. It ends with `mise dot status --missing` and exits with its status, printing `All dotfiles are in their declared state.` on 0.
+
+Never `--force`: mise's `--force` replaces a file with no copy, which is why the step moves each conflict to the backup folder first.
 
 ### setup
 
