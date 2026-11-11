@@ -13,8 +13,8 @@ There are three ways in:
 ```shell
 dotfiles-settings list
 dotfiles-settings get updates.slow_step_seconds --json
-dotfiles-settings set updates.trim_ca_roots on
-dotfiles-settings reset updates.trim_ca_roots
+dotfiles-settings set setup.skip_codegraph on
+dotfiles-settings reset setup.skip_codegraph
 ```
 
 `bin/dotfiles-settings` is the launcher on PATH. It runs `uv run --locked --project "$DOTFILES/settings"`, so it uses the clone's code and lockfile, and an edit to `registry.toml` needs no reinstall. It runs from `$HOME`, because `uv` is often a mise shim, and a shim exits 1 in a folder that holds an untrusted `mise.toml`. `$DOTFILES` defaults to the clone the launcher sits in.
@@ -127,7 +127,7 @@ Add one `[[setting]]` table to `registry.toml`. These eight fields are required:
 
 | Field | Value |
 | --- | --- |
-| `id` | Dotted lowercase, such as `updates.trim_ca_roots` |
+| `id` | Dotted lowercase, such as `setup.skip_codegraph` |
 | `section` | The group the UI shows it under |
 | `label` | The row's name |
 | `help` | One or two sentences under the row |

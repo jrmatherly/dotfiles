@@ -27,7 +27,7 @@ PATH=$(tr ':' '\n' <<< "$PATH" | grep -v '/mise/shims$' | paste -sd: -)
 # and the stub mise counts as not Homebrew's
 export HOME="$tmp/home" DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
 # A caller's own token would reach the mise stub and fail the no-token assertion
-unset DOTFILES_MAC_PASSWORD_OP DOTFILES_TRIM_CA_ROOTS MISE_GITHUB_TOKEN
+unset DOTFILES_MAC_PASSWORD_OP MISE_GITHUB_TOKEN
 mkdir -p "$HOME" "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
 printf 'skill one src claude-code\nskill two src claude-code\n' > "$DOTFILES/agents/claude-skills.txt"
 git -C "$DOTFILES" init -q
@@ -160,12 +160,6 @@ stub hindsight-memory '[ -e "$STATE/hindsight-fails" ] && { echo "installer fail
 if [ -e "$STATE/hindsight-warns" ]; then echo "│  ✓ runtime staged at ~/.hindsight/coding-agents"; echo "│  ▲ macOS needs a current Rust toolchain to build the daemon'"'"'s dependencies (litellm"; echo "│    publishes no macOS wheel). Install from https://rustup.rs"; fi
 [ ! -e "$STATE/hindsight-change" ] || { mkdir -p "$HOME/.codex"; date +%s%N > "$HOME/.codex/hooks.json"; }
 echo "runtime re-staged"'
-stub ca-roots 'echo "$*" >> "$STATE/ca-roots.log"
-[ "$1" = status ] && { [ -e "$STATE/roots-trimmed" ]; exit; }
-[ -e "$STATE/ca-roots-fails" ] && { echo "ca-roots: still in /etc/ssl/cert.pem: AAA Certificate Services"; exit 1; }
-[ -e "$STATE/roots-trimmed" ] && { echo "The roots are already absent from /etc/ssl/cert.pem."; exit 0; }
-touch "$STATE/roots-trimmed"
-echo "Removed roots that trust compromised eMudhra certificates."; echo "Removed: emSign ECC Root CA - G3, AAA Certificate Services"; echo "Restore them with: ca-roots restore"'
 # A failing stub, not a missing one: CI's macOS runner has a real cargo on PATH
 stub cargo '[ -e "$STATE/no-cargo" ] && exit 1; echo "cargo 1.99.1"'
 export PATH="$tmp/bin:$PATH"
@@ -333,39 +327,6 @@ check_true "package state unreadable: no packages status step" lacks '(✔|↻|�
 check_true "package state unreadable: the run reaches mise prune" has '^✔ mise prune '
 rm -rf "$DOTFILES/logs" "$STATE/pkg-status-fails" "$STATE/mise-calls.log"
 
-# CA roots: nothing without the opt-in; opted in, a notice where Homebrew's
-# script is gone, else a trim, and the next run finds nothing to do
-rm -rf "$DOTFILES/logs"
-run
-check_true "roots: no ca-roots without the opt-in" test ! -e "$STATE/ca-roots.log"
-rm -rf "$DOTFILES/logs"
-export DOTFILES_TRIM_CA_ROOTS=1
-run
-check_true "roots opted in, script absent: a notice" has '^● CA roots +ca-roots trim needs Homebrew.s script, which is not on this Mac; ca-roots status shows the roots$'
-check_true "roots opted in, script absent: no ca-roots" test ! -e "$STATE/ca-roots.log"
-rm -rf "$DOTFILES/logs"
-mkdir -p "$HOMEBREW_PREFIX/Library/Homebrew/utils"
-touch "$HOMEBREW_PREFIX/Library/Homebrew/utils/emudhra_certificates.rb"
-run
-check_true "roots opted in: trimmed, with the revert" has '^↻ CA roots +removed emSign ECC Root CA - G3, AAA Certificate Services; restore: ca-roots restore$'
-check_true "roots opted in: status, then one trim" [ "$(paste -sd' ' "$STATE/ca-roots.log")" = "status trim" ]
-check_true "roots opted in: a live sudo credential asks for nothing" lacks 'Password for sudo again'
-rm -rf "$DOTFILES/logs"
-run
-check_true "roots opted in, already trimmed: ok line" has '^✔ CA roots +already absent$'
-rm -rf "$DOTFILES/logs"
-rm "$STATE/roots-trimmed"
-touch "$STATE/ca-roots-fails"
-run
-check_true "roots opted in, trim fails: fail line names the command" has '^✖ CA roots +run: ca-roots trim$'
-check_true "roots opted in, trim fails: its output shown" has '^    ca-roots: still in /etc/ssl/cert\.pem: AAA Certificate Services$'
-check_true "roots opted in, trim fails: the notice doesn't suggest opting in" lacks 'set DOTFILES_TRIM_CA_ROOTS'
-rm -rf "$DOTFILES/logs"
-touch "$STATE/sudo-expired"
-run
-check_true "roots opted in, sudo expired: asks again before the trim" has '^› sudo +Password for sudo again, to remove the CA roots$'
-unset DOTFILES_TRIM_CA_ROOTS
-rm -rf "$HOMEBREW_PREFIX" "$STATE/ca-roots-fails" "$STATE/ca-roots.log" "$STATE/roots-trimmed" "$STATE/sudo-expired" "$STATE/sudo.log"
 
 rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
 touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust" "$STATE/no-cargo" "$STATE/rea-fails" "$STATE/prune" "$STATE/prune-fails"

@@ -4,7 +4,6 @@
 #
 # > Reads like a report: one status line per step and a summary at the end. Full tool output goes to `logs/sysup-<timestamp>.log` in the dotfiles repo, and to the screen only when a step changed something or failed.
 # > A macOS update asks for your login password. Run `dotfiles-settings set updates.mac_password_op 'op://vault/item/password'` (a 1Password secret reference) to supply it with a fingerprint instead.
-# > Run `dotfiles-settings set updates.trim_ca_roots on` to let it remove the two compromised eMudhra roots from /etc/ssl/cert.pem, on a Mac that still has Homebrew's own script (`ca-roots restore` puts them back).
 #
 # - Run updates:
 #
@@ -312,35 +311,6 @@ else
       rows <<< "$upgraded"
     else
       status ok packages "up to date"
-    fi
-  fi
-fi
-
-# Opt-in: drop the two roots that trust the compromised eMudhra CAs from
-# /etc/ssl/cert.pem (Apple's curl, python3 and git read it). ca-roots runs
-# Homebrew's own script, so only where Homebrew still is. A macOS update can
-# put the roots back, and trim is a no-op without sudo while they're absent
-if [ -n "${DOTFILES_TRIM_CA_ROOTS:-}" ]; then
-  step "CA roots"
-  if [ ! -f "${HOMEBREW_PREFIX:-/opt/homebrew}/Library/Homebrew/utils/emudhra_certificates.rb" ]; then
-    status notice "CA roots" "ca-roots trim needs Homebrew's script, which is not on this Mac; ca-roots status shows the roots"
-  else
-    # The run's sudo credential may have timed out during the package upgrade;
-    # renew it only when a root is present, since trim needs no sudo otherwise
-    if ! ca-roots status > /dev/null 2>&1 && ! sudo -n -v 2> /dev/null; then
-      status prompt sudo "Password for sudo again, to remove the CA roots"
-      sudo -v
-    fi
-    if ! capture ca-roots trim; then
-      status fail "CA roots" "run: ca-roots trim"
-      show
-    else
-      removed=$(sed -n 's/^Removed: //p' <<< "$out")
-      if [ -n "$removed" ]; then
-        status changed "CA roots" "removed $removed; restore: ca-roots restore"
-      else
-        status ok "CA roots" "already absent"
-      fi
     fi
   fi
 fi

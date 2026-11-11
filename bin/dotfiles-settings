@@ -16,8 +16,8 @@
 #
 # - Change a setting, or go back to what the shell files set:
 #
-# `dotfiles-settings set {{updates.trim_ca_roots}} {{on}}`
-# `dotfiles-settings reset {{updates.trim_ca_roots}}`
+# `dotfiles-settings set {{setup.skip_codegraph}} {{on}}`
+# `dotfiles-settings reset {{setup.skip_codegraph}}`
 #
 # - Read one setting as JSON:
 #

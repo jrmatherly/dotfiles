@@ -49,7 +49,7 @@ ids = [s.id for s in settings]
 assert len(ids) == len(set(ids))                         # unique ids, no total: later plans append
 assert {s.kind for s in settings} <= set(registry.KINDS)
 by_id = {s.id: s for s in settings}
-assert by_id["updates.trim_ca_roots"].true_value == "1"
+assert by_id["macos.hidpi"].true_value == "1"
 assert by_id["apps.vscode_font_preset"].choices == ("iosevka", "warp", "warp-terminal", "fira")
 assert all(s.access == "ro" for s in settings if s.section == "Privacy")
 assert sum(s.section == "Privacy" for s in settings) == 22

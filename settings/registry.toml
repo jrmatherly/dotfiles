@@ -1,17 +1,4 @@
 [[setting]]
-id = "updates.trim_ca_roots"
-section = "Updates"
-label = "Remove the compromised eMudhra roots"
-help = "Lets sysup remove the two roots that trust the compromised eMudhra CAs, where Homebrew's script is present. ca-roots restore puts them back."
-kind = "env"
-key = "DOTFILES_TRIM_CA_ROOTS"
-type = "bool"
-true_value = "1"
-choices = []
-default = ""
-access = "rw"
-
-[[setting]]
 id = "updates.mac_password_op"
 section = "Updates"
 label = "1Password reference for the Mac login password"

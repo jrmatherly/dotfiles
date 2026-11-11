@@ -10,7 +10,6 @@ sysup
 - installs macOS software updates (a macOS update asks for your login password: see [below](#macos-update-password-from-1password-optional)); one that needs a restart, such as a new macOS version, is only downloaded, and the summary tells you to install it from System Settings → General → Software Update → Restart Now or with `sudo softwareupdate -ia --restart`, since a plain restart doesn't install it
 - updates mise itself (`mise self-update`)
 - upgrades the formulae and casks in [`30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml), VS Code included, without asking for confirmation (`mise bootstrap packages upgrade --yes`; the pairs whose installed version moved go to the screen). VS Code updates its own extensions
-- removes the compromised eMudhra roots from `/etc/ssl/cert.pem` if you opted in and Homebrew's script is on this Mac (see [below](#removing-the-compromised-emudhra-roots-optional)); `ca-roots restore` puts them back
 - lists any declared package that is still not installed
 - reports, as one notice, the formulae and casks installed on this Mac that no mise config declares (`mise bootstrap packages prune --dry-run`, and again with `-m brew-cask`). It never removes them; review the list and run `mise bootstrap packages prune` yourself to remove every one
 - runs `mise prune`, which deletes the tool versions the previous run replaced that no project's mise config still uses, and reports how much it freed. The versions this run replaces stay until the next run, so you can go back to one. The prune is skipped, with a notice, while a leftover mise rust install would make it hang
@@ -62,19 +61,3 @@ An update of VS Code replaces the files the SpaceBox UI Enhancer patched, so run
    ```
 
 `sysup` only asks 1Password when a macOS update is actually pending. If `op` is missing or the variable is unset, it asks for the password at its own `Password:` prompt, which hides what you type, and passes it to `softwareupdate` the same way. A password `softwareupdate` rejects fails the macOS step; there is no retry. Update the 1Password item when you change your login password.
-
-## Removing the compromised eMudhra roots (optional)
-
-Keys of eMudhra intermediate CAs were compromised ([Apple](https://support.apple.com/en-us/149555)). Apple's frameworks already block them, but `/etc/ssl/cert.pem`, which Apple's bundled `curl`, `python3`, `git` and `openssl` read, still carries the two roots that trust them, `emSign ECC Root CA - G3` and `AAA Certificate Services`. The `curl` formula verifies through Apple's trust store and the `openssl` and `git` formulae through the `ca-certificates` formula, so they don't read it.
-
-Removing them works only on a Mac that still has Homebrew itself: `ca-roots trim` runs Homebrew's own script (`/opt/homebrew/Library/Homebrew/utils/emudhra_certificates.rb`), which mise does not install. Without it `ca-roots trim` fails with a message, `sysup` prints a notice instead of trimming, and `ca-roots status` still shows whether the roots are there.
-
-To let `sysup` remove the roots, turn the setting on:
-
-```shell
-dotfiles-settings set updates.trim_ca_roots on
-```
-
-`sysup` then runs `ca-roots trim` each run; while a root is present it runs Homebrew's script with `sudo`, otherwise it does nothing. The script keeps a backup in `/etc/ssl/cert.pem.bak` (and the first original in `.orig`). A macOS update can put the roots back, so while the variable is set each `sysup` after one removes them again. `ca-roots status` shows whether they're there.
-
-To undo it, run `ca-roots restore` (it copies the backup back with `sudo`; it does nothing if the roots are already back, and refuses if the bundle is no longer the backup minus the roots, as after a macOS update) and run `dotfiles-settings reset updates.trim_ca_roots` (delete the line from `~/.zsh.local` too if you exported it there). Removing the roots can break HTTPS connections to some websites.
