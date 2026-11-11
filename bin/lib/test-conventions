@@ -14,7 +14,9 @@
 # that the VS Code template pins no mise path, and that git keeps
 # its default file protocol policy and curl its own user agent and no referer,
 # that the tracked Claude Code permissions ask before curl and gh api and
-# deny credential paths, git add -f and VS Code's private state, that no allow
+# deny credential paths, git add -f and VS Code's private state, that they ask before
+# mise bootstrap, dot apply, install, self-update and plugins link, before
+# dotfiles-settings set, reset and apply and before migrate/legacy-to-mise, that no allow
 # rule is also retired, that rtk's hook rewrites no command with a Bash ask rule,
 # that every setup/*.sh is executable, that nothing calls brew, that migrate/
 # is gone after 2027-02-28, that only migrate/ names the old setup method,
@@ -137,6 +139,24 @@ for s in sysup set-defaults; do
   rules .claude/settings.json ask present "Bash($s *)" "Bash(bin/$s*)" "Bash(./bin/$s*)" "Bash(*/bin/$s*)" \
     "Bash(bash bin/$s*)" "Bash(sh bin/$s*)"
 done
+# mise bootstrap and mise dot apply change the machine too: bare, with flags (--yes, --only), every subcommand, and unapply
+rules .claude/settings.json ask present 'Bash(mise bootstrap*)' 'Bash(mise dot *apply*)' 'Bash(mise dotfiles *apply*)'
+# mise install, self-update and plugins link change the machine, as mise bootstrap does
+rules .claude/settings.json ask present 'Bash(mise install*)' 'Bash(mise self-update*)' 'Bash(mise plugins link*)'
+# dotfiles-settings set, reset and apply change settings, for some kinds a
+# tracked file and live preferences: every way to start them asks
+for sub in set reset apply; do
+  s="dotfiles-settings $sub"
+  rules .claude/settings.json ask present "Bash($s *)" "Bash(bin/$s*)" "Bash(./bin/$s*)" "Bash(*/bin/$s*)" \
+    "Bash(bash bin/$s*)" "Bash(sh bin/$s*)"
+done
+# an ask rule wins over an allow rule, so these two would be dead under Bash(mise bootstrap*)
+rules .claude/settings.json allow absent 'Bash(mise bootstrap status *)' 'Bash(mise bootstrap packages status *)'
+# migrate/legacy-to-mise changes the machine, so every way to start it asks (temporary: goes with migrate/)
+if [ -e migrate ]; then
+  rules .claude/settings.json ask present 'Bash(migrate/legacy-to-mise*)' 'Bash(./migrate/legacy-to-mise*)' \
+    'Bash(*/migrate/legacy-to-mise*)' 'Bash(bash migrate/legacy-to-mise*)' 'Bash(sh migrate/legacy-to-mise*)'
+fi
 
 # Hooks and setup.sh run these directly, and a test that runs `bash "$script"` cannot see a missing mode bit.
 # :(glob) keeps * from crossing a slash, so setup/tests/*.sh (run with bash) is not matched.

@@ -57,6 +57,8 @@ The one row in the Dotfiles section, `dotfiles.links`, is the `dotfile` kind and
 | `tui` | Runs the terminal UI | 0 |
 | `serve [--no-open]` | Prints the URL and serves the UI until you stop it | 0 |
 
+In Claude Code, `set`, `reset` and `apply` ask first.
+
 Exit 1 is any other failure: mise missing or older than 2026.11.5, an override file that is not valid TOML, a failed mise call. Every failure prints one `dotfiles-settings: <message>` line to stderr, with no traceback. `--section` matches the section name in any case. The `env` kind has nothing to apply.
 
 A JSON object has these eleven keys:
