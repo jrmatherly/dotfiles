@@ -56,8 +56,8 @@ esac'
 stub brew 'echo "brew $*" >> "$STATE/forbidden.log"; exit 1'
 stub code 'echo "code $*" >> "$STATE/forbidden.log"; exit 1'
 stub gh '[ "$1 $2" = "auth token" ] && echo tok'
-stub mise "$(
-  cat << 'EOF'
+# read, not $(cat << EOF): bash 3.2 cannot parse a case inside a command substitution
+IFS= read -r -d '' mise_stub << 'EOF' || true
 case $1 in
   --version) if [ -e "$STATE/self-updated" ]; then echo "2026.11.6 macos-arm64"; else echo "2026.11.5 macos-arm64"; fi ;;
   self-update) echo "self-update $*" >> "$STATE/mise-calls.log"
@@ -106,7 +106,7 @@ JSON
   *) exit 1 ;;
 esac
 EOF
-)"
+stub mise "$mise_stub"
 stub rustup 'if [ -e "$STATE/rust" ]; then
   echo "  stable-aarch64-apple-darwin updated - rustc 1.99.1 (58cf8f9c3 2026-10-13) (from rustc 1.99.0 (b940084d7 2026-09-28))"
 else echo "  stable-aarch64-apple-darwin unchanged - rustc 1.99.1 (58cf8f9c3 2026-10-13)"; fi'
