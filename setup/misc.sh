@@ -448,12 +448,17 @@ fi
 # `dotnet` formula, which takes over /opt/homebrew/bin/dotnet.) Lands in
 # ~/.dotnet/tools, which tilde/.zprofile puts on PATH.
 # https://learn.microsoft.com/powershell/scripting/install/install-powershell-on-macos
+# Pinned to 7.6: 7.7 is built on .NET 11 and the dotnet-sdk cask is still
+# .NET 10. (7.7.0 also shipped to NuGet on 2026-11-10 without its per-platform
+# packages, so it could not install at all.) Lift the pin once the cask
+# reaches .NET 11.
+POWERSHELL_VERSION='7.6.*'
 if command_exists dotnet; then
   info "💠 Installing PowerShell (.NET global tool)…"
   if dotnet tool list --global | grep -qi '^powershell[[:space:]]'; then
-    dotnet tool update --global PowerShell | indent || warning "PowerShell install failed; re-run: dotnet tool install --global PowerShell"
+    dotnet tool update --global PowerShell --version "$POWERSHELL_VERSION" | indent || warning "PowerShell install failed; re-run: dotnet tool install --global PowerShell --version '$POWERSHELL_VERSION'"
   else
-    dotnet tool install --global PowerShell | indent || warning "PowerShell install failed; re-run: dotnet tool install --global PowerShell"
+    dotnet tool install --global PowerShell --version "$POWERSHELL_VERSION" | indent || warning "PowerShell install failed; re-run: dotnet tool install --global PowerShell --version '$POWERSHELL_VERSION'"
   fi
 else
   echo "dotnet not found — skipping PowerShell (install the dotnet-sdk cask first)" | indent
