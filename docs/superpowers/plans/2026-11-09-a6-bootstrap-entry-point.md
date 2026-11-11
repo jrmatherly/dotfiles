@@ -761,7 +761,7 @@ One line per row:
 | 1 | Pass | The tarball run printed `Command Line Tools missing; run: xcode-select --install, then rerun ./setup.sh` and `exit 1`. |
 | 2 | Pass | `/Users/j/.local/bin/mise`, `2026.11.5`. The first log has `==> Installing mise…` at line 8. |
 | 3 | Pass | `[]` of 143. Five formulae had no bottle and built from source: `sfnt2woff`, `claude-multipass`, `kubestellar-deploy`, `kubestellar-ops`, `radar`. |
-| 4 | Fail, upstream | `["warp"]` of 33. The cask's URL `app.warp.dev/download/brew` answers 404 in all four runs. Both pkg installers passed: `git credential-manager --version` printed 3.0.2, `dotnet --info` 10.0.404, and both receipt families are listed. Whether Warp blocks the gate is the owner's call (drop the cask, or accept the miss as `fresh-install.yml` accepts Royal TSX). |
+| 4 | Fail, accepted | `["warp"]` of 33. The cask's URL `app.warp.dev/download/brew` answers 404 in all four runs. Cause, measured from the host on 2026-11-11: Warp answers 302 only when the User-Agent starts with `Homebrew`, and mise 2026.11.6 always sends `mise/…` with no setting to change it, so this fails on every Mac until mise or the package entry changes. The owner decided the same day that Warp does not block the gate. Both pkg installers passed: `git credential-manager --version` printed 3.0.2, `dotnet --info` 10.0.404, and both receipt families are listed. |
 | 5 | Pass | `true` and `[]` of 184. They installed in the second run. In the first, the run stopped before the extensions step. |
 | 6 | Pass | `~/dotfiles`, `~/.config/mise`, `~/.zshrc`, `~/.gitconfig` and `Code/User` all link into `~/dev/dotfiles`. `mise bootstrap status --missing` lists no `dotfiles` entry: only `brew-cask:warp` and eight `defaults` entries, which setup never applies. |
 | 7 | Pass, half | `UserShell: /opt/homebrew/bin/zsh`. Whether a new Terminal window opens without an error was not recorded. |
@@ -771,7 +771,7 @@ One line per row:
 | 11 | Recorded | Free space on `/` went from 68 GiB to 29 GiB. `/opt/homebrew` 11 G, `~/.local/share/mise` 4.3 G, `~/Library/Caches/mise` 8.9 G, `/Applications` 6.8 G. The `.utm` bundle was 29.99 GB on the host before the install and was not measured after. |
 | 12 | Recorded | 0 of 60 used before. The two install runs and one `mise bootstrap packages status` used all 60, and that status call failed on the limit. After the hourly reset, the third run and a status call used 9, and the upgrade run and a status call used 20 more. So one install does not leave room for a second within the hour (README fixed in `5660255`), and an upgrade run on an installed Mac fits. |
 | 13 | Pass | The third run reports 143 formulae, 32 casks, 184 extensions and 32 tools already installed, system files converged, files and edits applied, the login shell already set. The task repeats its own steps each run (script permissions, the VS Code settings render, the catalog, the bat cache). |
-| 14 | Explained | Warp's 404 (upstream). `No GitHub token` (expected, gh was not signed in). `hdiutil detach is deprecated`, 15 times (mise's cask installer, upstream noise). mise skipped post-install steps it does not implement for `node`, `rustup`, `php`, `llvm@22` and `gnupg` (upstream, no effect seen: `node` and `rustup` both work in the task). `~/.ssh/github_personal.pub not found` and no Firefox profile (expected on a Mac without 1Password set up or Firefox started). A `minimum_release_age` notice for `aspire` (expected). |
+| 14 | Explained | Warp's 404 (its download URL wants Homebrew's User-Agent, row 4). `No GitHub token` (expected, gh was not signed in). `hdiutil detach is deprecated`, 15 times (mise's cask installer, upstream noise). mise skipped post-install steps it does not implement for `node`, `rustup`, `php`, `llvm@22` and `gnupg` (upstream, no effect seen: `node` and `rustup` both work in the task). `~/.ssh/github_personal.pub not found` and no Firefox profile (expected on a Mac without 1Password set up or Firefox started). A `minimum_release_age` notice for `aspire` (expected). |
 | 15 | Pass | `defaults read com.apple.dock autohide` fails with `Could not find key` before and after. |
 
 Found by the proof and fixed, beyond the two commits above:
@@ -783,7 +783,7 @@ Found by the proof and fixed, beyond the two commits above:
 Still open before Step 7 closes the phase:
 
 1. One `./setup.sh` run in a fresh disposable VM on `f32a3c7` or later, with rows 2 to 8, 10 and 13 read again. Open a new Terminal window for row 7, and open the four apps for row 9.
-2. The owner's decision on Warp (row 4).
+2. A Warp install route that works under mise (row 4). It does not block the gate.
 3. `du -sh` of the `.utm` bundle on the host after an install (row 11).
 
 ## Part B hook: what the `setup` step needs
