@@ -611,9 +611,7 @@ Way back: HOMEBREW_NO_ANALYTICS=1 brew install --cask <token>.
 EOF
     if ! command -v brew > /dev/null; then
       info "brew is not installed, so these cannot be moved by this script. To move one by hand, delete the app and $PREFIX/Caskroom/<token>, then run the apply command."
-      return 0
-    fi
-    if ! online; then
+    elif ! online; then
       info "No network: not reinstalling anything."
     else
       # sort -s: the casks that do not update themselves first, each table in status order
@@ -633,6 +631,181 @@ EOF
     fi
   fi
   clean_staging_leftovers
+  offer_homebrew_removal
+}
+
+DROPPED="$HOME/.dotfiles-migration-backup/dropped.txt"
+# The links Homebrew's uninstall.sh calls homebrew_prefix_markers
+HOMEBREW_MARKERS=(etc/bash_completion.d/brew share/doc/homebrew share/man/man1/brew.1 share/zsh/site-functions/_brew share/fish/vendor_completions.d/brew.fish)
+
+# brew:<name> or brew-cask:<token> for each line of the drop file, its tap removed. The script never writes the file
+dropped_packages() {
+  [ -f "$DROPPED" ] || return 0
+  sed -E '/^[[:space:]]*(#|$)/d; s/[[:space:]]+$//; s#^(brew(-cask)?):(.*/)?#\1:#' "$DROPPED"
+}
+
+# "<manager> <package> <state> <managed_by>" per package, from a fresh status read
+packages_fingerprint() {
+  local s
+  s=$(mise bootstrap packages status --json) || return
+  /usr/bin/jq -r 'to_entries[] | select(.key == "brew" or .key == "brew-cask") | .key as $m
+    | .value.packages[]? | "\($m) \(.package) \(.state) \(.managed_by // "-")"' <<< "$s" | sort
+}
+
+# One line per package Homebrew still owns. 0: none, 1: some, 2: mise cannot say who manages what
+homebrew_leftovers() {
+  local s d name casks formulae dropped lines
+  s=$(mise bootstrap packages status --json 2> /dev/null) || return 2
+  /usr/bin/jq -e '.brew.available != false and ."brew-cask".available != false' <<< "$s" > /dev/null || return 2
+  casks=$(/usr/bin/jq -r '."brew-cask".packages[]?.package | split("/") | last' <<< "$s")
+  formulae=$(/usr/bin/jq -r '.brew.packages[]?.package | split("/") | last' <<< "$s")
+  dropped=$(dropped_packages)
+  lines=$({
+    /usr/bin/jq -r '."brew-cask".packages[]? | select(.managed_by == "homebrew") | .package
+      | "  brew-cask:\(.): still Homebrew'\''s. Move it: HOMEBREW_NO_ANALYTICS=1 brew uninstall --cask \(.) && mise bootstrap packages apply --yes brew-cask:\(.)"' <<< "$s"
+    for d in "$PREFIX"/Caskroom/*/; do
+      [ -d "$d" ] || continue
+      name=$(basename "$d")
+      grep -qxF "$name" <<< "$casks" || grep -qxF "brew-cask:$name" <<< "$dropped" || echo "  brew-cask:$name: installed by Homebrew, declared nowhere"
+    done
+    # mise and the MOVED_TO_TOOLS are not counted, nor dependencies: mise installs those of a declared formula itself
+    for d in "$PREFIX"/Cellar/*/; do
+      [ -d "$d" ] || continue
+      name=$(basename "$d")
+      if [ "$name" = mise ] || [[ " ${MOVED_TO_TOOLS[*]} " == *" $name "* ]] \
+        || grep -qxF "$name" <<< "$formulae" || grep -qxF "brew:$name" <<< "$dropped"; then continue; fi
+      if cat "$d"*/INSTALL_RECEIPT.json 2> /dev/null | /usr/bin/jq -es 'any(.installed_on_request == true)' > /dev/null; then
+        echo "  brew:$name: installed by hand, declared nowhere"
+      fi
+    done
+  } | sort)
+  [ -n "$lines" ] || return 0
+  printf '%s\n' "$lines"
+  return 1
+}
+
+# What moving the Homebrew program takes, each path that exists
+homebrew_program() {
+  local name
+  {
+    git -C "$PREFIX" ls-tree --name-only HEAD | while IFS= read -r name; do [ "$name" = bin ] || echo "$PREFIX/$name"; done
+    printf '%s\n' "$PREFIX/bin/brew" "$PREFIX/.git" "${HOMEBREW_MARKERS[@]/#/$PREFIX/}" "$HOME/Library/Caches/Homebrew" "$HOME/Library/Logs/Homebrew"
+  } | while IFS= read -r name; do
+    if [ -e "$name" ] || [ -L "$name" ]; then echo "$name"; fi
+  done
+}
+
+# Not Homebrew's uninstall.sh: it deletes Cellar and Caskroom, where mise's packages live. 1: had to put it back
+offer_homebrew_removal() {
+  local ok=true rc=0 before after leftovers unknown paths p f dropped shell_lines moved=() i
+  passed() { [ "$DRY_RUN" = false ] || info "  ok: $1"; }
+  info "Homebrew program:"
+  if [ ! -e "$PREFIX/bin/brew" ] || [ ! -d "$PREFIX/.git" ]; then
+    info "Homebrew is not installed here in the layout this script knows."
+    return 0
+  fi
+  passed "Homebrew is installed at $PREFIX"
+  case $MISE in
+    "$PREFIX"/*)
+      info "mise is still Homebrew's. Move it first: answer yes at the start of this step."
+      ok=false
+      ;;
+    *) passed "mise is not Homebrew's ($MISE)" ;;
+  esac
+  [ "$ok" = true ] || [ "$DRY_RUN" = true ] || return 0
+  # 5 and 6 read the same status, so a failed read stops the dry run too
+  if ! before=$(packages_fingerprint); then
+    info "mise cannot read the package status. Fix that first: mise bootstrap packages status"
+    return 0
+  fi
+  passed "mise reads the package status"
+  leftovers=$(homebrew_leftovers) || rc=$?
+  if [ "$rc" = 2 ]; then
+    info "mise cannot read the package status. Fix that first: mise bootstrap packages status"
+    return 0
+  elif [ "$rc" = 1 ]; then
+    cat << EOF
+Homebrew stays installed: it still owns these packages.
+$leftovers
+Declare one: run this step again and answer yes to "Keep" or "Declare", or add it to conf.d/30-packages.toml.
+Remove one while brew exists: HOMEBREW_NO_ANALYTICS=1 brew uninstall [--cask] <name>
+Drop one on purpose (it stays installed, and nothing updates or removes it once brew is gone):
+  mkdir -p ~/.dotfiles-migration-backup && echo 'brew-cask:<token>' >> ~/.dotfiles-migration-backup/dropped.txt
+EOF
+    ok=false
+  else
+    passed "nothing Homebrew installed is left outside mise's package state"
+  fi
+  [ "$ok" = true ] || [ "$DRY_RUN" = true ] || return 0
+  unknown=$(awk '$1 == "brew-cask" && $4 == "unknown" { printf "%s ", $2 }' <<< "$before")
+  if [ -n "$unknown" ]; then
+    info "mise cannot tell who manages these casks: ${unknown% }. Fix that first: mise bootstrap packages status"
+    ok=false
+  else
+    passed "mise knows who manages every cask"
+  fi
+  [ "$ok" = true ] || [ "$DRY_RUN" = true ] || return 0
+  # One volume, so each move is a rename
+  if [ "$(df -P "$PREFIX" "$HOME" | awk 'NR > 1 { print $1 }' | sort -u | wc -l | tr -d ' ')" != 1 ]; then
+    info "The backup folder is on another volume."
+    ok=false
+  else
+    passed "the backup folder is on the same volume as $PREFIX"
+  fi
+  # Read before the first move: the list comes from the Git checkout that moves
+  paths=$(homebrew_program)
+  if [ "$DRY_RUN" = true ]; then
+    info "Would move to the backup folder:"
+    sed 's/^/  /' <<< "$paths"
+    return 0
+  fi
+  [ "$ok" = true ] || return 0
+
+  # if, not case: bash 3.2 cannot parse a case pattern inside $( )
+  dropped=$(dropped_packages | while IFS= read -r p; do
+    f="$PREFIX/Caskroom/${p#brew-cask:}"
+    [[ $p != brew:* ]] || f="$PREFIX/Cellar/${p#brew:}"
+    if [ -d "$f" ]; then echo "  $p"; fi
+  done)
+  shell_lines=$(for f in "$HOME/.zsh.local" "$HOME/.zprofile" "$HOME/.zshrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+    if [ -f "$f" ] && ! old_style "$f"; then
+      { grep -nE 'brew shellenv|HOMEBREW_' "$f" || true; } | cut -d: -f1 | while read -r i; do echo "  $(tildify "$f"):$i"; done
+    fi
+  done)
+  cat << EOF
+Homebrew's own uninstaller is not used: it deletes Cellar and Caskroom, where mise's packages live.
+This moves only the Homebrew program (brew, Library with its taps, the Git checkout) into the backup folder.
+It leaves Cellar, Caskroom, opt, bin, sbin, etc, include, lib, share, Frameworks, var/homebrew and /etc/paths.d/homebrew.
+Every formula and cask Homebrew installed is now declared in mise's config or dropped by you.
+Dropped in ~/.dotfiles-migration-backup/dropped.txt (they stay installed; without brew, removing one means deleting it by hand):
+${dropped:-  none}
+"ca-roots trim" (the opt-in DOTFILES_TRIM_CA_ROOTS step in sysup) runs a script inside Library and stops working.
+Lines in your own files that call "brew shellenv" or set HOMEBREW_ variables (not edited):
+${shell_lines:-  none}
+Type "remove homebrew" to continue. Anything else leaves Homebrew installed.
+EOF
+  if ! ask_typed "remove homebrew" "Move the Homebrew program aside?"; then
+    info "Homebrew stays installed."
+    return 0
+  fi
+  while IFS= read -r p; do
+    backup_move "$p"
+    moved+=("$p")
+    CHANGED=$((CHANGED + 1))
+  done <<< "$paths"
+  hash -r
+  rc=0
+  after=$(packages_fingerprint) || rc=$?
+  if [ "$rc" = 0 ] && [ "$after" = "$before" ]; then
+    info "Homebrew program moved to $BACKUP_DIR. Put it back with the mv lines in RESTORE.txt."
+    return 0
+  fi
+  for ((i = ${#moved[@]} - 1; i >= 0; i--)); do
+    mv "$BACKUP_DIR/files${moved[i]}" "${moved[i]}"
+  done
+  info "mise reads the packages differently without Homebrew, so it was put back."
+  diff <(echo "$before") <(echo "$after") | grep '^[<>]' || true
+  return 1
 }
 DOT_STATUS=
 

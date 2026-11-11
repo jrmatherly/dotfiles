@@ -53,7 +53,14 @@ case "$*" in
   --version) echo "${FAKE_MISE_VERSION:-2026.11.5} macos-arm64 (2026-11-08)" ;;
   "bootstrap packages status --json")
     [ ! -e "$STATE/status-fails" ] || exit 1
-    cat "$STATE/status.json"
+    # status-fails-later fails every read after the first; created once, so its mtime never shows in a snapshot
+    if [ -e "$STATE/status-read" ] && [ -e "$STATE/status-fails-later" ]; then exit 1; fi
+    [ -e "$STATE/status-read" ] || : > "$STATE/status-read"
+    if [ -e "$STATE/differs-without-brew" ] && [ ! -e "$HOMEBREW_PREFIX/bin/brew" ]; then
+      jq ".\"brew-cask\".packages[] |= (if .managed_by == \"mise\" then .managed_by = \"unknown\" else . end)" "$STATE/status.json"
+    else
+      cat "$STATE/status.json"
+    fi
     ;;
   "bootstrap packages prune --manager brew --dry-run") [ -e "$STATE/prune-empty" ] || printf "remove brew:abseil@1\nremove brew:ack@3\n" ;;
   reshim) ;; # as the real one: without --force an existing shim keeps its link
@@ -224,6 +231,7 @@ echo Ghostty.app > "$STATE/apps/ghostty"
 echo UTM.app > "$STATE/apps/utm"
 echo Freelens.app > "$STATE/apps/freelens"
 echo '{"macos_defaults":{"available":true,"entries":[]}}' > "$STATE/defaults.json"
+: > "$STATE/status-read"
 # The dotfiles fixture: every source goes through ~/dotfiles, as on a real Mac
 ln -s "$REPO_COPY" "$HOME/dotfiles"
 mkdir -p "$REPO_COPY/tilde/.claude/rules" "$REPO_COPY/tilde/.claude/skills" "$REPO_COPY/tilde/.codex" "$REPO_COPY/mole" "$REPO_COPY/firefox/chrome" "$HOME/.claude"
@@ -687,6 +695,85 @@ staging_leftovers() {
   [ -d "$HOMEBREW_PREFIX/Cellar/jq/1.8.2" ] || fail "removed a Cellar folder that holds a keg"
   ls -d "$HOME"/.dotfiles-migration-backup/*/files"$HOMEBREW_PREFIX"/Cellar/hello > /dev/null || fail "leftover not backed up"
 }
+# The Homebrew program as git tracks it, and the packages mise left around it
+homebrew_prefix() {
+  local p=$HOMEBREW_PREFIX
+  mkdir -p "$p/bin" "$p/Library/Homebrew" "$p/Library/Taps/a/b" "$p/Cellar/jq/1.8.2/bin" "$p/Caskroom/ghostty/1.4.0" "$p/var/homebrew/linked"
+  cp "$tmp/bin/brew" "$p/bin/brew"
+  touch "$p/Library/Homebrew/x" "$p/Library/Taps/a/b/x" "$p/README.md"
+  git -C "$p" init -q
+  git -C "$p" add bin/brew Library README.md
+  git -C "$p" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm init
+  touch "$p/Cellar/jq/1.8.2/bin/jq" "$p/Caskroom/ghostty/1.4.0/x" "$p/var/homebrew/linked/jq" "$p/bin/jq"
+}
+homebrew_owns_nothing() { # every cask reinstalled or adopted through mise
+  jq '."brew-cask".packages |= map(.state = "installed" | .managed_by = "mise")' "$STATE/status.json" > "$STATE/s" && mv "$STATE/s" "$STATE/status.json"
+}
+homebrew_removal_refuses_while_homebrew_owns_packages() {
+  mkdir -p "$HOMEBREW_PREFIX/Cellar/ack/3" "$HOMEBREW_PREFIX/Cellar/abseil/1" "$HOMEBREW_PREFIX/Caskroom/signal/8"
+  echo '{"installed_on_request":true,"source":{"tap":"homebrew/core"}}' > "$HOMEBREW_PREFIX/Cellar/ack/3/INSTALL_RECEIPT.json"
+  echo '{"installed_on_request":false,"source":{"tap":"homebrew/core"}}' > "$HOMEBREW_PREFIX/Cellar/abseil/1/INSTALL_RECEIPT.json"
+  out=$(yes 'remove homebrew' | "$script" --step packages 2>&1) || fail "exit $?: $out"
+  check_out "names a cask Homebrew still manages" "^  brew-cask:ghostty: still Homebrew's\. Move it: HOMEBREW_NO_ANALYTICS=1 brew uninstall --cask ghostty && mise bootstrap packages apply --yes brew-cask:ghostty$"
+  check_out "names an undeclared cask" '^  brew-cask:signal: installed by Homebrew, declared nowhere$'
+  check_out "names a formula installed by hand" '^  brew:ack: installed by hand, declared nowhere$'
+  ! grep -q 'brew:abseil' <<< "$out" || fail "blocked on a dependency"
+  ! grep -q 'brew:jq' <<< "$out" || fail "blocked on a keg with no receipt"
+  ! grep -q 'Type "remove homebrew"' <<< "$out" || fail "offered the typed phrase while Homebrew still owns packages"
+  [ -x "$HOMEBREW_PREFIX/bin/brew" ] && [ -d "$HOMEBREW_PREFIX/Library" ] && [ -d "$HOMEBREW_PREFIX/.git" ] || fail "removed Homebrew while it still owns packages"
+  # a drop excuses an undeclared package, never a cask Homebrew still manages
+  mkdir -p "$HOME/.dotfiles-migration-backup"
+  printf '# dropped by hand\nbrew:ack\nbrew-cask:signal\nbrew-cask:ghostty\n' > "$HOME/.dotfiles-migration-backup/dropped.txt"
+  out=$(yes 'remove homebrew' | "$script" --step packages 2>&1) || fail "exit $?: $out"
+  ! grep -qE '^  brew:ack|^  brew-cask:signal' <<< "$out" || fail "listed a dropped package"
+  check_out "a drop does not excuse a cask still Homebrew's" "^  brew-cask:ghostty: still Homebrew's"
+  [ -x "$HOMEBREW_PREFIX/bin/brew" ] || fail "removed Homebrew while a cask is still Homebrew's"
+  homebrew_owns_nothing
+  out=$("$script" --step packages --dry-run 2>&1) || fail "dry run: exit $?"
+  ! grep -qE '^  brew(-cask)?:' <<< "$out" || fail "still blocks once every cask is mise's and the rest are dropped: $out"
+  rm -rf "$HOMEBREW_PREFIX/Cellar/ack" "$HOMEBREW_PREFIX/Cellar/abseil" "$HOMEBREW_PREFIX/Caskroom/signal" "$HOME/.dotfiles-migration-backup"
+}
+homebrew_removal_is_off_by_default() {
+  before=$(snapshot)
+  out=$(yes | "$script" --step packages 2>&1) || fail "exit $?" # "y" is not the typed phrase
+  [ -x "$HOMEBREW_PREFIX/bin/brew" ] && [ -d "$HOMEBREW_PREFIX/Library" ] || fail "y removed Homebrew"
+  out=$("$script" --step packages < /dev/null 2>&1) || fail "exit $?"
+  [ -x "$HOMEBREW_PREFIX/bin/brew" ] || fail "closed stdin removed Homebrew"
+  [ "$(snapshot)" = "$before" ] || fail "a declined removal changed something"
+  check_out "explains why the uninstaller is not used" "uninstaller is not used: it deletes Cellar and Caskroom"
+}
+homebrew_removal_refuses_when_status_fails() {
+  touch "$STATE/status-fails-later"
+  rm -f "$STATE/status-read"
+  out=$(yes 'remove homebrew' | "$script" --step packages 2>&1) || fail "exit $?"
+  check_out "reason" '^mise cannot read the package status'
+  [ -x "$HOMEBREW_PREFIX/bin/brew" ] || fail "removed Homebrew although mise could not read the status"
+  rm "$STATE/status-fails-later"
+}
+homebrew_removal_refuses_while_mise_is_homebrews() {
+  cp "$tmp/bin/mise" "$HOMEBREW_PREFIX/bin/mise"
+  out=$(yes n | PATH="$HOMEBREW_PREFIX/bin:$PATH" "$script" --step packages 2>&1) || fail "exit $?" # n declines the mise move too
+  check_out "reason" "^mise is still Homebrew's\. Move it first"
+  [ -x "$HOMEBREW_PREFIX/bin/brew" ] || fail "removed Homebrew from under its own mise"
+  rm "$HOMEBREW_PREFIX/bin/mise"
+}
+homebrew_removal_moves_only_the_program() {
+  out=$(yes 'remove homebrew' | "$script" --step packages 2>&1) || fail "exit $?: $out"
+  for gone in bin/brew Library .git README.md; do [ ! -e "$HOMEBREW_PREFIX/$gone" ] || fail "$gone still there"; done
+  for kept in Cellar/jq/1.8.2/bin/jq Caskroom/ghostty/1.4.0/x var/homebrew/linked/jq bin/jq; do [ -e "$HOMEBREW_PREFIX/$kept" ] || fail "$kept was removed"; done
+  bak=$(echo "$HOME"/.dotfiles-migration-backup/*/files"$HOMEBREW_PREFIX")
+  [ -x "$bak/bin/brew" ] && [ -e "$bak/Library/Taps/a/b/x" ] && [ -d "$bak/.git" ] || fail "program not in the backup"
+  # the restore file puts it back
+  sh "${bak%/files*}/RESTORE.txt"
+  [ -x "$HOMEBREW_PREFIX/bin/brew" ] && [ -d "$HOMEBREW_PREFIX/.git" ] || fail "RESTORE.txt did not restore Homebrew"
+}
+homebrew_removal_restores_itself_when_mise_reads_differently() {
+  touch "$STATE/differs-without-brew"
+  out=$(yes 'remove homebrew' | "$script" --step packages 2>&1) && fail "want exit 1" || [ $? = 1 ] || fail "want exit 1"
+  [ -x "$HOMEBREW_PREFIX/bin/brew" ] && [ -d "$HOMEBREW_PREFIX/Library" ] || fail "did not put Homebrew back"
+  check_out "says so" 'so it was put back'
+  rm "$STATE/differs-without-brew"
+}
 dotfiles_backs_up_then_applies() {
   phase dotfiles
   rm -rf "$HOME/.dotfiles-migration-backup"  # the packages cases left theirs, and $bak below must be one folder
@@ -958,6 +1045,14 @@ half_way_cask
 packages_dry_run_changes_nothing
 packages_without_brew_only_lists
 staging_leftovers
+homebrew_prefix
+# the refusal first: it ends by handing every cask to mise, so the cases after it start from a Mac where Homebrew owns nothing
+homebrew_removal_refuses_while_homebrew_owns_packages
+homebrew_removal_is_off_by_default
+homebrew_removal_refuses_when_status_fails
+homebrew_removal_refuses_while_mise_is_homebrews
+homebrew_removal_moves_only_the_program
+homebrew_removal_restores_itself_when_mise_reads_differently
 dotfiles_backs_up_then_applies
 dotfiles_second_run_changes_nothing
 dotfiles_needs_the_dotfiles_link
