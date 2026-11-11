@@ -687,6 +687,15 @@ Spec decision 12 (c). A hosted runner is not a clean Mac: Xcode and other tools 
 - Touch ID. A guest has no sensor. `sudo_local` makes `pam_tid.so` `sufficient`, so sudo should fall back to the password. Checklist item 8 records what happens.
 - Whether the disk image is allocated sparsely. Check: `du -sh` of the VM's `.utm` bundle on the host right after creating it.
 
+**Settled on 2026-11-10 while the owner built the base VM (owner's readings, pasted in chat).**
+
+- UTM's wizard downloaded macOS 27.2.1, build 26B131 (`sw_vers` in the guest). The host is 27.2.1 too.
+- "Run without saving changes" is in the stopped VM's action menu on UTM 5.0.8 (screenshot), so the clone fallback is not needed.
+- Setup Assistant lets you skip Apple ID sign-in.
+- `xcode-select -p; echo $?` in the fresh guest prints `Unable to get active developer directory` and `2`.
+- A disk made at 64 GB and resized to 96 GB in UTM's settings does not grow in the guest: `diskutil list` shows `Apple_APFS_Recovery` (`disk1s3`) between the main container (`disk1s2`, 62.8 GB) and the free space, and APFS only grows into adjacent space. The guest's disk is `disk1`, not `disk0`. Make the disk 100 GB in the wizard. A fresh guest uses about 28 GB of the container.
+- Still open: whether the disk image is sparse (`du -sh` of the `.utm` bundle on the host).
+
 - [ ] **Step 1: Get the owner's go-ahead in chat.** Name the disk space (up to the image size below), the time (expect one to two hours) and that nothing on the host changes except UTM's VM folder and one shared folder.
 
 - [ ] **Step 2: Make the base VM (once, kept).** UTM, Create a New Virtual Machine, Virtualize, macOS 12+, let UTM download the IPSW. 4 cores, 8 GB of memory, a 100 GB disk (about 32 GB of packages plus macOS, inside the 140 GiB free). In Setup Assistant: a local admin account, no Apple ID, no migration. Do not install the Command Line Tools, Xcode or Homebrew. In the guest Terminal record `sw_vers` and `xcode-select -p; echo $?` (expected: a non-zero exit, no developer directory). In the VM's settings, share one empty host folder, for example `~/vm-proof`. Shut down. This base is the clean Mac, so it never runs setup outside disposable mode.
