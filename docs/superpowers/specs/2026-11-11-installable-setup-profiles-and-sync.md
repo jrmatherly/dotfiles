@@ -139,6 +139,8 @@ Decision for now: stay on mise alone. Two tools owning the same files is the thi
 
 Measured on this Mac on 2026-11-11: `mise --version` prints 2026.11.5, and `mise dot --help` lists `origin`, `sync`, `pull`, `track`, `conflicts` and `exclude`.
 
+Also measured that day: with `HOME` and every `MISE_*_DIR` pointed at a scratch folder, `mise config ls` run from inside this repository still listed the real `~/.config/mise/conf.d/*.toml`, because mise reads config from every parent of the current directory. Run from the scratch home it listed nothing. Two consequences. The probe harness runs every mise command from the scratch home and checks this before anything else. And the install and update commands in P1 must say which directory they run from, as `setup.sh` and `bin/dotfiles-settings` already do by changing to `$HOME`.
+
 ## Plans
 
 - `docs/superpowers/plans/2026-11-11-p0-probes-and-model-default.md`: the probes in a scratch home, and the `claude-config save` model rule. Its results fill in this spec and decide the open points.
