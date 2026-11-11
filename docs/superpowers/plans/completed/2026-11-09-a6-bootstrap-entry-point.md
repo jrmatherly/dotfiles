@@ -741,9 +741,9 @@ Expected before the commit: only the rename is staged, and ` M agents/claude-set
 
 #### Results
 
-Interim, 2026-11-10 and 2026-11-11. Host macOS 27.2.1, UTM 5.0.8. Guest macOS 27.2.1 (26B131), 4 cores, 100 GB disk, started with "Run without saving changes". Evidence is in the host's `~/vm-proof/`: four setup logs, `evidence.txt` (after the upgrade run), `evidence-rerun.txt` (after the third run) and the three `*-before` files. The owner ran every step.
+2026-11-10 and 2026-11-11, in the order the runs happened; the gate's verdict is at the end. Host macOS 27.2.1, UTM 5.0.8. Guest macOS 27.2.1 (26B131), 4 cores, 100 GB disk, started with "Run without saving changes". Evidence is in the host's `~/vm-proof/`: four setup logs, `evidence.txt` (after the upgrade run), `evidence-rerun.txt` (after the third run) and the three `*-before` files. The owner ran every step.
 
-**The gate is not passed yet.** The install took two runs, because the first stopped at a tool and two fixes landed in between. Rows 2 to 8 and 10 were read after the second run, on a machine the first run had half built. A single run from a fresh disposable start, on `f32a3c7` or later, is still owed. The README sentence and the plan move wait for it.
+**First four runs: the gate was not passed.** The install took two runs, because the first stopped at a tool and two fixes landed in between. Rows 2 to 8 and 10 were read after the second run, on a machine the first run had half built. A single run from a fresh disposable start was still owed at that point.
 
 The four runs:
 
@@ -789,11 +789,11 @@ Found in that run, each fixed the same day and unproven until the next fresh run
 - VS Code reported "Failed to find mirrord binary": the extension downloads it only after a version check that telemetry-off disables. `mirrord` is now a mise tool.
 - Recorded only: first-launch prompts (Terminal "administer your computer", the Aspire certificate trust password, Ghostty's Accessibility request and update banner, VS Code's sign-in sheet, 1Password and OrbStack welcome screens and notification requests), and Starship's icons showing as `?` boxes in Terminal.app, whose default font has no Nerd Font glyphs.
 
-Still open before Step 7 closes the phase:
+**Proving run, 2026-11-11 (`20261111-072237.log`, `evidence-retest.txt`, on `04ca537`).** A second fresh disposable VM, one `./setup.sh`, `All done`: nothing missing among 143 formulae, 33 casks and 184 extensions, no tool missing, the credential move ran. All three fixes hold. The identity prompt echoed the name and email and took Return (the log has them on separate lines). mise installed `mirrord` 3.285.0 and VS Code reported "Using mirrord binary found in path". After VS Code had been opened, the second run (`20261111-075535.log`) printed `rendered settings.json` with no warning.
 
-1. One more fresh run to prove the three fixes above: the identity prompt takes typed input with Return, the second run renders VS Code settings without a warning, and VS Code finds mirrord. The install itself passed in one run.
-2. Warp installing in that run (row 4). `[settings.url_replacements]` in `tilde/.config/mise/config.toml` now sends the cask's URL to `releases.warp.dev`; with the rule pulled, a rerun on the already-installed VM installed the cask and ended `All done` (`20261111-041409.log`; the run before the pull, `20261111-041100.log`, still failed with the 404). It does not block the gate.
-3. `du -sh` of the `.utm` bundle on the host after an install (row 11).
+That second run ended with one problem, `some casks`, exit 2: `github rate limit: 0/60`, a 403 while mise resolved `jrmatherly/homebrew-tap`. It is the anonymous limit the README describes, not a setup defect: formulae and extensions were "already installed" and `gh` was not signed in. One reading is unexplained: 48 of 60 calls were used after the first run and the evidence script, against 21 at the same point in the earlier fresh run.
+
+**Gate: passed (owner's decision, 2026-11-11).** Rows 2 to 8, 10, 13 and 15 passed on a fresh single run, twice in one day, and row 13's clean second run is the earlier one (`20261111-061723.log`). Row 4 passes with the Warp rewrite rule. Rows 9, 11, 12 and 14 are recorded above. Host macOS 27.2.1, guest 27.2.1 (26B131), UTM 5.0.8.
 
 ## Part B hook: what the `setup` step needs
 
