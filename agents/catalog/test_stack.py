@@ -1,6 +1,7 @@
 """Checks claude-stack's evidence, decisions, writes and rule. Run: python3 test_stack.py"""
-import atexit, json, os, shutil, subprocess, tempfile
+import atexit, contextlib, io, json, os, shutil, subprocess, tempfile
 from collections import Counter
+from datetime import date
 from pathlib import Path
 
 # Before the import: stack.py's own git calls inherit these, so results match on this Mac and on CI
@@ -448,5 +449,18 @@ work = tmp / "sep-work"
 (tmp / "sep-store").mkdir()
 git(tmp, "init", "-q", f"--separate-git-dir={tmp / 'sep-store/.git'}", str(work))
 assert s.project_root(work) == work.resolve(), s.project_root(work)
+
+# status reads only the manifest
+def out(fn):
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        fn()
+    return buf.getvalue()
+
+
+r = stack_repo()
+assert out(lambda: s.main(["status", str(r)])) == "none\n"
+apply(r, keep=["cloudflare@m"])
+assert out(lambda: s.main(["status", str(r)])) == f"applied: 1 off, {date.today()}\n"
 
 print("ok")

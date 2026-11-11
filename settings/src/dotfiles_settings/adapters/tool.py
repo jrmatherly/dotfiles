@@ -2,6 +2,7 @@
 import json, os, re, shutil, subprocess, tempfile, urllib.request
 from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 
 from ..model import InvalidValue, Setting, SettingsError, Source, Value
 
@@ -237,10 +238,41 @@ def _reset_jstack(role: str, s: Setting) -> None:
     _edit_jstack(role, None)
 
 
+class StackRow(NamedTuple):
+    state: str
+    key: str
+    why: str
+
+
+SCAN_ROW = re.compile(r"(keep|off) (\S+)  (.*)")
+
+
+def _read_stack(name: str, s: Setting) -> Value:
+    # The launch directory, not $HOME as mise.run_mise uses: the stack belongs to the project the UI started in
+    try:
+        r = run(["claude-stack", "status"], cwd=Path.cwd())
+    except (OSError, SettingsError):
+        return Value(s.id, None, Source.UNSET, None, False)
+    if r.returncode != 0:
+        return Value(s.id, None, Source.UNSET, None, False)
+    return Value(s.id, r.stdout.strip(), Source.DEFAULT, None, False)
+
+
+def stack_scan(cwd: Path) -> list[StackRow]:
+    out = _check(run(["claude-stack", "scan"], cwd=cwd))
+    return [StackRow(*m.groups()) for m in map(SCAN_ROW.fullmatch, out.splitlines()) if m]
+
+
+def stack_apply(cwd: Path, keep: list[str], off: list[str]) -> str:
+    argv = ["claude-stack", "apply", *(a for k in keep for a in ("--keep", k)), *(a for k in off for a in ("--off", k))]
+    return _check(run(argv, cwd=cwd)).strip()
+
+
 TOOLS: dict[str, tuple[Reader, Writer | None, Resetter | None]] = {
     "hindsight": (_read_hindsight, _write_hindsight, None),
     "claude": (_read_claude, _write_claude, _reset_claude),
     "jstack": (_read_jstack, _write_jstack, _reset_jstack),
+    "stack": (_read_stack, None, None),
 }
 
 
@@ -254,6 +286,11 @@ def _tool(s: Setting) -> tuple[str, tuple[Reader, Writer | None, Resetter | None
 class ToolAdapter:
     def write_note(self, s: Setting) -> str:
         return JSTACK_NOTE if s.key.startswith("jstack:") else ""
+
+    def watch_paths(self) -> list[Path]:
+        seed = claude_seed_path()
+        return [claude_dir() / "settings.json", *([seed] if seed else []), hindsight_config(), jstack_path(),
+                Path.cwd() / ".claude/skill-stack.json"]
 
     def read(self, s: Setting) -> Value:
         name, (reader, _, _) = _tool(s)

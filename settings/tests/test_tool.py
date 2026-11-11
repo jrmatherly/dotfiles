@@ -289,6 +289,54 @@ def test_write_note_only_for_jstack_roles():
         assert A.write_note(by_id(other)) == ""
 
 
+SCAN = ("keep a@m  path: x.py\noff b@m  no signal\n"
+        "estimated saving: 1,000 tokens (catalog figures, which run high)\n"
+        "history: 3 plugin tool calls in this repo's sessions\napplied: current\n")
+
+
+def test_stack_status_reads_the_fast_command():
+    calls = stub_run(stdout="applied: 21 off, 2026-11-03\n")
+    v = A.read(by_id("stack.status"))
+    assert (v.value, v.source) == ("applied: 21 off, 2026-11-03", Source.DEFAULT)
+    assert calls == [["claude-stack", "status"]]
+
+
+def test_stack_status_runs_in_the_launch_directory():
+    seen = []
+    tool.run = lambda argv, cwd=None: seen.append(cwd) or subprocess.CompletedProcess(argv, 0, "none\n", "")
+    here = Path.cwd(); os.chdir(tmp)
+    try:
+        A.read(by_id("stack.status"))
+    finally:
+        os.chdir(here)
+    assert seen == [tmp.resolve()] and tmp.resolve() != Path.home()
+
+
+def test_watch_paths_name_the_files_the_settings_read():
+    here = Path.cwd(); os.chdir(tmp)
+    try:
+        paths = A.watch_paths()
+    finally:
+        os.chdir(here)
+    assert set(paths) == {live, tracked_settings, cfg, rule, tmp.resolve() / ".claude/skill-stack.json"}
+
+
+def test_stack_status_failure_is_unset():
+    stub_run(returncode=2, stderr="claude-stack: needs mise for its Python\n")
+    v = A.read(by_id("stack.status"))
+    assert (v.value, v.source) == (None, Source.UNSET)
+
+
+def test_stack_scan_and_apply():
+    stub_run(stdout=SCAN)
+    assert tool.stack_scan(tmp) == [tool.StackRow("keep", "a@m", "path: x.py"), tool.StackRow("off", "b@m", "no signal")]
+    calls = stub_run(stdout="applied to /x: 1 plugins off.\n")
+    tool.stack_apply(tmp, keep=["b@m"], off=[])
+    assert calls == [["claude-stack", "apply", "--keep", "b@m"]]
+    stub_run(returncode=2, stderr="claude-stack: b@m is set to false in .claude/settings.local.json by you\n")
+    assert raises(lambda: tool.stack_apply(tmp, keep=["b@m"], off=[]), "by you")
+
+
 for name, fn in list(globals().items()):
     if name.startswith("test_") and callable(fn):
         try:

@@ -6,6 +6,10 @@
 #
 # `claude-stack scan`
 #
+# - Say whether a stack is applied here, without scanning:
+#
+# `claude-stack status`
+#
 # - Turn the rest off in this project's gitignored .claude/settings.local.json:
 #
 # `claude-stack apply`

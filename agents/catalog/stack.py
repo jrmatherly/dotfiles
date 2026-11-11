@@ -408,7 +408,7 @@ def scan(root, catalog, keep, off):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="claude-stack")
-    ap.add_argument("command", choices=["scan", "apply", "reset"])
+    ap.add_argument("command", choices=["scan", "apply", "reset", "status"])
     ap.add_argument("path", nargs="?", default=".")
     ap.add_argument("--keep", action="append", default=[], metavar="KEY")
     ap.add_argument("--off", action="append", default=[], metavar="KEY")
@@ -419,6 +419,10 @@ def main(argv=None):
         if a.command == "reset":
             reset_stack(root)
             print(f"reset {root}")
+            return 0
+        if a.command == "status":
+            m = read_json(root / MANIFEST_FILE)
+            print(f"applied: {len(m['owned'])} off, {m['generated']}" if m else "none")
             return 0
         catalog = load_catalog()
         if a.command == "scan":
