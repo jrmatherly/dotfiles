@@ -12,8 +12,9 @@ The diagram is generated with [Archify](https://github.com/tt-a1i/archify) from 
 1. Links `~/dotfiles` to the clone and `~/.config/mise` to the clone's `tilde/.config/mise`, when nothing is at those paths. When either is something else it stops before installing anything, and for `~/.config/mise` it prints the `mv` command that moves it aside. Every `[dotfiles]` source is written `~/dotfiles/…`, and mise reads the whole setup through `~/.config/mise`: with another config there it would find no packages, no dotfiles and no task, and exit 0.
 1. Installs mise when no `mise` is on PATH, then runs [`mise-floor.sh`](mise-floor.sh) and stops when mise is older than 2026.11.5.
 1. Asks for the administrator password once (see below).
+1. Links the [dotfiles](#dotfiles) with `mise dotfiles apply` from `$HOME` (with `--dry-run` on a dry run, not at all with `-- --skip dotfiles`), and stops when the apply fails. Packages write into `$HOME` (the git-credential-manager pkg writes `~/.gitconfig`, `code` creates `~/Library/Application Support/Code/User`), and a real file where a link belongs would stop the apply, so it comes first.
 1. Applies the [packages](#packages), one manager at a time. A package that fails only warns.
-1. Runs `mise bootstrap --skip macos-defaults,packages` from `$HOME`. mise's parts run in its own fixed order: system files (Touch ID for `sudo`), [dotfiles](#dotfiles), the [login shell](#login-shell), the tools, then the `bootstrap` task, which is [`misc.sh`](#misc).
+1. Runs `mise bootstrap --skip macos-defaults,packages` from `$HOME`. mise's parts run in its own fixed order: system files (Touch ID for `sudo`), dotfiles (already applied, so nothing to do), the [login shell](#login-shell), the tools, then the `bootstrap` task, which is [`misc.sh`](#misc).
 1. Runs [`dotfiles-extras.sh`](#dotfiles-extrassh), then `dash.sh` with `--dash`.
 
 A run is not a transaction. When a part of `mise bootstrap` fails, mise stops there, `setup.sh` exits with its status, and the earlier steps stay applied. Fix what it reported and rerun `./setup.sh`: every step is safe to repeat, and the hooks and the `bootstrap` task run on every bootstrap.
@@ -47,7 +48,7 @@ To preview a run without changing anything, once `~/.config/mise` is the link: `
 1. Warns when gh has no GitHub token and `MISE_GITHUB_TOKEN` is unset, then carries on. Tap formulae resolve through GitHub's API, whose anonymous limit is 60 calls an hour. `setup.sh` exports no token: mise asks gh for one itself (`[settings.github] credential_command` in `tilde/.config/mise/config.toml`), since gh keeps it in the Keychain where mise can't read it.
 1. Links the in-repo VS Code plugin (`mise plugins link --force vscode mise-plugins/vscode`).
 1. Applies the formulae, then the casks, one `mise bootstrap packages apply --yes --manager <name>` each, from `$HOME` so a project's config can't add to the run, and prints the free disk space after each. Formulae go first because reading a tap's cask needs the Ruby that `brew:ruby` installs.
-1. Applies the VS Code extensions the same way, after `mise bootstrap` has succeeded. `code` creates `~/Library/Application Support/Code/User` as a real folder, and the dotfiles part would then refuse to link it. When the bootstrap fails, the run stops before the extensions; rerun `./setup.sh`. They are also skipped with a message while VS Code's `code` command isn't on PATH; rerun `./setup.sh` once it is. With `-- --upgrade`, each apply is followed by `mise bootstrap packages upgrade --yes --manager <name>`.
+1. Applies the VS Code extensions the same way, after `mise bootstrap` has succeeded. When the bootstrap fails, the run stops before the extensions; rerun `./setup.sh`. They are also skipped with a message while VS Code's `code` command isn't on PATH; rerun `./setup.sh` once it is. With `-- --upgrade`, each apply is followed by `mise bootstrap packages upgrade --yes --manager <name>`.
 
 A package that fails to install or upgrade warns and setup carries on; rerun `./setup.sh`. mise's apply stops at the first package that fails, so after a failed apply `setup.sh` reads `mise bootstrap packages status --json` and applies each package of that manager still missing on its own (`mise bootstrap packages apply --yes <manager>:<name>`), warning for each one that fails again. It stops only when mise read no package list at all. mise itself stops at the first part that fails, which is why `setup.sh` applies the packages: a bare `mise bootstrap` runs the `packages` part without that tolerance (its `pre-packages` hook links the plugin), and one failed cask would skip the dotfiles, the login shell and the tools.
 
@@ -116,7 +117,7 @@ Two things happen here, in this order. Both are safe to repeat.
 
 ### mise dotfiles apply
 
-The `dotfiles` part of `mise bootstrap` does what `mise dotfiles apply` does, from `$HOME`. `setup.sh` has already stopped by then when `~/.config/mise` is not the clone's `tilde/.config/mise` (see [setup.sh](#setupsh-wrapper)).
+`setup.sh` runs `mise dotfiles apply` from `$HOME` before the packages, and the `dotfiles` part of `mise bootstrap` then finds nothing left to do. `setup.sh` has already stopped by then when `~/.config/mise` is not the clone's `tilde/.config/mise` (see [setup.sh](#setupsh-wrapper)).
 
 The apply makes what the 38 `[dotfiles]` entries in [`40-dotfiles.toml`](../tilde/.config/mise/conf.d/40-dotfiles.toml) declare. Every source is written `~/dotfiles/…`, which is why that link must be the clone.
 

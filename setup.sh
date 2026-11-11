@@ -102,9 +102,10 @@ done
 # macOS preferences are never part of setup (set-defaults owns them), and
 # --only cannot be combined with --skip, so there is one merged list.
 skip="macos-defaults${user_skip:+,$user_skip}"
-run_packages=true run_extras=true
+run_packages=true run_dotfiles=true
 case ",$user_skip," in *,packages,*) run_packages=false ;; *) skip="$skip,packages" ;; esac
-case ",$user_skip," in *,dotfiles,*) run_extras=false ;; esac
+case ",$user_skip," in *,dotfiles,*) run_dotfiles=false ;; esac
+run_extras=$run_dotfiles
 [ -z "$dry_run_flag" ] || run_extras=false
 
 # Record the whole run to private/setup-logs/ (git-ignored) so /validate-setup
@@ -247,6 +248,20 @@ fi
 # node from the repo's .nvmrc instead of the configured versions
 cd "$HOME"
 
+# Linked before any package: packages write into $HOME (the git-credential-manager
+# pkg writes ~/.gitconfig, `code` creates Code/User), and a real file where a
+# link belongs stops the apply. mise bootstrap's own dotfiles part then finds
+# nothing left to do.
+if [ "$run_dotfiles" = true ]; then
+  title "🔗 Linking the dotfiles…"
+  # --yes: the Enter prompt above was the confirmation, and mise asks per file otherwise
+  if ! mise dotfiles apply --yes ${dry_run_flag:+"$dry_run_flag"}; then
+    warning "mise dotfiles apply stopped. Move aside what it reported, then rerun ./setup.sh"
+    exit 1
+  fi
+  echo
+fi
+
 # packages_for <manager> <noun>: setup applies the packages itself, because
 # mise bootstrap stops at the first part that fails and one failed cask would
 # skip the dotfiles, the login shell and the tools. A failed package warns and
@@ -295,8 +310,6 @@ if [ "$rc" -ne 0 ]; then
 fi
 sudo_keepalive_stop
 
-# After the dotfiles part: code creates ~/Library/Application Support/Code/User
-# as a real directory, which would then stop the link mise makes there
 if [ "$run_packages" = true ]; then
   # The VS Code cask may have arrived in this run, without code on PATH yet
   if command -v code > /dev/null; then

@@ -63,6 +63,7 @@ case $1 in
         for p in $(cat "$STATE/missing-casks" 2> /dev/null); do printf '{"package":"%s","state":"missing"},' "$p"; done
         printf '{"package":"ghostty","state":"installed"}]}}\n' ;;
       "bootstrap packages apply --yes brew-cask:"*) ! grep -qxF "${5#brew-cask:}" "$STATE/bad-casks" 2> /dev/null ;;
+      "dotfiles apply"*) [ ! -e "$STATE/dotfiles-fail" ] ;;
       "bootstrap packages "* | plugins*) ;;
       bootstrap*) [ ! -e "$STATE/bootstrap-fails" ] ;;
     esac ;;
@@ -122,7 +123,7 @@ run
 check_true "a: exits 0" [ "$rc" -eq 0 ]
 check_true "a: ~/.config/mise links to the clone's" [ -L "$HOME/.config/mise" -a "$HOME/.config/mise" -ef "$fix/tilde/.config/mise" ]
 check_true "a: ~/dotfiles links to the clone" [ -L "$HOME/dotfiles" -a "$HOME/dotfiles" -ef "$fix" ]
-check_true "a: plugin link, formulae, casks, then bootstrap" in_order \
+check_true "a: dotfiles, plugin link, formulae, casks, then bootstrap" in_order "args=dotfiles apply --yes disable=" \
   "args=plugins link --force vscode $fix/mise-plugins/vscode disable=" "$apply brew disable=" "$apply brew-cask disable=" \
   "pwd=$HOME args=bootstrap --skip macos-defaults,packages disable= dotfiles=$fix skip= token= telemetry=0"
 check_true "a: every mise call runs from HOME" [ -z "$(grep -v "^pwd=$HOME " "$STATE/mise.log")" ]
@@ -158,12 +159,14 @@ check_true "b4: --dry-run reaches each apply and upgrade" in_order \
   "$apply brew --dry-run disable=" "$upgrade brew --dry-run disable=" "$apply brew-cask --dry-run disable=" "$upgrade brew-cask --dry-run disable="
 check_true "b4: … and the bootstrap" boot_has "--skip macos-defaults,packages --dry-run --upgrade disable="
 check_true "b4: a dry run links no plugin" log_lacks "plugins link"
+check_true "b4: the dotfiles apply is a dry run, before the packages" in_order "args=dotfiles apply --yes --dry-run disable=" "$apply brew --dry-run disable="
 check_true "b4: … and skips the extras script" extras_ran 0
 
 run -- --skip dotfiles
 check_true "b5: exits 0" [ "$rc" -eq 0 ]
 check_true "b5: dotfiles joins the skip list" boot_has "--skip macos-defaults,dotfiles,packages disable="
 check_true "b5: no extras without the dotfiles part" extras_ran 0
+check_true "b5: no dotfiles apply" log_lacks "dotfiles apply"
 
 run -- --skip packages --upgrade
 check_true "b6: exits 0" [ "$rc" -eq 0 ]
@@ -251,6 +254,13 @@ check_true "f3: warns that the upgrade failed" has 'failed to upgrade'
 check_true "f3: casks are applied after the failed formula upgrade" in_order "$upgrade brew disable=" "$apply brew-cask disable="
 check_true "f3: the bootstrap still gets --upgrade" boot_has "--skip macos-defaults,packages --upgrade disable="
 check_true "f3: the extras script runs" extras_ran 1
+
+prepare() { touch "$STATE/dotfiles-fail"; }
+run
+check_true "f5: a failed dotfiles apply exits 1" [ "$rc" -eq 1 ]
+check_true "f5: says to rerun" has 'rerun \./setup\.sh'
+check_true "f5: stops before any package" log_lacks "packages apply"
+check_true "f5: … and the bootstrap" log_lacks "args=bootstrap --skip"
 
 prepare() { touch "$STATE/no-packages"; }
 run

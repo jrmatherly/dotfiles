@@ -1,6 +1,6 @@
 # What `mise bootstrap` does beyond env, macOS defaults, packages and dotfiles
 # (conf.d/10 to 40). setup.sh links this directory to ~/.config/mise, installs
-# mise, applies the packages itself and runs
+# mise, applies the dotfiles and the packages itself and runs
 # `mise bootstrap --skip macos-defaults,packages` from $HOME.
 # https://mise.jdx.dev/bootstrap.html
 
