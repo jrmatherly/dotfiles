@@ -10,6 +10,16 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-09-mise-first-setup-and-settings-ui.md` ("Two parts", D5, D11, "Verified facts", phase "B. Migration script", Risks, and "Decisions" items 2, 5, 6, 7 and 12: the Time Machine and firewall switches are on by default, so Task 3 warns a Mac that would change at its next `set-defaults`; Homebrew is removed only after every Homebrew-managed app is reinstalled or adopted, which P16, P17 and Tasks 4 and 5 enforce; the Codex config is a `merge = "missing"` edit, which Task 6 prepares for; every `ask` permission rule lands in A7, so this plan adds none; the gate for removing Homebrew is the VM run recorded in plan A6's Task 6, which Task 5 Step 6 checks).
 
+## Status
+
+As of 2026-11-11, Tasks 1 to 7 are built. Task 8 (removal on or after 2027-02-28) is the only one left. The checkboxes below were never ticked. What differs from the text below:
+
+- Task 5 landed in `6b21b46`. Both of its landing gates were met first: the A6 VM results are recorded, and `fresh-install` run 43062361064 passed. The real removal on the owner's Mac has not been run. On 2026-11-11 its dry run listed 31 packages still Homebrew's.
+- The five ask rules for `migrate/legacy-to-mise` are in `.claude/settings.json`, added by A7's Task 8 (`c1c06b9`). The sentences below that say a go-ahead in chat is the only guard describe the time before that.
+- The "Keep" prompt reads Homebrew's receipts, not the prune dry-run (`fbe0f54`). The prune list left out `aikb` and `ai-kb-lite`, which then blocked the removal with no prompt to declare them. A formula in the drop file is not offered. The decline message is `<name>: left undeclared. Homebrew stays installed while it is.`
+- `step_packages` no longer returns early when `brew` is missing. It still cleans staging leftovers and runs the removal checks.
+- Task 5's prompt has one more line, naming what is left in place. Its dry run prints an `ok:` line per passing check.
+
 ## Global Constraints
 
 - Minimum mise version: 2026.11.5. Every step refuses below it.
