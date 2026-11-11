@@ -2,6 +2,8 @@
 
 `dotfiles-settings` lists, reads, changes and resets the environment settings this repo manages. `registry.toml` names every setting. A change is stored in mise's override file, so it beats the export in `zsh/env.zsh`, `tilde/.zshenv` or `~/.zsh.local` without editing any of them.
 
+![The terminal UI showing the Agents section](screenshot.svg)
+
 There are three ways in:
 
 - `dotfiles-settings tui` opens the terminal UI. Sections are on the left and the highlighted section's settings on the right. A row shows where its value comes from, and an overridden row has a **Reset** button (`ctrl+r` resets the focused row). `p` opens the plugin stack of the folder it was started from, with `k` to keep a plugin and `o` to turn one off.

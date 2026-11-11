@@ -36,6 +36,9 @@ Jason's personal dotfiles for configuring macOS with Zsh and mise — a personal
 - [REA](docs/rea.md), the reverse-engineering MCP server and CLI: how it is installed and registered, which engines work on this Mac, and how to check.
 - [jstack](docs/jstack.md), the Claude Code plugin that holds my working habits as skills: j-mode, the playbooks, the principles and the band above the prompt.
 - Built-in help: `help` shows the [alias index](docs/README.md), `help <command>` documents any script in `bin/`, and `help gui/<app>` shows [shortcut cheat sheets](docs/gui/) for GUI apps.
+- [`dotfiles-settings`](settings/README.md): every setting the repo manages (environment variables, macOS defaults, packages, dotfile links and the agent tools) in one terminal UI, the same UI in a browser tab, or a scriptable CLI (pictured below).
+
+![The dotfiles-settings terminal UI showing the Agents section](settings/screenshot.svg)
 
 ## Installation
 
