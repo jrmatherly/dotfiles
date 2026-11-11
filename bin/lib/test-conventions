@@ -18,6 +18,7 @@
 # rule is also retired, that rtk's hook rewrites no command with a Bash ask rule,
 # that every setup/*.sh is executable, that nothing calls brew, that migrate/
 # is gone after 2027-02-28, that only migrate/ names the old setup method,
+# that the tracked gitconfig holds no credential or user section,
 # and that the instruction files stay under their caps.
 #
 # License: MIT
@@ -86,6 +87,8 @@ fi
 
 # CVE-2022-39253: a malicious repo's file:// submodule can read local files
 ! grep -qE '^[[:space:]]*allow[[:space:]]*=[[:space:]]*always' tilde/.gitconfig || fail "gitconfig: protocol.file.allow = always (CVE-2022-39253)"
+# ~/.gitconfig is a link to this file, so a tool's `git config --global` lands here (the git-credential-manager pkg does it on install)
+! grep -qE '^\[(credential|user)' tilde/.gitconfig || fail "gitconfig: a [credential] or [user] section belongs in ~/.gitconfig.local, not the tracked file"
 
 ! grep -qE '^(user-agent|referer)' tilde/.curlrc || fail "curlrc: spoofed user-agent or auto referer"
 
