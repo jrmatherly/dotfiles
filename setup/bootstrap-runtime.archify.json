@@ -3,13 +3,13 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "Dotfiles Bootstrap Runtime",
-    "output": ".archify/architecture-dotfiles-runtime-20261027-125211/dotfiles-runtime.html",
+    "output": ".archify/architecture-dotfiles-runtime-20261110-212054/dotfiles-runtime.html",
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:jrmatherly/dotfiles.git",
       "provider": "github",
       "link_mode": "local-only",
-      "revision": "bb5641f7034472b1e67170f6891d6f17c652f049"
+      "revision": "f230339efb7ec17fba36e6283df9339f47b66fc8"
     }
   },
   "components": [
@@ -23,7 +23,8 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 6,
+          "line": 5,
+          "end_line": 15,
           "label": "usage"
         }
       ]
@@ -32,130 +33,119 @@
       "id": "setup",
       "type": "backend",
       "label": "setup.sh",
-      "sublabel": "orchestrator · sudo per step",
-      "pos": [270, 220],
-      "size": [170, 64],
+      "sublabel": "wrapper · packages · dotfiles-extras",
+      "pos": [260, 220],
+      "size": [190, 64],
       "sources": [
         {
           "path": "setup.sh",
-          "line": 152,
-          "end_line": 219,
-          "label": "sudo held per step + step order"
-        }
-      ]
-    },
-    {
-      "id": "system",
-      "type": "security",
-      "label": "macOS system files",
-      "sublabel": "/etc/pam.d · /etc/shells",
-      "pos": [40, 420],
-      "size": [160, 64],
-      "tag": "root",
-      "sources": [
-        {
-          "path": "setup.sh",
-          "line": 144,
-          "end_line": 147,
-          "label": "Touch ID sudo"
+          "line": 228,
+          "end_line": 238,
+          "label": "sudo -v once, kept alive"
         },
         {
-          "path": "setup/zsh.sh",
-          "line": 49,
-          "end_line": 57,
-          "label": "register zsh + chsh"
+          "path": "setup.sh",
+          "line": 273,
+          "end_line": 286,
+          "label": "packages, one manager at a time"
+        },
+        {
+          "path": "setup.sh",
+          "line": 288,
+          "end_line": 303,
+          "label": "mise bootstrap, drop sudo, dotfiles-extras.sh"
         }
       ]
     },
     {
-      "id": "brew",
+      "id": "mise",
       "type": "backend",
-      "label": "brew.sh",
-      "sublabel": "Brewfile via brewpick",
-      "pos": [560, 60],
-      "size": [160, 64],
+      "label": "mise bootstrap",
+      "sublabel": "files · dotfiles · shell · tools · task",
+      "pos": [620, 220],
+      "size": [200, 64],
       "sources": [
         {
-          "path": "setup/brew.sh",
-          "line": 29,
-          "end_line": 50
+          "path": "tilde/.config/mise/conf.d/50-bootstrap.toml",
+          "line": 1,
+          "end_line": 5,
+          "label": "skips macos-defaults, packages"
+        },
+        {
+          "path": "tilde/.config/mise/conf.d/50-bootstrap.toml",
+          "line": 26,
+          "end_line": 36,
+          "label": "hooks: pre-tools sudo -k"
         }
       ]
     },
     {
       "id": "misc",
       "type": "backend",
-      "label": "misc.sh",
-      "sublabel": "runtimes · Claude Code · dev cert",
-      "pos": [560, 220],
-      "size": [160, 64],
+      "label": "setup/misc.sh",
+      "sublabel": "bootstrap task · no sudo",
+      "pos": [1000, 220],
+      "size": [180, 64],
       "sources": [
         {
-          "path": "setup/misc.sh",
-          "line": 137,
-          "end_line": 294,
-          "label": "mise, Claude Code, CodeGraph, MCP"
+          "path": "tilde/.config/mise/conf.d/50-bootstrap.toml",
+          "line": 41,
+          "end_line": 44,
+          "label": "[tasks.bootstrap]"
         },
         {
           "path": "setup/misc.sh",
-          "line": 462,
-          "end_line": 477,
-          "label": "Aspire dev-cert trust"
+          "line": 10,
+          "end_line": 11,
+          "label": "sudo -k"
         },
         {
           "path": "setup/misc.sh",
-          "line": 524,
-          "end_line": 525,
+          "line": 457,
+          "end_line": 464,
           "label": "claude-config restore"
         }
       ]
     },
     {
-      "id": "symlinks",
-      "type": "backend",
-      "label": "symlinks.sh",
-      "sublabel": "tilde/ → ~ (prompts)",
-      "pos": [560, 420],
-      "size": [160, 64],
-      "sources": [
-        {
-          "path": "setup/symlinks.sh",
-          "line": 187,
-          "end_line": 251
-        }
-      ]
-    },
-    {
-      "id": "homebrew",
+      "id": "miserun",
       "type": "cloud",
-      "label": "Homebrew",
-      "sublabel": "formulae + casks",
-      "pos": [860, 60],
-      "size": [170, 64],
+      "label": "mise.run",
+      "sublabel": "mise's installer",
+      "pos": [260, 40],
+      "size": [190, 64],
       "sources": [
         {
-          "path": "setup/brew.sh",
-          "line": 29,
-          "end_line": 35
+          "path": "setup.sh",
+          "line": 193,
+          "end_line": 199,
+          "label": "curl -fsSL https://mise.run | sh"
         }
       ]
     },
     {
       "id": "registries",
       "type": "cloud",
-      "label": "Package registries",
-      "sublabel": "mise · npm · PyPI (uv)",
-      "pos": [860, 170],
-      "size": [170, 64],
+      "label": "Package sources",
+      "sublabel": "bottles · casks · tools · PyPI",
+      "pos": [620, 40],
+      "size": [200, 64],
       "sources": [
         {
-          "path": "setup/misc.sh",
-          "line": 145,
-          "end_line": 152
+          "path": "setup.sh",
+          "line": 254,
+          "end_line": 266,
+          "label": "mise bootstrap packages apply"
+        },
+        {
+          "path": "tilde/.config/mise/config.toml",
+          "line": 4,
+          "label": "[tools]"
         },
         {
           "path": "setup/misc.sh",
-          "line": 290
+          "line": 220,
+          "label": "uv tool install"
         }
       ]
     },
@@ -164,18 +154,42 @@
       "type": "external",
       "label": "Claude Code sources",
       "sublabel": "claude.ai · marketplaces",
-      "pos": [860, 280],
-      "size": [170, 64],
+      "pos": [1000, 40],
+      "size": [180, 64],
       "sources": [
         {
           "path": "setup/misc.sh",
-          "line": 212
+          "line": 142,
+          "label": "claude.ai/install.sh"
         },
         {
-          "path": "bin/claude-config",
-          "line": 155,
-          "end_line": 166,
+          "path": "setup/misc.sh",
+          "line": 457,
+          "end_line": 464,
           "label": "marketplaces + plugins"
+        }
+      ]
+    },
+    {
+      "id": "system",
+      "type": "security",
+      "label": "macOS system files",
+      "sublabel": "/etc/pam.d · /etc/shells",
+      "pos": [1000, 420],
+      "size": [180, 64],
+      "tag": "root",
+      "sources": [
+        {
+          "path": "tilde/.config/mise/conf.d/50-bootstrap.toml",
+          "line": 11,
+          "end_line": 15,
+          "label": "[bootstrap.files] sudo_local"
+        },
+        {
+          "path": "tilde/.config/mise/conf.d/50-bootstrap.toml",
+          "line": 19,
+          "end_line": 20,
+          "label": "[bootstrap.user] login shell"
         }
       ]
     },
@@ -184,13 +198,19 @@
       "type": "database",
       "label": "$HOME configs",
       "sublabel": "symlinks into the repo",
-      "pos": [860, 420],
-      "size": [170, 64],
+      "pos": [620, 420],
+      "size": [200, 64],
       "sources": [
         {
-          "path": "setup/symlinks.sh",
-          "line": 199,
-          "end_line": 250
+          "path": "tilde/.config/mise/conf.d/40-dotfiles.toml",
+          "line": 12,
+          "label": "[dotfiles]"
+        },
+        {
+          "path": "setup/dotfiles-extras.sh",
+          "line": 3,
+          "end_line": 5,
+          "label": "gitconfig.local, cot, code, Firefox"
         }
       ]
     },
@@ -199,13 +219,13 @@
       "type": "frontend",
       "label": "zsh session",
       "sublabel": "~/.zshrc load order",
-      "pos": [1160, 420],
-      "size": [160, 64],
+      "pos": [620, 580],
+      "size": [200, 64],
       "sources": [
         {
           "path": "tilde/.zshrc",
-          "line": 5,
-          "end_line": 38
+          "line": 4,
+          "end_line": 10
         },
         {
           "path": "tilde/.zshenv",
@@ -219,13 +239,13 @@
       "type": "database",
       "label": "Setup run log",
       "sublabel": "private/setup-logs (git-ignored)",
-      "pos": [40, 320],
+      "pos": [40, 360],
       "size": [170, 64],
       "sources": [
         {
           "path": "setup.sh",
-          "line": 65,
-          "end_line": 76,
+          "line": 111,
+          "end_line": 121,
           "label": "re-run under script(1)"
         }
       ]
@@ -234,8 +254,8 @@
   "boundaries": [
     {
       "kind": "region",
-      "label": "Repo scripts · run as you",
-      "wraps": ["setup", "brew", "misc", "symlinks"]
+      "label": "Setup · runs as you",
+      "wraps": ["setup", "mise", "misc"]
     },
     {
       "kind": "security-group",
@@ -245,7 +265,7 @@
     {
       "kind": "region",
       "label": "Internet · third-party code",
-      "wraps": ["homebrew", "registries", "anthropic"]
+      "wraps": ["miserun", "registries", "anthropic"]
     },
     {
       "kind": "region",
@@ -262,45 +282,66 @@
       "variant": "emphasis"
     },
     {
-      "id": "grant-root",
+      "id": "record-run",
       "from": "setup",
+      "to": "runlog",
+      "label": "script(1) log",
+      "variant": "dashed"
+    },
+    {
+      "id": "get-mise",
+      "from": "setup",
+      "to": "miserun",
+      "label": "when mise is missing",
+      "variant": "dashed"
+    },
+    {
+      "id": "step-packages",
+      "from": "setup",
+      "to": "registries",
+      "label": "1 · packages apply",
+      "variant": "dashed"
+    },
+    {
+      "id": "step-mise",
+      "from": "setup",
+      "to": "mise",
+      "label": "2 · mise bootstrap",
+      "variant": "emphasis"
+    },
+    {
+      "id": "grant-root",
+      "from": "mise",
       "to": "system",
-      "label": "sudo tee",
+      "label": "files · login shell",
       "variant": "security"
     },
     {
-      "id": "step-brew",
-      "from": "setup",
-      "to": "brew",
-      "label": "1 · brew",
+      "id": "link-home",
+      "from": "mise",
+      "to": "home",
+      "label": "dotfiles · ln -s",
       "variant": "emphasis"
     },
     {
-      "id": "step-misc",
-      "from": "setup",
-      "to": "misc",
-      "label": "3 · misc · no sudo",
-      "variant": "emphasis"
-    },
-    {
-      "id": "step-symlinks",
-      "from": "setup",
-      "to": "symlinks",
-      "label": "4 · links",
-      "variant": "emphasis"
-    },
-    {
-      "id": "brew-fetch",
-      "from": "brew",
-      "to": "homebrew",
-      "label": "brew bundle",
+      "id": "mise-tools",
+      "from": "mise",
+      "to": "registries",
+      "label": "tools",
       "variant": "dashed"
+    },
+    {
+      "id": "run-task",
+      "from": "mise",
+      "to": "misc",
+      "label": "task · after sudo -k",
+      "variant": "emphasis"
     },
     {
       "id": "misc-registries",
       "from": "misc",
       "to": "registries",
-      "label": "mise · uv",
+      "label": "uv",
       "variant": "dashed"
     },
     {
@@ -311,10 +352,10 @@
       "variant": "dashed"
     },
     {
-      "id": "link-home",
-      "from": "symlinks",
+      "id": "step-extras",
+      "from": "setup",
       "to": "home",
-      "label": "ln -s",
+      "label": "3 · dotfiles-extras.sh",
       "variant": "emphasis"
     },
     {
@@ -323,13 +364,6 @@
       "to": "shell",
       "label": "sourced at login",
       "variant": "emphasis"
-    },
-    {
-      "id": "record-run",
-      "from": "setup",
-      "to": "runlog",
-      "label": "script(1) log",
-      "variant": "dashed"
     }
   ],
   "cards": [
@@ -337,8 +371,9 @@
       "dot": "emerald",
       "title": "Primary path",
       "items": [
-        "./setup.sh runs brew.sh → zsh.sh → misc.sh → symlinks.sh in order",
-        "--skip-brew skips step 1; --dash adds dash.sh",
+        "./setup.sh: packages → mise bootstrap → setup/misc.sh → setup/dotfiles-extras.sh",
+        "mise bootstrap runs files, dotfiles, login shell, tools, then the bootstrap task (misc.sh)",
+        "-- --skip packages skips step 1; --dash adds dash.sh",
         "Idempotent: re-running is how changes are applied",
         "From a terminal, each run is recorded to private/setup-logs/ for /validate-setup"
       ]
@@ -347,10 +382,11 @@
       "dot": "rose",
       "title": "Trust boundaries",
       "items": [
-        "setup.sh and zsh.sh write root-owned files (pam sudo_local, /etc/shells)",
-        "sudo is dropped (sudo -k) for misc.sh, so its curl | bash and npm installs run without it",
-        "Everything else runs as you; symlink_file never overwrites silently",
-        "Third-party code arrives via curl | bash (Homebrew, Claude Code) and package registries",
+        "sudo -v once; the credential is held until the pre-tools hook runs sudo -k",
+        "Root writes: packages (cask installers), /etc/pam.d/sudo_local, the login shell",
+        "misc.sh never uses sudo; dotfiles-extras.sh asks only to link cot or code",
+        "macOS preferences are never applied: setup always passes --skip macos-defaults",
+        "Third-party code: mise.run, package sources, claude.ai/install.sh; Homebrew is never run",
         "misc.sh trusts the Aspire HTTPS dev cert in your login keychain (macOS may ask)"
       ]
     },
@@ -368,7 +404,7 @@
       "title": "Maintenance loop: sysup",
       "items": [
         "softwareupdate (password via 1Password op read, optional)",
-        "brew upgrade --greedy, mise upgrade, uv tool upgrade",
+        "mise bootstrap packages upgrade, mise upgrade, uv tool upgrade",
         "claude-config save, then claude-catalog rebuild"
       ]
     },
