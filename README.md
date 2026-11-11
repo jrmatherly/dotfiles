@@ -316,7 +316,7 @@ migrate/legacy-to-mise --dry-run # show what each step would change
 migrate/legacy-to-mise           # run every step this checkout supports
 ```
 
-It runs five steps (`env`, `macos`, `packages`, `dotfiles`, `setup`), asks before each change, and moves anything it replaces to `~/.dotfiles-migration-backup/<timestamp>/`, where `RESTORE.txt` lists the command that puts each item back. A new Mac never needs it. Details per step: [migrate/README.md](migrate/README.md).
+It runs five steps (`env`, `macos`, `packages`, `dotfiles`, `setup`), asks before each change, and moves anything it replaces to `~/.dotfiles-migration-backup/<timestamp>/`, where `RESTORE.txt` lists the command that puts each item back. Its `packages` step ends by offering to move the Homebrew program aside, once nothing Homebrew installed is left outside mise. A new Mac never needs it. Details per step: [migrate/README.md](migrate/README.md).
 
 ## Changing the dotfiles
 
