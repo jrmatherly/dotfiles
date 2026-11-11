@@ -860,7 +860,42 @@ EOF
   fi
   return "$rc"
 }
-step_setup() { info "nothing to migrate yet"; }
+# shellcheck disable=SC2088 # every "~/…" here is display text
+step_setup() {
+  local sudo_local="${MIGRATE_SUDO_LOCAL:-/etc/pam.d/sudo_local}" declared='auth       sufficient     pam_tid.so'
+  local rust="${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/rust"
+
+  # The old setup.sh wrote it only when missing, so a hand-edited one survived; the first mise bootstrap rewrites it
+  if [ -f "$sudo_local" ]; then
+    if [ "$(cat "$sudo_local")" = "$declared" ]; then
+      info "sudo_local: as declared, kept"
+    else
+      diff <(echo "$declared") "$sudo_local" || true
+      backup_copy "$sudo_local"
+      info "sudo_local: differs from the declared line above. The first mise bootstrap rewrites it. To restore it afterwards: sudo cp '$BACKUP_DIR/files$sudo_local' /etc/pam.d/sudo_local"
+    fi
+  fi
+
+  if [ -d "$rust" ]; then
+    if ask "Forget mise's old rust install so its shims stop shadowing rustup?"; then
+      backup_move "$rust"
+      CHANGED=$((CHANGED + 1))
+      run mise reshim
+    else
+      declined "$(tildify "$rust"): left in place. Its shims still shadow rustup."
+    fi
+  fi
+
+  if [ -e "$HOME/.cargo/bin/rustup" ] && ! cmp -s "$HOME/.cargo/bin/rustup" "$PREFIX/opt/rustup/bin/rustup"; then
+    info "~/.cargo/bin/rustup is not Homebrew's rustup. To use Homebrew's: rm -rf ~/.cargo/bin ~/.rustup && $PREFIX/opt/rustup/bin/rustup default stable"
+  fi
+
+  # Here for a Mac whose mise moved some other way than the packages step
+  reregister_mise_mcp
+
+  [ ! -d "$REPO/private/setup-logs" ] || info "setup logs: kept (the new setup.sh still writes them)"
+  [ ! "$HOME/dotfiles" -ef "$REPO" ] || info "~/dotfiles: kept (every [dotfiles] source in the mise config resolves through it)"
+}
 
 summary() {
   echo "Changed $CHANGED thing(s)."

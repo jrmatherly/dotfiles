@@ -97,7 +97,15 @@ Never `--force`: mise's `--force` replaces a file with no copy, which is why the
 
 ### setup
 
-Not written yet. Lands with phase A6.
+Handles what only the old `setup.sh` and `setup/misc.sh` left behind. Its phase marker, `conf.d/50-bootstrap.toml`, lands with A6. In order:
+
+1. **`/etc/pam.d/sudo_local`.** The old `setup.sh` wrote it only when it was missing, so a hand-edited one survived. When its content is exactly `auth       sufficient     pam_tid.so`, the step prints `sudo_local: as declared, kept`. Otherwise it shows the `diff`, copies the file to the backup folder, and says that the first `mise bootstrap` rewrites it and that `sudo cp <backup> /etc/pam.d/sudo_local` restores it. Nothing is removed or asked. A missing file is not mentioned. The path can be overridden with `MIGRATE_SUDO_LOCAL`, for the self-check.
+2. **mise's old rust install.** When `${MISE_DATA_DIR:-~/.local/share/mise}/installs/rust` exists, it asks `Forget mise's old rust install so its shims stop shadowing rustup?`. On yes the folder moves to the backup folder and `mise reshim` runs. The old `setup/misc.sh` did this.
+3. **`~/.cargo/bin/rustup`.** When it differs from Homebrew's `opt/rustup/bin/rustup`, the step prints the old script's hint (`rm -rf ~/.cargo/bin ~/.rustup && /opt/homebrew/opt/rustup/bin/rustup default stable`) and changes nothing. The toolchain is yours to pick.
+4. **The `mise` MCP server.** When Claude Code's `mise` server runs a command other than the mise on `PATH`, it asks to re-register it, as the `packages` step does straight after moving mise. This catches a Mac where mise moved some other way. The old command goes to `mcp.txt` and `RESTORE.txt`.
+5. **Kept.** `private/setup-logs/` and `~/dotfiles` are reported as kept when present: the new `setup.sh` still writes the logs, and every `[dotfiles]` source in the mise config resolves through `~/dotfiles`.
+
+The `/etc/shells` entry and the login shell are not mentioned: the new setup leaves them as they were.
 
 ## Restoring
 

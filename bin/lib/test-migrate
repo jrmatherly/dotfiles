@@ -866,6 +866,43 @@ firefox_hard_links_are_reported() {
   check_out "linked one" 'user\.js: hard link ok'
   check_out "unlinked one" 'userChrome\.css: not linked to the clone'
 }
+setup_backs_up_a_hand_edited_sudo_local() {
+  phase setup
+  export MIGRATE_SUDO_LOCAL="$tmp/sudo_local"
+  printf 'auth sufficient pam_tid.so\nauth sufficient pam_reattach.so\n' > "$MIGRATE_SUDO_LOCAL"
+  out=$("$script" --step setup < /dev/null 2>&1) || fail "setup: exit $?: $out"
+  cmp -s "$(echo "$HOME"/.dotfiles-migration-backup/*/files"$MIGRATE_SUDO_LOCAL")" "$MIGRATE_SUDO_LOCAL" || fail "sudo_local not copied to the backup"
+  [ -f "$MIGRATE_SUDO_LOCAL" ] || fail "sudo_local was removed"
+  check_out "restore command" 'sudo cp .* /etc/pam.d/sudo_local'
+  echo 'auth       sufficient     pam_tid.so' > "$MIGRATE_SUDO_LOCAL"
+  out=$("$script" --step setup < /dev/null 2>&1)
+  check_out "declared content is kept" '^sudo_local: as declared, kept$'
+}
+setup_forgets_the_old_rust_install() {
+  export MISE_DATA_DIR="$tmp/mise-data"
+  mkdir -p "$MISE_DATA_DIR/installs/rust/1.90"
+  out=$(echo y | "$script" --step setup 2>&1) || fail "setup rust: exit $?"
+  [ ! -e "$MISE_DATA_DIR/installs/rust" ] || fail "rust install still there"
+  ls -d "$HOME"/.dotfiles-migration-backup/*/files"$MISE_DATA_DIR"/installs/rust/1.90 > /dev/null || fail "rust install not backed up"
+  grep -qx 'mise reshim' "$STATE/mise.log" || fail "no reshim"
+}
+setup_reregisters_the_mcp_server() {
+  echo /opt/homebrew/bin/mise > "$STATE/mcp-command"
+  out=$(echo y | "$script" --step setup 2>&1) || fail "setup mcp: exit $?"
+  [ "$(cat "$STATE/mcp-command")" = "$tmp/bin/mise" ] || fail "mise MCP server not re-registered with the mise on PATH"
+  grep -qF "mise -- '/opt/homebrew/bin/mise' mcp" "$HOME"/.dotfiles-migration-backup/*/RESTORE.txt || fail "old registration not recorded"
+}
+setup_second_run_and_dry_run_change_nothing() {
+  for how in "" "--dry-run"; do
+    before=$(snapshot)
+    : > "$STATE/mise.log"
+    : > "$STATE/claude.log"
+    # shellcheck disable=SC2086 # $how is one flag or nothing
+    out=$(yes | "$script" --step setup $how 2>&1) || fail "setup $how rerun: exit $?"
+    [ "$(snapshot)" = "$before" ] && [ -z "$(mutations)" ] || fail "setup $how rerun changed something"
+  done
+  check_out "kept items" '^~/dotfiles: kept'
+}
 never_old() {
   for s in env macos packages dotfiles setup; do phase "$s"; done
   # the cases before this one leave their backup folders and their logged calls behind
@@ -932,6 +969,10 @@ dotfiles_keeps_the_local_mole_list
 dotfiles_replaces_a_codex_config_link
 half_way_dotfiles
 firefox_hard_links_are_reported
+setup_backs_up_a_hand_edited_sudo_local
+setup_forgets_the_old_rust_install
+setup_reregisters_the_mcp_server
+setup_second_run_and_dry_run_change_nothing
 # last: it creates every marker file
 never_old
 # every network and process probe went to a stub: the real curl logs nothing here
