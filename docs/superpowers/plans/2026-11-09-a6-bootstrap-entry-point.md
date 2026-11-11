@@ -783,7 +783,7 @@ Found by the proof and fixed, beyond the two commits above:
 Still open before Step 7 closes the phase:
 
 1. One `./setup.sh` run in a fresh disposable VM on `f32a3c7` or later, with rows 2 to 8, 10 and 13 read again. Open a new Terminal window for row 7, and open the four apps for row 9.
-2. Warp installing in that run (row 4). `[settings.url_replacements]` in `tilde/.config/mise/config.toml` now sends the cask's URL to `releases.warp.dev`; mise's `http:` backend fetched the DMG with the cask's checksum through that rule on the host, and the cask install itself is unproven. It does not block the gate.
+2. Warp installing in that run (row 4). `[settings.url_replacements]` in `tilde/.config/mise/config.toml` now sends the cask's URL to `releases.warp.dev`; with the rule pulled, a rerun on the already-installed VM installed the cask and ended `All done` (`20261111-041409.log`; the run before the pull, `20261111-041100.log`, still failed with the 404). It does not block the gate.
 3. `du -sh` of the `.utm` bundle on the host after an install (row 11).
 
 ## Part B hook: what the `setup` step needs
