@@ -166,6 +166,8 @@ export ASPIRE_DASHBOARD_TELEMETRY_OPTOUT=true
 # https://docs.jfrog.com/integrations/docs/jfrog-cli-environment-variables
 # (default true; not listed by `jf options`)
 export JFROG_CLI_REPORT_USAGE=false
+# https://github.com/metalbear-co/mirrord/blob/main/TELEMETRY.md (default true)
+export MIRRORD_TELEMETRY=false
 # Claude Code error reports only. Not DISABLE_TELEMETRY: it also turns off
 # feature flags, which Remote Control needs (https://code.claude.com/docs/en/data-usage)
 export DISABLE_ERROR_REPORTING=1

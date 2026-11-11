@@ -780,9 +780,18 @@ Found by the proof and fixed, beyond the two commits above:
 - `./setup.sh -y` still asked for the VS Code font preset and whether to run `gh auth login`. `f32a3c7` makes `-y` take both defaults. The git identity prompt still asks on a new Mac.
 - The summary cuts mise's reason at 100 characters, so Warp's line ends inside the URL. Left as is: `404 Not Found` survives.
 
+**Fresh single run, 2026-11-11 (`20261111-053754.log`, `evidence-fresh.txt`, on `8731001`, mise 2026.11.6).** One `./setup.sh` from a clean disposable VM ended `All done`, exit 0, in 27 min 50 s. Rows 2 to 8, 10, 13 and 15 pass: no formula of 143, cask of 33 (Warp included) or extension of 184 missing, links into the clone, login shell `/opt/homebrew/bin/zsh` with Terminal.app and Ghostty opening in zsh, sudo asking for the password and exiting 0, Ruby 4.0.9, and a second `-y` run (`20261111-061723.log`) that installed nothing. The credential move ran for real: the clone is clean and `~/.gitconfig.local` holds the `[credential]` sections. The run used 21 of 60 anonymous GitHub calls and left 29 GiB free. The `.utm` bundle stayed 30.34 GB with yesterday's date: disposable mode does not write into it.
+
+Found in that run, each fixed the same day and unproven until the next fresh run:
+
+- The git identity prompt echoed nothing and ignored Return (the log has `Git user.name: Git user.email:` on one line): the terminal was left without echo or line mode. Ctrl+J got past it. Not the extension step, since mise detaches stdin from plugin commands; `aspire certs trust` is the suspect, not confirmed. `setup/dotfiles-extras.sh` now runs `stty sane` before the prompts.
+- The second run warned "VS Code settings not rendered": GitHub Copilot for Azure had appended `"@azure.argTenant": ""`. The template now declares that key.
+- VS Code reported "Failed to find mirrord binary": the extension downloads it only after a version check that telemetry-off disables. `mirrord` is now a mise tool.
+- Recorded only: first-launch prompts (Terminal "administer your computer", the Aspire certificate trust password, Ghostty's Accessibility request and update banner, VS Code's sign-in sheet, 1Password and OrbStack welcome screens and notification requests), and Starship's icons showing as `?` boxes in Terminal.app, whose default font has no Nerd Font glyphs.
+
 Still open before Step 7 closes the phase:
 
-1. One `./setup.sh` run in a fresh disposable VM on `f32a3c7` or later, with rows 2 to 8, 10 and 13 read again. Open a new Terminal window for row 7, and open the four apps for row 9.
+1. One more fresh run to prove the three fixes above: the identity prompt takes typed input with Return, the second run renders VS Code settings without a warning, and VS Code finds mirrord. The install itself passed in one run.
 2. Warp installing in that run (row 4). `[settings.url_replacements]` in `tilde/.config/mise/config.toml` now sends the cask's URL to `releases.warp.dev`; with the rule pulled, a rerun on the already-installed VM installed the cask and ended `All done` (`20261111-041409.log`; the run before the pull, `20261111-041100.log`, still failed with the 404). It does not block the gate.
 3. `du -sh` of the `.utm` bundle on the host after an install (row 11).
 

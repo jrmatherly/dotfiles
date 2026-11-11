@@ -588,5 +588,8 @@
    * https://marketplace.visualstudio.com/items?itemName=coderabbit.coderabbit-vscode
    */
   // The agent its "Fix with AI" hands a finding to; the extension writes this key itself
-  "coderabbit.agentType": "Claude Code Extension"
+  "coderabbit.agentType": "Claude Code Extension",
+  // GitHub Copilot for Azure appends this empty key on first launch; declared
+  // here so the next render does not read it as an outside edit
+  "@azure.argTenant": ""
 }

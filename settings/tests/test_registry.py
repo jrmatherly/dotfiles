@@ -52,7 +52,7 @@ by_id = {s.id: s for s in settings}
 assert by_id["updates.trim_ca_roots"].true_value == "1"
 assert by_id["apps.vscode_font_preset"].choices == ("iosevka", "warp", "warp-terminal", "fira")
 assert all(s.access == "ro" for s in settings if s.section == "Privacy")
-assert sum(s.section == "Privacy" for s in settings) == 21
+assert sum(s.section == "Privacy" for s in settings) == 22
 
 # every read-only opt-out is still exported by zsh/env.zsh
 env_zsh = (Path(__file__).resolve().parents[2] / "zsh/env.zsh").read_text()

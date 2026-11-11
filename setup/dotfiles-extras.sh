@@ -77,6 +77,9 @@ configure_git_identity() {
   local signing_key="${DOTFILES_GIT_SIGNINGKEY:-}"
 
   if [ -t 0 ]; then
+    # An earlier setup step can leave the terminal without echo or line mode
+    # (seen on a new Mac: nothing typed showed and Return did nothing)
+    stty sane 2> /dev/null || true
     [ -z "$name" ] && read -rp "Git user.name: " name
     [ -z "$email" ] && read -rp "Git user.email: " email
 

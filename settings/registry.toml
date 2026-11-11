@@ -441,6 +441,19 @@ default = ""
 access = "ro"
 
 [[setting]]
+id = "privacy.mirrord_telemetry"
+section = "Privacy"
+label = "mirrord"
+help = "Telemetry opt-out exported by zsh/env.zsh. Read-only: the list is paired with setup.sh (.claude/rules/telemetry-sync.md)."
+kind = "env"
+key = "MIRRORD_TELEMETRY"
+type = "string"
+true_value = ""
+choices = []
+default = ""
+access = "ro"
+
+[[setting]]
 id = "privacy.disable_error_reporting"
 section = "Privacy"
 label = "Claude Code error reports"

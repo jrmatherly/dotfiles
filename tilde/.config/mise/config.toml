@@ -85,6 +85,10 @@ azure-functions-core-tools = "4" # `func`; 4 is the product line, as the formula
 flux2 = { version = "latest", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && flux completion zsh > "$HOME/.cache/dotfiles/completions/_flux"', when = "always" } } # `flux`, the Flux CD CLI
 hunk = "latest" # Git pager used by tilde/.gitconfig, lazygit and gh
 lazydocker = "latest" # Full Docker management app (zsh `lzd` alias)
+# The VS Code extension (vscode:metalbear.mirrord) downloads this binary only
+# after a version check that VS Code's telemetry-off setting disables, so it
+# finds the shim on PATH instead. Telemetry is off via MIRRORD_TELEMETRY in zsh/env.zsh
+mirrord = "latest" # Run local code in a Kubernetes cluster's context (aqua:metalbear-co/mirrord)
 talosctl = { version = "latest", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && talosctl completion zsh > "$HOME/.cache/dotfiles/completions/_talosctl"', when = "always" } } # Talos Linux/Kubernetes CLI
 # Sentry's new CLI (`sentry`, log in with `sentry auth`), not the legacy
 # `sentry-cli` that build tooling pulls in per project and that mise's registry
