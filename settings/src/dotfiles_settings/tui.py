@@ -9,7 +9,9 @@ from textual.widgets import Button, Footer, Input, Label, ListItem, ListView, Se
 
 from . import registry
 from .cli import normalize
+from .adapters import tool
 from .model import Adapter, Setting, SettingsError, Source, Value, note_for
+from .tui_agents import LinesEditor, SeatsEditor, StackScreen
 
 CSS = """
 #sections { width: 24; border-right: solid $panel; }
@@ -31,6 +33,10 @@ def slug(s: Setting) -> str:
 
 def widget_for(s: Setting, v: Value) -> Widget:
     ro = s.access == "ro"
+    if s.widget == "lines":
+        return LinesEditor(v.value or "", id=f"w-{slug(s)}", disabled=ro)
+    if s.widget == "seats":
+        return SeatsEditor(s.key.partition(":")[2], v.value or "", id=f"w-{slug(s)}", disabled=ro)
     if s.type == "bool":
         return Switch(value=v.value == s.true_value, id=f"w-{slug(s)}", disabled=ro)
     if s.type == "enum":
@@ -47,7 +53,7 @@ def marker_text(v: Value) -> str:
 
 class SettingsApp(App):
     CSS = CSS
-    BINDINGS = [Binding("ctrl+r", "reset", "Reset the focused setting")]
+    BINDINGS = [Binding("ctrl+r", "reset", "Reset the focused setting"), Binding("p", "stack", "Project plugins")]
 
     def __init__(self, settings: list[Setting] | None = None, adapters: dict[str, Adapter] | None = None):
         super().__init__()
@@ -207,6 +213,14 @@ class SettingsApp(App):
         if s and event.value != (self.values[s.id].value or ""):
             self.commit(s, event.value)
 
+    def on_lines_editor_submitted(self, event: LinesEditor.Submitted) -> None:
+        if s := self.setting_of(event.editor):
+            self.commit(s, event.value)
+
+    def on_seats_editor_changed(self, event: SeatsEditor.Changed) -> None:
+        if s := self.setting_of(event.editor):
+            self.commit(s, event.value)
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if s := self.setting_of(event.button):
             self.reset(s)
@@ -214,6 +228,10 @@ class SettingsApp(App):
     def action_reset(self) -> None:
         if s := self.setting_of(self.focused):
             self.reset(s)
+
+    def action_stack(self) -> None:
+        if not isinstance(self.screen, StackScreen):
+            self.push_screen(StackScreen(tool.launch_dir()))
 
 
 def run() -> None:
