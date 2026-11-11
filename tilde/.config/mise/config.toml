@@ -121,3 +121,11 @@ idiomatic_version_file_enable_tools = ["node", "python"]
 # shells whose PATH lacks the prefix. Global-only: a project config cannot set it
 # https://mise.jdx.dev/dev-tools/github-tokens.html#gh-keyring
 credential_command = '"${HOMEBREW_PREFIX:-/opt/homebrew}/bin/gh" auth token --hostname "$MISE_CREDENTIAL_HOST"'
+
+[settings.url_replacements]
+# Warp's cask URL answers 404 unless the User-Agent starts with `Homebrew`, and
+# mise has no setting for its own (measured on 2026.11.6). This sends the request
+# to the file that URL redirects to; the cask's checksum still verifies it.
+# Delete it once `brew-cask:warp` installs without it.
+# https://mise.jdx.dev/url-replacements.html
+'regex:^https://app\.warp\.dev/download/brew\?version=([^&]+)&package=dmg$' = "https://releases.warp.dev/stable/$1/Warp.dmg"
