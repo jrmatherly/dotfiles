@@ -1,6 +1,6 @@
 # Mole (`mo`)
 
-Mole is a Mac cleaner and maintenance tool, the `brew:mole` package in `tilde/.config/mise/conf.d/30-packages.toml`. mise installs it and this setup has no `brew` command, so wherever this page says Mole calls `brew`, that branch does nothing on a Mac without Homebrew. This page says what each command does on a Mac set up from this repo, which of them to use, and how its config is tracked. It was checked against Mole 1.64.0. Source citations are relative to the install, `/opt/homebrew/opt/mole/libexec`.
+Mole is a Mac cleaner and maintenance tool, the `brew:mole` package in `tilde/.config/mise/conf.d/30-packages.toml`. mise installs it and this setup has no `brew` command, so wherever this page says Mole calls `brew`, that branch does nothing on a Mac without Homebrew. This page says what each command does on a Mac set up from this repo, which of them to use, and how its config is tracked. It was checked against Mole 1.64.0, and the whitelist section again against 1.71.0. Source citations are relative to the install, `/opt/homebrew/opt/mole/libexec`.
 
 ## Summary
 
@@ -116,15 +116,15 @@ Edit the files in the repo. Mole's own editors (`mo clean --whitelist`, `mo opti
 
 How the file works:
 
-- Once it exists, it replaces Mole's 14 built-in optional patterns (`DEFAULT_WHITELIST_PATTERNS`, `lib/core/base.sh`).
+- Once it exists, it replaces Mole's 16 built-in optional patterns (`DEFAULT_WHITELIST_PATTERNS`, `lib/core/base.sh`).
 - Seven hard-coded safety entries (Spotlight, FontRegistry, CloudKit and others) always merge back in (`lib/core/base.sh`).
 - One absolute path or glob per line. `~`, `$HOME` and `${HOME}` are expanded. `#` starts a comment only at the start of a line.
 - `*` also matches `/`.
 - `mo purge` reads this file too (`bin/purge.sh`).
 
-The shared `mole/whitelist` keeps four of the optional defaults (Playwright, iCloud, Finder's cache and `FINDER_METADATA`) and adds the Go module cache, `~/go/pkg/mod/*`, since every Go repo needs its sources offline, and the npx cache, `~/.npm/_npx/*`, which Claude Code plugin MCP servers run from (see npm above). A dry-run with it reports "10 core + 2 custom patterns active", "Go module cache · would skip (whitelist)" and "npm cache · would skip (whitelist)". That last line is Mole's parent rule (`is_path_whitelisted`, `lib/core/app_protection.sh`): a pattern under `~/.npm` also protects `~/.npm` itself, so the `npm cache clean --force` step is skipped. The "npm cache directory" (`_cacache`), "npm logs" and "npm prebuilds" sweeps still run. The npx entries are skipped without a row of their own, so the whitelist costs only those entries.
+The shared `mole/whitelist` keeps four of the optional defaults (Playwright, iCloud, Finder's cache and `FINDER_METADATA`) and adds the Go module cache, `~/go/pkg/mod/*`, since every Go repo needs its sources offline, and the npx cache, `~/.npm/_npx/*`, which Claude Code plugin MCP servers run from (see npm above). A dry-run with it reports a "core + 2 custom patterns active" count, "Go module cache · would skip (whitelist)" and "npm cache · would skip (whitelist)". That last line is Mole's parent rule (`is_path_whitelisted`, `lib/core/app_protection.sh`): a pattern under `~/.npm` also protects `~/.npm` itself, so the `npm cache clean --force` step is skipped. The "npm cache directory" (`_cacache`), "npm logs" and "npm prebuilds" sweeps still run. The npx entries are skipped without a row of their own, so the whitelist costs only those entries.
 
-The defaults left out cover Gradle, Ollama, Surge, R, JetBrains and tealdeer.
+The defaults left out cover Camoufox, Cypress, Gradle, Ollama, Surge, R, JetBrains and tealdeer.
 
 - R's `renv` cache is also a hard safety entry, so it stays protected regardless.
 - Mole never targets `~/.ollama` outside its cache.

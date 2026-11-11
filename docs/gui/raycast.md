@@ -9,7 +9,7 @@ Installed by mise from `tilde/.config/mise/conf.d/30-packages.toml` (`"brew-cask
 - `set-defaults` (`20-macos.toml`) turns off macOS's Spotlight shortcuts, freeing ⌘Space — Raycast doesn't take it by itself
 - Raycast → **Settings (Cmd+,) → General → Raycast Hotkey:** click the field and press ⌘Space
 - **General → Open at Login:** keep it on
-- If ⌘Space still doesn't register, check **System Settings → Keyboard → Keyboard Shortcuts → Input Sources**, and the Siri shortcut in **System Settings → Apple Intelligence & Siri**
+- If ⌘Space still doesn't register, check **System Settings → Keyboard → Keyboard Shortcuts → Input Sources**, and the Siri shortcut in **System Settings → Siri**
 - Window management needs Accessibility access: **System Settings → Privacy & Security → Accessibility**
 
 ## Window management

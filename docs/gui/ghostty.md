@@ -61,4 +61,4 @@ The CLI binary isn't on `PATH`. Run it as `/Applications/Ghostty.app/Contents/Ma
 - https://ghostty.org/docs/config/reference
 - https://ghostty.org/docs/config/keybind
 - https://ghostty.org/docs/features/theme
-- Installed Ghostty 1.3.1: `ghostty +list-keybinds --default` and `+show-config --default --docs`
+- Installed Ghostty 1.4.0: `ghostty +list-keybinds --default` and `+show-config --default --docs`
