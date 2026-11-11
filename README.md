@@ -12,8 +12,6 @@ Jason's personal dotfiles for configuring macOS with Zsh and mise — a personal
 - macOS on Apple Silicon (mise installs formulae and casks into `/opt/homebrew`; Homebrew itself isn't needed); the macOS defaults were reviewed for macOS 27
 - Zsh — the `brew:zsh` package; mise makes it your login shell (`[bootstrap.user]`)
 
-Installing on a new Mac with mise alone has not been run end to end on a clean Mac yet.
-
 ## What's in there?
 
 - Custom color scheme: [Squirrelsong](colors/).
