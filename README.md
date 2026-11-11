@@ -81,11 +81,13 @@ To automate the setup of your dotfiles on a new machine, use the [setup](./setup
 1. installs mise into `~/.local/bin` when it is missing
 1. links the dotfiles into your home directory, before any package can put a file where a link belongs
 1. installs the formulae and casks
-1. runs `mise bootstrap`: Touch ID for `sudo`, the login shell, the runtimes and CLIs, then [`setup/misc.sh`](setup/README.md#misc) for everything else
+1. runs `mise bootstrap`: Touch ID for `sudo` and the login shell
+1. installs the runtimes and CLIs with `mise install`
+1. runs [`setup/misc.sh`](setup/README.md#misc), the `bootstrap` task, for everything else
 1. installs the VS Code extensions
 1. runs [`setup/dotfiles-extras.sh`](setup/README.md#dotfiles-extrassh)
 
-A package that fails to install only warns, and the run goes on. A failed part of `mise bootstrap` stops the run and the earlier steps stay applied: fix what it reported and run `./setup.sh` again. Every step is safe to repeat, and rerunning `./setup.sh` is also how you apply later changes. Use it rather than a bare `mise bootstrap`, which also applies the macOS preferences and restarts Finder and the Dock. Setup never applies those: [`set-defaults`](#set-macos-defaults) does.
+A package or tool that fails to install only warns, and the run goes on. The last thing on screen is then a list of what failed, with mise's reason when it printed one, and `setup.sh` exits 2 instead of 0. A tool's reason can be cut short: `mise install <tool>` from `~` shows the whole error. Anything else that fails, such as a part of `mise bootstrap` or the task, stops the run with exit status 1 and the earlier steps stay applied: fix what it reported and run `./setup.sh` again. Every step is safe to repeat, and rerunning `./setup.sh` is also how you apply later changes. Use it rather than a bare `mise bootstrap`, which also applies the macOS preferences and restarts Finder and the Dock. Setup never applies those: [`set-defaults`](#set-macos-defaults) does.
 
 It exports telemetry opt-outs (.NET, PowerShell, Azure CLI, Azure MCP server, Azure Functions Core Tools, Aspire, CodeGraph, rtk, Claude Code error reports) before any of those tools is installed.
 

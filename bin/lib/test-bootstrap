@@ -52,7 +52,8 @@ mise_stub=$(
   cat << 'EOF'
 case $1 in
   --version) echo "${STUB_MISE_VERSION:-2026.11.5} macos-arm64 (2026-11-08)" ;;
-  *) echo "pwd=$(pwd -P) args=$* disable=${MISE_DISABLE_TOOLS:-} dotfiles=${DOTFILES:-} skip=${DOTFILES_SKIP_CODEGRAPH:-} token=${MISE_GITHUB_TOKEN:-} telemetry=${CODEGRAPH_TELEMETRY:-}" >> "$STATE/mise.log"
+  *) echo "mise $*" >> "$STATE/order.log"
+    echo "pwd=$(pwd -P) args=$* disable=${MISE_DISABLE_TOOLS:-} dotfiles=${DOTFILES:-} skip=${DOTFILES_SKIP_CODEGRAPH:-} token=${MISE_GITHUB_TOKEN:-} telemetry=${CODEGRAPH_TELEMETRY:-}" >> "$STATE/mise.log"
     case "$*" in
       "bootstrap packages upgrade "*) [ ! -e "$STATE/upgrade-fails" ] ;;
       "bootstrap packages apply --yes --manager brew")
@@ -62,15 +63,25 @@ case $1 in
         printf '{"brew-cask":{"available":true,"packages":['
         for p in $(cat "$STATE/missing-casks" 2> /dev/null); do printf '{"package":"%s","state":"missing"},' "$p"; done
         printf '{"package":"ghostty","state":"installed"}]}}\n' ;;
-      "bootstrap packages apply --yes brew-cask:"*) ! grep -qxF "${5#brew-cask:}" "$STATE/bad-casks" 2> /dev/null ;;
+      "bootstrap packages apply --yes brew-cask:"*)
+        ! grep -qxF "${5#brew-cask:}" "$STATE/bad-casks" 2> /dev/null || { echo "mise ERROR download returned 404"; exit 1; } ;;
       "dotfiles apply"*) [ ! -e "$STATE/dotfiles-fail" ] ;;
+      install*)
+        [ ! -e "$STATE/tools-fail" ] || {
+          echo "mise ✗ npm:@vue/language-server@3.1.0  2.1s · failed: failed to resolve dependencies"
+          echo "mise ✓ npm:typescript@5.9.3  1.0s"
+          exit 1
+        } ;;
+      "ls --missing --json") if [ -e "$STATE/tools-fail" ]; then echo '{"npm:@vue/language-server":[]}'; else echo '{}'; fi ;;
+      upgrade*) ;;
+      "bootstrap --only task"*) [ ! -e "$STATE/task-fails" ] ;;
       "bootstrap packages "* | plugins*) ;;
       bootstrap*) [ ! -e "$STATE/bootstrap-fails" ] ;;
     esac ;;
 esac
 EOF
 )
-stub sudo 'echo "$*" >> "$STATE/sudo.log"'
+stub sudo 'echo "$*" >> "$STATE/sudo.log"; echo "sudo $*" >> "$STATE/order.log"'
 stub xcode-select '[ ! -e "$STATE/no-clt" ]'
 stub curl 'echo "$*" >> "$STATE/curl.log"; echo "mkdir -p \"\$HOME/.local/bin\" && cp \"$STATE/mise-stub\" \"\$HOME/.local/bin/mise\""'
 
@@ -110,13 +121,22 @@ run() {
   rm -rf "${tmp:?}/home" "$STATE" "$tmp/bin/gh" "$tmp/bin/code"
   export HOME="$tmp/home"
   mkdir -p "$HOME" "$STATE"
-  touch "$STATE/mise.log" "$STATE/extras.log" "$STATE/sudo.log" "$STATE/curl.log"
+  touch "$STATE/mise.log" "$STATE/extras.log" "$STATE/sudo.log" "$STATE/curl.log" "$STATE/order.log"
   stub mise "$mise_stub"
   prepare
   rc=0
   out=$(PATH="$tmp/bin:/usr/bin:/bin" "$fix/setup.sh" "$@" 2>&1 < /dev/null) || rc=$?
 }
 apply="args=bootstrap packages apply --yes --manager"
+task="args=bootstrap --only task disable="
+# sudo_dropped_before <text>: a `sudo -k` comes before the first call naming text, and after the bootstrap
+sudo_dropped_before() {
+  local k b n
+  b=$(grep -nF 'mise bootstrap --skip' "$STATE/order.log" | head -1 | cut -d: -f1)
+  k=$(grep -nxF 'sudo -k' "$STATE/order.log" | head -1 | cut -d: -f1)
+  n=$(grep -nF -- "$1" "$STATE/order.log" | head -1 | cut -d: -f1)
+  [ -n "$b" ] && [ -n "$k" ] && [ -n "$n" ] && [ "$b" -lt "$k" ] && [ "$k" -lt "$n" ]
+}
 upgrade="args=bootstrap packages upgrade --yes --manager"
 
 run
@@ -125,7 +145,11 @@ check_true "a: ~/.config/mise links to the clone's" [ -L "$HOME/.config/mise" -a
 check_true "a: ~/dotfiles links to the clone" [ -L "$HOME/dotfiles" -a "$HOME/dotfiles" -ef "$fix" ]
 check_true "a: dotfiles, plugin link, formulae, casks, then bootstrap" in_order "args=dotfiles apply --yes disable=" \
   "args=plugins link --force vscode $fix/mise-plugins/vscode disable=" "$apply brew disable=" "$apply brew-cask disable=" \
-  "pwd=$HOME args=bootstrap --skip macos-defaults,packages disable= dotfiles=$fix skip= token= telemetry=0"
+  "pwd=$HOME args=bootstrap --skip macos-defaults,packages,tools,task disable= dotfiles=$fix skip= token= telemetry=0" \
+  "args=install --yes disable=" "$task"
+check_true "a: sudo is dropped after the bootstrap, before the tools" sudo_dropped_before "mise install"
+check_true "a: no tool is upgraded" log_lacks "args=upgrade"
+check_true "a: says All done with no problem list" has 'All done' && check_true "a: … and no problem list" lacks 'Setup finished'
 check_true "a: every mise call runs from HOME" [ -z "$(grep -v "^pwd=$HOME " "$STATE/mise.log")" ]
 check_true "a: no package is upgraded" log_lacks "packages upgrade"
 check_true "a: no extensions without code" log_lacks "--manager vscode"
@@ -136,14 +160,16 @@ check_true "a: the extras script runs once" extras_ran 1
 check_true "a: no sudo prompt without a terminal" [ -z "$(grep -e '-v' "$STATE/sudo.log")" ]
 
 run -y --skip-codegraph -- --skip packages
-check_true "b: --yes, the merged skip list and CodeGraph disabled" boot_has "args=bootstrap --yes --skip macos-defaults,packages disable=npm:@colbymchenry/codegraph "
+check_true "b: --yes, the merged skip list and CodeGraph disabled" boot_has "args=bootstrap --yes --skip macos-defaults,packages,tools,task disable=npm:@colbymchenry/codegraph "
 check_true "b: the task is told to skip CodeGraph" boot_has " skip=true "
 check_true "b: --skip packages skips setup's own package step" log_lacks "packages apply"
 check_true "b: … and the plugin link" log_lacks "plugins link"
 
 prepare() { stub code 'exit 0'; }
 run -- --skip tools --skip=files --upgrade
-check_true "b2: both --skip forms merge, --upgrade stays" boot_has "args=bootstrap --skip macos-defaults,tools,files,packages --upgrade disable="
+check_true "b2: both --skip forms merge, --upgrade stays" boot_has "args=bootstrap --skip macos-defaults,tools,files,packages,task --upgrade disable="
+check_true "b2: --skip tools installs and upgrades no tool" log_lacks "args=install" && check_true "b2: … no upgrade" log_lacks "args=upgrade"
+check_true "b2: the task still runs" log_has "args=bootstrap --only task --upgrade disable="
 check_true "b2: each manager is applied, then upgraded, extensions after bootstrap" in_order \
   "$apply brew disable=" "$upgrade brew disable=" "$apply brew-cask disable=" "$upgrade brew-cask disable=" \
   "args=bootstrap --skip" "$apply vscode disable=" "$upgrade vscode disable="
@@ -157,14 +183,16 @@ check_true "b3: mise is not run" log_empty
 run -- --dry-run --upgrade
 check_true "b4: --dry-run reaches each apply and upgrade" in_order \
   "$apply brew --dry-run disable=" "$upgrade brew --dry-run disable=" "$apply brew-cask --dry-run disable=" "$upgrade brew-cask --dry-run disable="
-check_true "b4: … and the bootstrap" boot_has "--skip macos-defaults,packages --dry-run --upgrade disable="
+check_true "b4: … and the bootstrap" boot_has "--skip macos-defaults,packages,tools,task --dry-run --upgrade disable="
+check_true "b4: … and the tools install and upgrade, then the task" in_order "args=install --yes --dry-run disable=" \
+  "args=upgrade --yes --dry-run disable=" "args=bootstrap --only task --dry-run --upgrade disable="
 check_true "b4: a dry run links no plugin" log_lacks "plugins link"
 check_true "b4: the dotfiles apply is a dry run, before the packages" in_order "args=dotfiles apply --yes --dry-run disable=" "$apply brew --dry-run disable="
 check_true "b4: … and skips the extras script" extras_ran 0
 
 run -- --skip dotfiles
 check_true "b5: exits 0" [ "$rc" -eq 0 ]
-check_true "b5: dotfiles joins the skip list" boot_has "--skip macos-defaults,dotfiles,packages disable="
+check_true "b5: dotfiles joins the skip list" boot_has "--skip macos-defaults,dotfiles,packages,tools,task disable="
 check_true "b5: no extras without the dotfiles part" extras_ran 0
 check_true "b5: no dotfiles apply" log_lacks "dotfiles apply"
 
@@ -173,7 +201,7 @@ check_true "b6: exits 0" [ "$rc" -eq 0 ]
 check_true "b6: no package apply" log_lacks "packages apply"
 check_true "b6: no package upgrade" log_lacks "packages upgrade"
 check_true "b6: no plugin link" log_lacks "plugins link"
-check_true "b6: tools are still upgraded" boot_has "--skip macos-defaults,packages --upgrade disable="
+check_true "b6: tools are still upgraded" in_order "args=install --yes disable=" "args=upgrade --yes disable="
 
 prepare() { mkdir -p "$HOME/.config/mise" && touch "$HOME/.config/mise/config.toml"; }
 run
@@ -200,7 +228,7 @@ prepare() { mv "$tmp/bin/mise" "$STATE/mise-stub"; }
 run
 check_true "d: without mise exits 0" [ "$rc" -eq 0 ]
 check_true "d: installs mise from mise.run" grep -q 'https://mise.run' "$STATE/curl.log"
-check_true "d: the installed mise runs the bootstrap" boot_has "--skip macos-defaults,packages"
+check_true "d: the installed mise runs the bootstrap" boot_has "--skip macos-defaults,packages,tools,task"
 prepare() { :; }
 
 STUB_MISE_VERSION=2026.10.1 run
@@ -213,6 +241,7 @@ run
 check_true "f: a failed bootstrap fails setup" [ "$rc" -ne 0 ]
 check_true "f: says to rerun" has 'rerun \./setup\.sh'
 check_true "f: no extras after a failed bootstrap" extras_ran 0
+check_true "f: no tools after a failed bootstrap" log_lacks "args=install"
 check_true "f: does not say All done" lacks 'All done'
 
 prepare() {
@@ -228,7 +257,7 @@ prepare() {
   stub code 'exit 0'
 }
 run
-check_true "f2: a failed cask exits 0" [ "$rc" -eq 0 ]
+check_true "f2: a failed cask exits 2" [ "$rc" -eq 2 ]
 check_true "f2: warns that casks failed" has 'Some casks failed to install'
 check_true "f2: the bootstrap and then the extensions still run" in_order "$apply brew-cask disable=" "args=bootstrap --skip" "$apply vscode disable="
 check_true "f2: the extras script runs" extras_ran 1
@@ -239,7 +268,7 @@ prepare() {
   echo royal-tsx > "$STATE/bad-casks"
 }
 run
-check_true "f2b: exits 0" [ "$rc" -eq 0 ]
+check_true "f2b: exits 2" [ "$rc" -eq 2 ]
 check_true "f2b: each cask left missing gets its own apply" in_order "$apply brew-cask disable=" "args=bootstrap packages status --json" \
   "args=bootstrap packages apply --yes brew-cask:royal-tsx disable=" "args=bootstrap packages apply --yes brew-cask:syntax-highlight disable=" \
   "args=bootstrap packages apply --yes brew-cask:utm disable=" "args=bootstrap --skip"
@@ -249,11 +278,38 @@ check_true "f2b: … and only that one" lacks 'brew-cask:(syntax-highlight|utm) 
 
 prepare() { touch "$STATE/upgrade-fails"; }
 run -- --upgrade
-check_true "f3: a failed upgrade exits 0" [ "$rc" -eq 0 ]
+check_true "f3: a failed upgrade exits 2" [ "$rc" -eq 2 ]
 check_true "f3: warns that the upgrade failed" has 'failed to upgrade'
 check_true "f3: casks are applied after the failed formula upgrade" in_order "$upgrade brew disable=" "$apply brew-cask disable="
-check_true "f3: the bootstrap still gets --upgrade" boot_has "--skip macos-defaults,packages --upgrade disable="
+check_true "f3: the bootstrap still gets --upgrade" boot_has "--skip macos-defaults,packages,tools,task --upgrade disable="
+check_true "f3: lists the upgrade" has '✗ upgrade +formulae'
+check_true "f3: … and says to retry with --upgrade" has 'To retry: \./setup\.sh -- --upgrade$'
+
 check_true "f3: the extras script runs" extras_ran 1
+
+prepare() {
+  touch "$STATE/tools-fail"
+  echo warp > "$STATE/missing-casks"
+  echo warp > "$STATE/bad-casks"
+  touch "$STATE/casks-fail"
+  stub code 'exit 0'
+}
+run
+check_true "t: a failed tool exits 2" [ "$rc" -eq 2 ]
+check_true "t: the task, then the extensions still run" in_order "args=install --yes disable=" "$task" "$apply vscode disable="
+check_true "t: the extras script runs" extras_ran 1
+check_true "t: counts the problems" has '^⚠️  Setup finished with 2 problems$'
+check_true "t: lists the cask with mise's reason" has '^  ✗ cask   warp                       download returned 404$'
+check_true "t: lists the tool with mise's reason" has '^  ✗ tool   npm:@vue/language-server   failed to resolve dependencies$'
+check_true "t: a tool that installed is not listed" lacks '✗ tool +npm:typescript'
+check_true "t: ends with the tool hint" [ "$(tail -1 <<< "$out")" = "  To see why a tool failed: mise install <tool>" ]
+check_true "t: no All done" lacks 'All done'
+
+prepare() { touch "$STATE/task-fails"; }
+run
+check_true "t2: a failed task fails setup" [ "$rc" -eq 1 ]
+check_true "t2: says to rerun" has 'rerun \./setup\.sh'
+check_true "t2: no extras after a failed task" extras_ran 0
 
 prepare() { touch "$STATE/dotfiles-fail"; }
 run
@@ -312,8 +368,10 @@ if command -v mise > /dev/null; then
   ! grep -q 'unknown field' <<< "$out" || fail "mise warns about an unknown key"
   mise bootstrap files status | grep '/etc/pam.d/sudo_local' | grep -q 'owner root group wheel' || fail "sudo_local not declared with its owner"
   mise bootstrap user status | grep -q '^/opt/homebrew/bin/zsh' || fail "login shell not declared"
-  out=$(mise bootstrap --dry-run --skip macos-defaults,packages 2>&1) || fail "the skip list setup.sh passes does not parse: $out"
-  ! grep -qE 'pre-defaults|post-defaults|pre-packages|system defaults|system packages' <<< "$out" || fail "a skipped part or its hook still runs"
+  out=$(mise bootstrap --dry-run --skip macos-defaults,packages,tools,task 2>&1) || fail "the skip list setup.sh passes does not parse: $out"
+  ! grep -qE 'pre-defaults|post-defaults|pre-packages|system defaults|system packages|pre-tools|bootstrap: tools|`bootstrap` task' <<< "$out" || fail "a skipped part or its hook still runs"
+  out=$(mise bootstrap --dry-run --only task 2>&1) || fail "--only task does not parse: $out"
+  grep -qF 'mise bootstrap: running `bootstrap` task' <<< "$out" || fail "--only task does not run the task"
   echo "ok: the tracked bootstrap config dry-runs"
 else
   echo "test-bootstrap: mise not found, skipping the dry run of the bootstrap config" >&2

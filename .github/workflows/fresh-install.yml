@@ -52,11 +52,16 @@ jobs:
       # Enter prompt and the script log, and mise elevates with the runner's
       # passwordless sudo. It installs mise, links the dotfiles, applies formulae and casks
       # (printing free space after each), runs mise bootstrap without macOS
-      # preferences, then applies the extensions. Single package failures only
-      # warn; a failed bootstrap part fails this step
+      # preferences, mise install and the task, then applies the extensions. A
+      # failed bootstrap part or task fails this step. Exit 2 means only some
+      # packages or tools failed: the steps below judge each one, so the
+      # tolerated royal-tsx miss alone does not fail the job
       - name: setup.sh
         # --skip user: chsh asks for the account's password, which a runner has none of
-        run: ./setup.sh -y --skip-codegraph -- --skip user
+        run: |
+          rc=0
+          ./setup.sh -y --skip-codegraph -- --skip user || rc=$?
+          [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit "$rc"
       - name: Disk after setup
         if: always()
         run: |
@@ -73,7 +78,15 @@ jobs:
         run: |
           test -x "$HOME/.local/bin/mise"
           mise --version
-      # The tools part of mise bootstrap installed the tools. The postinstall
+      # From RUNNER_TEMP so the repo's .nvmrc adds nothing. CodeGraph is
+      # disabled as in the setup.sh step
+      - name: Tools installed
+        if: always()
+        working-directory: ${{ runner.temp }}
+        run: |
+          missing=$(MISE_DISABLE_TOOLS=npm:@colbymchenry/codegraph mise ls --missing --json | jq -r 'keys[]')
+          [ -z "$missing" ] || { echo "::error::tools not installed: $(paste -sd, - <<< "$missing")"; exit 1; }
+      # setup.sh's mise install installed the tools. The postinstall
       # hooks in config.toml write the completions (spec decision 10)
       - name: Completions written
         run: |

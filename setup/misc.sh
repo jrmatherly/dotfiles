@@ -88,10 +88,10 @@ if command_exists gh && ! gh auth status &> /dev/null; then
   fi
 fi
 
-# The tools part of `mise bootstrap` installed the runtimes and CLIs before
-# this task
+# setup.sh (or the tools part of a bare `mise bootstrap`) installed the
+# runtimes and CLIs before this task
 if command_exists mise; then
-  # setup.sh --skip-codegraph sets MISE_DISABLE_TOOLS for the tools part. A
+  # setup.sh --skip-codegraph sets MISE_DISABLE_TOOLS for the tool install. A
   # reshim while it is set deletes an installed CodeGraph's shim, so reshim
   # once more without it.
   if [ "${DOTFILES_SKIP_CODEGRAPH:-false}" = true ]; then

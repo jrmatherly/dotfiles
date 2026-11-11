@@ -1,7 +1,8 @@
 # What `mise bootstrap` does beyond env, macOS defaults, packages and dotfiles
 # (conf.d/10 to 40). setup.sh links this directory to ~/.config/mise, installs
-# mise, applies the dotfiles and the packages itself and runs
-# `mise bootstrap --skip macos-defaults,packages` from $HOME.
+# mise, applies the dotfiles and the packages itself, then from $HOME runs
+# `mise bootstrap --skip macos-defaults,packages,tools,task`, `mise install`
+# and `mise bootstrap --only task`, so one failed tool does not stop the run.
 # https://mise.jdx.dev/bootstrap.html
 
 # Touch ID for sudo. /etc/pam.d/sudo includes sudo_local, and macOS updates
@@ -32,7 +33,7 @@ pre-packages = 'mise plugins link --force vscode "${DOTFILES:-$HOME/dotfiles}/mi
 # setup/dotfiles-extras.sh may ask for sudo. setup.sh runs that script.
 # Every part that needs root runs before `tools`. Drop the cached credential
 # here, so npm install scripts and the task's installers cannot use sudo
-# without asking.
+# without asking. setup.sh skips this part and runs `sudo -k` itself.
 pre-tools = "sudo -k"
 
 # The steps no section above covers. It runs on every bootstrap, so each step

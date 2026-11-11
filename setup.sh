@@ -13,6 +13,9 @@
 #                     the parts setup always skips, `--upgrade` also upgrades
 #                     the packages, `--dry-run` previews and `--only` is refused
 #
+# Exits 0 when everything installed, and 2 when setup ran to the end but some
+# packages or tools failed (listed last). Any other status means a step stopped it.
+#
 # License: MIT
 
 set -euo pipefail
@@ -105,6 +108,10 @@ skip="macos-defaults${user_skip:+,$user_skip}"
 run_packages=true run_dotfiles=true
 case ",$user_skip," in *,packages,*) run_packages=false ;; *) skip="$skip,packages" ;; esac
 case ",$user_skip," in *,dotfiles,*) run_dotfiles=false ;; esac
+# setup installs the tools itself, between two bootstrap calls (below)
+run_tools=true run_task=true
+case ",$user_skip," in *,tools,*) run_tools=false ;; *) skip="$skip,tools" ;; esac
+case ",$user_skip," in *,task,*) run_task=false ;; *) skip="$skip,task" ;; esac
 run_extras=$run_dotfiles
 [ -z "$dry_run_flag" ] || run_extras=false
 
@@ -218,17 +225,19 @@ sudo_keepalive_start() {
 }
 
 # Stop the keep-alive and drop the cached credential (`sudo -k`), so the steps
-# that follow can't use sudo without asking. A no-op when none is running.
+# that follow can't use sudo without asking. Without a keep-alive mise's own
+# sudo prompts may have cached one, so it is dropped either way.
 sudo_keepalive_stop() {
-  [ -n "${SUDO_KEEPALIVE_PID:-}" ] || return 0
-  kill "$SUDO_KEEPALIVE_PID" 2> /dev/null || true
-  SUDO_KEEPALIVE_PID=""
-  sudo -k
-  echo "Sudo released"
+  if [ -n "${SUDO_KEEPALIVE_PID:-}" ]; then
+    kill "$SUDO_KEEPALIVE_PID" 2> /dev/null || true
+    SUDO_KEEPALIVE_PID=""
+    echo "Sudo released"
+  fi
+  sudo -k 2> /dev/null || true
 }
 
 # Ask for the administrator password once, for the packages, sudo_local and
-# the login shell. The pre-tools hook drops it before anything else runs.
+# the login shell. It is dropped before the tools install.
 # Without a terminal mise asks per step, and a dry run needs none.
 if [ -t 0 ] && [ -z "$dry_run_flag" ]; then
   warning "Activate sudo"
@@ -262,7 +271,18 @@ if [ "$run_dotfiles" = true ]; then
   echo
 fi
 
-# packages_for <manager> <noun>: setup applies the packages itself, because
+# What the run carried on past, listed at the end: one "kind<TAB>name<TAB>reason"
+# line each (bash 3.2 has no associative arrays)
+problems=""
+# problem <kind> <name> [<mise output>]: the reason is mise's own `failed:` or
+# ERROR text, and stays empty when mise printed none
+problem() {
+  local reason
+  reason=$(grep -E 'failed: |ERROR ' <<< "${3:-}" | grep -vE 'ERROR +(Version:|Run with)' | tail -1 | sed -E 's/.*(failed: |ERROR +)//' | cut -c1-100) || reason=""
+  problems+="$1"$'\t'"$2"$'\t'"$reason"$'\n'
+}
+
+# packages_for <manager> <noun> <kind>: setup applies the packages itself, because
 # mise bootstrap stops at the first part that fails and one failed cask would
 # skip the dotfiles, the login shell and the tools. A failed package warns and
 # the run goes on, but "no packages requested" means mise read no package list.
@@ -277,16 +297,21 @@ packages_for() {
     # mise stops at the first package that fails, so each one after it gets its own apply
     local missing pkg
     missing=$(mise bootstrap packages status --json | jq -r --arg m "$1" '.[$m].packages[]? | select(.state == "missing") | .package') || missing=""
-    [ -n "$missing" ] || warning "Some $2 failed to install. See above, then rerun ./setup.sh"
+    if [ -z "$missing" ]; then
+      warning "Some $2 failed to install. See above, then rerun ./setup.sh"
+      problem "$3" "some $2" "$out"
+    fi
     for pkg in $missing; do
-      mise bootstrap packages apply --yes ${dry_run_flag:+"$dry_run_flag"} "$1:$pkg" \
-        || warning "$1:$pkg failed to install. See above, then rerun ./setup.sh"
+      if ! out=$(mise bootstrap packages apply --yes ${dry_run_flag:+"$dry_run_flag"} "$1:$pkg" 2>&1 | tee /dev/stderr); then
+        warning "$1:$pkg failed to install. See above, then rerun ./setup.sh"
+        problem "$3" "$pkg" "$out"
+      fi
     done
   fi
   # mise's own --upgrade upgrades packages only in the part setup skips
-  if [ "$upgrade" = true ]; then
-    mise bootstrap packages upgrade --yes --manager "$1" ${dry_run_flag:+"$dry_run_flag"} \
-      || warning "Some $2 failed to upgrade. See above, then rerun ./setup.sh -- --upgrade"
+  if [ "$upgrade" = true ] && ! out=$(mise bootstrap packages upgrade --yes --manager "$1" ${dry_run_flag:+"$dry_run_flag"} 2>&1 | tee /dev/stderr); then
+    warning "Some $2 failed to upgrade. See above, then rerun ./setup.sh -- --upgrade"
+    problem upgrade "$2" "$out"
   fi
   # The full install measured about 32 GB; a full disk is the likeliest mid-run failure
   echo "$(df -h / | awk 'NR == 2 { print $4 }') free on /"
@@ -296,24 +321,47 @@ if [ "$run_packages" = true ]; then
   # The pre-packages hook does this for a bare `mise bootstrap`
   [ -n "$dry_run_flag" ] || mise plugins link --force vscode "$DOTFILES_DIR/mise-plugins/vscode"
   # Formulae first: reading the claude-multipass-app tap cask needs the Ruby 3 that brew:ruby installs
-  packages_for brew formulae
-  packages_for brew-cask casks
+  packages_for brew formulae formula
+  packages_for brew-cask casks cask
   echo
 fi
 
+bootstrap() {
+  mise bootstrap ${yes:+--yes} "$@" ${mise_args[@]+"${mise_args[@]}"} || {
+    local rc=$?
+    warning "mise bootstrap stopped. Earlier steps stay applied. Fix what it reported, then rerun ./setup.sh"
+    exit "$rc"
+  }
+}
+
 title "🚀 Running mise bootstrap…"
-rc=0
-mise bootstrap ${yes:+--yes} --skip "$skip" ${mise_args[@]+"${mise_args[@]}"} || rc=$?
-if [ "$rc" -ne 0 ]; then
-  warning "mise bootstrap stopped. Earlier steps stay applied. Fix what it reported, then rerun ./setup.sh"
-  exit "$rc"
-fi
+bootstrap --skip "$skip"
 sudo_keepalive_stop
+
+# Not mise's tools part, which stops the whole bootstrap at a failed tool.
+# mise install carries on past one and exits 1, and the task needs the rest.
+if [ "$run_tools" = true ]; then
+  title "🧰 Installing the mise tools…"
+  if ! out=$(mise install --yes ${dry_run_flag:+"$dry_run_flag"} 2>&1 | tee /dev/stderr); then
+    missing=$(mise ls --missing --json | jq -r 'keys[]') || missing=""
+    [ -n "$missing" ] || problem tool "mise install" "$out"
+    for tool in $missing; do
+      problem tool "$tool" "$(grep -F " $tool@" <<< "$out")"
+    done
+  fi
+  # What mise's --upgrade did in the tools part
+  if [ "$upgrade" = true ] && ! out=$(mise upgrade --yes ${dry_run_flag:+"$dry_run_flag"} 2>&1 | tee /dev/stderr); then
+    problem upgrade tools "$out"
+  fi
+  echo
+fi
+
+[ "$run_task" = false ] || bootstrap --only task
 
 if [ "$run_packages" = true ]; then
   # The VS Code cask may have arrived in this run, without code on PATH yet
   if command -v code > /dev/null; then
-    packages_for vscode extensions
+    packages_for vscode extensions extension
   else
     echo "VS Code is not installed yet: extensions are skipped. Rerun ./setup.sh once it is."
   fi
@@ -336,6 +384,23 @@ if [ "$RUN_DASH" = true ]; then
 fi
 
 echo
-echo "🦏 ${green}All done! Open a new terminal for the changes to take effect or run: source ~/.zshrc.${reset}"
+if [ -z "$problems" ]; then
+  echo "🦏 ${green}All done! Open a new terminal for the changes to take effect or run: source ~/.zshrc.${reset}"
+  "$DOTFILES_DIR/bin/nyan"
+  exit 0
+fi
 
-"$DOTFILES_DIR/bin/nyan"
+# In place of the art, so the list is the last thing on screen
+n=$(grep -c . <<< "$problems")
+echo "⚠️  ${bold}Setup finished with $n problem$([ "$n" -eq 1 ] || echo s)${reset}"
+echo
+awk -F '\t' -v x="${red}✗${reset}" 'NF {
+    k[++n] = $1; p[n] = $2; r[n] = $3
+    if (length($1) > kw) kw = length($1)
+    if (length($2) > pw) pw = length($2)
+  }
+  END { for (i = 1; i <= n; i++) { l = sprintf("  %s %-*s   %-*s   %s", x, kw, k[i], pw, p[i], r[i]); sub(/ +$/, "", l); print l } }' <<< "$problems"
+echo
+echo "  Everything else is installed. To retry: ./setup.sh$([ "$upgrade" = false ] || echo ' -- --upgrade')"
+case "$problems" in tool$'\t'* | *$'\n'tool$'\t'*) echo "  To see why a tool failed: mise install <tool>" ;; esac
+exit 2
