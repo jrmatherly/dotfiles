@@ -52,6 +52,7 @@ def marker_text(v: Value) -> str:
 
 
 class SettingsApp(App):
+    TITLE = "dotfiles settings"
     CSS = CSS
     BINDINGS = [Binding("ctrl+r", "reset", "Reset the focused setting"), Binding("p", "stack", "Project plugins")]
 
@@ -95,7 +96,7 @@ class SettingsApp(App):
         line = Horizontal(Label(s.label, classes="label"), widget_for(s, v), marker, classes="line")
         if v.source is Source.OVERRIDE and s.access != "ro":
             line.compose_add_child(Button("Reset", id=f"r-{slug(s)}"))
-        return Vertical(line, Static(s.help, classes="help"), classes="row")
+        return Vertical(line, Static(s.help, classes="help", markup=False), classes="row")
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         for i, box in enumerate(self.query(".section")):
@@ -120,7 +121,7 @@ class SettingsApp(App):
     def show_state(self) -> None:
         banner = self.query("#error")
         if self.error and not banner:
-            self.mount(Static(self.error, id="error"), before=0)
+            self.mount(Static(self.error, id="error", markup=False), before=0)
         elif self.error:
             banner.first(Static).update(self.error)
         else:
