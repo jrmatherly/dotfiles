@@ -24,9 +24,9 @@ There is no build. `pnpm check` (`bin/lib/check`) is the gate: syntax checks, sh
 - `pnpm format`: prettier `--write` over the same globs. YAML is covered only under `.github/`, because app-written configs like `tilde/.config/gh/config.yml` aren't Prettier-clean.
 - `.prettierignore` also lists zsh files (VS Code's format-on-save runs Prettier's shell plugin, which reads zsh as bash and rewrote `${keys[Ctrl+K]}`); add any new zsh file not ending in `.zsh` there. It skips files that tools rewrite themselves: any `CLAUDE.md`, `.serena/`, `.claude/auto-memory/`, `.claude/settings.local.json`, `docs/superpowers/`, `.superpowers/`, `tilde/.claude/rules/jstack-models.md` (rewritten whole by `/jstack:setup-jstack`), plus the git-ignored `private/` and `logs/`. Don't hand-format them.
 - One file: `bash -n <file> && shellcheck --severity=warning <file> && prettier --check <file>`.
-- `./setup.sh --skip-brew`: re-apply the dotfiles on this machine. It's interactive. Add `--skip-codegraph` to leave CodeGraph alone; drop `--skip-brew` to also run `setup/packages.sh`. Other flags: `-y`, `--dash`, `-h`. From a terminal it logs each run to `private/setup-logs/<timestamp>.log` (via `script`), which `/validate-setup after` reads.
+- `./setup.sh`: links the mise config, installs mise and the packages, then runs `mise bootstrap` (never macOS preferences, which are `set-defaults`). It's interactive. Flags: `-y`, `--skip-codegraph`, `--dash`, `-h`, `-- <mise args>`. From a terminal it logs each run to `private/setup-logs/<timestamp>.log` (via `script`), which `/validate-setup after` reads.
 - `mise dotfiles apply`: re-link only (`mise dotfiles status` shows drift). `./setup/dotfiles-extras.sh`: git identity, Firefox hard links, the `cot` and `code` links.
-- `sysup`: upgrades macOS, mise and its packages, runtimes and the agent tooling, printing one status line per step with full output in the git-ignored `logs/sysup-<timestamp>.log`. `setup.sh` only installs what's missing and doesn't upgrade. Details: `.claude/rules/sysup.md`.
+- `sysup`: upgrades macOS, mise and its packages, runtimes and the agent tooling, printing one status line per step with full output in the git-ignored `logs/sysup-<timestamp>.log`. `setup.sh` only installs what's missing, unless run with `-- --upgrade`. Details: `.claude/rules/sysup.md`.
 - `help <bin-script>`: renders a script's header. Use it to verify new or edited `bin/` scripts.
 
 <!-- END AUTO-MANAGED -->
@@ -36,7 +36,7 @@ There is no build. `pnpm check` (`bin/lib/check`) is the gate: syntax checks, sh
 ## Architecture
 
 ```text
-setup.sh          orchestrator → setup/{packages,zsh,misc}.sh, mise dotfiles apply, setup/dotfiles-extras.sh (+ dash.sh with --dash)
+setup.sh          wrapper → packages, mise bootstrap (conf.d/*.toml, task setup/misc.sh), setup/dotfiles-extras.sh (+ dash.sh with --dash)
 setup/            per-step scripts, macos-extras.sh (what the macOS TOML can't express), README.md (per-script docs)
 tilde/            mirrors $HOME (dotfiles, .config/*, .codex, .ssh/config)
 zsh/              sourced by tilde/.zshrc
@@ -50,7 +50,7 @@ obsidian/ firefox/ mole/ colors/ etc.     app config + repo-owned themes
 icons/                                     vendored binaries, don't edit
 ```
 
-- **Setup order**: `packages.sh` must run first because the later scripts use the tools it installs. What each script does is in `setup/README.md`; the ordering constraints are in `.claude/rules/setup.md`. `setup.sh` also does things the manual path skips: Touch ID for sudo (`/etc/pam.d/sudo_local`), a sudo keep-alive loop, and telemetry opt-out exports.
+- **Setup order**: mise is installed first and its part order is fixed. `setup.sh` installs packages itself first, so one failed package doesn't stop the run. What each step does is in `setup/README.md`; the constraints are in `.claude/rules/setup.md`.
 - **Symlinking**: `tilde/.config/mise/conf.d/40-dotfiles.toml` declares every link and `mise dotfiles apply` makes them. A real file in the way stops the apply, and `--force` replaces with no backup. Details: `.claude/rules/symlinks.md`.
 - **Forking**: the repo is public and cloned over HTTPS (no `gh` login needed). `README.md`'s "Make it yours" table lists the files hard-coded to the owner (clone URL, fastfetch, lazygit `authorColors`, `agents/claude-*`, `curated.toml`, `30-packages.toml`, LICENSE, `package.json` author, the archify diagram source); update it when adding another owner-specific value.
 - **Repo location**: never assumed. Scripts resolve it themselves. Shells get `$DOTFILES` from `tilde/.zshenv`. `~/dotfiles` must be a symlink to the clone: every `[dotfiles]` source goes through it, because a `source` is not a template and cannot expand `$DOTFILES`. `setup.sh` creates it and stops when a different `~/dotfiles` is in the way.
@@ -87,7 +87,7 @@ icons/                                     vendored binaries, don't edit
 
 - **Paired lists kept in sync**: telemetry opt-outs live in both `setup.sh` and `zsh/env.zsh` (see `.claude/rules/telemetry-sync.md`; checked by `bin/lib/test-conventions`).
 - **Docs mirror behavior**: a change to setup behavior, the package list or mise tools has a matching edit in `README.md`, `setup/README.md` or a per-directory README in the same commit. Instruction files are not a changelog: edit `CLAUDE.md` or a rule only when a stated fact becomes false or there's a why or constraint the code can't show, and prefer deleting text that restates the code over extending it. `bin/lib/test-conventions` caps their size (the auto-memory plugin is off for this repo: no `.claude/auto-memory/config.json`).
-- **Interactive and idempotent setup**: scripts detect existing state (symlink already correct, tool already installed, mise not yet on PATH) and skip or prompt rather than fail. Re-running `setup.sh` is the normal way to apply changes.
+- **Interactive and idempotent setup**: scripts detect existing state (symlink already correct, tool already installed, mise not yet on PATH) and skip or prompt rather than fail. Re-running `setup.sh` is the normal way to apply changes. A run is not a transaction: rerun after a failure.
 - **Guard optional tools**: shell config checks `command -v` / `command_exists` before sourcing zsh plugins or activating tools, so a fresh Mac without them still starts cleanly.
 - **Resolve own location**: bash uses `$(cd "$(dirname "$0")/.." && pwd -P)`; Node uses `fileURLToPath(import.meta.url)` with a `$DOTFILES` override.
 

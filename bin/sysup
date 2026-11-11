@@ -207,7 +207,7 @@ if capture dotfiles; then
   else
     status changed dotfiles "pulled $(plural "$(git -C "$DOTFILES" rev-list --count "$before..$after")" commit)"
     git -C "$DOTFILES" log --oneline "$before..$after" | sed 's/^/    /' | tee -a "$log"
-    actions+=("Open a new terminal: dotfiles changed" "Re-run setup.sh --skip-brew: dotfiles pulled new commits")
+    actions+=("Open a new terminal: dotfiles changed" "Re-run setup.sh: dotfiles pulled new commits")
   fi
 else
   status fail dotfiles "couldn't pull, carried on; run: dotfiles"

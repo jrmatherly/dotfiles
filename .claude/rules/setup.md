@@ -2,17 +2,25 @@
 paths:
   - 'setup.sh'
   - 'setup/**'
+  - 'tilde/.config/mise/conf.d/50-bootstrap.toml'
 ---
 
-# Setup scripts
+# Setup
 
-- A closed stdin (non-interactive run) must mean "skip", never abort or overwrite. The dotfiles step is the exception: `mise dotfiles apply` never asks, and a file in the way stops the run.
-- `packages.sh` runs first; later scripts may use the tools it installs but must guard with `command_exists` for `--skip-brew` on a fresh Mac.
-- `setup.sh` only installs what's missing and doesn't upgrade, except PowerShell (`dotnet tool update`) and the Iosevka font (reinstalled when the upstream zip changes).
-- Order constraints in `misc.sh`: `claude-config restore` and the catalog run last so `npx skills` runs with the npm settings (`min-release-age`, `allow-git none`). After mise tools it links `<mise data dir>/node_modules/typescript` to the global `npm:typescript`, so Terax's `typescript-language-server` finds TypeScript outside projects (`sysup` relinks it). `chmod +x` skips `*.md` so `bin/CLAUDE.md` stays non-executable.
+- A closed stdin (non-interactive run) must mean "skip", never abort or overwrite. The dotfiles part is the exception: it never asks, and a file in the way stops the run.
+- mise comes first. `setup.sh` links `~/dotfiles` and `~/.config/mise` into the clone, installs mise with its own installer when missing, checks the version floor, and runs the package step and `mise bootstrap` from `$HOME`. Started inside the clone, mise takes node from the repo's `.nvmrc` (measured: `node@lts` replaces the three configured versions in `mise bootstrap status`).
+- Not `--from` or `--adopt`: `--adopt` clones a whole repo into `~/.config/mise`, and `--from` loads the checkout root as a project and needs a matching `origin` (measured on 2026.11.5).
+- Setup never applies macOS preferences. `setup.sh` always passes `--skip macos-defaults`, which also drops the `pre-defaults` and `post-defaults` hooks. `--only` cannot be combined with `--skip`, so a user's `--skip` list is merged into that one argument and `--only` is refused. A bare `mise bootstrap` does apply them.
+- `setup.sh` applies the packages itself, one manager at a time, and only warns on a failure, because mise stops at the first failed part. It then skips the `packages` part, so mise's `--upgrade` alone would upgrade only the tools: with `-- --upgrade`, `setup.sh` runs `mise bootstrap packages upgrade` after each manager's apply. A run without it never upgrades a package (the task still updates PowerShell and a changed Iosevka font). `sysup` is the command that upgrades everything, macOS and mise included. The telemetry opt-outs are exported in `setup.sh` so they cover the package and tool installs.
+- The order after that is mise's: files, dotfiles, login shell, tools, then the `bootstrap` task. Everything that needs root runs before `tools`. The `pre-tools` hook and the first line of `setup/misc.sh` run `sudo -k`, so nothing in `misc.sh` may call sudo (`test-bootstrap` asserts it).
+- `setup/dotfiles-extras.sh` is never a hook. mise runs `post-dotfiles` on every `mise dotfiles apply`, including one from the settings UI, where a sudo prompt cannot be answered. `setup.sh` runs the script after `mise bootstrap` succeeds.
+- A run is not a transaction: a failed part leaves the earlier ones applied, and the fix is to rerun `./setup.sh`. Hooks and the task run on every bootstrap, so each `misc.sh` step checks state first and warns instead of failing.
+- Hooks run in mise's environment without `[tools]`; the task has them. In a global fragment `{{ config_root }}` is `$HOME`, so hooks and the task find the repo as `${DOTFILES:-$HOME/dotfiles}`.
+- Only one fragment may define `[tasks.bootstrap]`: a second definition replaces the first without a warning.
+- Order constraints in `misc.sh`: `claude-config restore` and the catalog run last so `npx skills` runs with the npm settings (`min-release-age`, `allow-git none`). After the tools part it links `<mise data dir>/node_modules/typescript` to the global `npm:typescript` (`sysup` relinks it). `chmod +x` skips `*.md` so `bin/CLAUDE.md` stays non-executable.
 - `aspire certs trust` has no y/N prompt and macOS may ask for the password, so it is skipped when already trusted and only a hint when non-interactive.
+- `--skip-codegraph` must leave an existing CodeGraph install untouched, including its mise shim: `setup.sh` sets `MISE_DISABLE_TOOLS` for the run and `misc.sh` reshims once without it. A bare `mise bootstrap` needs that variable and `DOTFILES_SKIP_CODEGRAPH=true`.
 - Every behavior change updates `setup/README.md` (and `README.md` for flags) in the same commit.
-- `--skip-codegraph` must leave an existing CodeGraph install untouched, including its mise shim (a `mise reshim` while `MISE_DISABLE_TOOLS` is set deletes it).
-- Fresh-install paths (no Homebrew, no 1Password, no `node_modules`) can't be verified on this machine — say so when a change touches them.
-- Validate with `/validate-setup before`, then `./setup.sh --skip-brew` in a terminal (it is interactive), then `/validate-setup after`.
+- A fresh install can't be verified on this machine. The `fresh-install` workflow runs `./setup.sh` on a hosted runner, which is not a clean Mac (Xcode is preinstalled, no first-launch prompts). The full proof is a run in a disposable macOS VM, checklist in the A6 plan's Task 6 (in `docs/superpowers/plans/completed/` once done). Say which of the two a change needs when it touches that path.
+- Validate with `/validate-setup before`, then `./setup.sh` in a terminal (it is interactive), then `/validate-setup after`.
 - `setup/bootstrap-runtime.svg` (embedded in `setup/README.md`) is generated by Archify from `setup/bootstrap-runtime.archify.json` (source line refs pinned to a commit). When step order, sudo use or download sources change, update the JSON, re-run `archify finalize` and re-export the SVG. Archify's per-run `.archify/` folder is gitignored; commit only the exported image.

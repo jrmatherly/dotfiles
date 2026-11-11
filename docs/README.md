@@ -149,7 +149,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 
 | Command | Description |
 | --- | --- |
-| `dotfiles` | Pull the latest dotfiles (re-run `setup.sh --skip-brew` afterwards to apply new links) |
+| `dotfiles` | Pull the latest dotfiles (re-run `setup.sh` afterwards to apply new links) |
 | `set-defaults` | Apply this repo's macOS defaults |
 | `install-color-themes` | Install the repo's Squirrelsong themes into apps — bat cache, Obsidian vault, import hints (see [colors](../colors/README.md)) |
 | `obsidian-vault install` `obsidian-vault capture` | Install the repo's Obsidian settings/templates into the vault, or bring vault changes back (see [obsidian](../obsidian/README.md)) |

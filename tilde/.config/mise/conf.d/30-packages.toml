@@ -1,5 +1,5 @@
 # Formulae, casks and VS Code extensions, installed and upgraded by
-# `mise bootstrap packages` (setup/packages.sh, sysup).
+# `mise bootstrap packages` (setup.sh, sysup).
 #
 # - A third-party tap is loaded only when a package below names it
 #   (`owner/tap/name`); bin/lib/test-packages requires that tap to be listed

@@ -63,7 +63,7 @@ No manual step needed: the `visual-studio-code` cask links `code` into `/opt/hom
 
 ## Install extensions
 
-The extensions are the `"vscode:<publisher.id>"` entries in [`30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml). mise installs them through the in-repo plugin [`mise-plugins/vscode`](../mise-plugins/vscode), which calls `code --install-extension`; `setup/packages.sh` links the plugin and applies them. VS Code keeps them up to date itself, and `sysup` upgrades VS Code, a cask in the same file. Install all the missing ones with:
+The extensions are the `"vscode:<publisher.id>"` entries in [`30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml). mise installs them through the in-repo plugin [`mise-plugins/vscode`](../mise-plugins/vscode), which calls `code --install-extension`; `setup.sh` links the plugin and applies them. VS Code keeps them up to date itself, and `sysup` upgrades VS Code, a cask in the same file. Install all the missing ones with:
 
 ```shell
 mise bootstrap packages apply --manager vscode

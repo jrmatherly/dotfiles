@@ -21,4 +21,4 @@ Add `$ARGUMENTS` to the dotfiles. Work through every item; say explicitly when o
 6. **Config files**: `$HOME` config goes under `tilde/` at its home-relative path, with a `[dotfiles]` entry in `tilde/.config/mise/conf.d/40-dotfiles.toml` (`pnpm check` fails without it). If the tool rewrites its config via temp-file + rename (breaks symlinks), don't track it — note that in `setup/README.md`.
 7. **Upgrades**: confirm `bin/sysup` covers it (`mise bootstrap packages upgrade`, `mise upgrade` and `uv tool upgrade --all` already do; VS Code updates its own extensions).
 8. **Docs**: `setup/README.md` (the section of the script you touched), `README.md` if user-facing, `docs/README.md` if it adds an alias or `bin/` command. A plain package entry needs no README line (they don't list packages).
-9. **Verify**: `pnpm check` (it runs `bin/lib/test-packages`); then, if setup scripts changed, tell the user to run `./setup.sh --skip-brew` (interactive) and, if relevant, `/validate-setup`.
+9. **Verify**: `pnpm check` (it runs `bin/lib/test-packages`); then, if setup scripts changed, tell the user to run `./setup.sh` (interactive) and, if relevant, `/validate-setup`.

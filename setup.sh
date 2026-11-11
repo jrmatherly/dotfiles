@@ -243,8 +243,8 @@ if [ -z "${MISE_GITHUB_TOKEN:-}" ] && ! gh auth token > /dev/null 2>&1; then
   warning "No GitHub token: tap formulae use the anonymous API limit (60 calls an hour). If packages fail to resolve, run gh auth login and rerun ./setup.sh"
 fi
 
-# Every mise call below runs from here: started in the clone, mise would add
-# the repo's .nvmrc to the tools part
+# Every mise call below runs from here: started in the clone, mise would take
+# node from the repo's .nvmrc instead of the configured versions
 cd "$HOME"
 
 # packages_for <manager> <noun>: setup applies the packages itself, because

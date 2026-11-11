@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Print the machine state that setup.sh manages, sorted, for before/after diffs.
+# Print the machine state that setup.sh manages, for before/after diffs.
 # Used by the /validate-setup skill: snapshot.sh > private/setup-snapshots/<phase>.txt
 
 set -uo pipefail
@@ -21,6 +21,10 @@ mise ls --current 2>&1 | sort
 
 echo "## claude mcp (names)"
 claude mcp list 2> /dev/null | grep ' - ' | sed 's/: .*//' | sort
+
+echo "## mise bootstrap status"
+# From $HOME: started in the clone, mise takes node from the repo's .nvmrc
+mise -C "$HOME" bootstrap status 2>&1
 
 echo "## login shell"
 dscl . -read "$HOME" UserShell 2>&1

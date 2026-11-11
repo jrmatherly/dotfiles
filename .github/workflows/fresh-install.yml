@@ -1,8 +1,8 @@
 name: fresh-install
 
-# The path a new Mac takes: setup/packages.sh on a runner without Homebrew.
+# The path a new Mac takes: ./setup.sh on a runner without Homebrew.
 # Manual only (gh workflow run fresh-install.yml): it installs every formula,
-# cask and extension. A hosted runner is not a clean Mac; the full proof is the
+# cask, extension and tool, and runs the bootstrap task. A hosted runner is not a clean Mac; the full proof is the
 # VM run in plan A6's Task 6
 on: workflow_dispatch
 
@@ -42,13 +42,18 @@ jobs:
           if command -v mise; then exit 1; fi
           df -h /
           du -sh ~/Library/Caches/mise/system-brew/bottles ~/Library/Caches/mise/system-brew/casks 2> /dev/null || true
-      # Installs mise, exports MISE_CONFIG_DIR, links the VS Code plugin and
-      # applies formulae, casks, then extensions, printing free space after each.
-      # Single package failures only warn; this step fails when mise read no
-      # package list or the installer failed
-      - name: setup/packages.sh
-        run: bash setup/packages.sh
-      - name: Disk after packages
+      # A file here that conf.d/40-dotfiles.toml links would stop the dotfiles part
+      - name: Home before setup
+        run: ls -la ~
+      # The command a new Mac runs. Without a terminal it skips sudo -v, the
+      # Enter prompt and the script log, and mise elevates with the runner's
+      # passwordless sudo. It installs mise, applies formulae, casks, then
+      # extensions (printing free space after each), then runs mise bootstrap
+      # without macOS preferences. Single package failures only warn; a failed
+      # bootstrap part fails this step
+      - name: setup.sh
+        run: ./setup.sh -y --skip-codegraph
+      - name: Disk after setup
         if: always()
         run: |
           df -h /
@@ -56,6 +61,7 @@ jobs:
           du -sh /opt/homebrew/Cellar 2> /dev/null || true
           du -sh /opt/homebrew/Caskroom /Applications 2> /dev/null || true
           du -sh ~/.vscode/extensions 2> /dev/null || true
+          du -sh ~/.local/share/mise/installs 2> /dev/null || true
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           echo /opt/homebrew/bin >> "$GITHUB_PATH"
           echo "MISE_CONFIG_DIR=$GITHUB_WORKSPACE/tilde/.config/mise" >> "$GITHUB_ENV"
@@ -63,17 +69,13 @@ jobs:
         run: |
           test -x "$HOME/.local/bin/mise"
           mise --version
-      # From RUNNER_TEMP so the repo's .nvmrc adds nothing. The postinstall
+      # The tools part of mise bootstrap installed the tools. The postinstall
       # hooks in config.toml write the completions (spec decision 10)
-      - name: Global tools
-        working-directory: ${{ runner.temp }}
+      - name: Completions written
         run: |
-          mise install --yes
           for f in _flux _talosctl _sentry; do
             test -s "$HOME/.cache/dotfiles/completions/$f" || { echo "::error::completion $f missing"; exit 1; }
           done
-          df -h /
-          du -sh ~/.local/share/mise/installs 2> /dev/null || true
       - name: Formulae installed
         if: always()
         run: |
@@ -93,3 +95,9 @@ jobs:
         run: |
           mise bootstrap packages status
           mise ls --missing
+      # For the log only: the run never applies macOS preferences, so those
+      # entries differ. From RUNNER_TEMP so the repo's .nvmrc changes nothing
+      - name: Bootstrap status
+        if: always()
+        working-directory: ${{ runner.temp }}
+        run: MISE_DISABLE_TOOLS=npm:@colbymchenry/codegraph mise bootstrap status --missing || true

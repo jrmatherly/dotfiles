@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Update the dotfiles repo by pulling the latest changes.
-# > Re-run `setup.sh --skip-brew` afterwards to apply any new symlinks.
+# > Re-run `setup.sh` afterwards to apply any new symlinks.
 #
 # - Pull the latest dotfiles:
 #
