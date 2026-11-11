@@ -33,7 +33,7 @@ A real file or folder where a link belongs stops the run: `mise dotfiles apply` 
 | `.claude/` | Claude Code's global rules and status line script |
 | `.codex/`, `.ssh/` | Codex's `config.toml` and the SSH `config` |
 
-Machine-local files live outside the repo: see [Local customizations](../README.md#local-customizations) in the main README.
+Machine-local files live outside the repo: see [Local customizations](../docs/local-customizations.md).
 
 ## Git helpers
 

@@ -9,7 +9,7 @@
 | `help` | Show this page (`docs/README.md`) |
 | `help {{command}}` | For a script in `bin/` (e.g. `help br`), show a tldr-style page generated from the script's header comment; for any other command, show its [tldr-pages](https://tldr.sh/) entry |
 | `help gui/{{app}}` | Show keyboard shortcuts for a GUI app (see [GUI app shortcuts](#gui-app-shortcuts)) |
-| `help "macos settings"` `help "macos tips & tricks"` `help mole` `help claude-config` `help claude-catalog` `help rea` `help jstack` | Show the other pages in `docs/` |
+| `help installation` `help updating` `help local-customizations` `help forking` `help "macos settings"` `help "macos tips & tricks"` `help mole` `help claude-config` `help claude-catalog` `help rea` `help jstack` | Show the other pages in `docs/` |
 | `alias` | List all active aliases |
 
 ## Enhanced CLI tools
@@ -159,7 +159,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `claude-catalog` `claude-catalog --open` `claude-catalog --out {{path/to/dir}}` | Build the catalog of installed Claude Code skills, commands, subagents and MCP servers in `~/.claude/catalog` (`--open` opens `catalog.html`) |
 | `claude-stack scan` `claude-stack status` `claude-stack apply` `claude-stack apply --keep {{plugin@marketplace}}` `claude-stack reset` | Select which installed Claude Code plugins a project needs: `scan` shows the evidence and writes nothing, `status` says whether a stack is applied without scanning, `apply` turns the rest off in its `.claude/settings.local.json`, `reset` undoes it |
 | `hindsight-memory status` `hindsight-memory paths add {{~/dev/project}}` `hindsight-memory off` | Opt-in per-repo Hindsight memory for Claude Code and Codex: show the daemon and config, add or remove a repo prefix memory is active in, or switch every hook off (`on` again); `init` and `upgrade` are run by setup and `sysup` (see [setup](../setup/README.md)) |
-| `ca-roots status` `ca-roots trim` `ca-roots restore` | Show, remove or restore the compromised eMudhra roots in `/etc/ssl/cert.pem` (`trim` needs Homebrew's own script, so it works only on a Mac that still has Homebrew); `sysup` trims when `DOTFILES_TRIM_CA_ROOTS` is set (see [Updating](../README.md#removing-the-compromised-emudhra-roots-optional)) |
+| `ca-roots status` `ca-roots trim` `ca-roots restore` | Show, remove or restore the compromised eMudhra roots in `/etc/ssl/cert.pem` (`trim` needs Homebrew's own script, so it works only on a Mac that still has Homebrew); `sysup` trims when `DOTFILES_TRIM_CA_ROOTS` is set (see [Updating](updating.md#removing-the-compromised-emudhra-roots-optional)) |
 | `vscode-settings` | Render VS Code's `settings.json` from its template with a font preset (`--choose`, `--preset warp`, `--check`); refuses to overwrite edits VS Code made (see [vscode](../vscode/README.md#fonts-and-the-settings-template)) |
 | `dotfiles-settings tui` `dotfiles-settings serve` `dotfiles-settings list` `dotfiles-settings set {{id}} {{value}}` `dotfiles-settings reset {{id}}` | See and change the settings this repo manages, in the terminal or a browser tab; a change is stored in mise's override file and beats the export in `zsh/env.zsh` or `~/.zsh.local` (see [settings](../settings/README.md)) |
 | `sync-all` | Run `obsidian-vault install`, then `install-color-themes` |

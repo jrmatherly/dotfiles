@@ -52,7 +52,7 @@ User CLI scripts, all on `PATH`. `zsh/path.zsh` prepends both `$DOTFILES/bin` an
 - Under `set -e`, never test `$?` after a bare assignment like `pids=$(lsof ...)`: a failure exits first and the check never runs (this made `clear-port` exit silently on a free port). Use `if pids=$(...); then` or `|| true`. Pass multi-line results as separate arguments (`clear-port` uses `xargs kill <<< "$port_num"`), not as one quoted string.
 - Scripts that touch repo files resolve the repo from their own path (`cd "$(dirname "$0")/.."`, or `import.meta.url` in node) and honor `$DOTFILES`. They never hardcode `~/dotfiles`.
 - Output helpers (`header`, `warning`, colors via `tput`) are defined inline. No shared library is sourced.
-- Adding a script: create the file, make it executable (`chmod +x`), write the header, check that `help <name>` renders, then run `pnpm check`. If it's user-facing, add it to `docs/README.md` or the README's script list.
+- Adding a script: create the file, make it executable (`chmod +x`), write the header, check that `help <name>` renders, then run `pnpm check`. If it's user-facing, add it to `docs/README.md`.
 
 <!-- END AUTO-MANAGED -->
 

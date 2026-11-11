@@ -23,7 +23,7 @@ The diagram is generated with [Archify](https://github.com/tt-a1i/archify) from 
 
 A run is not a transaction. When a part of `mise bootstrap` or the task fails, mise stops there, `setup.sh` exits with its status, and the earlier steps stay applied. Fix what it reported and rerun `./setup.sh`: every step is safe to repeat, and the hooks and the `bootstrap` task run on every bootstrap. Exit status 2 means the run got to the end and only the listed items failed. A tool's reason is mise's one line; `mise install <tool>` from `~` shows the whole error.
 
-Flags: `-y/--yes` (also passed to mise, and exported as `DOTFILES_YES` so `misc.sh` skips its font preset menu and its `gh auth login` question), `--skip-codegraph`, `--dash`, `-h/--help` and `-- <args>`, described in the table in the [main README](../README.md#run-setup). Everything after `--` goes to `mise bootstrap`, with these exceptions:
+Flags: `-y/--yes` (also passed to mise, and exported as `DOTFILES_YES` so `misc.sh` skips its font preset menu and its `gh auth login` question), `--skip-codegraph`, `--dash`, `-h/--help` and `-- <args>`, described in the table in the [installation guide](../docs/installation.md#run-setup). Everything after `--` goes to `mise bootstrap`, with these exceptions:
 
 The manual [`fresh-install`](../.github/workflows/fresh-install.yml) workflow (`gh workflow run fresh-install.yml`) runs `./setup.sh` on a hosted runner without Homebrew. A runner is not a clean Mac (Xcode is preinstalled and sudo asks for no password), so it does not replace a run on a new Mac.
 
@@ -44,7 +44,7 @@ When run from a terminal, it records the whole run (prompts included) to `privat
 
 The macOS preferences are deliberately not part of the run; use `set-defaults`. `setup.sh` always passes `--skip macos-defaults`, which also drops the `pre-defaults` and `post-defaults` hooks around that part. A bare `mise bootstrap` does apply them and restarts Finder and the Dock, so `./setup.sh` is the rerun command.
 
-To preview a run without changing anything, once `~/.config/mise` is the link: `cd ~ && mise bootstrap --dry-run --skip macos-defaults`. The [main README](../README.md#preview) has the form for a Mac without the link.
+To preview a run without changing anything, once `~/.config/mise` is the link: `cd ~ && mise bootstrap --dry-run --skip macos-defaults`. The [installation guide](../docs/installation.md#preview) has the form for a Mac without the link.
 
 ## packages
 
