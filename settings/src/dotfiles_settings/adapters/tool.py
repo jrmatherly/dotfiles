@@ -161,9 +161,86 @@ def _reset_claude(name: str, s: Setting) -> None:
     _set_claude_model(_json_model(claude_seed_path()))
 
 
+MODELS = ("opus", "sonnet", "haiku", "fable")
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
+LIST_ROLES = frozenset({"arena runners", "arena cross-judge pool", "architect runners", "interrogate reviewers"})
+CODEX_ROLES = frozenset({"arena cross-judge pool", "reflect tooling"})
+FULL_MODEL = re.compile(r"claude-[a-z0-9.-]+")
+JSTACK_NOTE = "Edited tilde/.claude/rules/jstack-models.md, a tracked file. Commit it to keep the change."
+
+
+def parse_seats(role: str, value: str) -> list[tuple[str, str]]:
+    seats = []
+    for seat in value.split(", "):
+        parts = seat.split(" ")
+        if seat == "inherit" or (seat == "codex" and role in CODEX_ROLES):
+            seats.append((seat, ""))
+        elif len(parts) == 2 and (parts[0] in MODELS or FULL_MODEL.fullmatch(parts[0])) and parts[1] in EFFORTS:
+            seats.append((parts[0], parts[1]))
+        else:
+            raise InvalidValue(f"{role}: expected <model> <effort>, inherit or codex, got {seat!r}")
+    if len(seats) > 1 and role not in LIST_ROLES:
+        raise InvalidValue(f"{role}: takes one seat, got {len(seats)}")
+    return seats
+
+
+def jstack_path() -> Path:
+    return claude_dir() / "rules/jstack-models.md"
+
+
+def _role_line(lines: list[str], role: str) -> int | None:
+    return next((i for i, line in enumerate(lines) if not line.startswith("#") and line.split(": ", 1)[0] == role), None)
+
+
+def _read_jstack(role: str, s: Setting) -> Value:
+    try:
+        lines = jstack_path().read_text().splitlines()
+    except OSError:
+        lines = []
+    i = _role_line(lines, role)
+    if i is None:
+        return Value(s.id, None, Source.UNSET, None, False)
+    value = lines[i].split(": ", 1)[1] if ": " in lines[i] else ""
+    return Value(s.id, value, Source.SEED, value, False)
+
+
+def _edit_jstack(role: str, line: str | None) -> None:
+    path = jstack_path()
+    if not path.is_file():
+        raise SettingsError("no jstack-models.md. Run /jstack:setup-jstack first")
+
+    def change(text: str) -> str:
+        lines = text.splitlines(keepends=True)
+        i = _role_line([l.rstrip("\r\n") for l in lines], role)
+        if i is None:
+            if line is None:
+                return text
+            if lines and not lines[-1].endswith("\n"):
+                lines[-1] += "\n"
+            lines.append(line + "\n")
+        elif line is None:
+            del lines[i]
+        else:
+            body = lines[i].rstrip("\r\n")
+            lines[i] = line + lines[i][len(body):]  # the replaced line keeps its own ending
+        return "".join(lines)
+
+    edit_file(path, change)
+
+
+def _write_jstack(role: str, s: Setting, value: str) -> None:
+    parse_seats(role, value)
+    _edit_jstack(role, f"{role}: {value}")
+
+
+def _reset_jstack(role: str, s: Setting) -> None:
+    _edit_jstack(role, None)
+
+
 TOOLS: dict[str, tuple[Reader, Writer | None, Resetter | None]] = {
     "hindsight": (_read_hindsight, _write_hindsight, None),
     "claude": (_read_claude, _write_claude, _reset_claude),
+    "jstack": (_read_jstack, _write_jstack, _reset_jstack),
 }
 
 
@@ -175,6 +252,9 @@ def _tool(s: Setting) -> tuple[str, tuple[Reader, Writer | None, Resetter | None
 
 
 class ToolAdapter:
+    def write_note(self, s: Setting) -> str:
+        return JSTACK_NOTE if s.key.startswith("jstack:") else ""
+
     def read(self, s: Setting) -> Value:
         name, (reader, _, _) = _tool(s)
         return reader(name, s)

@@ -9,6 +9,8 @@ cfg = tmp / "hindsight/coding-agent.json"
 cfg.parent.mkdir()
 live, tracked_settings = tmp / "claude/settings.json", tmp / "save/claude-settings.json"
 live.parent.mkdir(); tracked_settings.parent.mkdir()
+rule, tracked = tmp / "claude/rules/jstack-models.md", tmp / "tracked.md"
+rule.parent.mkdir(); rule.symlink_to(tracked)
 os.environ.update(DOTFILES=str(repo), HINDSIGHT_CONFIG=str(cfg), CLAUDE_CONFIG_DIR=str(live.parent),
                   CLAUDE_CONFIG_SAVE_DIR=str(tracked_settings.parent))
 
@@ -221,6 +223,70 @@ def test_claude_model_refuses_invalid_json():
     live.unlink()
     assert raises_type(lambda: A.write(by_id("claude.model"), "opus"), SettingsError)
     assert not live.exists()
+
+
+RULE = "# header\n# budget: small (medium)\nfeature, refactoring: opus medium\nbug-fix: opus\n# my note\nreflect judgment, divergent, synthesizer: fable medium\narena runners: fable medium, opus medium"   # no final newline
+
+
+def test_jstack_read():
+    tracked.write_text(RULE)
+    assert A.read(by_id("jstack.feature_refactoring")).value == "opus medium"
+    assert A.read(by_id("jstack.bug_fix")).value == "opus"          # model-only, shown as written
+    assert A.read(by_id("jstack.reflect_judgment_divergent_synthesizer")).value == "fable medium"
+    v = A.read(by_id("jstack.hillclimb"))
+    assert (v.value, v.source, v.drift) == (None, Source.UNSET, False)
+    assert A.read(by_id("jstack.arena_runners")).source is Source.SEED
+
+
+def test_jstack_round_trip_is_byte_identical():
+    tracked.write_text(RULE)
+    A.write(by_id("jstack.bug_fix"), "sonnet high")
+    assert tracked.read_text() == RULE.replace("bug-fix: opus\n", "bug-fix: sonnet high\n")
+    tracked.write_text(RULE)
+    A.write(by_id("jstack.arena_runners"), "fable medium, opus medium")   # same value
+    assert tracked.read_text() == RULE
+    assert rule.is_symlink()
+
+
+def test_jstack_append_and_reset():
+    tracked.write_text(RULE)
+    A.write(by_id("jstack.hillclimb"), "inherit")
+    assert tracked.read_text() == RULE + "\nhillclimb: inherit\n"
+    A.reset(by_id("jstack.feature_refactoring"))
+    assert "feature, refactoring" not in tracked.read_text() and "# my note\n" in tracked.read_text()
+
+
+def test_parse_seats():
+    assert tool.parse_seats("bug-fix", "opus high") == [("opus", "high")]
+    assert tool.parse_seats("arena cross-judge pool", "fable medium, codex") == [("fable", "medium"), ("codex", "")]
+    assert tool.parse_seats("swarm workers", "claude-opus-5-5 max") == [("claude-opus-5-5", "max")]
+    for role, bad in (("bug-fix", "opus"), ("bug-fix", "opus huge"), ("bug-fix", "gpt medium"),
+                      ("bug-fix", "opus medium, sonnet medium"), ("bug-fix", "codex"), ("arena runners", "")):
+        assert raises_type(lambda: tool.parse_seats(role, bad), InvalidValue)
+
+
+def test_jstack_missing_file_is_not_created():
+    tracked.unlink()
+    assert A.read(by_id("jstack.bug_fix")).value is None
+    assert raises(lambda: A.write(by_id("jstack.bug_fix"), "opus high"), "setup-jstack")
+    assert not tracked.exists()
+
+
+def test_tracked_rule_roles_are_known_and_parse():
+    lines = (repo / "tilde/.claude/rules/jstack-models.md").read_text().splitlines()
+    held = dict(l.split(": ", 1) for l in lines if not l.startswith("#") and ": " in l)
+    known = {s.key.split(":", 1)[1] for s in all_settings() if s.key.startswith("jstack:")}
+    assert set(held) <= known, set(held) - known      # a subset: Reset deletes a line
+    for role, value in held.items():
+        tool.parse_seats(role, value)                 # every line the file holds is valid
+    assert len(known) == 17
+
+
+def test_write_note_only_for_jstack_roles():
+    assert A.write_note(by_id("jstack.bug_fix")) == tool.JSTACK_NOTE
+    assert "tracked file" in tool.JSTACK_NOTE
+    for other in ("hindsight.enabled", "hindsight.paths", "claude.model"):
+        assert A.write_note(by_id(other)) == ""
 
 
 for name, fn in list(globals().items()):
