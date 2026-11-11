@@ -97,7 +97,7 @@ fi
 
 # tput fails with TERM unset (CI, a launchd job), which aborts a set -e script;
 # each setup script shadows it with a guarded wrapper
-for file in setup/packages.sh setup/zsh.sh setup/misc.sh; do
+for file in setup.sh setup/misc.sh; do
   grep -qF 'tput() { command tput "$@" 2> /dev/null || true; }' "$file" || fail "unguarded tput: $file"
 done
 

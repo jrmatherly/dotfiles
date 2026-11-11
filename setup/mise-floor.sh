@@ -2,7 +2,7 @@
 #
 # Fail unless the mise on PATH is at least the version the settings layer needs.
 #
-# - Run it (setup/misc.sh does before mise install); exits 1 with a message below the floor:
+# - Run it (setup.sh does before its first mise call); exits 1 with a message below the floor:
 #
 # `setup/mise-floor.sh`
 #

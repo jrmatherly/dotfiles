@@ -73,12 +73,6 @@ if command -v actionlint > /dev/null; then
   actionlint .github/workflows/*.yml
 fi
 prettier --log-level warn --ignore-unknown --check "**/*.{js,cjs,ts,md,json,sh}" "bin/*" "migrate/*" ".github/**/*.yml"
-# setup/packages.sh against stubbed curl, mise, gh and code (nothing is installed)
-bash setup/tests/packages.sh > /dev/null
-# setup/misc.sh: link_config_dir never replaces a real directory or a foreign link
-bash setup/tests/symlinks-backup.sh > /dev/null
-# setup.sh's dotfiles step in a scratch HOME with every step script, sudo and mise stubbed
-bash setup/tests/setup-dotfiles.sh > /dev/null
 # firefox/lib/get-firefox-dev-path: the profiles.ini fallback, relative and absolute Path
 bash setup/tests/firefox-dev-path.sh > /dev/null
 # conf.d/40-dotfiles.toml: every tilde/ file has an entry, and with mise, apply, a second apply, the Codex merge and a conflict in a scratch HOME
@@ -95,6 +89,8 @@ bash bin/lib/test-ca-roots > /dev/null
 bash bin/lib/test-claude-config > /dev/null
 # bin/sysup's report against stubbed tools (nothing is upgraded)
 bash bin/lib/test-sysup > /dev/null
+# setup.sh in a fixture clone against stubbed mise, sudo, gh and curl, then a dry-run of the tracked bootstrap config in a scratch HOME
+bash bin/lib/test-bootstrap > /dev/null
 # zsh/ and tilde/.zshrc in interactive agent and user shells, through a temp ZDOTDIR
 bash bin/lib/test-shell > /dev/null
 # conf.d/30-packages.toml: key shape, tap list, no pins; the flux2 and talosctl completion hooks; the vscode plugin against a fake code

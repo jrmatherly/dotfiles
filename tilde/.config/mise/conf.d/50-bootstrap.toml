@@ -1,0 +1,44 @@
+# What `mise bootstrap` does beyond env, macOS defaults, packages and dotfiles
+# (conf.d/10 to 40). setup.sh links this directory to ~/.config/mise, installs
+# mise, applies the packages itself and runs
+# `mise bootstrap --skip macos-defaults,packages` from $HOME.
+# https://mise.jdx.dev/bootstrap.html
+
+# Touch ID for sudo. /etc/pam.d/sudo includes sudo_local, and macOS updates
+# leave the file alone. mise writes it through sudo, and only when the content,
+# the mode or the owner differs. Owner and group are declared because mise
+# does not check them when unset, and this file decides who may use sudo.
+[bootstrap.files."/etc/pam.d/sudo_local"]
+content = "auth       sufficient     pam_tid.so\n"
+mode = "0644"
+owner = "root"
+group = "wheel"
+
+# zsh from conf.d/30-packages.toml as the login shell. mise adds it to
+# /etc/shells and runs chsh when the account's shell differs.
+[bootstrap.user]
+login_shell = "/opt/homebrew/bin/zsh"
+
+# No [bootstrap.mise_shell_activate]: ~/.zprofile and ~/.zshrc are links into
+# this repo, which mise skips, and zsh/init.zsh delays full activation to the
+# first prompt on purpose.
+
+[bootstrap.hooks]
+# The VS Code extension manager is a plugin kept in this repo. Linking is safe
+# to repeat (--force replaces the link). setup.sh skips the packages part and
+# links the plugin itself, so this hook is for a bare `mise bootstrap`.
+pre-packages = 'mise plugins link --force vscode "${DOTFILES:-$HOME/dotfiles}/mise-plugins/vscode"'
+# No post-dotfiles hook: mise runs it on every `mise dotfiles apply` too, and
+# setup/dotfiles-extras.sh may ask for sudo. setup.sh runs that script.
+# Every part that needs root runs before `tools`. Drop the cached credential
+# here, so npm install scripts and the task's installers cannot use sudo
+# without asking.
+pre-tools = "sudo -k"
+
+# The steps no section above covers. It runs on every bootstrap, so each step
+# in the script checks state first and warns instead of failing.
+# {{ config_root }} is $HOME in a global fragment, hence the shell expansion.
+[tasks.bootstrap]
+description = "Finish setup: fonts, agent tooling, MCP servers, npm defaults"
+raw = true
+run = '"${DOTFILES:-$HOME/dotfiles}/setup/misc.sh"'

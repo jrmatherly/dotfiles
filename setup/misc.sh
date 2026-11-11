@@ -1,8 +1,16 @@
 #!/bin/bash
+#
+# The `bootstrap` task of tilde/.config/mise/conf.d/50-bootstrap.toml: every
+# setup step no declarative mise section covers. It runs on every
+# `mise bootstrap`, so each step checks state first and warns instead of
+# failing. It never uses sudo: the parts that need root run before it.
 
 set -euo pipefail
 
-DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+# For a run that skipped the tools part, whose hook drops the credential
+sudo -k 2> /dev/null || true
+
+DOTFILES_DIR="${DOTFILES_DIR:-${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}}"
 cd "$DOTFILES_DIR"
 
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
@@ -31,51 +39,6 @@ warning() {
 command_exists() {
   command -v "$@" &> /dev/null
 }
-
-# Link ~/.config/<name> to the repo's copy when it is missing or already a link
-# into the repo. Anything else (a real directory, a link to somewhere else) is
-# left alone and returns 1: setup.sh's dotfiles step then stops on ~/.config/mise,
-# and `mise dotfiles apply` stops on another real directory and repoints a link.
-# shellcheck disable=SC2088 # display text, not a path
-link_config_dir() {
-  local dst="$HOME/.config/$1"
-  mkdir -p "$HOME/.config"
-  # -ef also accepts a link that reaches the repo another way (e.g. ~/dotfiles)
-  if [ ! -e "$dst" ] && [ ! -L "$dst" ] || [[ -L "$dst" && ("$(readlink "$dst")" == "$DOTFILES_DIR"/* || "$dst" -ef "$DOTFILES_DIR/tilde/.config/$1") ]]; then
-    ln -sfn "$DOTFILES_DIR/tilde/.config/$1" "$dst"
-  elif [ -L "$dst" ]; then
-    warning "~/.config/$1 links elsewhere; leaving it for the dotfiles step"
-    return 1
-  else
-    warning "~/.config/$1 is not linked to this repo; leaving it; the dotfiles step will stop on it"
-    return 1
-  fi
-}
-
-# Ask for the administrator password upfront, unless setup.sh already holds sudo
-if [ -z "${DOTFILES_SUDO_KEPT:-}" ]; then
-  warning "Activate sudo"
-  sudo echo "Sudo activated!"
-  echo
-fi
-
-# Install Xcode Command Line Tools and accept its license
-if xcode-select -p 2> /dev/null; then
-  :
-elif [ ! -t 0 ]; then
-  # Headless: the install dialog needs someone to click it, so don't wait
-  echo "Xcode Command Line Tools missing; run: xcode-select --install" | indent
-else
-  xcode-select --install > /dev/null 2>&1 || true
-  # At most 30 minutes: a cancelled dialog would otherwise hang the run
-  for _ in $(seq 1 360); do
-    if xcode-select -p &> /dev/null; then break; fi
-    sleep 5
-  done
-  if ! xcode-select -p 2> /dev/null; then
-    warning "Xcode Command Line Tools not installed; later steps may fail; run: xcode-select --install"
-  fi
-fi
 
 # Make custom binary scripts executable
 info 'Changing access permissions for binary scripts…'
@@ -112,11 +75,6 @@ fi
 # the account, protocol and auth method itself, and writes ~/.config/gh/hosts.yml
 # (gitignored — it can hold an OAuth token).
 if command_exists gh && ! gh auth status &> /dev/null; then
-  # Link the config dir first (`mise dotfiles apply` runs later and finds it
-  # already linked) so gh writes its hosts.yml inside the repo's gitignored path
-  # rather than creating a real ~/.config/gh that would stop that apply
-  link_config_dir gh || true
-
   if [ -t 0 ]; then
     read -rp "  [GitHub CLI] Not logged in. Run \`gh auth login\` now? [y/N] " gh_login
     case "$gh_login" in
@@ -130,26 +88,14 @@ if command_exists gh && ! gh auth status &> /dev/null; then
   fi
 fi
 
-# Node.js — installed and managed by mise. The global mise config lives in this
-# repo; link it first (`mise dotfiles apply` runs later and finds it already
-# linked) so `mise install` picks up the tracked tool versions.
+# The tools part of `mise bootstrap` installed the runtimes and CLIs before
+# this task
 if command_exists mise; then
-  # The settings layer needs mise's override file; stop before installing with an older mise
-  bash "$DOTFILES_DIR/setup/mise-floor.sh" || exit 1
-  info "📦 Installing runtimes with mise…"
-  if ! link_config_dir mise; then
-    # This `mise install` uses that other config, not the repo's
-    echo "Installing from its existing config. Move it aside, run setup again, then run: ${BOLD}mise install${RESET}" | indent
-  fi
-  # --skip-codegraph: leave it out of this install (doesn't remove an existing
-  # one). Scope MISE_DISABLE_TOOLS to `mise install` only, then reshim without
-  # it: a reshim while it's set deletes the shim of an already-installed
-  # CodeGraph, breaking `codegraph` on PATH and Claude Code's MCP server.
+  # setup.sh --skip-codegraph sets MISE_DISABLE_TOOLS for the tools part. A
+  # reshim while it is set deletes an installed CodeGraph's shim, so reshim
+  # once more without it.
   if [ "${DOTFILES_SKIP_CODEGRAPH:-false}" = true ]; then
-    MISE_DISABLE_TOOLS="npm:@colbymchenry/codegraph" mise install | indent || warning "mise install had failures; re-run: mise install"
-    mise reshim
-  else
-    mise install | indent || warning "mise install had failures; re-run: mise install"
+    env -u MISE_DISABLE_TOOLS mise reshim
   fi
   # typescript-language-server (a Terax preset, an `npm:` tool in the config)
   # finds TypeScript in a project's node_modules or by Node resolution from its
@@ -170,8 +116,6 @@ if command_exists mise; then
   else
     export PATH="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims:$PATH"
   fi
-else
-  echo "mise not found — skipping runtime installation" | indent
 fi
 
 # Rust — the rustup formula (conf.d/30-packages.toml) is the system toolchain manager. Make
@@ -186,20 +130,6 @@ if [ -x "$rustup" ]; then
     info "🦀 Installing the stable Rust toolchain with rustup…"
     "$rustup" default stable 2>&1 | indent || warning "rustup default stable failed — run it later"
   fi
-  # Rust lived in mise before 2026-10-24. A leftover install keeps rustup and
-  # cargo shims ahead of this keg on an activated PATH, and its own rustup in
-  # ~/.cargo/bin loops back through the shims (`mise uninstall` and `mise
-  # prune` run that rustup, so they hang). Forgetting the install is only
-  # mise bookkeeping; the proxies and toolchain are the owner's call.
-  mise_rust="${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/rust"
-  if [ -d "$mise_rust" ]; then
-    info "🦀 Forgetting mise's rust install so its shims stop shadowing rustup…"
-    rm -rf "$mise_rust"
-    mise reshim 2>&1 | indent || warning "mise reshim failed — run it later"
-  fi
-  if [ -x "$HOME/.cargo/bin/rustup" ] && ! cmp -s "$HOME/.cargo/bin/rustup" "$rustup"; then
-    warning "\$HOME/.cargo/bin/rustup is not Homebrew's rustup (mise's, probably) — run: rm -rf \$HOME/.cargo/bin \$HOME/.rustup && $rustup default stable"
-  fi
 fi
 
 # Claude Code — Anthropic's native installer, into ~/.local/bin (zsh/path.zsh
@@ -213,7 +143,7 @@ else
     || warning "Claude Code install failed — run it later: curl -fsSL https://claude.ai/install.sh | bash"
 fi
 
-# CodeGraph (installed by mise above) — wire its MCP server into Claude Code:
+# CodeGraph (installed by the tools part) — wire its MCP server into Claude Code:
 # user-scope entry in ~/.claude.json, auto-allow permission + UserPromptSubmit
 # hook in ~/.claude/settings.json, marker-fenced block in ~/.claude/CLAUDE.md.
 # Idempotent. Claude Code only: the installer writes via tmp file + rename,
@@ -503,7 +433,7 @@ if command_exists npm; then
   # (Bun: the same rules live in tilde/.bunfig.toml)
 
   # Global npm CLIs (serverless, @antfu/ni) are `npm:` tools in the mise config,
-  # installed by `mise install` above. aws-cdk is a brew: package.
+  # installed by the tools part. aws-cdk is a brew: package.
 
   # This repo's own dependencies: `prettier` (+ prettier-plugin-sh) for `pnpm
   # format`, and `avif`, which bin/optimize-image expects at node_modules/.bin

@@ -1,0 +1,301 @@
+#!/bin/bash
+#
+# Self-check for setup.sh against stubbed tools, and for the bootstrap config.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-bootstrap`
+#
+# ---
+# Never sets anything up. Part one runs a copy of setup.sh in a fixture clone
+# with a temp HOME and mise, sudo, xcode-select, curl, gh and code as stubs on
+# PATH. Part two asks the real mise for a dry run of the tracked
+# conf.d/50-bootstrap.toml from a scratch HOME, and is skipped without mise.
+#
+# License: MIT
+
+set -euo pipefail
+
+repo="$(cd "$(dirname "$0")/../.." && pwd -P)"
+tmp=$(cd "$(mktemp -d)" && pwd -P)
+trap 'rm -rf "$tmp"' EXIT
+real_path=$PATH
+
+fail() {
+  echo "FAIL: $1" >&2
+  exit 1
+}
+
+# setup.sh puts the Homebrew prefix on PATH, where this Mac has a real mise, gh
+# and code: unless it reads HOMEBREW_PREFIX, the stubs below would not be used
+grep -qF "\${HOMEBREW_PREFIX:-/opt/homebrew}" "$repo/setup.sh" \
+  || fail "setup.sh does not take its prefix from HOMEBREW_PREFIX; not running it"
+
+fix="$tmp/clone"
+export STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
+# A caller's own values would reach the mise stub and fail the assertions on its log
+unset MISE_GITHUB_TOKEN MISE_DISABLE_TOOLS DOTFILES DOTFILES_DIR DOTFILES_SKIP_CODEGRAPH DOTFILES_SETUP_LOG STUB_MISE_VERSION
+mkdir -p "$fix/setup" "$fix/bin" "$fix/tilde/.config/mise" "$tmp/bin" "$tmp/other"
+cp "$repo/setup.sh" "$fix/setup.sh"
+cp "$repo/setup/mise-floor.sh" "$fix/setup/mise-floor.sh"
+# The real extras script must not run here, and setup.sh finds it beside itself
+printf '#!/bin/bash\necho ran >> "$STATE/extras.log"\n' > "$fix/setup/dotfiles-extras.sh"
+printf '#!/bin/bash\nexit 0\n' > "$fix/setup/dash.sh"
+printf '#!/bin/bash\nexit 0\n' > "$fix/bin/nyan"
+chmod +x "$fix/setup.sh" "$fix"/setup/*.sh "$fix/bin/nyan"
+
+stub() {
+  printf '#!/bin/bash\n%s\n' "$2" > "$tmp/bin/$1"
+  chmod +x "$tmp/bin/$1"
+}
+mise_stub=$(
+  cat << 'EOF'
+case $1 in
+  --version) echo "${STUB_MISE_VERSION:-2026.11.5} macos-arm64 (2026-11-08)" ;;
+  *) echo "pwd=$(pwd -P) args=$* disable=${MISE_DISABLE_TOOLS:-} dotfiles=${DOTFILES:-} skip=${DOTFILES_SKIP_CODEGRAPH:-} token=${MISE_GITHUB_TOKEN:-} telemetry=${CODEGRAPH_TELEMETRY:-}" >> "$STATE/mise.log"
+    case "$*" in
+      "bootstrap packages upgrade "*) [ ! -e "$STATE/upgrade-fails" ] ;;
+      "bootstrap packages apply --yes --manager brew")
+        [ ! -e "$STATE/no-packages" ] || { echo "mise ERROR no packages requested for manager 'brew'"; exit 1; } ;;
+      *"--manager brew-cask"*) [ ! -e "$STATE/casks-fail" ] ;;
+      "bootstrap packages "* | plugins*) ;;
+      bootstrap*) [ ! -e "$STATE/bootstrap-fails" ] ;;
+    esac ;;
+esac
+EOF
+)
+stub sudo 'echo "$*" >> "$STATE/sudo.log"'
+stub xcode-select '[ ! -e "$STATE/no-clt" ]'
+stub curl 'echo "$*" >> "$STATE/curl.log"; echo "mkdir -p \"\$HOME/.local/bin\" && cp \"$STATE/mise-stub\" \"\$HOME/.local/bin/mise\""'
+
+check_true() {
+  local name=$1
+  shift
+  "$@" || {
+    echo "FAIL: $name" >&2
+    echo "$out" >&2
+    cat "$STATE/mise.log" >&2
+    exit 1
+  }
+  echo "ok: $name"
+}
+has() { grep -qE -- "$1" <<< "$out"; }
+lacks() { ! has "$1"; }
+log_has() { grep -qF -- "$1" "$STATE/mise.log"; }
+log_lacks() { ! log_has "$1"; }
+log_empty() { [ ! -s "$STATE/mise.log" ]; }
+# The one `mise bootstrap` run, as opposed to the `bootstrap packages` calls before it
+boot_has() { grep -E 'args=bootstrap (--|disable=)' "$STATE/mise.log" | grep -qF -- "$1"; }
+extras_ran() { [ "$(wc -l < "$STATE/extras.log" | tr -d ' ')" = "$1" ]; }
+# in_order <text>...: each text's first log line comes after the previous one's
+in_order() {
+  local last=0 n text
+  for text in "$@"; do
+    n=$(grep -nF -- "$text" "$STATE/mise.log" | head -1 | cut -d: -f1)
+    [ -n "$n" ] && [ "$n" -gt "$last" ] || return 1
+    last=$n
+  done
+}
+
+# prepare runs in the fresh HOME and STATE before setup.sh does
+prepare() { :; }
+# run [setup.sh args...]: sets out and rc. The stubs are rebuilt, so a case's own stay its own
+run() {
+  rm -rf "${tmp:?}/home" "$STATE" "$tmp/bin/gh" "$tmp/bin/code"
+  export HOME="$tmp/home"
+  mkdir -p "$HOME" "$STATE"
+  touch "$STATE/mise.log" "$STATE/extras.log" "$STATE/sudo.log" "$STATE/curl.log"
+  stub mise "$mise_stub"
+  prepare
+  rc=0
+  out=$(PATH="$tmp/bin:/usr/bin:/bin" "$fix/setup.sh" "$@" 2>&1 < /dev/null) || rc=$?
+}
+apply="args=bootstrap packages apply --yes --manager"
+upgrade="args=bootstrap packages upgrade --yes --manager"
+
+run
+check_true "a: exits 0" [ "$rc" -eq 0 ]
+check_true "a: ~/.config/mise links to the clone's" [ -L "$HOME/.config/mise" -a "$HOME/.config/mise" -ef "$fix/tilde/.config/mise" ]
+check_true "a: ~/dotfiles links to the clone" [ -L "$HOME/dotfiles" -a "$HOME/dotfiles" -ef "$fix" ]
+check_true "a: plugin link, formulae, casks, then bootstrap" in_order \
+  "args=plugins link --force vscode $fix/mise-plugins/vscode disable=" "$apply brew disable=" "$apply brew-cask disable=" \
+  "pwd=$HOME args=bootstrap --skip macos-defaults,packages disable= dotfiles=$fix skip= token= telemetry=0"
+check_true "a: every mise call runs from HOME" [ -z "$(grep -v "^pwd=$HOME " "$STATE/mise.log")" ]
+check_true "a: no package is upgraded" log_lacks "packages upgrade"
+check_true "a: no extensions without code" log_lacks "--manager vscode"
+check_true "a: says extensions are skipped" has 'extensions are skipped'
+check_true "a: warns about the anonymous GitHub limit" has 'No GitHub token'
+check_true "a: a free-space line per manager" [ "$(grep -cE '^[0-9.]+[KMGT]i? free on /$' <<< "$out")" = 2 ]
+check_true "a: the extras script runs once" extras_ran 1
+check_true "a: no sudo prompt without a terminal" [ -z "$(grep -e '-v' "$STATE/sudo.log")" ]
+
+run -y --skip-codegraph -- --skip packages
+check_true "b: --yes, the merged skip list and CodeGraph disabled" boot_has "args=bootstrap --yes --skip macos-defaults,packages disable=npm:@colbymchenry/codegraph "
+check_true "b: the task is told to skip CodeGraph" boot_has " skip=true "
+check_true "b: --skip packages skips setup's own package step" log_lacks "packages apply"
+check_true "b: … and the plugin link" log_lacks "plugins link"
+
+prepare() { stub code 'exit 0'; }
+run -- --skip tools --skip=files --upgrade
+check_true "b2: both --skip forms merge, --upgrade stays" boot_has "args=bootstrap --skip macos-defaults,tools,files,packages --upgrade disable="
+check_true "b2: each manager is applied, then upgraded, before bootstrap" in_order \
+  "$apply brew disable=" "$upgrade brew disable=" "$apply brew-cask disable=" "$upgrade brew-cask disable=" \
+  "$apply vscode disable=" "$upgrade vscode disable=" "args=bootstrap --skip"
+prepare() { :; }
+
+run -- --only tools
+check_true "b3: --only exits 1" [ "$rc" -eq 1 ]
+check_true "b3: names the direct command" has 'mise bootstrap --only'
+check_true "b3: mise is not run" log_empty
+
+run -- --dry-run --upgrade
+check_true "b4: --dry-run reaches each apply and upgrade" in_order \
+  "$apply brew --dry-run disable=" "$upgrade brew --dry-run disable=" "$apply brew-cask --dry-run disable=" "$upgrade brew-cask --dry-run disable="
+check_true "b4: … and the bootstrap" boot_has "--skip macos-defaults,packages --dry-run --upgrade disable="
+check_true "b4: a dry run links no plugin" log_lacks "plugins link"
+check_true "b4: … and skips the extras script" extras_ran 0
+
+run -- --skip dotfiles
+check_true "b5: exits 0" [ "$rc" -eq 0 ]
+check_true "b5: dotfiles joins the skip list" boot_has "--skip macos-defaults,dotfiles,packages disable="
+check_true "b5: no extras without the dotfiles part" extras_ran 0
+
+run -- --skip packages --upgrade
+check_true "b6: exits 0" [ "$rc" -eq 0 ]
+check_true "b6: no package apply" log_lacks "packages apply"
+check_true "b6: no package upgrade" log_lacks "packages upgrade"
+check_true "b6: no plugin link" log_lacks "plugins link"
+check_true "b6: tools are still upgraded" boot_has "--skip macos-defaults,packages --upgrade disable="
+
+prepare() { mkdir -p "$HOME/.config/mise" && touch "$HOME/.config/mise/config.toml"; }
+run
+check_true "c: an own ~/.config/mise exits 1" [ "$rc" -eq 1 ]
+check_true "c: names the link and the mv" has '/\.config/mise is not a link to .*mv '
+check_true "c: mise is not run" log_empty
+check_true "c: the directory is left alone" [ -f "$HOME/.config/mise/config.toml" -a ! -L "$HOME/.config/mise" ]
+
+for kind in directory file link; do
+  prepare() {
+    case $kind in
+      directory) mkdir "$HOME/dotfiles" ;;
+      file) echo x > "$HOME/dotfiles" ;;
+      link) ln -s "$tmp/other" "$HOME/dotfiles" ;;
+    esac
+  }
+  run
+  check_true "c2: a foreign ~/dotfiles ($kind) exits 1" [ "$rc" -eq 1 ]
+  check_true "c2: names the problem ($kind)" has '/dotfiles is not a link to'
+  check_true "c2: mise is not run ($kind)" log_empty
+done
+
+prepare() { mv "$tmp/bin/mise" "$STATE/mise-stub"; }
+run
+check_true "d: without mise exits 0" [ "$rc" -eq 0 ]
+check_true "d: installs mise from mise.run" grep -q 'https://mise.run' "$STATE/curl.log"
+check_true "d: the installed mise runs the bootstrap" boot_has "--skip macos-defaults,packages"
+prepare() { :; }
+
+STUB_MISE_VERSION=2026.10.1 run
+check_true "e: an old mise exits 1" [ "$rc" -eq 1 ]
+check_true "e: names the floor and the found version" has 'mise 2026\.11\.5 or newer is required, found 2026\.10\.1'
+check_true "e: mise is not run" log_empty
+
+prepare() { touch "$STATE/bootstrap-fails"; }
+run
+check_true "f: a failed bootstrap fails setup" [ "$rc" -ne 0 ]
+check_true "f: says to rerun" has 'rerun \./setup\.sh'
+check_true "f: no extras after a failed bootstrap" extras_ran 0
+check_true "f: does not say All done" lacks 'All done'
+
+prepare() {
+  touch "$STATE/casks-fail"
+  stub code 'exit 0'
+}
+run
+check_true "f2: a failed cask exits 0" [ "$rc" -eq 0 ]
+check_true "f2: warns that casks failed" has 'Some casks failed to install'
+check_true "f2: extensions and the bootstrap still run" in_order "$apply brew-cask disable=" "$apply vscode disable=" "args=bootstrap --skip"
+check_true "f2: the extras script runs" extras_ran 1
+
+prepare() { touch "$STATE/upgrade-fails"; }
+run -- --upgrade
+check_true "f3: a failed upgrade exits 0" [ "$rc" -eq 0 ]
+check_true "f3: warns that the upgrade failed" has 'failed to upgrade'
+check_true "f3: casks are applied after the failed formula upgrade" in_order "$upgrade brew disable=" "$apply brew-cask disable="
+check_true "f3: the bootstrap still gets --upgrade" boot_has "--skip macos-defaults,packages --upgrade disable="
+check_true "f3: the extras script runs" extras_ran 1
+
+prepare() { touch "$STATE/no-packages"; }
+run
+check_true "f4: no package list exits 1" [ "$rc" -eq 1 ]
+check_true "f4: says mise read no package list" has 'mise read no package list'
+check_true "f4: not reported as a failed install" lacks 'Some formulae failed'
+check_true "f4: stops before casks and the bootstrap" log_lacks "--manager brew-cask"
+check_true "f4: … and the bootstrap" log_lacks "args=bootstrap --skip"
+prepare() { :; }
+
+run --skip-brew
+check_true "g: --skip-brew exits 1" [ "$rc" -eq 1 ]
+check_true "g: names the replacement" has '-- --skip packages'
+run --help
+check_true "g: --help exits 0 with the usage" [ "$rc" -eq 0 -a -n "$out" ]
+check_true "g: --help no longer lists it" lacks 'skip-brew'
+
+prepare() { touch "$STATE/no-clt"; }
+run
+check_true "h: without the Command Line Tools exits 1" [ "$rc" -eq 1 ]
+check_true "h: names the install command" has 'xcode-select --install'
+check_true "h: mise is not run" log_empty
+
+# mise asks gh for a token itself ([settings.github] in config.toml), so
+# setup.sh hands none to every build and hook
+prepare() { stub gh '[ "$*" = "auth token" ] && echo tok'; }
+run
+check_true "i: gh's token is not exported to mise" [ -z "$(grep -v ' token= ' "$STATE/mise.log")" ]
+check_true "i: no rate-limit warning when gh is signed in" lacks 'No GitHub token'
+prepare() { :; }
+MISE_GITHUB_TOKEN=mine run
+check_true "i: the caller's own token is passed on" [ -z "$(grep -v ' token=mine ' "$STATE/mise.log")" ]
+check_true "i: … without the warning" lacks 'No GitHub token'
+
+conf="$repo/tilde/.config/mise/conf.d"
+PATH=$(tr ':' '\n' <<< "$real_path" | grep -v '/mise/shims$' | paste -sd: -)
+if command -v mise > /dev/null; then
+  export HOME="$tmp/scratch" MISE_CONFIG_DIR="$repo/tilde/.config/mise" DOTFILES="$repo"
+  mkdir -p "$HOME"
+  # The [dotfiles] sources are written ~/dotfiles/…, and a missing source fails the dry run
+  ln -s "$repo" "$HOME/dotfiles"
+  # From HOME: started in the clone, mise would add the repo's .nvmrc to the tools part
+  cd "$HOME"
+  out=$(mise bootstrap --dry-run --only files,user,task 2>&1) || fail "config does not load: $out"
+  grep -q 'mise bootstrap: system files' <<< "$out" || fail "no files part"
+  grep -q 'mise bootstrap: login shell' <<< "$out" || fail "no user part"
+  grep -qF 'mise bootstrap: running `bootstrap` task' <<< "$out" || fail "no bootstrap task"
+  grep -qF '/setup/misc.sh' <<< "$out" || fail "task does not run setup/misc.sh"
+  ! grep -q 'unknown field' <<< "$out" || fail "mise warns about an unknown key"
+  mise bootstrap files status | grep '/etc/pam.d/sudo_local' | grep -q 'owner root group wheel' || fail "sudo_local not declared with its owner"
+  mise bootstrap user status | grep -q '^/opt/homebrew/bin/zsh' || fail "login shell not declared"
+  out=$(mise bootstrap --dry-run --skip macos-defaults,packages 2>&1) || fail "the skip list setup.sh passes does not parse: $out"
+  ! grep -qE 'pre-defaults|post-defaults|pre-packages|system defaults|system packages' <<< "$out" || fail "a skipped part or its hook still runs"
+  echo "ok: the tracked bootstrap config dry-runs"
+else
+  echo "test-bootstrap: mise not found, skipping the dry run of the bootstrap config" >&2
+fi
+
+cd "$repo"
+# A second definition in a later fragment replaces the first without a word
+[ "$(cat "$conf"/*.toml | grep -cxF '[tasks.bootstrap]')" = 1 ] || fail "conf.d must define [tasks.bootstrap] exactly once"
+grep -qxF 'pre-tools = "sudo -k"' "$conf/50-bootstrap.toml" || fail "50-bootstrap.toml: no pre-tools hook that drops sudo"
+grep -q '^pre-packages = ' "$conf/50-bootstrap.toml" || fail "50-bootstrap.toml: no pre-packages hook"
+# mise runs post-dotfiles on every `mise dotfiles apply`, and the extras script may ask for sudo
+! grep -q '^post-dotfiles' "$conf/50-bootstrap.toml" || fail "50-bootstrap.toml: setup/dotfiles-extras.sh must not be a hook"
+# The migration script compares the live file with this exact line
+grep -qxF 'content = "auth       sufficient     pam_tid.so\n"' "$conf/50-bootstrap.toml" || fail "50-bootstrap.toml: sudo_local content differs from what migrate/legacy-to-mise expects"
+[ -z "$(grep -nE '(^|[^a-z_])sudo ' setup/misc.sh | grep -v 'sudo -k')" ] || fail "setup/misc.sh calls sudo"
+# test-conventions already fails on any brew call
+for gone in link_config_dir 'mise install' DOTFILES_SUDO_KEPT; do
+  ! grep -qF "$gone" setup/misc.sh || fail "setup/misc.sh still has: $gone"
+done
+grep -qE '^export [A-Z_]*TELEMETRY' setup.sh || fail "setup.sh exports no telemetry opt-out"
+! grep -qE '^export [A-Z_]*TELEMETRY' setup/misc.sh || fail "setup/misc.sh exports telemetry opt-outs (they belong in setup.sh)"
+echo "ok: static checks"
