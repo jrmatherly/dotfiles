@@ -57,7 +57,7 @@ On a new Mac, clone over HTTPS — SSH only works after 1Password is set up (key
 
    Setting up your own Mac? Fork the repo, clone your fork instead, and go through [Make it yours](#make-it-yours) before running setup.
 
-1. Optional, for signed commits from the start: install 1Password (download it, or run `mise bootstrap packages apply brew-cask:1password` once `setup/packages.sh` has installed mise), sign in and turn on **Settings → Developer → Use the SSH agent**. `setup/symlinks.sh` asks how to sign commits — [SSH via 1Password](https://www.1password.dev/ssh/git-commit-signing) (`op-ssh-sign`; paste your public key when asked), GPG, or none — and writes `~/.gitconfig.local`. Choose none if 1Password isn't ready yet and add signing to `~/.gitconfig.local` later.
+1. Optional, for signed commits from the start: install 1Password (download it, or run `mise bootstrap packages apply brew-cask:1password` once `setup/packages.sh` has installed mise), sign in and turn on **Settings → Developer → Use the SSH agent**. `setup/dotfiles-extras.sh` asks how to sign commits — [SSH via 1Password](https://www.1password.dev/ssh/git-commit-signing) (`op-ssh-sign`; paste your public key when asked), GPG, or none — and writes `~/.gitconfig.local`. Choose none if 1Password isn't ready yet and add signing to `~/.gitconfig.local` later.
 1. Run the setup — [automatically](#automatically) or [manually](#manually).
 1. Finish the steps setup can't do for you: see [After setup](#after-setup).
 
@@ -68,15 +68,16 @@ The repo can live anywhere — the scripts resolve their own location, and `~/.z
 ```shell
 # after cloning as in step 2 above
 cd ~/dev/dotfiles
-ln -s "$PWD" ~/dotfiles # compatibility path for configs that can't expand variables
+ln -s "$PWD" ~/dotfiles # required: every dotfile link goes through this path
 ./setup/packages.sh     # must run first: the later scripts use the tools it installs
 ./setup/zsh.sh
 ./setup/misc.sh
-./setup/symlinks.sh
+(cd ~ && mise dotfiles apply)
+./setup/dotfiles-extras.sh
 ./setup/dash.sh # optional: Dash docsets from local folders
 ```
 
-`setup.sh` also does a few things the manual path skips: it enables Touch ID for `sudo` (`/etc/pam.d/sudo_local`), keeps `sudo` authorized during the package, Zsh and symlink steps so long installs don't ask for the password again (it's released while `misc.sh` runs its installers, so the symlink step asks once more), and exports telemetry opt-outs (.NET, PowerShell, Azure CLI, Azure MCP server, Azure Functions Core Tools, Aspire, CodeGraph, rtk, Claude Code error reports) before `misc.sh` installs those tools.
+`setup.sh` also does a few things the manual path skips: it enables Touch ID for `sudo` (`/etc/pam.d/sudo_local`), keeps `sudo` authorized during the package and Zsh steps so long installs don't ask for the password again, stops when `~/dotfiles` or `~/.config/mise` is not this clone's, and exports telemetry opt-outs (.NET, PowerShell, Azure CLI, Azure MCP server, Azure Functions Core Tools, Aspire, CodeGraph, rtk, Claude Code error reports) before `misc.sh` installs those tools.
 
 ### Automatically
 
@@ -101,7 +102,7 @@ Options:
 | `--dash` | Also run the optional [Dash docset setup](setup/dash.sh) |
 | `-h`, `--help` | Print usage and exit |
 
-Along the way it prompts for your git identity and commit signing (`~/.gitconfig.local`), and offers to run `gh auth login` if the GitHub CLI isn't authenticated yet. Existing files and folders in `$HOME` (including `~/.zshrc`) are never replaced silently — each one prompts for skip / overwrite / backup, and anything unanswered is skipped. If `/etc/pam.d/sudo_local` doesn't exist yet, it's created to enable Touch ID for `sudo`.
+Along the way it prompts for your git identity and commit signing (`~/.gitconfig.local`), and offers to run `gh auth login` if the GitHub CLI isn't authenticated yet. A real file or folder where a link belongs stops the run: `mise dotfiles apply` names every such path and writes nothing. Move it aside, or adopt it with `mise dotfiles add <path>` (your file then replaces the tracked one, so check `git diff`), and run again. There is no prompt. `mise dotfiles apply --force` replaces the file with no backup. A link that points somewhere else is repointed without asking. If `/etc/pam.d/sudo_local` doesn't exist yet, it's created to enable Touch ID for `sudo`.
 
 ### After setup
 
@@ -198,7 +199,7 @@ SSH keys live in 1Password, and `tilde/.ssh/config` pins `github.com` to your pe
 SSH_AUTH_SOCK=~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock ssh-add -L
 ```
 
-`setup/symlinks.sh` warns if it's missing. Test with `ssh -T git@github.com`.
+`setup/dotfiles-extras.sh` warns if it's missing. Test with `ssh -T git@github.com`.
 
 > [!IMPORTANT]  
 > 1Password must be running and unlocked, with **Settings → Developer → Use the SSH agent** turned on, for GitHub SSH and signed commits to work. Turning on "Keep 1Password in the menu bar" and "Start at login" keeps the agent available.
@@ -210,7 +211,7 @@ If this file exists, it will be automatically included after the configurations 
 > [!TIP]  
 > Use `~/.gitconfig.local` to store sensitive information such as the `git` user credentials for individual repositories.
 
-`setup/symlinks.sh` writes your identity and commit signing here. Anything a tool tries to add to `~/.gitconfig` (e.g. Git Credential Manager registering itself) belongs here too, since `~/.gitconfig` is a symlink into the repo.
+`setup/dotfiles-extras.sh` writes your identity and commit signing here. Anything a tool tries to add to `~/.gitconfig` (e.g. Git Credential Manager registering itself) belongs here too, since `~/.gitconfig` is a symlink into the repo.
 
 > [!NOTE]  
 > `git config --global --get …` does **not** follow includes, so it won't show values from this file. Use `git config --get …` (or add `--includes`).

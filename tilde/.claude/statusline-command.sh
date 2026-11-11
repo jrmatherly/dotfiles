@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code status line — three-row layout
-# Documented in agents/README.md (symlinked by setup/symlinks.sh)
+# Documented in agents/README.md (linked by conf.d/40-dotfiles.toml)
 # Constraints (verified May 2026):
 #   - No TTY: $COLUMNS is unset, tput cols returns 80, /dev/tty unavailable
 #   - Leading whitespace stripped from each row by Claude Code renderer

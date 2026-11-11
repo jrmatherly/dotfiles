@@ -1,16 +1,17 @@
 ---
 paths:
-  - 'setup/symlinks.sh'
+  - 'tilde/.config/mise/conf.d/40-dotfiles.toml'
+  - 'setup/dotfiles-extras.sh'
   - 'tilde/**'
   - 'mole/**'
 ---
 
 # Symlinks
 
-`setup/symlinks.sh` links each top-level item of `tilde/` into `~`, and each child of `tilde/.config/` individually (it holds app-written state next to tracked files).
+`conf.d/40-dotfiles.toml` has one `[dotfiles]` entry per top-level file of `tilde/` and per child of `tilde/.config/`. A new one needs an entry, and `bin/lib/test-dotfiles` fails without it. Sources are written `~/dotfiles/…`: `source` is not a template, and a relative source resolves from `~/.config/mise/conf.d`, not from the clone.
 
-- `tilde/.claude` is special-cased: `~/.claude/rules` stays a real directory and each tracked `tilde/.claude/rules/*.md` is symlinked into it individually, so machine-local rules can sit alongside (an older whole-directory link is migrated); each `tilde/.claude/skills/*` is linked into a real `~/.claude/skills` the same way, because the `skills` CLI keeps its own links there; top-level files in `tilde/.claude` (e.g. `statusline-command.sh`) are linked into `~/.claude` too.
-- `.codex` and `.ssh` are excluded and handled specially: only `.ssh/config` is linked. `tilde/README.md` itself is not linked.
-- Targets that don't mirror a `tilde/` path (VS Code `User`, lazydocker, rtk, gpg, Firefox's three files as hard links, `cot` and `code` in `/usr/local/bin`) need an explicit `symlink_file` call.
-- So do Mole's two whitelists (`install_mole_config`): `mole/<name>` or, when present, the gitignored `mole/<name>.local` is linked as `~/.config/mole/<name>` (Mole writes other files in that folder), and a link to the other candidate is replaced without a prompt.
-- `symlink_file` never overwrites silently; it prompts skip/overwrite/backup.
+- `~/.claude/rules` is the one `symlink-each` entry: a real directory with a link per tracked rule, so a new rule needs no entry. Each skill folder and `statusline-command.sh` has its own entry. Never add a `"~"` walk entry: before its first apply mise searches all of `$HOME`.
+- `~/.ssh` and `~/.gnupg` are permissions-only entries (`0700`) beside the linked file. `~/.codex/config.toml` is a `merge = "missing"` edit: created at `0600` when missing, then only keys the live file lacks are added. Setup's `codex mcp add`, Hindsight and Codex write that file, so it is never linked.
+- What mise cannot express is in `setup/dotfiles-extras.sh`: Firefox's three hard links, `cot` and `code` in `/usr/local/bin` (`[bootstrap.files]` only copies, and a missing source fails the whole apply), the git identity prompt. `setup.sh` runs it after the apply, never as a mise hook: a hook runs on every `mise dotfiles apply`.
+- Mole's two whitelists link to the shared `mole/<name>`. A Mac's `mole/<name>.local` is linked by repeating the entry in the gitignored `config.local.toml`, which replaces the tracked entry.
+- A real file in the way stops the whole apply and nothing is written. `--force` replaces with no backup, so no script passes it. A link that points elsewhere is repointed silently.

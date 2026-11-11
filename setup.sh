@@ -113,7 +113,7 @@ ${yellow}
 echo
 echo -e "${yellow}!!! ${red}WARNING${yellow} !!!"
 echo -e "${light_red}This script replaces your configuration files with symlinks to this repo."
-echo -e "${light_red}It asks before overwriting anything, but use it at your own risk.${reset}"
+echo -e "${light_red}It stops when a file is in the way of a link. Nothing is overwritten.${reset}"
 echo -e "${yellow}Repo: ${reset}$DOTFILES_DIR"
 
 if [ "$SKIP_CONFIRM" = false ]; then
@@ -125,19 +125,17 @@ if [ "$SKIP_CONFIRM" = false ]; then
   fi
 fi
 
-# Several configs (e.g. lazygit's `shellFunctionsFile`) can't expand variables,
-# so keep the conventional `~/dotfiles` path working as a symlink to the repo
-LEGACY_LINK="$HOME/dotfiles"
-if [ "$DOTFILES_DIR" != "$LEGACY_LINK" ]; then
-  # shellcheck disable=SC2088 # "~/dotfiles" in messages is display text
-  if [ ! -e "$LEGACY_LINK" ] && [ ! -L "$LEGACY_LINK" ]; then
-    title "🔗 Linking ~/dotfiles → ${DOTFILES_DIR}…"
-    ln -s "$DOTFILES_DIR" "$LEGACY_LINK"
-  elif [ -L "$LEGACY_LINK" ] && [ "$(readlink "$LEGACY_LINK")" != "$DOTFILES_DIR" ]; then
-    warning "~/dotfiles points at $(readlink "$LEGACY_LINK"), not $DOTFILES_DIR"
-  elif [ ! -L "$LEGACY_LINK" ]; then
-    warning "~/dotfiles exists and is not a symlink — leaving it alone"
-  fi
+# Every [dotfiles] source is written ~/dotfiles/… (mise does not expand
+# variables in a source, and neither does lazygit's `shellFunctionsFile`), so
+# ~/dotfiles must be this clone before anything is installed
+if [ ! -e "$HOME/dotfiles" ] && [ ! -L "$HOME/dotfiles" ]; then
+  title "🔗 Linking ~/dotfiles → ${DOTFILES_DIR}…"
+  ln -s "$DOTFILES_DIR" "$HOME/dotfiles"
+fi
+if [ ! "$HOME/dotfiles" -ef "$DOTFILES_DIR" ]; then
+  # shellcheck disable=SC2088 # display text
+  echo "~/dotfiles is not this clone ($DOTFILES_DIR). Every link goes through it. Move it aside and run setup again." >&2
+  exit 1
 fi
 
 # Use Touch ID to authorize sudo
@@ -169,8 +167,8 @@ sudo_keepalive_stop() {
   echo "Sudo released"
 }
 
-# Ask for the administrator password upfront; sudo is held for the packages, Zsh
-# and the symlinks, and released around misc.sh (curl | bash, npm, uv, dotnet)
+# Ask for the administrator password upfront; sudo is held for the packages and
+# Zsh, and released before misc.sh (curl | bash, npm, uv, dotnet)
 warning "Activate sudo"
 sudo -v
 # Tells the child scripts sudo is already cached, so they skip their own prompt
@@ -200,16 +198,27 @@ title "🚀 Setting up extra tools…"
 "$DOTFILES_DIR/setup/misc.sh"
 echo
 
-# symlinks.sh may need sudo for /usr/local/bin; if this prompt is refused, it asks itself
-if sudo -v; then
-  sudo_keepalive_start
-  echo "Sudo reactivated"
-else
-  warning "Sudo not reactivated"
+# A real file where a link belongs stops here: mise names it and writes nothing.
+# dotfiles-extras.sh asks for sudo itself, and only to link cot or code. It runs
+# from here and never as a mise hook: a hook also runs on every plain
+# `mise dotfiles apply`, where nobody can answer its prompts.
+title "🍤 Linking dotfiles…"
+# mise's installer puts it in ~/.local/bin, and a fresh Mac's PATH lacks both
+export PATH="$HOME/.local/bin:${HOMEBREW_PREFIX:-/opt/homebrew}/bin:$PATH"
+if ! command -v mise > /dev/null; then
+  echo "mise not found, so no dotfile was linked. Run setup again without --skip-brew." >&2
+  exit 1
 fi
-title "🍤 Setting up symlinks…"
-"$DOTFILES_DIR/setup/symlinks.sh"
-sudo_keepalive_stop
+# mise reads the [dotfiles] entries through this link (misc.sh makes it). With
+# another config there it finds none, links nothing and exits 0.
+if [ ! "$HOME/.config/mise" -ef "$DOTFILES_DIR/tilde/.config/mise" ]; then
+  # shellcheck disable=SC2088 # display text
+  echo "~/.config/mise is not this clone's tilde/.config/mise, so mise cannot read the dotfiles list. Move it aside and run setup again." >&2
+  exit 1
+fi
+# From $HOME, so a project's mise config can't add to the run. It never asks.
+(cd "$HOME" && mise dotfiles apply --yes)
+"$DOTFILES_DIR/setup/dotfiles-extras.sh"
 
 # Optional: Dash docsets built from local folders
 if [ "$RUN_DASH" = true ]; then

@@ -16,7 +16,7 @@ Installed by mise from `tilde/.config/mise/conf.d/30-packages.toml` (`"brew-cask
 
 - `tilde/.ssh/config` sets `IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"` for all hosts
 - `github.com` is pinned with `IdentitiesOnly yes` and `IdentityFile ~/.ssh/github_personal.pub` — a machine-local _public_ key file (1Password's "Match key with host" pattern, avoids "Too many authentication failures"). Download the public key from 1Password, or copy the line from `SSH_AUTH_SOCK=~/Library/Group\ Containers/2BUA8C4S2C.com.1password/t/agent.sock ssh-add -L` (plain `ssh-add -L` asks the macOS agent, not 1Password)
-- `setup/symlinks.sh` creates `~/.gitconfig.local` if it's missing; answer **s** (or set `DOTFILES_GIT_SIGN_METHOD=ssh`) to sign commits and tags with SSH via `/Applications/1Password.app/Contents/MacOS/op-ssh-sign`
+- `setup/dotfiles-extras.sh` creates `~/.gitconfig.local` if it's missing; answer **s** (or set `DOTFILES_GIT_SIGN_METHOD=ssh`) to sign commits and tags with SSH via `/Applications/1Password.app/Contents/MacOS/op-ssh-sign`
 - For GitHub's "Verified" badge, the public key must also be added on GitHub with key type **Signing key**
 
 ## Global shortcuts

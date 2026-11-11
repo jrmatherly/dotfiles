@@ -34,7 +34,8 @@ command_exists() {
 
 # Link ~/.config/<name> to the repo's copy when it is missing or already a link
 # into the repo. Anything else (a real directory, a link to somewhere else) is
-# left for symlinks.sh to ask about; returns 1 then.
+# left alone and returns 1: setup.sh's dotfiles step then stops on ~/.config/mise,
+# and `mise dotfiles apply` stops on another real directory and repoints a link.
 # shellcheck disable=SC2088 # display text, not a path
 link_config_dir() {
   local dst="$HOME/.config/$1"
@@ -43,10 +44,10 @@ link_config_dir() {
   if [ ! -e "$dst" ] && [ ! -L "$dst" ] || [[ -L "$dst" && ("$(readlink "$dst")" == "$DOTFILES_DIR"/* || "$dst" -ef "$DOTFILES_DIR/tilde/.config/$1") ]]; then
     ln -sfn "$DOTFILES_DIR/tilde/.config/$1" "$dst"
   elif [ -L "$dst" ]; then
-    warning "~/.config/$1 links elsewhere; leaving it; symlinks.sh will ask"
+    warning "~/.config/$1 links elsewhere; leaving it for the dotfiles step"
     return 1
   else
-    warning "~/.config/$1 is not linked to this repo; leaving it; symlinks.sh will ask"
+    warning "~/.config/$1 is not linked to this repo; leaving it; the dotfiles step will stop on it"
     return 1
   fi
 }
@@ -111,9 +112,9 @@ fi
 # the account, protocol and auth method itself, and writes ~/.config/gh/hosts.yml
 # (gitignored — it can hold an OAuth token).
 if command_exists gh && ! gh auth status &> /dev/null; then
-  # Link the config dir first (symlinks.sh will skip it later as already done)
-  # so gh writes its hosts.yml inside the repo's gitignored path rather than
-  # creating a real ~/.config/gh that symlinks.sh would then have to replace
+  # Link the config dir first (`mise dotfiles apply` runs later and finds it
+  # already linked) so gh writes its hosts.yml inside the repo's gitignored path
+  # rather than creating a real ~/.config/gh that would stop that apply
   link_config_dir gh || true
 
   if [ -t 0 ]; then
@@ -130,15 +131,15 @@ if command_exists gh && ! gh auth status &> /dev/null; then
 fi
 
 # Node.js — installed and managed by mise. The global mise config lives in this
-# repo; link it first (symlinks.sh runs later and will skip it as already done)
-# so `mise install` picks up the tracked tool versions.
+# repo; link it first (`mise dotfiles apply` runs later and finds it already
+# linked) so `mise install` picks up the tracked tool versions.
 if command_exists mise; then
   # The settings layer needs mise's override file; stop before installing with an older mise
   bash "$DOTFILES_DIR/setup/mise-floor.sh" || exit 1
   info "📦 Installing runtimes with mise…"
   if ! link_config_dir mise; then
     # This `mise install` uses that other config, not the repo's
-    echo "Installing from its existing config. Let symlinks.sh replace it, then run: ${BOLD}mise install${RESET}" | indent
+    echo "Installing from its existing config. Move it aside, run setup again, then run: ${BOLD}mise install${RESET}" | indent
   fi
   # --skip-codegraph: leave it out of this install (doesn't remove an existing
   # one). Scope MISE_DISABLE_TOOLS to `mise install` only, then reshim without

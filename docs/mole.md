@@ -99,7 +99,7 @@ These are safe to clear. Expect slower first runs afterwards.
 
 ## Configuration
 
-Mole reads two config files at fixed paths, `~/.config/mole/whitelist` and `~/.config/mole/whitelist_optimize` (`lib/manage/whitelist.sh`, `lib/core/base.sh`). It also writes `clean-list.txt` and `purge_paths` into that folder, so the folder itself stays machine-local and `setup/symlinks.sh` links the two files alone.
+Mole reads two config files at fixed paths, `~/.config/mole/whitelist` and `~/.config/mole/whitelist_optimize` (`lib/manage/whitelist.sh`, `lib/core/base.sh`). It also writes `clean-list.txt` and `purge_paths` into that folder, so the folder itself stays machine-local and `conf.d/40-dotfiles.toml` links the two files alone.
 
 | Repo file | Linked to | Tracked |
 | --- | --- | --- |
@@ -108,7 +108,7 @@ Mole reads two config files at fixed paths, `~/.config/mole/whitelist` and `~/.c
 | `mole/whitelist.local` | `~/.config/mole/whitelist`, in place of the shared file | No, gitignored |
 | `mole/whitelist_optimize.local` | `~/.config/mole/whitelist_optimize`, in place of the shared file | No, gitignored |
 
-A `.local` file replaces the shared one; nothing is merged. Start one as a copy of the shared file and add the Mac's own lines. After adding or removing a `.local`, run `setup/symlinks.sh` again. It switches the link without a prompt. Any other file or link already at the destination gets the usual skip/overwrite/backup prompt, except a dangling link, which is replaced.
+A `.local` file replaces the shared one; nothing is merged. Start one as a copy of the shared file and add the Mac's own lines. A `.local` is not picked up by itself. Add its entry to `tilde/.config/mise/config.local.toml` (gitignored, so it stays on this Mac) and run `mise dotfiles apply`: the local entry replaces the tracked one, and the link is repointed without asking. Delete the entry and apply again to go back. A real file at the destination stops the apply. On a Mac that already linked a `.local` with the old setup, `migrate/legacy-to-mise --step dotfiles` offers to write the entry.
 
 Edit the files in the repo. Mole's own editors (`mo clean --whitelist`, `mo optimize --whitelist`) rewrite the file through the link, which drops its comments.
 
@@ -188,11 +188,23 @@ Run these in a terminal, not with `sudo`. Mole asks for admin rights, with Touch
 
 ### Once on each Mac
 
-`setup/symlinks.sh` (run by `setup.sh`) links the whitelists. For a Mac that needs its own lines, create the `.local` first:
+`mise dotfiles apply` (run by `setup.sh`) links the whitelists. For a Mac that needs its own lines, create the `.local`:
 
 ```bash
 cp mole/whitelist mole/whitelist.local # then add this Mac's lines
-./setup/symlinks.sh
+```
+
+Add its entry to `tilde/.config/mise/config.local.toml` (under the `[dotfiles]` header if the file already has one):
+
+```toml
+[dotfiles]
+"~/.config/mole/whitelist" = { source = "~/dotfiles/mole/whitelist.local", mode = "symlink" }
+```
+
+Then link it:
+
+```bash
+(cd ~ && mise dotfiles apply)
 ```
 
 Then the largest caches Mole won't fully take, where present:

@@ -5,7 +5,7 @@
 ## Repo setup
 
 - **Install:** `"brew-cask:cmux"` in `tilde/.config/mise/conf.d/30-packages.toml`
-- **Config:** `tilde/.config/cmux/cmux.json`, symlinked to `~/.config/cmux` by `setup/symlinks.sh`. cmux watches the file and applies changes on save, with no restart
+- **Config:** `tilde/.config/cmux/cmux.json`, symlinked to `~/.config/cmux` by `mise dotfiles apply`. cmux watches the file and applies changes on save, with no restart
 - **Terminal look:** cmux renders terminals with your Ghostty config, so the theme, Hack Nerd Font Mono font and cursor from `tilde/.config/ghostty/config` carry over. After editing the Ghostty config, run `cmux reload-config` from a terminal inside cmux (or just reopen cmux); edits to `cmux.json` apply on save
 
 ## Notable settings (cmux.json)

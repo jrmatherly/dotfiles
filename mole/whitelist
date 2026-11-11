@@ -1,5 +1,5 @@
 # Mole's clean and purge whitelist, linked to ~/.config/mole/whitelist by
-# setup/symlinks.sh. A mole/whitelist.local on a Mac replaces this file there.
+# mise (conf.d/40-dotfiles.toml). A Mac can link its own list: docs/mole.md.
 # One absolute path or glob per line; comments only at the start of a line.
 # Edit this file, not `mo clean --whitelist`: its editor rewrites the file
 # through the link and drops these comments.

@@ -1,16 +1,16 @@
 # tilde
 
-Everything in this folder mirrors your home directory. `setup/symlinks.sh` links it into place, so `~/.zshrc` is a symlink to `tilde/.zshrc` and editing either edits the repo.
+Everything in this folder mirrors your home directory. `mise dotfiles apply` links it into place, from the entries in [`.config/mise/conf.d/40-dotfiles.toml`](.config/mise/conf.d/40-dotfiles.toml), so `~/.zshrc` is a symlink to `tilde/.zshrc` and editing either edits the repo.
 
 ## How it's linked
 
-- Each top-level file and folder becomes a symlink in `~`.
-- Each item in `.config/` is linked individually into `~/.config/`, because apps also write their own state there.
-- `.claude/` is linked file by file: `~/.claude/rules` stays a real folder and each tracked rule is linked into it, so machine-local rules can sit next to them. Each tracked skill in `.claude/skills/` is linked into `~/.claude/skills/` too, beside the ones the `skills` CLI installs. Top-level files such as `statusline-command.sh` are linked into `~/.claude/` the same way.
-- `.ssh/` and `.codex/` are never linked as folders. Only `.ssh/config` and `AGENTS.md` (from `agents/`) are linked, into real `~/.ssh` and `~/.codex` folders. Codex's `config.toml` is copied once, when missing (see `setup/README.md`). SSH identity policy: `Host *` sets only the 1Password `IdentityAgent`, not `IdentitiesOnly`, so ssh offers the agent's keys to any host, and only `github.com` is pinned to one key (`IdentitiesOnly yes` plus `IdentityFile ~/.ssh/github_personal.pub` in `.ssh/config`). Setting `IdentitiesOnly yes` under `Host *` would need an `IdentityFile` for every host you use (in `~/.ssh/config.local`), or ssh would offer no key at all.
+- Each top-level file has its own entry and becomes a symlink in `~`. A new file needs an entry, and `pnpm check` fails without it.
+- Each folder in `.config/` has its own entry too and is linked individually into `~/.config/`, because apps also write their own state there.
+- `.claude/` is linked file by file: `~/.claude/rules` stays a real folder and each tracked rule is linked into it, so machine-local rules can sit next to them. mise walks that folder, so a new rule needs no entry. Each tracked skill in `.claude/skills/` has its own entry and is linked into `~/.claude/skills/`, beside the ones the `skills` CLI installs. `statusline-command.sh` has one too.
+- `.ssh/` and `.codex/` are never linked as folders. Only `.ssh/config` and `AGENTS.md` (from `agents/`) are linked, into real `~/.ssh` and `~/.codex` folders. Codex's `config.toml` is created when missing, and later applies add only the keys it lacks (see `setup/README.md`). SSH identity policy: `Host *` sets only the 1Password `IdentityAgent`, not `IdentitiesOnly`, so ssh offers the agent's keys to any host, and only `github.com` is pinned to one key (`IdentitiesOnly yes` plus `IdentityFile ~/.ssh/github_personal.pub` in `.ssh/config`). Setting `IdentitiesOnly yes` under `Host *` would need an `IdentityFile` for every host you use (in `~/.ssh/config.local`), or ssh would offer no key at all.
 - This `README.md` is not linked.
 
-An existing file in `~` is never replaced silently: the script asks to skip, overwrite or back it up.
+A real file or folder where a link belongs stops the run: `mise dotfiles apply` names every such path and writes nothing. Move it aside, or adopt it with `mise dotfiles add <path>` (your file then replaces the tracked one, so check `git diff`), and run again. There is no prompt. `mise dotfiles apply --force` replaces the file with no backup. A link that points somewhere else is repointed without asking.
 
 ## What's here
 

@@ -2,7 +2,7 @@
 
 ## How it works
 
-- `setup/symlinks.sh` links `~/Library/Application Support/Code/User` → `vscode/User`, so settings, keybindings, snippets, tasks and chat model config come straight from this repo. If a `User` folder already exists, the script asks before replacing it.
+- `mise dotfiles apply` links `~/Library/Application Support/Code/User` → `vscode/User`, so settings, keybindings, snippets, tasks and chat model config come straight from this repo. If a real `User` folder already exists, the apply stops and names it. Move it aside and run again.
 - The repo is the source of truth: keep VS Code **Settings Sync off**, otherwise it would write its own state over the linked files.
 - Machine-local state that VS Code writes into that folder is gitignored (see [.gitignore](../.gitignore)): `vscode/**/sync/`, `profiles/`, `globalStorage/`, `History/`, `workspaceStorage/` and `syncLocalSettings.json`.
 
@@ -59,7 +59,7 @@ Blur only shows through see-through backgrounds, and the SpaceBox theme's are so
 
 ## `code` command line helper
 
-No manual step needed: the `visual-studio-code` cask links `code` into `/opt/homebrew/bin`, and `setup/symlinks.sh` links `/usr/local/bin/code` as a fallback if `code` isn't found. (The equivalent manual step is **Shell Command: Install 'code' command in PATH** from the Command Palette.)
+No manual step needed: the `visual-studio-code` cask links `code` into `/opt/homebrew/bin`, and `setup/dotfiles-extras.sh` links `/usr/local/bin/code` as a fallback if `code` isn't found. (The equivalent manual step is **Shell Command: Install 'code' command in PATH** from the Command Palette.)
 
 ## Install extensions
 

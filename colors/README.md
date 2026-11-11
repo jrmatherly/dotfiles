@@ -9,11 +9,11 @@ This setup uses the [Squirrelsong](https://sapegin.me/squirrelsong/) theme where
 
 ## Theme files (owned by this repo)
 
-Every theme file lives in this repo and is maintained here — nothing is pulled from upstream. To change a theme, edit its file and commit it. [`install-color-themes`](../bin/install-color-themes) applies them where an app needs a step (bat's cache, an Obsidian vault) and prints where to import the rest. Setup doesn't run it: run it yourself, or through `sync-all`. `setup/symlinks.sh` only rebuilds bat's cache.
+Every theme file lives in this repo and is maintained here — nothing is pulled from upstream. To change a theme, edit its file and commit it. [`install-color-themes`](../bin/install-color-themes) applies them where an app needs a step (bat's cache, an Obsidian vault) and prints where to import the rest. Setup doesn't run it: run it yourself, or through `sync-all`. `setup/dotfiles-extras.sh` only rebuilds bat's cache.
 
 | App | Theme file(s) | How it's applied |
 | --- | --- | --- |
-| bat | `tilde/.config/bat/themes` | Linked into `~/.config`; `BAT_THEME` (zsh/env.zsh) selects Dark Deep Purple. `setup/symlinks.sh` and `install-color-themes` rebuild bat's cache |
+| bat | `tilde/.config/bat/themes` | Linked into `~/.config`; `BAT_THEME` (zsh/env.zsh) selects Dark Deep Purple. `setup/dotfiles-extras.sh` and `install-color-themes` rebuild bat's cache |
 | btop | `tilde/.config/btop/themes` | Linked into `~/.config`; `btop.conf` selects Dark Deep Purple |
 | Ghostty (and cmux) | `tilde/.config/ghostty/themes` | Linked into `~/.config`; Dark Deep Purple in dark mode, Light in light mode |
 | Obsidian | `obsidian/.obsidian/themes/Squirrelsong` | `obsidian-vault install` (and `install-color-themes`) copy it into the vault; `obsidian/.obsidian/appearance.json` selects it |

@@ -6,7 +6,7 @@ paths:
 
 # Setup scripts
 
-- A closed stdin (non-interactive run) must mean "skip", never abort or overwrite.
+- A closed stdin (non-interactive run) must mean "skip", never abort or overwrite. The dotfiles step is the exception: `mise dotfiles apply` never asks, and a file in the way stops the run.
 - `packages.sh` runs first; later scripts may use the tools it installs but must guard with `command_exists` for `--skip-brew` on a fresh Mac.
 - `setup.sh` only installs what's missing and doesn't upgrade, except PowerShell (`dotnet tool update`) and the Iosevka font (reinstalled when the upstream zip changes).
 - Order constraints in `misc.sh`: `claude-config restore` and the catalog run last so `npx skills` runs with the npm settings (`min-release-age`, `allow-git none`). After mise tools it links `<mise data dir>/node_modules/typescript` to the global `npm:typescript`, so Terax's `typescript-language-server` finds TypeScript outside projects (`sysup` relinks it). `chmod +x` skips `*.md` so `bin/CLAUDE.md` stays non-executable.
