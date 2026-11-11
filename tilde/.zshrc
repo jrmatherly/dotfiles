@@ -45,3 +45,12 @@ export GPG_TTY=$(tty)
 # LLM Router's desktop app appends a PATH block here on launch unless this file
 # already mentions $HOME/.llm-router/bin (its string check as of the 2026-10
 # rebrand release); zsh/path.zsh adds the real entry.
+
+# iTerm2's "Install Shell Integration" appends its source line here unless this
+# file already mentions iterm2_shell_integration (its string check). Sourced
+# only in iTerm2 with a terminal on stdout: the script also loads when
+# TERM_PROGRAM is empty (a `zsh -ic` probe, an agent shell) and prints escape
+# codes to stdout there, and it puts ~/.iterm2 first on PATH.
+if [[ ${TERM_PROGRAM-} == iTerm.app && -t 1 && -r ~/.iterm2_shell_integration.zsh ]]; then
+  source ~/.iterm2_shell_integration.zsh
+fi
