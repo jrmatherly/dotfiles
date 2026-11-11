@@ -34,7 +34,7 @@ grep -qF "\${HOMEBREW_PREFIX:-/opt/homebrew}" "$repo/setup.sh" \
 fix="$tmp/clone"
 export STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
 # A caller's own values would reach the mise stub and fail the assertions on its log
-unset MISE_GITHUB_TOKEN MISE_DISABLE_TOOLS DOTFILES DOTFILES_DIR DOTFILES_SKIP_CODEGRAPH DOTFILES_SETUP_LOG STUB_MISE_VERSION
+unset MISE_GITHUB_TOKEN MISE_DISABLE_TOOLS DOTFILES DOTFILES_DIR DOTFILES_SKIP_CODEGRAPH DOTFILES_SETUP_LOG STUB_MISE_VERSION DOTFILES_YES
 mkdir -p "$fix/setup" "$fix/bin" "$fix/tilde/.config/mise" "$tmp/bin" "$tmp/other"
 cp "$repo/setup.sh" "$fix/setup.sh"
 cp "$repo/setup/mise-floor.sh" "$fix/setup/mise-floor.sh"
@@ -52,7 +52,7 @@ IFS= read -r -d '' mise_stub << 'EOF' || true
 case $1 in
   --version) echo "${STUB_MISE_VERSION:-2026.11.5} macos-arm64 (2026-11-08)" ;;
   *) echo "mise $*" >> "$STATE/order.log"
-    echo "pwd=$(pwd -P) args=$* disable=${MISE_DISABLE_TOOLS:-} dotfiles=${DOTFILES:-} skip=${DOTFILES_SKIP_CODEGRAPH:-} token=${MISE_GITHUB_TOKEN:-} telemetry=${CODEGRAPH_TELEMETRY:-}" >> "$STATE/mise.log"
+    echo "pwd=$(pwd -P) args=$* disable=${MISE_DISABLE_TOOLS:-} dotfiles=${DOTFILES:-} skip=${DOTFILES_SKIP_CODEGRAPH:-} token=${MISE_GITHUB_TOKEN:-} telemetry=${CODEGRAPH_TELEMETRY:-} yes=${DOTFILES_YES:-}" >> "$STATE/mise.log"
     case "$*" in
       "bootstrap packages upgrade "*) [ ! -e "$STATE/upgrade-fails" ] ;;
       "bootstrap packages apply --yes --manager brew")
@@ -147,6 +147,7 @@ check_true "a: dotfiles, plugin link, formulae, casks, then bootstrap" in_order 
   "args=install --yes disable=" "$task"
 check_true "a: sudo is dropped after the bootstrap, before the tools" sudo_dropped_before "mise install"
 check_true "a: no tool is upgraded" log_lacks "args=upgrade"
+check_true "a: without -y the task may ask" log_lacks "yes=true"
 check_true "a: says All done with no problem list" has 'All done' && check_true "a: … and no problem list" lacks 'Setup finished'
 check_true "a: every mise call runs from HOME" [ -z "$(grep -v "^pwd=$HOME " "$STATE/mise.log")" ]
 check_true "a: no package is upgraded" log_lacks "packages upgrade"
@@ -160,6 +161,7 @@ check_true "a: no sudo prompt without a terminal" [ -z "$(grep -e '-v' "$STATE/s
 run -y --skip-codegraph -- --skip packages
 check_true "b: --yes, the merged skip list and CodeGraph disabled" boot_has "args=bootstrap --yes --skip macos-defaults,packages,tools,task disable=npm:@colbymchenry/codegraph "
 check_true "b: the task is told to skip CodeGraph" boot_has " skip=true "
+check_true "b: -y reaches the task, for its prompts" log_has "args=bootstrap --yes --only task disable=npm:@colbymchenry/codegraph dotfiles=$fix skip=true token= telemetry=0 yes=true"
 check_true "b: --skip packages skips setup's own package step" log_lacks "packages apply"
 check_true "b: … and the plugin link" log_lacks "plugins link"
 

@@ -23,7 +23,7 @@ The diagram is generated with [Archify](https://github.com/tt-a1i/archify) from 
 
 A run is not a transaction. When a part of `mise bootstrap` or the task fails, mise stops there, `setup.sh` exits with its status, and the earlier steps stay applied. Fix what it reported and rerun `./setup.sh`: every step is safe to repeat, and the hooks and the `bootstrap` task run on every bootstrap. Exit status 2 means the run got to the end and only the listed items failed. A tool's reason is mise's one line; `mise install <tool>` from `~` shows the whole error.
 
-Flags: `-y/--yes` (also passed to mise), `--skip-codegraph`, `--dash`, `-h/--help` and `-- <args>`, described in the table in the [main README](../README.md#run-setup). Everything after `--` goes to `mise bootstrap`, with these exceptions:
+Flags: `-y/--yes` (also passed to mise, and exported as `DOTFILES_YES` so `misc.sh` skips its font preset menu and its `gh auth login` question), `--skip-codegraph`, `--dash`, `-h/--help` and `-- <args>`, described in the table in the [main README](../README.md#run-setup). Everything after `--` goes to `mise bootstrap`, with these exceptions:
 
 - `--skip <parts>` is merged into the one `--skip` list that setup passes. `--skip packages` also skips setup's own package step, `--skip tools` its `mise install`, `--skip task` the second bootstrap call, and `--skip dotfiles` also skips `dotfiles-extras.sh`.
 - `--only` is refused, because mise does not accept it together with `--skip`. Run `mise bootstrap --only <parts>` from `~` instead.

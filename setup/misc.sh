@@ -55,6 +55,9 @@ info "🔤 Checking the Iosevka Code font…"
 "$DOTFILES_DIR/bin/install-iosevka-code" 2>&1 | indent \
   || warning "Iosevka Code font not installed — run it later: install-iosevka-code"
 
+# A prompt needs a terminal, and `./setup.sh -y` takes each default instead
+asks() { [ -t 0 ] && [ -z "${DOTFILES_YES:-}" ]; }
+
 # VS Code settings.json is rendered from vscode/User/settings.json.j2 with a
 # font preset (vscode/presets.toml); a terminal gets the preset menu. It never
 # overwrites edits VS Code made since the last render (drift is a warning).
@@ -62,7 +65,7 @@ if command_exists minijinja-cli; then
   info "🖋️ Rendering VS Code settings…"
   # The menu runs unpiped: through `| indent`, read -p's prompt (no newline)
   # stays in sed's buffer until after you answer
-  if [ -t 0 ]; then
+  if asks; then
     "$DOTFILES_DIR/bin/vscode-settings" --choose
   else
     "$DOTFILES_DIR/bin/vscode-settings" 2>&1 | indent
@@ -75,7 +78,7 @@ fi
 # the account, protocol and auth method itself, and writes ~/.config/gh/hosts.yml
 # (gitignored — it can hold an OAuth token).
 if command_exists gh && ! gh auth status &> /dev/null; then
-  if [ -t 0 ]; then
+  if asks; then
     read -rp "  [GitHub CLI] Not logged in. Run \`gh auth login\` now? [y/N] " gh_login
     case "$gh_login" in
       y | Y)

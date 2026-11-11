@@ -5,7 +5,8 @@
 # Usage:
 #   ./setup.sh [-y|--yes] [--skip-codegraph] [--dash] [-h|--help] [-- <mise bootstrap args>]
 #
-#   -y, --yes         Don't wait for confirmation, and pass --yes to mise
+#   -y, --yes         Don't wait for confirmation, and pass --yes to mise;
+#                     the VS Code font menu and the gh login question are skipped
 #   --skip-codegraph  Don't install CodeGraph or wire it into Claude Code
 #   --dash            Also run the optional Dash docset configuration
 #   -h, --help        Print this help and exit
@@ -48,7 +49,11 @@ orig_args=("$@")
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    -y | --yes) yes=true ;;
+    -y | --yes)
+      yes=true
+      # Read by setup/misc.sh, which then takes each prompt's default
+      export DOTFILES_YES=true
+      ;;
     --skip-codegraph) skip_codegraph=true ;;
     --dash) RUN_DASH=true ;;
     --skip-brew)

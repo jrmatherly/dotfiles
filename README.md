@@ -97,7 +97,7 @@ Options:
 
 | Flag | Effect |
 | --- | --- |
-| `-y`, `--yes` | Don't wait for confirmation before starting, and pass `--yes` to mise |
+| `-y`, `--yes` | Don't wait for confirmation before starting, and pass `--yes` to mise. The task then takes the default at its own questions: it keeps the saved VS Code font preset and doesn't offer `gh auth login`. The git identity prompt on a new Mac still asks |
 | `--skip-codegraph` | Don't install [CodeGraph](https://github.com/colbymchenry/codegraph) or connect it to Claude Code (an existing install is left alone) |
 | `--dash` | Also run the optional [Dash docset setup](setup/dash.sh) |
 | `-h`, `--help` | Print usage and exit |
