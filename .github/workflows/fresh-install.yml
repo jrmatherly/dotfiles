@@ -55,7 +55,8 @@ jobs:
       # preferences, then applies the extensions. Single package failures only
       # warn; a failed bootstrap part fails this step
       - name: setup.sh
-        run: ./setup.sh -y --skip-codegraph
+        # --skip user: chsh asks for the account's password, which a runner has none of
+        run: ./setup.sh -y --skip-codegraph -- --skip user
       - name: Disk after setup
         if: always()
         run: |
