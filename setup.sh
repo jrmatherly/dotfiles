@@ -259,7 +259,14 @@ packages_for() {
       warning "mise read no package list from $HOME/.config/mise"
       exit 1
     fi
-    warning "Some $2 failed to install. See above, then rerun ./setup.sh"
+    # mise stops at the first package that fails, so each one after it gets its own apply
+    local missing pkg
+    missing=$(mise bootstrap packages status --json | jq -r --arg m "$1" '.[$m].packages[]? | select(.state == "missing") | .package') || missing=""
+    [ -n "$missing" ] || warning "Some $2 failed to install. See above, then rerun ./setup.sh"
+    for pkg in $missing; do
+      mise bootstrap packages apply --yes ${dry_run_flag:+"$dry_run_flag"} "$1:$pkg" \
+        || warning "$1:$pkg failed to install. See above, then rerun ./setup.sh"
+    done
   fi
   # mise's own --upgrade upgrades packages only in the part setup skips
   if [ "$upgrade" = true ]; then
@@ -276,12 +283,6 @@ if [ "$run_packages" = true ]; then
   # Formulae first: reading the claude-multipass-app tap cask needs the Ruby 3 that brew:ruby installs
   packages_for brew formulae
   packages_for brew-cask casks
-  # The VS Code cask may have arrived in this run, without code on PATH yet
-  if command -v code > /dev/null; then
-    packages_for vscode extensions
-  else
-    echo "VS Code is not installed yet: extensions are skipped. Rerun ./setup.sh once it is."
-  fi
   echo
 fi
 
@@ -293,6 +294,18 @@ if [ "$rc" -ne 0 ]; then
   exit "$rc"
 fi
 sudo_keepalive_stop
+
+# After the dotfiles part: code creates ~/Library/Application Support/Code/User
+# as a real directory, which would then stop the link mise makes there
+if [ "$run_packages" = true ]; then
+  # The VS Code cask may have arrived in this run, without code on PATH yet
+  if command -v code > /dev/null; then
+    packages_for vscode extensions
+  else
+    echo "VS Code is not installed yet: extensions are skipped. Rerun ./setup.sh once it is."
+  fi
+  echo
+fi
 
 # Never a mise hook: a post-dotfiles hook also runs on every plain
 # `mise dotfiles apply`, where nobody can answer its prompts. It asks for sudo

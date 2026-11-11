@@ -79,8 +79,9 @@ To automate the setup of your dotfiles on a new machine, use the [setup](./setup
 1. checks for the Command Line Tools, and stops with the install command when they are missing
 1. links `~/dotfiles` to the clone and `~/.config/mise` to the clone's mise config, and stops when something else is at either path
 1. installs mise into `~/.local/bin` when it is missing
-1. installs the packages (formulae, casks, VS Code extensions)
+1. installs the formulae and casks
 1. runs `mise bootstrap`: Touch ID for `sudo`, the dotfiles as symlinks into your home directory, the login shell, the runtimes and CLIs, then [`setup/misc.sh`](setup/README.md#misc) for everything else
+1. installs the VS Code extensions, once the dotfiles link VS Code's settings folder
 1. runs [`setup/dotfiles-extras.sh`](setup/README.md#dotfiles-extrassh)
 
 A package that fails to install only warns, and the run goes on. A failed part of `mise bootstrap` stops the run and the earlier steps stay applied: fix what it reported and run `./setup.sh` again. Every step is safe to repeat, and rerunning `./setup.sh` is also how you apply later changes. Use it rather than a bare `mise bootstrap`, which also applies the macOS preferences and restarts Finder and the Dock. Setup never applies those: [`set-defaults`](#set-macos-defaults) does.
@@ -125,6 +126,7 @@ Setup leaves these to you:
 1. In VS Code, run **SpaceBox Enable UI Enhancer** from the Command Palette, then quit and reopen VS Code. The blur settings do nothing until then, and the step is needed again after each VS Code update (see [vscode](vscode/README.md#spacebox-ui-enhancer)).
 1. Install the Obsidian vault settings: [`obsidian-vault install`](#set-up-the-obsidian-vault).
 1. Import the color themes that apps can't read from the repo: [`install-color-themes`](#install-color-themes).
+1. Install Royal TSX from [royalapps.com](https://www.royalapps.com/ts/mac/download): its disk image carries a licence agreement that mise can't accept, so `brew-cask:royal-tsx` fails and setup only warns.
 
 ## Extras
 

@@ -45,12 +45,15 @@ jobs:
       # A file here that conf.d/40-dotfiles.toml links would stop the dotfiles part
       - name: Home before setup
         run: ls -la ~
+      # The runner image ships these and a new Mac has neither
+      - name: Move the runner's own dotfiles aside
+        run: for f in ~/.bash_profile ~/.gitconfig; do [ ! -e "$f" ] || mv "$f" "$f.runner"; done
       # The command a new Mac runs. Without a terminal it skips sudo -v, the
       # Enter prompt and the script log, and mise elevates with the runner's
-      # passwordless sudo. It installs mise, applies formulae, casks, then
-      # extensions (printing free space after each), then runs mise bootstrap
-      # without macOS preferences. Single package failures only warn; a failed
-      # bootstrap part fails this step
+      # passwordless sudo. It installs mise, applies formulae and casks
+      # (printing free space after each), runs mise bootstrap without macOS
+      # preferences, then applies the extensions. Single package failures only
+      # warn; a failed bootstrap part fails this step
       - name: setup.sh
         run: ./setup.sh -y --skip-codegraph
       - name: Disk after setup
