@@ -739,6 +739,53 @@ git commit -m "Complete the A6 bootstrap entry point plan"
 
 Expected before the commit: only the rename is staged, and ` M agents/claude-settings.json` stays unstaged. Push.
 
+#### Results
+
+Interim, 2026-11-10 and 2026-11-11. Host macOS 27.2.1, UTM 5.0.8. Guest macOS 27.2.1 (26B131), 4 cores, 100 GB disk, started with "Run without saving changes". Evidence is in the host's `~/vm-proof/`: four setup logs, `evidence.txt` (after the upgrade run), `evidence-rerun.txt` (after the third run) and the three `*-before` files. The owner ran every step.
+
+**The gate is not passed yet.** The install took two runs, because the first stopped at a tool and two fixes landed in between. Rows 2 to 8 and 10 were read after the second run, on a machine the first run had half built. A single run from a fresh disposable start, on `f32a3c7` or later, is still owed. The README sentence and the plan move wait for it.
+
+The four runs:
+
+| Log | Command | Ended |
+| --- | --- | --- |
+| `20261110-195515.log` | `./setup.sh` on `68eff85` (inferred from push times, the clone state was not recorded) | Stopped in the tools part, `mise bootstrap stopped`. `npm:@vue/language-server` was refused because `volar-service-pug@0.0.71` has no provenance attestation. Fixed by `3a54c72` (exemption) and `2422817` (a failed tool warns and the run goes on). |
+| `20261110-202038.log` | `./setup.sh` on `38a444b` | `All done`. Warp warned. |
+| `20261111-014801.log` | `./setup.sh -y` on `5660255` | `Setup finished with 1 problem` (cask warp), exit 2. |
+| `20261111-015458.log` | `./setup.sh -y -- --upgrade` on `5660255` | The same one problem. |
+
+One line per row:
+
+| # | Result | Evidence |
+| --- | --- | --- |
+| 1 | Pass | The tarball run printed `Command Line Tools missing; run: xcode-select --install, then rerun ./setup.sh` and `exit 1`. |
+| 2 | Pass | `/Users/j/.local/bin/mise`, `2026.11.5`. The first log has `==> Installing mise…` at line 8. |
+| 3 | Pass | `[]` of 143. Five formulae had no bottle and built from source: `sfnt2woff`, `claude-multipass`, `kubestellar-deploy`, `kubestellar-ops`, `radar`. |
+| 4 | Fail, upstream | `["warp"]` of 33. The cask's URL `app.warp.dev/download/brew` answers 404 in all four runs. Both pkg installers passed: `git credential-manager --version` printed 3.0.2, `dotnet --info` 10.0.404, and both receipt families are listed. Whether Warp blocks the gate is the owner's call (drop the cask, or accept the miss as `fresh-install.yml` accepts Royal TSX). |
+| 5 | Pass | `true` and `[]` of 184. They installed in the second run. In the first, the run stopped before the extensions step. |
+| 6 | Pass | `~/dotfiles`, `~/.config/mise`, `~/.zshrc`, `~/.gitconfig` and `Code/User` all link into `~/dev/dotfiles`. `mise bootstrap status --missing` lists no `dotfiles` entry: only `brew-cask:warp` and eight `defaults` entries, which setup never applies. |
+| 7 | Pass, half | `UserShell: /opt/homebrew/bin/zsh`. Whether a new Terminal window opens without an error was not recorded. |
+| 8 | Pass | `/etc/pam.d/sudo_local` holds the one `pam_tid.so` line. `sudo -k; sudo true` asked for the password and exited 0. |
+| 9 | Partly recorded | No app in `/Applications` carries the quarantine attribute. The owner recalls one macOS dialog about applying system changes and no others, from memory. Ghostty, VS Code, 1Password and OrbStack were not opened. |
+| 10 | Pass | No `requires Ruby` line in any log. `ruby` is `/opt/homebrew/bin/ruby`, 4.0.9. |
+| 11 | Recorded | Free space on `/` went from 68 GiB to 29 GiB. `/opt/homebrew` 11 G, `~/.local/share/mise` 4.3 G, `~/Library/Caches/mise` 8.9 G, `/Applications` 6.8 G. The `.utm` bundle was 29.99 GB on the host before the install and was not measured after. |
+| 12 | Recorded | 0 of 60 used before. The two install runs and one `mise bootstrap packages status` used all 60, and that status call failed on the limit. After the hourly reset, the third run and a status call used 9, and the upgrade run and a status call used 20 more. So one install does not leave room for a second within the hour (README fixed in `5660255`), and an upgrade run on an installed Mac fits. |
+| 13 | Pass | The third run reports 143 formulae, 32 casks, 184 extensions and 32 tools already installed, system files converged, files and edits applied, the login shell already set. The task repeats its own steps each run (script permissions, the VS Code settings render, the catalog, the bat cache). |
+| 14 | Explained | Warp's 404 (upstream). `No GitHub token` (expected, gh was not signed in). `hdiutil detach is deprecated`, 15 times (mise's cask installer, upstream noise). mise skipped post-install steps it does not implement for `node`, `rustup`, `php`, `llvm@22` and `gnupg` (upstream, no effect seen: `node` and `rustup` both work in the task). `~/.ssh/github_personal.pub not found` and no Firefox profile (expected on a Mac without 1Password set up or Firefox started). A `minimum_release_age` notice for `aspire` (expected). |
+| 15 | Pass | `defaults read com.apple.dock autohide` fails with `Could not find key` before and after. |
+
+Found by the proof and fixed, beyond the two commits above:
+
+- The git-credential-manager pkg wrote `[credential]` sections into the tracked `tilde/.gitconfig` through the `~/.gitconfig` link. `5660255` moves them to `~/.gitconfig.local`, and `b5c6af8` fails the gate on such a section. The move has only run against stubs. The fresh run is its first real test.
+- `./setup.sh -y` still asked for the VS Code font preset and whether to run `gh auth login`. `f32a3c7` makes `-y` take both defaults. The git identity prompt still asks on a new Mac.
+- The summary cuts mise's reason at 100 characters, so Warp's line ends inside the URL. Left as is: `404 Not Found` survives.
+
+Still open before Step 7 closes the phase:
+
+1. One `./setup.sh` run in a fresh disposable VM on `f32a3c7` or later, with rows 2 to 8, 10 and 13 read again. Open a new Terminal window for row 7, and open the four apps for row 9.
+2. The owner's decision on Warp (row 4).
+3. `du -sh` of the `.utm` bundle on the host after an install (row 11).
+
 ## Part B hook: what the `setup` step needs
 
 Only the old method left these on disk. A6 carries no code for them.
