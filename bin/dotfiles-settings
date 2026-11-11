@@ -42,6 +42,8 @@ fi
 # uv run, not a uv tool install: it runs the clone's code and lockfile, so an
 # edit to registry.toml needs no reinstall. Measured 100 ms against 57 ms.
 # From $HOME: uv is often a mise shim, and a shim exits 1 in a folder holding an
-# untrusted mise.toml.
+# untrusted mise.toml. The per-project rows (the plugin stack) still need the
+# folder this was started from.
+export DOTFILES_SETTINGS_CWD="$PWD"
 cd "$HOME"
 exec uv run --quiet --locked --project "$DOTFILES/settings" dotfiles-settings "$@"

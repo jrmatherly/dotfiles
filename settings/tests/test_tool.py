@@ -310,6 +310,12 @@ def test_stack_status_runs_in_the_launch_directory():
     finally:
         os.chdir(here)
     assert seen == [tmp.resolve()] and tmp.resolve() != Path.home()
+    os.environ["DOTFILES_SETTINGS_CWD"] = str(repo)   # the launcher cds to $HOME and passes the real folder
+    try:
+        A.read(by_id("stack.status"))
+    finally:
+        del os.environ["DOTFILES_SETTINGS_CWD"]
+    assert seen[-1] == repo
 
 
 def test_watch_paths_name_the_files_the_settings_read():

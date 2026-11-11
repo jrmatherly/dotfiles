@@ -247,10 +247,15 @@ class StackRow(NamedTuple):
 SCAN_ROW = re.compile(r"(keep|off) (\S+)  (.*)")
 
 
+def launch_dir() -> Path:
+    # bin/dotfiles-settings cds to $HOME for uv's mise shim and passes the folder it was started from
+    return Path(os.environ.get("DOTFILES_SETTINGS_CWD") or Path.cwd())
+
+
 def _read_stack(name: str, s: Setting) -> Value:
     # The launch directory, not $HOME as mise.run_mise uses: the stack belongs to the project the UI started in
     try:
-        r = run(["claude-stack", "status"], cwd=Path.cwd())
+        r = run(["claude-stack", "status"], cwd=launch_dir())
     except (OSError, SettingsError):
         return Value(s.id, None, Source.UNSET, None, False)
     if r.returncode != 0:
@@ -290,7 +295,7 @@ class ToolAdapter:
     def watch_paths(self) -> list[Path]:
         seed = claude_seed_path()
         return [claude_dir() / "settings.json", *([seed] if seed else []), hindsight_config(), jstack_path(),
-                Path.cwd() / ".claude/skill-stack.json"]
+                launch_dir() / ".claude/skill-stack.json"]
 
     def read(self, s: Setting) -> Value:
         name, (reader, _, _) = _tool(s)
