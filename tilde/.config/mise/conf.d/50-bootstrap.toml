@@ -1,5 +1,5 @@
 # What `mise bootstrap` does beyond env, macOS defaults, packages and dotfiles
-# (conf.d/10 to 40). setup.sh links this directory to ~/.config/mise, installs
+# (conf.d/20 to 40). setup.sh links this directory to ~/.config/mise, installs
 # mise, applies the dotfiles and the packages itself, then from $HOME runs
 # `mise bootstrap --skip macos-defaults,packages,tools,task`, `mise install`
 # and `mise bootstrap --only task`, so one failed tool does not stop the run.

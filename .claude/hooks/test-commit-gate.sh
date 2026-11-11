@@ -78,6 +78,11 @@ done
 touch_path setup/x.sh
 run 'git commit -m "x"'
 [ "$rc" -eq 0 ] && grep -q README <<< "$out" || fail "docs-mirror warning missing"
+# 5b. so does a changed conf.d fragment (the package list)
+rm -f "$proj/setup/x.sh"
+touch_path tilde/.config/mise/conf.d/30-packages.toml
+run 'git commit -m "x"'
+[ "$rc" -eq 0 ] && grep -q README <<< "$out" || fail "docs-mirror warning missing for conf.d"
 # 6. a README changed alongside silences the warning
 touch_path setup/README.md
 run 'git commit -m "x"'

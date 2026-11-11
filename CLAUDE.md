@@ -44,7 +44,7 @@ bin/              CLI scripts on PATH (see bin/CLAUDE.md); bin/lib/ helpers also
 settings/         uv package dotfiles-settings: registry.toml + adapters, CLI, Textual UI (bin/dotfiles-settings)
 docs/             alias index + docs/gui/<app>.md cheat sheets (rendered by `help`); docs/superpowers/plans/ = open implementation plans (not applied yet); move each to plans/completed/ once fully implemented; docs/superpowers/specs/ = the assessments and designs those plans argue from; a spec moves to specs/completed/ when every plan built on it is completed (a spec with no plan, when its "built" or decision section records the work as shipped)
 vscode/User/      whole dir symlinked to ~/Library/Application Support/Code/User
-.github/          workflows/check.yml = `pnpm check` on macOS for PRs and pushes to main
+.github/          workflows: check.yml = `pnpm check` on macOS for PRs and pushes to main; fresh-install.yml = a manual `./setup.sh` run
 agents/           instructions.md → Amp/Codex AGENTS.md; catalog/ = generator for `bin/claude-catalog`
 obsidian/ firefox/ mole/ colors/ etc.     app config + repo-owned themes
 icons/                                     vendored binaries, don't edit
@@ -59,7 +59,7 @@ icons/                                     vendored binaries, don't edit
 - **Help system**: `help` shows `docs/README.md`. `help <script>` goes through `bin/lib/get-tldr-md`, which renders the first comment block of `bin/<script>` as a tldr page. `help gui/<app>` renders `docs/gui/<app>.md` with bat.
 - **Machine-local config** lives outside the repo: `~/.gitconfig.local` (identity and signing, written by `setup/dotfiles-extras.sh`), `~/.ssh/config.local`, `~/.zsh.local`, `~/.ssh/github_personal.pub` (1Password SSH agent). Anything tools append to `~/.gitconfig` (a repo symlink) belongs in `.local`. The in-repo exceptions are gitignored and lost on a re-clone: `mole/*.local` (kept next to the shared file it replaces, linked through an entry in `config.local.toml`) and mise's local files under `tilde/.config/mise/` (`config.override.toml`, `config.local.toml`, `miserc.local.toml`), which land in the clone because `~/.config/mise` is a link. A `mise set --override` value beats the same export in `~/.zsh.local` (`zsh/override-env.zsh`).
 - **Agents**: `agents/instructions.md` is linked as `~/.config/amp/AGENTS.md` and `~/.codex/AGENTS.md`, but not as Claude's `CLAUDE.md`. `tilde/.codex/config.toml` is never linked: setup's `codex mcp add`, Hindsight and Codex write the live file, so mise adds only the keys it lacks (`merge = "missing"`). CodeGraph config is `codegraph.json`; the `.codegraph/` index is per-machine and gitignored. Serena project config is in `.serena/`; its memories are only a pointer to the `CLAUDE.md` files. Serena's bash language server sees only `*.sh`/`*.bash` files, so extensionless `bin/` scripts, `zsh/*.zsh` and configs need native Read/Edit.
-- **Path-scoped rules**: `.claude/rules/` holds topic rules that load when matching files are touched (each file's `paths:` says which). Only `code-navigation.md` loads in every session.
+- **Path-scoped rules**: `.claude/rules/` holds topic rules that load when matching files are touched (each file's `paths:` says which). Of the tracked ones, only `code-navigation.md` loads in every session.
 
 <!-- END AUTO-MANAGED -->
 

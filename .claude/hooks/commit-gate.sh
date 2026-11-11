@@ -82,7 +82,7 @@ fi
 # expression keeps a rename's new path
 changed=$(git -C "$root" status --porcelain -uall | sed -E 's/^...//; s/.* -> //')
 grep -q 'README\.md$' <<< "$changed" && exit 0
-setup=$(grep -E '^(setup\.sh|setup/[^/]+\.sh|tilde/\.config/mise/config\.toml)$' <<< "$changed" | paste -sd, - | sed 's/,/, /g')
+setup=$(grep -E '^(setup\.sh|setup/[^/]+\.sh|tilde/\.config/mise/(config|conf\.d/[^/]+)\.toml)$' <<< "$changed" | paste -sd, - | sed 's/,/, /g')
 [ -n "$setup" ] || exit 0
 jq -cn --arg c "Changed: $setup. No README is changed; CLAUDE.md's docs-mirror rule expects a README edit in the same commit for setup or mise changes." \
   '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$c}}'
