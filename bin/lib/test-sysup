@@ -87,6 +87,9 @@ JSON
       "packages upgrade")
         [ -e "$STATE/pkg-upgrade-fails" ] && { echo "mise ERROR brew-cask:utm: download failed"; exit 1; }
         [ ! -e "$STATE/pkg" ] || touch "$STATE/pkg-upgraded" ;;
+      "packages prune") echo "${*:4}" >> "$STATE/prune-args.log"
+        [ -e "$STATE/prune-report-fails" ] && { echo "mise ERROR dry run failed"; exit 1; }
+        [ ! -e "$STATE/undeclared" ] || case "$*" in *brew-cask*) ;; *) printf 'remove brew:old@1.0\nremove brew:older@0.9\n' ;; esac ;;
       *) exit 1 ;;
     esac ;;
   ls) if [ -e "$STATE/prune" ]; then
@@ -196,6 +199,7 @@ check_true "off HOME: the log path stays absolute" has "^Logging to $DOTFILES/lo
 check_true "any directory: mise runs from HOME, not the caller's project" [ "$(cat "$STATE/mise-pwd")" = "$(cd "$HOME" && pwd -P)" ]
 check_true "up to date: packages are ok" has '^✔ packages +up to date$'
 check_true "up to date: every package installed" has '^✔ packages status +all installed$'
+check_true "up to date: nothing undeclared" has '^✔ packages prune +nothing undeclared$'
 check_true "up to date: mise self-update is ok" has '^✔ mise self-update +up to date$'
 check_true "up to date: a Homebrew cask without auto_updates is one notice" has '^● packages +1 casks? installed by Homebrew (is|are) not upgraded by mise; run: migrate/legacy-to-mise --step packages$'
 check_true "up to date: no brew command named" lacks '(^|[^[:alpha:]])brew([^[:alpha:]]|$)'
@@ -313,6 +317,17 @@ check_true "no code: the manager is one notice" has '^● packages status +vscod
 check_true "no code: its packages are not listed" lacks 'vscode:'
 check_true "no code: not all installed" lacks 'packages status +all installed'
 rm -rf "$DOTFILES/logs" "$STATE/pkg-no-code"
+touch "$STATE/undeclared"
+run
+check_true "undeclared: a notice with the command" has '^● packages prune +2 packages no config declares; review: mise bootstrap packages prune --dry-run$'
+only_dry_runs() { [ -s "$STATE/prune-args.log" ] && ! grep -v -- --dry-run "$STATE/prune-args.log" | grep -q .; }
+check_true "undeclared: sysup never prunes" only_dry_runs
+check_true "undeclared: casks are reported too" grep -q -- '-m brew-cask' "$STATE/prune-args.log"
+rm -rf "$DOTFILES/logs" "$STATE/undeclared"
+touch "$STATE/prune-report-fails"
+run
+check_true "prune report fails: fail line names the command" has '^✖ packages prune +run: mise bootstrap packages prune --dry-run$'
+rm -rf "$DOTFILES/logs" "$STATE/prune-report-fails"
 touch "$STATE/pkg-upgrade-fails" "$STATE/self-update-fails"
 run
 check_true "package upgrade fails: fail line names the command" has '^✖ packages +upgrade failed; run: mise bootstrap packages upgrade$'

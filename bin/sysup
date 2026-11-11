@@ -378,6 +378,22 @@ if [ -n "$pkg_after" ]; then
   fi
 fi
 
+# Installed packages no config declares. Only ever a dry run: prune removes
+# every one of them, and the owner decides which go. Casks need their own -m
+step "packages prune"
+if capture mise bootstrap packages prune --dry-run && undeclared=$out \
+  && capture mise bootstrap packages prune --dry-run -m brew-cask; then
+  undeclared=$(printf '%s\n%s\n' "$undeclared" "$out" | grep -c '^remove ' || true)
+  if [ "$undeclared" -eq 0 ]; then
+    status ok "packages prune" "nothing undeclared"
+  else
+    status notice "packages prune" "$(plural "$undeclared" package) no config declares; review: mise bootstrap packages prune --dry-run"
+  fi
+else
+  status fail "packages prune" "run: mise bootstrap packages prune --dry-run"
+  show
+fi
+
 # mise tools (Node/Python patch releases, npm: CLIs like CodeGraph, GitHub
 # release binaries) — stays within the versions pinned in
 # ~/.config/mise/config.toml (MISE_LOG_LEVEL=warn hides mise's hint about
