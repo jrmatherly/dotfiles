@@ -40,7 +40,6 @@
       "Bash(bash bin/lib/test-conventions)",
       "Bash(bash bin/lib/test-dotfiles)",
       "Bash(bash bin/lib/test-hindsight-memory)",
-      "Bash(bash bin/lib/test-migrate)",
       "Bash(bash bin/lib/test-override-env)",
       "Bash(bash bin/lib/test-packages)",
       "Bash(bash bin/lib/test-rea-mcp)",
@@ -93,12 +92,7 @@
       "Bash(./bin/dotfiles-settings apply*)",
       "Bash(*/bin/dotfiles-settings apply*)",
       "Bash(bash bin/dotfiles-settings apply*)",
-      "Bash(sh bin/dotfiles-settings apply*)",
-      "Bash(migrate/legacy-to-mise*)",
-      "Bash(./migrate/legacy-to-mise*)",
-      "Bash(*/migrate/legacy-to-mise*)",
-      "Bash(bash migrate/legacy-to-mise*)",
-      "Bash(sh migrate/legacy-to-mise*)"
+      "Bash(sh bin/dotfiles-settings apply*)"
     ],
     "deny": [
       "Edit(/obsidian/.obsidian/plugins/**)",

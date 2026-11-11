@@ -108,7 +108,7 @@ Mole reads two config files at fixed paths, `~/.config/mole/whitelist` and `~/.c
 | `mole/whitelist.local` | `~/.config/mole/whitelist`, in place of the shared file | No, gitignored |
 | `mole/whitelist_optimize.local` | `~/.config/mole/whitelist_optimize`, in place of the shared file | No, gitignored |
 
-A `.local` file replaces the shared one; nothing is merged. Start one as a copy of the shared file and add the Mac's own lines. A `.local` is not picked up by itself. Add its entry to `tilde/.config/mise/config.local.toml` (gitignored, so it stays on this Mac) and run `mise dotfiles apply`: the local entry replaces the tracked one, and the link is repointed without asking. Delete the entry and apply again to go back. A real file at the destination stops the apply. On a Mac that already linked a `.local` with the old setup, `migrate/legacy-to-mise --step dotfiles` offers to write the entry.
+A `.local` file replaces the shared one; nothing is merged. Start one as a copy of the shared file and add the Mac's own lines. A `.local` is not picked up by itself. Add its entry to `tilde/.config/mise/config.local.toml` (gitignored, so it stays on this Mac) and run `mise dotfiles apply`: the local entry replaces the tracked one, and the link is repointed without asking. Delete the entry and apply again to go back. A real file at the destination stops the apply.
 
 Edit the files in the repo. Mole's own editors (`mo clean --whitelist`, `mo optimize --whitelist`) rewrite the file through the link, which drops its comments.
 

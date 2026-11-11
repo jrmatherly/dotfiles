@@ -265,24 +265,18 @@ else
   status ok macOS "no updates"
 fi
 
-# mise itself. Homebrew's keg holds lib/.disable-self-update, so there self-update
-# only errors; Part B's packages step moves mise to ~/.local/bin
 step "mise self-update"
-if [ "$(command -v mise || true)" = "${HOMEBREW_PREFIX:-/opt/homebrew}/bin/mise" ]; then
-  status notice "mise self-update" "mise is still Homebrew's and nothing upgrades it; run: migrate/legacy-to-mise --step packages"
-else
-  before=$(mise --version 2> /dev/null | awk '{print $1}' || true)
-  if capture mise self-update --yes; then
-    after=$(mise --version 2> /dev/null | awk '{print $1}' || true)
-    if [ "$after" != "$before" ]; then
-      status changed "mise self-update" "$before → $after"
-    else
-      status ok "mise self-update" "up to date"
-    fi
+before=$(mise --version 2> /dev/null | awk '{print $1}' || true)
+if capture mise self-update --yes; then
+  after=$(mise --version 2> /dev/null | awk '{print $1}' || true)
+  if [ "$after" != "$before" ]; then
+    status changed "mise self-update" "$before → $after"
   else
-    status fail "mise self-update" "run: mise self-update"
-    show
+    status ok "mise self-update" "up to date"
   fi
+else
+  status fail "mise self-update" "run: mise self-update"
+  show
 fi
 
 # Formulae, casks and VS Code extensions (mise's bootstrap packages). Tap
@@ -320,12 +314,6 @@ else
       status ok packages "up to date"
     fi
   fi
-  # mise leaves a cask that Homebrew put there unchanged; one that updates itself
-  # needs nothing
-  brew_casks=0
-  [ -z "$pkg_after" ] || brew_casks=$(jq '[."brew-cask".packages[]? | select(.managed_by == "homebrew" and (.auto_updates | not))] | length' <<< "$pkg_after")
-  [ "$brew_casks" -eq 0 ] \
-    || status notice packages "$(plural "$brew_casks" cask) installed by Homebrew $([ "$brew_casks" = 1 ] && echo is || echo are) not upgraded by mise; run: migrate/legacy-to-mise --step packages"
 fi
 
 # Opt-in: drop the two roots that trust the compromised eMudhra CAs from

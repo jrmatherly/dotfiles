@@ -1,6 +1,6 @@
 # Mise-first setup and a settings UI
 
-Date: 2026-11-09. Status: approved for planning. Plans built on this spec are listed in [Plans](#plans).
+Date: 2026-11-09. Status: built, and every plan is completed. Part B's script was removed on 2026-11-11, earlier than the 2027-02-28 this text gives, by the owner's decision once this Mac had moved across. Plans built on this spec are listed in [Plans](#plans).
 
 The eight plans were written against the first draft of this spec and tested its claims in scratch directories. Where they proved the draft wrong, this text was corrected. [Corrections from planning](#corrections-from-planning) lists each change. Four independent reviews then audited the spec and the plans, and [Corrections from review](#corrections-from-review) lists what they changed. Where a plan and this spec still differ, the plan is the later and tested statement.
 
@@ -307,4 +307,4 @@ The Claude Code panel itself. Publishing to PyPI or a tap. Linux and Intel Macs.
 - `docs/superpowers/plans/completed/2026-11-09-a5-dotfiles.md`
 - `docs/superpowers/plans/completed/2026-11-09-a6-bootstrap-entry-point.md`
 - `docs/superpowers/plans/completed/2026-11-09-a7-agent-tooling.md`
-- `docs/superpowers/plans/2026-11-09-b-migration-script.md`
+- `docs/superpowers/plans/completed/2026-11-09-b-migration-script.md`

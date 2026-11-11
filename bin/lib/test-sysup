@@ -67,10 +67,9 @@ case $1 in
     case "$2 $3" in
       "packages status")
         [ -e "$STATE/pkg-status-fails" ] && { echo "mise ERROR code --list-extensions exited 1" >&2; exit 1; }
-        gh=2.103.1 codex=0.164.0 jq_state=installed utm_by=homebrew code=true ext_state=installed
+        gh=2.103.1 codex=0.164.0 jq_state=installed code=true ext_state=installed
         [ ! -e "$STATE/pkg-upgraded" ] || gh=2.103.2 codex=0.165.0
         [ ! -e "$STATE/pkg-broken" ] || jq_state=needs_repair
-        [ ! -e "$STATE/pkg-mise-casks" ] || utm_by=mise
         [ ! -e "$STATE/pkg-no-code" ] || code=false ext_state=skipped
         cat << JSON
 {"brew": {"available": true, "packages": [
@@ -78,7 +77,7 @@ case $1 in
   {"package": "jq", "requested_version": "latest", "desired_state": "present", "state": "$jq_state", "installed_version": "1.8.1"}]},
  "brew-cask": {"available": true, "packages": [
   {"package": "codex", "requested_version": "latest", "desired_state": "present", "state": "installed", "installed_version": "$codex", "managed_by": "mise"},
-  {"package": "utm", "requested_version": "latest", "desired_state": "present", "state": "installed", "installed_version": "5.0.8", "managed_by": "$utm_by"},
+  {"package": "utm", "requested_version": "latest", "desired_state": "present", "state": "installed", "installed_version": "5.0.8", "managed_by": "mise"},
   {"package": "raycast", "requested_version": "latest", "desired_state": "present", "state": "installed", "installed_version": "1.104.0", "auto_updates": true, "managed_by": "homebrew"}]},
  "vscode": {"available": $code, "packages": [
   {"package": "eamodio.gitlens", "requested_version": "latest", "desired_state": "present", "state": "$ext_state", "installed_version": "17.6.1"}]}}
@@ -201,7 +200,6 @@ check_true "up to date: packages are ok" has '^✔ packages +up to date$'
 check_true "up to date: every package installed" has '^✔ packages status +all installed$'
 check_true "up to date: nothing undeclared" has '^✔ packages prune +nothing undeclared$'
 check_true "up to date: mise self-update is ok" has '^✔ mise self-update +up to date$'
-check_true "up to date: a Homebrew cask without auto_updates is one notice" has '^● packages +1 casks? installed by Homebrew (is|are) not upgraded by mise; run: migrate/legacy-to-mise --step packages$'
 check_true "up to date: no brew command named" lacks '(^|[^[:alpha:]])brew([^[:alpha:]]|$)'
 no_token() { [ -s "$STATE/mise-env.log" ] && ! grep -vqx 'MISE_GITHUB_TOKEN=' "$STATE/mise-env.log"; }
 check_true "up to date: no package command is handed a token" no_token
@@ -219,8 +217,8 @@ check_true "up to date: REA skill matches" has '^✔ REA skill +matches rea-agen
 check_true "up to date: Hindsight unchanged" has '^✔ Hindsight memory +hooks and runtime unchanged$'
 check_true "up to date: Rust is ok" has '^✔ Rust +up to date$'
 check_true "up to date: nothing for mise prune" has '^✔ mise prune +nothing unused$'
-check_true "up to date: no changed or failed line" lacks '^ *(↻|✖)'
-check_true "up to date: the casks notice is the only notice" [ "$(grep -c '^● ' <<< "$screen")" -eq 1 ]
+check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
+check_true "up to date: one-line summary" has '^Everything up to date\.$'
 check_true "up to date: log is a file:// link" has "^Log +file://$DOTFILES/logs/sysup-[0-9]{8}-[0-9]{6}\\.log\$"
 check_true "up to date: no step slow enough for a time" lacks '\([0-9]+s\)$'
 [ ! -x /Applications/SnippetsLab.app/Contents/Helpers/lab ] || check_true "up to date: SnippetsLab unchanged" has '^✔ SnippetsLab skill +unchanged$'
@@ -233,13 +231,6 @@ silent_steps=$(awk '
   /^[✔↻●✖›] / { seen = 1 }
   END { if (step != "== summary ==" && !seen) print step }' "$DOTFILES"/logs/sysup-*.log)
 check_true "up to date: every step has a status line${silent_steps:+ (silent: $silent_steps)}" [ -z "$silent_steps" ]
-
-rm -rf "$DOTFILES/logs"
-touch "$STATE/pkg-mise-casks"
-run
-check_true "all casks mise's: no changed, notice or failed line" lacks '^ *[↻●✖]'
-check_true "all casks mise's: one-line summary" has '^Everything up to date\.$'
-rm -f "$STATE/pkg-mise-casks"
 
 rm -rf "$DOTFILES/logs"
 screen=$(HOME="$tmp" "$script" < /dev/null 2>&1) || true
@@ -341,11 +332,6 @@ check_true "package state unreadable: one fail line" has '^✖ packages +couldn.
 check_true "package state unreadable: no packages status step" lacks '(✔|↻|●|✖) packages status'
 check_true "package state unreadable: the run reaches mise prune" has '^✔ mise prune '
 rm -rf "$DOTFILES/logs" "$STATE/pkg-status-fails" "$STATE/mise-calls.log"
-mkdir -p "$tmp/keg/bin"
-cp "$tmp/bin/mise" "$tmp/keg/bin/mise"
-screen=$(HOMEBREW_PREFIX="$tmp/keg" PATH="$tmp/keg/bin:$PATH" "$script" < /dev/null 2>&1) || true
-check_true "Homebrew's mise: a notice naming the migration" has '^● mise self-update +mise is still Homebrew.s and nothing upgrades it; run: migrate/legacy-to-mise --step packages$'
-check_true "Homebrew's mise: self-update never runs" test ! -e "$STATE/mise-calls.log"
 
 # CA roots: nothing without the opt-in; opted in, a notice where Homebrew's
 # script is gone, else a trim, and the next run finds nothing to do

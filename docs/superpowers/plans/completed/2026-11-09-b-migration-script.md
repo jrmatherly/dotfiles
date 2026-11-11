@@ -12,7 +12,7 @@
 
 ## Status
 
-As of 2026-11-11, Tasks 1 to 7 are built. Task 8 (removal on or after 2027-02-28) is the only one left. The checkboxes below were never ticked. What differs from the text below:
+Done. Tasks 1 to 7 were built, and Task 8 ran early, on 2026-11-11, not on the 2027-02-28 date the text below gives: the owner had moved this Mac across, checked that it works and decided no way back to Homebrew was needed, so `migrate/`, its test and every line that named them were removed that day. The script's last version is at commit `498f513`. The checkboxes below were never ticked. What differs from the text below:
 
 - Task 5 landed in `6b21b46`. Both of its landing gates were met first: the A6 VM results are recorded, and `fresh-install` run 43062361064 passed. The owner ran it on this Mac on 2026-11-11: 36 casks moved to mise, 145 formulae read as installed, and the Homebrew program moved to `~/.dotfiles-migration-backup/20261111-161341`. A first attempt put Homebrew back by itself, because a cask was installed while the typed prompt was open and the before and after readings then differed.
 - The five ask rules for `migrate/legacy-to-mise` are in `.claude/settings.json`, added by A7's Task 8 (`c1c06b9`). The sentences below that say a go-ahead in chat is the only guard describe the time before that.

@@ -257,8 +257,6 @@ sysup
 - asks Raycast to check for app and extension updates
 - updates Amp, if it's installed
 
-On a Mac that Homebrew set up before the move to mise, two things stay as they were: mise is still Homebrew's copy, which nothing upgrades, and a cask that Homebrew put there is left alone unless the app updates itself. `sysup` prints a notice for each. The command that hands both to mise is `migrate/legacy-to-mise --step packages` (see [Migrating an existing machine](#migrating-an-existing-machine)).
-
 It doesn't re-apply the dotfiles. When a pull brings new symlinks, tools or config, run setup again:
 
 ```shell
@@ -309,17 +307,6 @@ dotfiles-settings set updates.trim_ca_roots on
 `sysup` then runs `ca-roots trim` each run; while a root is present it runs Homebrew's script with `sudo`, otherwise it does nothing. The script keeps a backup in `/etc/ssl/cert.pem.bak` (and the first original in `.orig`). A macOS update can put the roots back, so while the variable is set each `sysup` after one removes them again. `ca-roots status` shows whether they're there.
 
 To undo it, run `ca-roots restore` (it copies the backup back with `sudo`; it does nothing if the roots are already back, and refuses if the bundle is no longer the backup minus the roots, as after a macOS update) and run `dotfiles-settings reset updates.trim_ca_roots` (delete the line from `~/.zsh.local` too if you exported it there). Removing the roots can break HTTPS connections to some websites.
-
-## Migrating an existing machine
-
-A Mac set up from this repo before the mise-first setup moves across with a separate script. It is temporary: `migrate/` is deleted on or after 2027-02-28, and `pnpm check` fails after that date while it exists.
-
-```shell
-migrate/legacy-to-mise --dry-run # show what each step would change
-migrate/legacy-to-mise           # run every step this checkout supports
-```
-
-It runs five steps (`env`, `macos`, `packages`, `dotfiles`, `setup`), asks before each change, and moves anything it replaces to `~/.dotfiles-migration-backup/<timestamp>/`, where `RESTORE.txt` lists the command that puts each item back. Its `packages` step ends by offering to move the Homebrew program aside, once nothing Homebrew installed is left outside mise. A new Mac never needs it. Details per step: [migrate/README.md](migrate/README.md).
 
 ## Changing the dotfiles
 

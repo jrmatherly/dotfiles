@@ -401,8 +401,6 @@ grep -qxF 'pre-tools = "sudo -k"' "$conf/50-bootstrap.toml" || fail "50-bootstra
 grep -q '^pre-packages = ' "$conf/50-bootstrap.toml" || fail "50-bootstrap.toml: no pre-packages hook"
 # mise runs post-dotfiles on every `mise dotfiles apply`, and the extras script may ask for sudo
 ! grep -q '^post-dotfiles' "$conf/50-bootstrap.toml" || fail "50-bootstrap.toml: setup/dotfiles-extras.sh must not be a hook"
-# The migration script compares the live file with this exact line
-grep -qxF 'content = "auth       sufficient     pam_tid.so\n"' "$conf/50-bootstrap.toml" || fail "50-bootstrap.toml: sudo_local content differs from what migrate/legacy-to-mise expects"
 [ -z "$(grep -nE '(^|[^a-z_])sudo ' setup/misc.sh | grep -v 'sudo -k')" ] || fail "setup/misc.sh calls sudo"
 # test-conventions already fails on any brew call
 for gone in link_config_dir 'mise install' DOTFILES_SUDO_KEPT; do

@@ -16,10 +16,9 @@
 # that the tracked Claude Code permissions ask before curl and gh api and
 # deny credential paths, git add -f and VS Code's private state, that they ask before
 # mise bootstrap, dot apply, install, self-update and plugins link, before
-# dotfiles-settings set, reset and apply and before migrate/legacy-to-mise, that no allow
+# dotfiles-settings set, reset and apply, that no allow
 # rule is also retired, that rtk's hook rewrites no command with a Bash ask rule,
-# that every setup/*.sh is executable, that nothing calls brew, that migrate/
-# is gone after 2027-02-28, that only migrate/ names the old setup method,
+# that every setup/*.sh is executable, that nothing calls brew or names the old setup method,
 # that the tracked gitconfig holds no credential or user section,
 # and that the instruction files stay under their caps.
 #
@@ -94,16 +93,9 @@ fi
 
 ! grep -qE '^(user-agent|referer)' tilde/.curlrc || fail "curlrc: spoofed user-agent or auto referer"
 
-# migrate/ is temporary (spec Part B). CONVENTIONS_TODAY lets the check be tried before the date
-if [ -e migrate ]; then
-  grep -q '2027-02-28' migrate/legacy-to-mise || fail "migrate/legacy-to-mise must state its removal date, 2027-02-28"
-  [ "${CONVENTIONS_TODAY:-$(date +%Y%m%d)}" -le 20270228 ] \
-    || fail "migrate/ is past its removal date (2027-02-28): delete migrate/, bin/lib/test-migrate, their lines in bin/lib/check and package.json, this check and README.md's 'Migrating an existing machine'"
-fi
-
-# Only the migration script may name what Part A deleted (spec: Part A carries no knowledge of the old method)
-old=$(git grep -lE 'Brewfile|brewpick|setup/(brew|symlinks|macos)\.sh' -- . ':!migrate' ':!bin/lib/test-migrate' ':!bin/lib/test-conventions' ':!docs/superpowers' || true)
-[ -z "$old" ] || fail "the old setup method is named outside migrate/: $old"
+# Nothing names what the mise-first setup deleted
+old=$(git grep -lE 'Brewfile|brewpick|setup/(brew|symlinks|macos)\.sh' -- . ':!bin/lib/test-conventions' ':!docs/superpowers' || true)
+[ -z "$old" ] || fail "the old setup method is named: $old"
 
 # tput fails with TERM unset (CI, a launchd job), which aborts a set -e script;
 # each setup script shadows it with a guarded wrapper
@@ -152,11 +144,6 @@ for sub in set reset apply; do
 done
 # an ask rule wins over an allow rule, so these two would be dead under Bash(mise bootstrap*)
 rules .claude/settings.json allow absent 'Bash(mise bootstrap status *)' 'Bash(mise bootstrap packages status *)'
-# migrate/legacy-to-mise changes the machine, so every way to start it asks (temporary: goes with migrate/)
-if [ -e migrate ]; then
-  rules .claude/settings.json ask present 'Bash(migrate/legacy-to-mise*)' 'Bash(./migrate/legacy-to-mise*)' \
-    'Bash(*/migrate/legacy-to-mise*)' 'Bash(bash migrate/legacy-to-mise*)' 'Bash(sh migrate/legacy-to-mise*)'
-fi
 
 # Hooks and setup.sh run these directly, and a test that runs `bash "$script"` cannot see a missing mode bit.
 # :(glob) keeps * from crossing a slash, so setup/tests/*.sh (run with bash) is not matched.
@@ -165,10 +152,9 @@ notexec=$(git ls-files -s ':(glob)setup/*.sh' | awk '$1 != "100755" { print $4 }
 
 # D5: nothing in setup, sysup, shell startup or CI runs brew. Comment lines
 # and the fixture text of Homebrew's own script (test-ca-roots) are not callers.
-# migrate/ and its test are the one place that knows the old layout (Part B)
 callers=$(grep -nE '(^|[^[:alnum:]_/.-])brew[[:space:]]+(install|update|upgrade|bundle|cleanup|doctor|outdated|shellenv|trust|autoremove|uninstall|list|info|cat|--prefix)' \
   setup.sh setup/*.sh bin/* bin/lib/* zsh/*.zsh tilde/.zprofile tilde/.zshrc tilde/.zshenv .github/workflows/*.yml 2> /dev/null \
-  | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' | grep -vE '^(bin/lib/test-ca-roots|bin/lib/test-migrate|migrate/[^:]*):' || true)
+  | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' | grep -vE '^bin/lib/test-ca-roots:' || true)
 [ -z "$callers" ] || fail "a brew command is still called: $callers"
 
 # rtk's hook rewrites a command before Claude Code matches rules, so `curl x` as
