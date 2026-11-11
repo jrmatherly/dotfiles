@@ -3,13 +3,13 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "Dotfiles Bootstrap Runtime",
-    "output": ".archify/architecture-dotfiles-runtime-20261110-212054/dotfiles-runtime.html",
+    "output": ".archify/architecture-dotfiles-runtime-20261111-110553/dotfiles-runtime.html",
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:jrmatherly/dotfiles.git",
       "provider": "github",
       "link_mode": "local-only",
-      "revision": "f230339efb7ec17fba36e6283df9339f47b66fc8"
+      "revision": "eaa487c0798c2f91371bc0f014b9c9b605968750"
     }
   },
   "components": [
@@ -33,27 +33,27 @@
       "id": "setup",
       "type": "backend",
       "label": "setup.sh",
-      "sublabel": "wrapper · packages · dotfiles-extras",
+      "sublabel": "wrapper · dotfiles · packages · tools · extras",
       "pos": [260, 220],
       "size": [190, 64],
       "sources": [
         {
           "path": "setup.sh",
-          "line": 228,
-          "end_line": 238,
-          "label": "sudo -v once, kept alive"
+          "line": 269,
+          "end_line": 276,
+          "label": "mise dotfiles apply, before any package"
         },
         {
           "path": "setup.sh",
-          "line": 273,
-          "end_line": 286,
-          "label": "packages, one manager at a time"
+          "line": 342,
+          "end_line": 381,
+          "label": "packages, bootstrap, mise install, the task"
         },
         {
           "path": "setup.sh",
-          "line": 288,
-          "end_line": 303,
-          "label": "mise bootstrap, drop sudo, dotfiles-extras.sh"
+          "line": 383,
+          "end_line": 430,
+          "label": "extensions, extras, failures listed last"
         }
       ]
     },
@@ -61,7 +61,7 @@
       "id": "mise",
       "type": "backend",
       "label": "mise bootstrap",
-      "sublabel": "files · dotfiles · shell · tools · task",
+      "sublabel": "files · dotfiles · shell · task",
       "pos": [620, 220],
       "size": [200, 64],
       "sources": [
@@ -69,12 +69,12 @@
           "path": "tilde/.config/mise/conf.d/50-bootstrap.toml",
           "line": 1,
           "end_line": 5,
-          "label": "skips macos-defaults, packages"
+          "label": "setup skips macos-defaults, packages, tools"
         },
         {
           "path": "tilde/.config/mise/conf.d/50-bootstrap.toml",
-          "line": 26,
-          "end_line": 36,
+          "line": 27,
+          "end_line": 37,
           "label": "hooks: pre-tools sudo -k"
         }
       ]
@@ -89,8 +89,8 @@
       "sources": [
         {
           "path": "tilde/.config/mise/conf.d/50-bootstrap.toml",
-          "line": 41,
-          "end_line": 44,
+          "line": 42,
+          "end_line": 45,
           "label": "[tasks.bootstrap]"
         },
         {
@@ -101,8 +101,8 @@
         },
         {
           "path": "setup/misc.sh",
-          "line": 457,
-          "end_line": 464,
+          "line": 455,
+          "end_line": 466,
           "label": "claude-config restore"
         }
       ]
@@ -117,8 +117,8 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 193,
-          "end_line": 199,
+          "line": 205,
+          "end_line": 212,
           "label": "curl -fsSL https://mise.run | sh"
         }
       ]
@@ -127,24 +127,25 @@
       "id": "registries",
       "type": "cloud",
       "label": "Package sources",
-      "sublabel": "bottles · casks · tools · PyPI",
+      "sublabel": "bottles · casks · tools · extensions · PyPI",
       "pos": [620, 40],
       "size": [200, 64],
       "sources": [
         {
           "path": "setup.sh",
-          "line": 254,
-          "end_line": 266,
+          "line": 290,
+          "end_line": 296,
           "label": "mise bootstrap packages apply"
         },
         {
-          "path": "tilde/.config/mise/config.toml",
-          "line": 4,
-          "label": "[tools]"
+          "path": "setup.sh",
+          "line": 363,
+          "end_line": 370,
+          "label": "mise install"
         },
         {
           "path": "setup/misc.sh",
-          "line": 220,
+          "line": 223,
           "label": "uv tool install"
         }
       ]
@@ -159,13 +160,13 @@
       "sources": [
         {
           "path": "setup/misc.sh",
-          "line": 142,
+          "line": 145,
           "label": "claude.ai/install.sh"
         },
         {
           "path": "setup/misc.sh",
-          "line": 457,
-          "end_line": 464,
+          "line": 455,
+          "end_line": 466,
           "label": "marketplaces + plugins"
         }
       ]
@@ -181,14 +182,14 @@
       "sources": [
         {
           "path": "tilde/.config/mise/conf.d/50-bootstrap.toml",
-          "line": 11,
-          "end_line": 15,
+          "line": 12,
+          "end_line": 16,
           "label": "[bootstrap.files] sudo_local"
         },
         {
           "path": "tilde/.config/mise/conf.d/50-bootstrap.toml",
-          "line": 19,
-          "end_line": 20,
+          "line": 20,
+          "end_line": 21,
           "label": "[bootstrap.user] login shell"
         }
       ]
@@ -211,6 +212,12 @@
           "line": 3,
           "end_line": 5,
           "label": "gitconfig.local, cot, code, Firefox"
+        },
+        {
+          "path": "setup.sh",
+          "line": 328,
+          "end_line": 341,
+          "label": "[credential] sections to ~/.gitconfig.local"
         }
       ]
     },
@@ -244,8 +251,8 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 111,
-          "end_line": 121,
+          "line": 123,
+          "end_line": 134,
           "label": "re-run under script(1)"
         }
       ]
@@ -299,14 +306,14 @@
       "id": "step-packages",
       "from": "setup",
       "to": "registries",
-      "label": "1 · packages apply",
+      "label": "2 · packages · tools · extensions",
       "variant": "dashed"
     },
     {
       "id": "step-mise",
       "from": "setup",
       "to": "mise",
-      "label": "2 · mise bootstrap",
+      "label": "3 · mise bootstrap",
       "variant": "emphasis"
     },
     {
@@ -322,13 +329,6 @@
       "to": "home",
       "label": "dotfiles · ln -s",
       "variant": "emphasis"
-    },
-    {
-      "id": "mise-tools",
-      "from": "mise",
-      "to": "registries",
-      "label": "tools",
-      "variant": "dashed"
     },
     {
       "id": "run-task",
@@ -355,7 +355,7 @@
       "id": "step-extras",
       "from": "setup",
       "to": "home",
-      "label": "3 · dotfiles-extras.sh",
+      "label": "1 · link dotfiles · 4 · extras",
       "variant": "emphasis"
     },
     {
@@ -371,9 +371,10 @@
       "dot": "emerald",
       "title": "Primary path",
       "items": [
-        "./setup.sh: packages → mise bootstrap → setup/misc.sh → setup/dotfiles-extras.sh",
-        "mise bootstrap runs files, dotfiles, login shell, tools, then the bootstrap task (misc.sh)",
-        "-- --skip packages skips step 1; --dash adds dash.sh",
+        "./setup.sh: link dotfiles → packages → mise bootstrap → mise install → setup/misc.sh → extensions → dotfiles-extras.sh",
+        "mise bootstrap applies files, dotfiles and the login shell; setup.sh then runs mise install and the task (misc.sh) alone",
+        "A failed package or tool only warns: the list prints last and setup exits 2",
+        "-- --skip packages skips the package steps; --dash adds dash.sh",
         "Idempotent: re-running is how changes are applied",
         "From a terminal, each run is recorded to private/setup-logs/ for /validate-setup"
       ]
@@ -382,9 +383,10 @@
       "dot": "rose",
       "title": "Trust boundaries",
       "items": [
-        "sudo -v once; the credential is held until the pre-tools hook runs sudo -k",
+        "sudo -v once; setup.sh runs sudo -k before mise install (the pre-tools hook does it for a bare mise bootstrap)",
         "Root writes: packages (cask installers), /etc/pam.d/sudo_local, the login shell",
         "misc.sh never uses sudo; dotfiles-extras.sh asks only to link cot or code",
+        "A package's [credential] sections move from the tracked gitconfig to ~/.gitconfig.local",
         "macOS preferences are never applied: setup always passes --skip macos-defaults",
         "Third-party code: mise.run, package sources, claude.ai/install.sh; Homebrew is never run",
         "misc.sh trusts the Aspire HTTPS dev cert in your login keychain (macOS may ask)"
