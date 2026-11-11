@@ -306,5 +306,5 @@ The Claude Code panel itself. Publishing to PyPI or a tap. Linux and Intel Macs.
 - `docs/superpowers/plans/completed/2026-11-09-a4-packages.md`
 - `docs/superpowers/plans/completed/2026-11-09-a5-dotfiles.md`
 - `docs/superpowers/plans/completed/2026-11-09-a6-bootstrap-entry-point.md`
-- `docs/superpowers/plans/2026-11-09-a7-agent-tooling.md`
+- `docs/superpowers/plans/completed/2026-11-09-a7-agent-tooling.md`
 - `docs/superpowers/plans/2026-11-09-b-migration-script.md`

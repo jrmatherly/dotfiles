@@ -10,6 +10,16 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-09-mise-first-setup-and-settings-ui.md`, phase "A7. Agent tooling". Read it first. D4 and D9 govern this plan.
 
+## Outcome
+
+Built on 2026-11-11, commits `ee390da` to `c1c06b9`. `pnpm check` passed on each commit. What differs from the text below:
+
+- `bin/dotfiles-settings` runs `cd "$HOME"` before uv, so `Path.cwd()` was always the home folder and `stack.status` reported its stack for every project. The launcher now exports `DOTFILES_SETTINGS_CWD`, and `tool.launch_dir()` reads it for the status row, the watched manifest and the `p` screen (`fa10834`).
+- `SeatsEditor` parses seats itself. `tool.parse_seats` rejects a model-only seat such as `opus`, which must open unchanged.
+- An unset jstack role shows a blank model select. Picking a model writes `<model> medium`.
+- `.claude/rules/claude-config.md` gained an **rtk and ask rules** bullet, split from Permissions to stay under the 1000-byte line cap.
+- Not run: any live write from the UI, the TUI in a real terminal, and `/validate-setup before` under the new `Bash(mise bootstrap*)` ask rule (Task 8 Step 3 names it as unverified).
+
 ## Global Constraints
 
 - The package's core (registry, adapters, CLI) imports nothing outside the standard library. `tool.py` follows that.
