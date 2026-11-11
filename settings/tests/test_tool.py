@@ -7,7 +7,10 @@ atexit.register(shutil.rmtree, tmp, True)
 repo = Path(__file__).resolve().parents[2]
 cfg = tmp / "hindsight/coding-agent.json"
 cfg.parent.mkdir()
-os.environ.update(DOTFILES=str(repo), HINDSIGHT_CONFIG=str(cfg))
+live, tracked_settings = tmp / "claude/settings.json", tmp / "save/claude-settings.json"
+live.parent.mkdir(); tracked_settings.parent.mkdir()
+os.environ.update(DOTFILES=str(repo), HINDSIGHT_CONFIG=str(cfg), CLAUDE_CONFIG_DIR=str(live.parent),
+                  CLAUDE_CONFIG_SAVE_DIR=str(tracked_settings.parent))
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from dotfiles_settings import cli, registry
@@ -170,6 +173,54 @@ def test_registry_defaults_match_the_script():
     src = (repo / "bin/hindsight-memory").read_text()
     assert '"optInPaths": ["~/dev"]' in src and '"codebaseSurvey": false' in src and '"disabled"' not in src.split("defaults()")[1].split("EOF")[1]
     assert (by_id("hindsight.paths").default, by_id("hindsight.survey").default, by_id("hindsight.enabled").default) == ("~/dev", "", "true")
+
+
+LIVE = '{\n  "env": {\n    "K": "v"\n  },\n  "model": "fable",\n  "theme": "dark"\n}\n'
+
+
+def test_claude_model_seed_and_drift():
+    live.write_text(LIVE); tracked_settings.write_text('{"model": "opus"}')
+    v = A.read(by_id("claude.model"))
+    assert (v.value, v.seed, v.source, v.drift) == ("fable", "opus", Source.OVERRIDE, True)
+    tracked_settings.write_text('{"model": "fable"}')
+    v = A.read(by_id("claude.model"))
+    assert (v.source, v.drift) == (Source.SEED, False)
+
+
+def test_claude_model_write_changes_only_the_live_model():
+    live.write_text(LIVE); live.chmod(0o600); tracked_settings.write_text('{"model": "opus"}')
+    before = tracked_settings.read_text()
+    A.write(by_id("claude.model"), "sonnet")
+    assert live.read_text() == LIVE.replace('"fable"', '"sonnet"')   # every other byte kept
+    assert tracked_settings.read_text() == before
+    assert stat.S_IMODE(live.stat().st_mode) == 0o600
+    A.reset(by_id("claude.model"))
+    assert json.loads(live.read_text())["model"] == "opus"
+
+
+def test_claude_model_reset_without_a_tracked_value_removes_the_key():
+    live.write_text(LIVE); tracked_settings.write_text("{}")
+    A.reset(by_id("claude.model"))
+    assert "model" not in json.loads(live.read_text())
+    assert A.read(by_id("claude.model")).source is Source.UNSET
+
+
+def test_claude_model_rejects_a_bad_name():
+    live.write_text(LIVE)
+    for bad in ("", "two words", "x;rm"):
+        assert raises_type(lambda: A.write(by_id("claude.model"), bad), InvalidValue)
+    A.write(by_id("claude.model"), "opus[1m]")
+    A.write(by_id("claude.model"), "claude-fable-5-2")
+
+
+def test_claude_model_refuses_invalid_json():
+    live.write_text('{"env": {')
+    assert A.read(by_id("claude.model")).value is None
+    assert raises_type(lambda: A.write(by_id("claude.model"), "opus"), SettingsError)
+    assert live.read_text() == '{"env": {'
+    live.unlink()
+    assert raises_type(lambda: A.write(by_id("claude.model"), "opus"), SettingsError)
+    assert not live.exists()
 
 
 for name, fn in list(globals().items()):

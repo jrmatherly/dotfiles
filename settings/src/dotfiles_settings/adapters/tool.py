@@ -3,7 +3,7 @@ import json, os, re, shutil, subprocess, tempfile, urllib.request
 from collections.abc import Callable
 from pathlib import Path
 
-from ..model import Setting, SettingsError, Source, Value
+from ..model import InvalidValue, Setting, SettingsError, Source, Value
 
 Reader = Callable[[str, Setting], Value]
 Writer = Callable[[str, Setting, str], None]
@@ -103,8 +103,67 @@ def _write_hindsight(name: str, s: Setting, value: str) -> None:
         raise SettingsError(f"{s.id} is read-only")
 
 
+MODEL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:\[\]-]*")
+
+
+def claude_dir() -> Path:
+    return Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+
+
+def claude_seed_path() -> Path | None:
+    save = os.environ.get("CLAUDE_CONFIG_SAVE_DIR") or (os.environ.get("DOTFILES") and f"{os.environ['DOTFILES']}/agents")
+    return Path(save) / "claude-settings.json" if save else None
+
+
+def _json_model(path: Path | None) -> str | None:
+    try:
+        data = json.loads(path.read_text()) if path else None
+    except (OSError, ValueError):
+        return None
+    return data.get("model") if isinstance(data, dict) else None
+
+
+def _read_claude(name: str, s: Setting) -> Value:
+    value, seed = _json_model(claude_dir() / "settings.json"), _json_model(claude_seed_path())
+    if value is None:
+        return Value(s.id, None, Source.UNSET, seed, value != seed)
+    return Value(s.id, value, Source.SEED if value == seed else Source.OVERRIDE, seed, value != seed)
+
+
+def _set_claude_model(model: str | None) -> None:
+    path = claude_dir() / "settings.json"
+    if not path.is_file():
+        raise SettingsError(f"no {path}. Start Claude Code once to create it")
+
+    def change(text: str) -> str:
+        try:
+            data = json.loads(text)
+        except ValueError as e:
+            raise SettingsError(f"{path} is not valid JSON: {e}") from None
+        if not isinstance(data, dict):
+            raise SettingsError(f"{path} is not a JSON object")
+        if model is None:
+            data.pop("model", None)
+        else:
+            data["model"] = model
+        return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+    edit_file(path, change)
+
+
+def _write_claude(name: str, s: Setting, value: str) -> None:
+    if not MODEL_NAME.fullmatch(value):
+        raise InvalidValue(f"{s.id}: not a model name: {value!r}")
+    _set_claude_model(value)
+
+
+def _reset_claude(name: str, s: Setting) -> None:
+    _set_claude_model(_json_model(claude_seed_path()))
+
+
 TOOLS: dict[str, tuple[Reader, Writer | None, Resetter | None]] = {
     "hindsight": (_read_hindsight, _write_hindsight, None),
+    "claude": (_read_claude, _write_claude, _reset_claude),
 }
 
 
