@@ -576,9 +576,15 @@ undeclared_packages_are_offered() {
   printf '[bootstrap.packages]\n"brew:other" = "latest"\n' > "$local_toml"
   before=$(cksum < "$local_toml")
   out=$("$script" --step packages < /dev/null 2>&1) || fail "undeclared, closed stdin: exit $?"
-  check_out "says what a no means" '^ack: left undeclared\. A prune removes it\.$'
+  check_out "says what a no means" '^ack: left undeclared\. Homebrew stays installed while it is\.$'
   check_out "names the undeclared cask" '^Casks Homebrew installed that no config declares: signal$'
   [ "$(cksum < "$local_toml")" = "$before" ] || fail "closed stdin declared a package"
+  # mise keeps a formula any tracked config declares, so prune can miss one Homebrew's receipt calls hand-installed
+  touch "$STATE/prune-empty"
+  out=$("$script" --step packages --dry-run 2>&1) || fail "undeclared, prune lists nothing: exit $?"
+  check_out "offers a hand-installed formula prune does not list" '^would ask: Keep ack by declaring it in config\.local\.toml\?$'
+  ! grep -q 'Keep abseil' <<< "$out" || fail "asked about a dependency prune does not list"
+  rm "$STATE/prune-empty"
   # answers: keep ack y, declare signal y, everything after n
   out=$({
     printf 'y\ny\n'

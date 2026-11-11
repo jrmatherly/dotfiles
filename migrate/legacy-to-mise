@@ -435,6 +435,20 @@ undeclared_formulae() {
     done
 }
 
+# Formulae Homebrew's receipts call installed on request that no formula in the status JSON ($1) names.
+# Not the prune list: mise keeps a formula any config it has tracked declares, so prune misses those
+hand_installed_formulae() {
+  local d name formulae
+  formulae=$(/usr/bin/jq -r '.brew.packages[]?.package | split("/") | last' <<< "$1")
+  for d in "$PREFIX"/Cellar/*/; do
+    [ -d "$d" ] || continue
+    name=$(basename "$d")
+    # mise and the MOVED_TO_TOOLS are not counted, nor dependencies: mise installs those of a declared formula itself
+    if [ "$name" = mise ] || [[ " ${MOVED_TO_TOOLS[*]} " == *" $name "* ]] || grep -qxF "$name" <<< "$formulae"; then continue; fi
+    if cat "$d"*/INSTALL_RECEIPT.json 2> /dev/null | /usr/bin/jq -es 'any(.installed_on_request == true)' > /dev/null; then echo "$name"; fi
+  done
+}
+
 undeclared_casks() {
   local d declared
   declared=$(/usr/bin/jq -r '."brew-cask".packages[]?.package | split("/") | last' <<< "$STATUS")
@@ -528,7 +542,7 @@ clean_staging_leftovers() {
 }
 
 step_packages() {
-  local undeclared casks name version kind token self apps app reason n dir tracked running key
+  local undeclared casks name version kind token self apps app reason n dir tracked running key dropped
 
   move_mise || fail "mise was not moved, so nothing else in this step ran."
   read_status
@@ -559,15 +573,17 @@ mise keeps a formula that any config it has tracked still declares ($tracked tra
 so this list can be shorter than what is really undeclared.
 EOF
   fi
-  while IFS=$'\t' read -r name version kind <&3; do
-    [ "$kind" = request ] || continue
+  dropped=$(dropped_packages)
+  while IFS= read -r name <&3; do
+    [ -n "$name" ] || continue
+    ! grep -qxF "brew:$name" <<< "$dropped" || continue
     if ask "Keep $name by declaring it in config.local.toml?"; then
       key=$(receipt_key brew "$name" "$(ls "$PREFIX/Cellar/$name"/*/INSTALL_RECEIPT.json | head -1)" homebrew/core)
       local_toml_add bootstrap.packages "$key" '"latest"'
     else
-      declined "$name: left undeclared. A prune removes it."
+      declined "$name: left undeclared. Homebrew stays installed while it is."
     fi
-  done 3<<< "$undeclared"
+  done 3<<< "$(hand_installed_formulae "$STATUS")"
   casks=$(undeclared_casks)
   if [ -n "$casks" ]; then
     info "Casks Homebrew installed that no config declares: $(tr '\n' ' ' <<< "$casks" | sed 's/ $//')"
@@ -654,11 +670,10 @@ packages_fingerprint() {
 
 # One line per package Homebrew still owns. 0: none, 1: some, 2: mise cannot say who manages what
 homebrew_leftovers() {
-  local s d name casks formulae dropped lines
+  local s d name casks dropped lines
   s=$(mise bootstrap packages status --json 2> /dev/null) || return 2
   /usr/bin/jq -e '.brew.available != false and ."brew-cask".available != false' <<< "$s" > /dev/null || return 2
   casks=$(/usr/bin/jq -r '."brew-cask".packages[]?.package | split("/") | last' <<< "$s")
-  formulae=$(/usr/bin/jq -r '.brew.packages[]?.package | split("/") | last' <<< "$s")
   dropped=$(dropped_packages)
   lines=$({
     /usr/bin/jq -r '."brew-cask".packages[]? | select(.managed_by == "homebrew") | .package
@@ -668,15 +683,8 @@ homebrew_leftovers() {
       name=$(basename "$d")
       grep -qxF "$name" <<< "$casks" || grep -qxF "brew-cask:$name" <<< "$dropped" || echo "  brew-cask:$name: installed by Homebrew, declared nowhere"
     done
-    # mise and the MOVED_TO_TOOLS are not counted, nor dependencies: mise installs those of a declared formula itself
-    for d in "$PREFIX"/Cellar/*/; do
-      [ -d "$d" ] || continue
-      name=$(basename "$d")
-      if [ "$name" = mise ] || [[ " ${MOVED_TO_TOOLS[*]} " == *" $name "* ]] \
-        || grep -qxF "$name" <<< "$formulae" || grep -qxF "brew:$name" <<< "$dropped"; then continue; fi
-      if cat "$d"*/INSTALL_RECEIPT.json 2> /dev/null | /usr/bin/jq -es 'any(.installed_on_request == true)' > /dev/null; then
-        echo "  brew:$name: installed by hand, declared nowhere"
-      fi
+    hand_installed_formulae "$s" | while IFS= read -r name; do
+      grep -qxF "brew:$name" <<< "$dropped" || echo "  brew:$name: installed by hand, declared nowhere"
     done
   } | sort)
   [ -n "$lines" ] || return 0
