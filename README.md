@@ -107,7 +107,7 @@ Along the way it prompts for your git identity and commit signing (`~/.gitconfig
 
 mise declares `/etc/pam.d/sudo_local`, which enables Touch ID for `sudo` (content, mode, owner `root:wheel`), and rewrites it when any of them differs.
 
-Tap formulae resolve through GitHub's API. mise asks `gh` for a token itself, and `setup.sh` only warns when `gh` isn't signed in and `MISE_GITHUB_TOKEN` is unset. The anonymous limit is 60 calls an hour: one run fits, several within an hour may not. If packages fail to resolve, run `gh auth login` and rerun `./setup.sh`.
+Tap formulae resolve through GitHub's API. mise asks `gh` for a token itself, and `setup.sh` only warns when `gh` isn't signed in and `MISE_GITHUB_TOKEN` is unset. The anonymous limit is 60 calls an hour: one run fits, a second within the hour may not (two runs and a `mise bootstrap packages status` used all 60 on a new Mac). If packages fail to resolve, run `gh auth login` and rerun `./setup.sh`.
 
 ### Preview
 

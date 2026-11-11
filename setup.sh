@@ -317,6 +317,23 @@ packages_for() {
   echo "$(df -h / | awk 'NR == 2 { print $4 }') free on /"
 }
 
+# The git-credential-manager pkg registers itself with `git config --global`,
+# and ~/.gitconfig is a link to the tracked file, so its sections move to the
+# local include. A value the local file already has is not added twice.
+move_credential_config() {
+  local tracked="$DOTFILES_DIR/tilde/.gitconfig" local_file="$HOME/.gitconfig.local" entry key value
+  git config --file "$tracked" --get-regexp '^credential\.' > /dev/null 2>&1 || return 0
+  # --null prints key, newline, value, NUL: the first helper value is empty
+  while IFS= read -r -d '' entry; do
+    key=${entry%%$'\n'*} value=${entry#*$'\n'}
+    git config --file "$local_file" --get-all "$key" 2> /dev/null | grep -qxF -- "$value" \
+      || git config --file "$local_file" --add "$key" "$value" || return 1
+  done < <(git config --file "$tracked" --null --get-regexp '^credential\.')
+  git config --file "$tracked" --name-only --get-regexp '^credential\.' | sed 's/\.[^.]*$//' | sort -u \
+    | while IFS= read -r key; do git config --file "$tracked" --remove-section "$key"; done
+  echo "Moved the [credential] sections a package wrote into ~/.gitconfig to ~/.gitconfig.local"
+}
+
 if [ "$run_packages" = true ]; then
   # The pre-packages hook does this for a bare `mise bootstrap`
   [ -n "$dry_run_flag" ] || mise plugins link --force vscode "$DOTFILES_DIR/mise-plugins/vscode"
@@ -373,6 +390,8 @@ fi
 # itself, and only to link cot or code.
 if [ "$run_extras" = true ]; then
   "$DOTFILES_DIR/setup/dotfiles-extras.sh"
+  # After the extras script, which writes the identity only while ~/.gitconfig.local is missing
+  [ "$run_packages" = false ] || move_credential_config || warning "Could not move the [credential] sections out of tilde/.gitconfig. Move them to ~/.gitconfig.local by hand"
   sudo -k 2> /dev/null || true
 fi
 

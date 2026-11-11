@@ -48,8 +48,7 @@ stub() {
   printf '#!/bin/bash\n%s\n' "$2" > "$tmp/bin/$1"
   chmod +x "$tmp/bin/$1"
 }
-mise_stub=$(
-  cat << 'EOF'
+IFS= read -r -d '' mise_stub << 'EOF' || true
 case $1 in
   --version) echo "${STUB_MISE_VERSION:-2026.11.5} macos-arm64 (2026-11-08)" ;;
   *) echo "mise $*" >> "$STATE/order.log"
@@ -80,7 +79,6 @@ case $1 in
     esac ;;
 esac
 EOF
-)
 stub sudo 'echo "$*" >> "$STATE/sudo.log"; echo "sudo $*" >> "$STATE/order.log"'
 stub xcode-select '[ ! -e "$STATE/no-clt" ]'
 stub curl 'echo "$*" >> "$STATE/curl.log"; echo "mkdir -p \"\$HOME/.local/bin\" && cp \"$STATE/mise-stub\" \"\$HOME/.local/bin/mise\""'
@@ -261,6 +259,22 @@ check_true "f2: a failed cask exits 2" [ "$rc" -eq 2 ]
 check_true "f2: warns that casks failed" has 'Some casks failed to install'
 check_true "f2: the bootstrap and then the extensions still run" in_order "$apply brew-cask disable=" "args=bootstrap --skip" "$apply vscode disable="
 check_true "f2: the extras script runs" extras_ran 1
+
+prepare() {
+  printf '[alias]\n\tst = status\n' > "$fix/tilde/.gitconfig"
+  cp "$fix/tilde/.gitconfig" "$STATE/gitconfig"
+  printf '[credential]\n\thelper = \n\thelper = /gcm\n[credential "https://dev.azure.com"]\n\tuseHttpPath = true\n' >> "$fix/tilde/.gitconfig"
+  printf '[credential]\n\thelper = \n' > "$HOME/.gitconfig.local"
+}
+run
+check_true "cred: exits 0" [ "$rc" -eq 0 ]
+check_true "cred: the tracked gitconfig is back to what it was" cmp -s "$fix/tilde/.gitconfig" "$STATE/gitconfig"
+check_true "cred: the credential values are in ~/.gitconfig.local, none twice" [ "$(git config --file "$HOME/.gitconfig.local" --get-regexp '^credential\.' | tr '\n' '|')" \
+  = "credential.helper |credential.helper /gcm|credential.https://dev.azure.com.usehttppath true|" ]
+prepare() { printf '[credential]\n\thelper = /gcm\n' > "$fix/tilde/.gitconfig"; }
+run -- --dry-run
+check_true "cred: a dry run leaves the tracked gitconfig alone" grep -q credential "$fix/tilde/.gitconfig"
+rm "$fix/tilde/.gitconfig"
 
 prepare() {
   touch "$STATE/casks-fail"
