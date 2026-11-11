@@ -45,7 +45,7 @@ zsh -n "${zsh_syntax_files[@]}"
 shellcheck --severity=warning "${shell_scripts[@]}"
 # dotfiles-settings core tests (settings/): stdlib only, same Python as the catalog tests.
 # A listed file that is missing fails the gate.
-settings_tests=(settings/tests/test_registry.py settings/tests/test_env.py settings/tests/test_cli.py settings/tests/test_macos_default.py settings/tests/test_package.py settings/tests/test_dotfile.py)
+settings_tests=(settings/tests/test_registry.py settings/tests/test_env.py settings/tests/test_cli.py settings/tests/test_macos_default.py settings/tests/test_package.py settings/tests/test_dotfile.py settings/tests/test_tool.py)
 # The Claude Code catalog generator's status/cleanup rules (agents/catalog)
 # (Python 3.11+ for tomllib: mise's, not macOS's 3.9 — like bin/claude-catalog)
 # CI has mise but no mise-installed Python, and `mise exec python` would download one
