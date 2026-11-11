@@ -43,6 +43,8 @@ The macOS preferences in the "macOS (tracked in git)" section are the `macos-def
 
 The four rows in the Packages section are the `package` kind and are read-only. Each shows how many formulae, casks, VS Code extensions or mise tools are installed and names the ones that are not; the casks row also counts those Homebrew still manages. `dotfiles-settings apply package` installs what is missing (`mise bootstrap packages apply` per manager, then `mise install`). It never upgrades or prunes.
 
+The one row in the Dotfiles section, `dotfiles.links`, is the `dotfile` kind and is read-only. It shows how many entries of `tilde/.config/mise/conf.d/40-dotfiles.toml` `mise dotfiles status` reports as applied and names each one that is not, with its state and reason. `dotfiles-settings apply dotfile` runs `mise dotfiles apply --yes` and never passes `--force`. A real file or folder in a target's place stops it with exit 1 and the paths, and nothing is changed. It makes links and copies only: the git identity, the `cot` and `code` links and the Firefox hard links come from `setup/dotfiles-extras.sh`.
+
 ## Commands and exit codes
 
 | Command | Output | Exit |
@@ -123,7 +125,7 @@ Add one `[[setting]]` table to `registry.toml`. These eight fields are required:
 | `section` | The group the UI shows it under |
 | `label` | The row's name |
 | `help` | One or two sentences under the row |
-| `kind` | The adapter, `env`, `macos-default` or `package` |
+| `kind` | The adapter, `env`, `macos-default`, `package` or `dotfile` |
 | `key` | For `env`, the variable name (`[A-Z_][A-Z0-9_]*`). For `macos-default`, `<domain>/<key>` |
 | `type` | `bool`, `string`, `int`, `enum` or `path` |
 | `access` | `rw` or `ro` |
