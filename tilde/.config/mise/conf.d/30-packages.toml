@@ -236,7 +236,7 @@ adopt = true
 "brew-cask:nimble-commander" = "latest" # File manager (zsh `ff` alias, vscode/User/tasks.json)
 "brew-cask:obsidian" = "latest" # Markdown knowledge base (configs tracked in obsidian/)
 "brew-cask:raycast" = "latest" # Launcher / clipboard history / window management
-# Fails under mise 2026.11.5: its dmg carries a licence agreement, which mise's `hdiutil attach -quiet` can't accept
+# Its dmg carries a licence agreement: mise installs it from a terminal and fails without one (CI, an agent shell)
 "brew-cask:royal-tsx" = "latest" # Remote connection manager (RDP/SSH/VNC)
 "brew-cask:syntax-highlight" = "latest" # Quick Look previews with syntax highlighting (theme in syntax-highlight/)
 "brew-cask:terax" = "latest" # Terminal-first AI workspace (terax.app); its language servers: see tilde/.config/mise/config.toml

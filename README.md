@@ -127,7 +127,6 @@ Setup leaves these to you:
 1. In VS Code, run **SpaceBox Enable UI Enhancer** from the Command Palette, then quit and reopen VS Code. The blur settings do nothing until then, and the step is needed again after each VS Code update (see [vscode](vscode/README.md#spacebox-ui-enhancer)).
 1. Install the Obsidian vault settings: [`obsidian-vault install`](#set-up-the-obsidian-vault).
 1. Import the color themes that apps can't read from the repo: [`install-color-themes`](#install-color-themes).
-1. Install Royal TSX from [royalapps.com](https://www.royalapps.com/ts/mac/download): its disk image carries a licence agreement that mise can't accept, so `brew-cask:royal-tsx` fails and setup only warns.
 
 ## Extras
 
