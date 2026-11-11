@@ -17,7 +17,8 @@
 # deny credential paths, git add -f and VS Code's private state, that no allow
 # rule is also retired, that rtk's hook rewrites no command with a Bash ask rule,
 # that every setup/*.sh is executable, that nothing calls brew, that migrate/
-# is gone after 2027-02-28, and that the instruction files stay under their caps.
+# is gone after 2027-02-28, that only migrate/ names the old setup method,
+# and that the instruction files stay under their caps.
 #
 # License: MIT
 
@@ -94,6 +95,10 @@ if [ -e migrate ]; then
   [ "${CONVENTIONS_TODAY:-$(date +%Y%m%d)}" -le 20270228 ] \
     || fail "migrate/ is past its removal date (2027-02-28): delete migrate/, bin/lib/test-migrate, their lines in bin/lib/check and package.json, this check and README.md's 'Migrating an existing machine'"
 fi
+
+# Only the migration script may name what Part A deleted (spec: Part A carries no knowledge of the old method)
+old=$(git grep -lE 'Brewfile|brewpick|setup/(brew|symlinks|macos)\.sh' -- . ':!migrate' ':!bin/lib/test-migrate' ':!bin/lib/test-conventions' ':!docs/superpowers' || true)
+[ -z "$old" ] || fail "the old setup method is named outside migrate/: $old"
 
 # tput fails with TERM unset (CI, a launchd job), which aborts a set -e script;
 # each setup script shadows it with a guarded wrapper
