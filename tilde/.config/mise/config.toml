@@ -55,7 +55,13 @@ node = ["24", "22", "26"]
 # trust check rejects. Reviewed upstream (commit c1eb348 has the trail); drop
 # the exemption once the server depends on a svelte release with provenance.
 "npm:svelte-language-server" = { version = "0", trust_policy_excludes = ["svelte@4.2.20"] } # `svelteserver`
-"npm:@vue/language-server" = "3" # `vue-language-server`
+# @vue/language-service pins volar-service-pug 0.0.71, published by the same
+# trusted CI identity and from the same commit as its 0.0.71 siblings, but
+# without the provenance attestation they and pug 0.0.70 carry, so the
+# no-downgrade check fails a fresh install. Reviewed 2026-11-10: its files match
+# 0.0.70 apart from three package.json lines, no install scripts, registry
+# signature verified. Drop the exemption once the server pins a later pug.
+"npm:@vue/language-server" = { version = "3", trust_policy_excludes = ["volar-service-pug@0.0.71"] } # `vue-language-server`
 # Binaries straight from GitHub releases (github backend, which verifies the
 # release checksums and, where published, attestations): both projects' taps
 # ship casks on deprecated stanzas that Homebrew warns about on every run,
