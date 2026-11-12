@@ -11,3 +11,4 @@ PROBE 10 applied=yes branch-after-install=main edit-after-install=kept branch-af
 PROBE 11 only-final-hook=ok skip-all=untested no-root-toml=ok
 PROBE 12 file-override=file dir-override=real-dir remembered=yes
 PROBE 13 update-fetch-only=updates exit=0 flags=final-hook
+PROBE 14 save-env-with-final-hook=yes link-after-apply=direct update=updates exit=0 folder-converted=symlink

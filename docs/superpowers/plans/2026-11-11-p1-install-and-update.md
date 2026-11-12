@@ -75,28 +75,19 @@ Probes 11 to 13 are written and were run on 2026-11-11 (mise 2026.11.6, the disp
 | 12 | `file-override=file dir-override=real-dir remembered=yes` | `config.installed.toml` beats `conf.d` for a file and for a linked folder, and a later `mise dotfiles apply` with no `-E` keeps the selection |
 | 13 | `update-fetch-only=updates exit=0 flags=final-hook` | The same call with `--update` fast-forwards the checkout |
 
-Probe 14 is written and lint-clean and has not been run. It uses the install line's exact flags on a project with no root `mise.toml`, then does what `setup.sh` does next.
+Probe 14 used the install line's exact flags on a project with no root `mise.toml`, then did what `setup.sh` does next. It ran on 2026-11-11 in the same guest:
 
-- [ ] **Step 1: The owner runs probe 14 in the guest**
+`PROBE 14 save-env-with-final-hook=yes link-after-apply=direct update=updates exit=0 folder-converted=symlink`
 
-`probe.sh` is already at `~/vm-proof/p0/probe.sh`. The guest needs `xcode-select --install` and mise's installer first, as in P0. Run: `bash "/Volumes/My Shared Files/vm-proof/p0/run-in-guest.sh" 14`
-Expected: one `PROBE 14` line in the newest `~/vm-proof/p0/run-*` folder. Append it to `results.txt`.
-
-- [ ] **Step 2: Apply the decision rules, then commit**
-
-| Result | What later tasks do |
+| Part | Meaning |
 | --- | --- |
-| `save-env-with-final-hook=yes` | The install line is as Task 7 writes it |
-| `save-env-with-final-hook=no` | `setup.sh`, on an installed copy with no `miserc.local.toml`, writes `env = ["installed"]` there before its first mise call. Task 4 gains that branch and its test |
-| `link-after-apply=direct`, or `via-dotfiles` with `update=updates` | No change |
-| `link-after-apply=via-dotfiles` with `update=refuses` | `rotm update` repoints the link first: `ln -sfn "$DOTFILES/tilde/.config/mise" "${MISE_CONFIG_DIR:-$HOME/.config/mise}"`. Task 3 gains that line and a test |
-| `folder-converted=real-dir` | An entry that turns a linked folder into a real one may ship in an update |
-| `folder-converted` anything else | Such an entry reaches only new installs. For an existing one, `setup.sh` on an installed copy removes a link into the checkout at each key that `config.installed.toml` declares with `permissions` alone, before `mise dotfiles apply`. Task 4 gains that branch and its test |
+| `save-env-with-final-hook=yes` | The install line saves `env = ["installed"]` although it applies nothing |
+| `link-after-apply=direct`, `update=updates` | A `mise dotfiles apply` that redeclares `~/.config/mise` through `~/dotfiles` leaves mise's link as it is, and the next `--update` works |
+| `folder-converted=symlink` | An environment file that arrives in an update does not turn an existing linked folder into a real one. mise warns "is a symlink, which is never followed" and then creates the per-file entries through the link, inside the checkout |
 
-```bash
-git add docs/superpowers/specs/2026-11-11-installable-probe/results.txt
-git commit -m "Record probe 14: the install line's flags and the update after an apply"
-```
+The last line changes Task 4: `setup.sh` on an installed copy removes such a link before it applies the dotfiles. A fresh install is unaffected, because the folder is real from the first apply (probe 12).
+
+This task is complete. All four lines are in `results.txt`.
 
 ---
 
@@ -248,7 +239,7 @@ git commit -m "Add rotm: install, update and settings in one command"
 
 - [ ] **Step 1: Make the fixtures able to be installed copies**
 
-- `test-bootstrap`: copy `bin/lib/rotm-mode` into `$fix/bin/lib/`. Add `MISE_DATA_DIR` to the `unset` line. Add `run_installed [args…]`, which does what `run` does but, after `prepare`, copies `$fix` to `$HOME/.local/share/mise/bootstrap-repo` and runs that copy's `setup.sh`.
+- `test-bootstrap`: copy `bin/lib/rotm-mode` into `$fix/bin/lib/`. Give the fixture a `tilde/.config/mise/config.installed.toml` declaring `"~/.config/gh"`, `"~/.config/keep"` and `"~/.config/elsewhere"` with `permissions` alone and a `tilde/.config/gh` folder, and have `prepare` for these cases make `~/.config/gh` a link to that folder in whichever copy will run, `~/.config/keep` a real folder and `~/.config/elsewhere` a link to `$tmp/other`. Add `MISE_DATA_DIR` to the `unset` line. Add `run_installed [args…]`, which does what `run` does but, after `prepare`, copies `$fix` to `$HOME/.local/share/mise/bootstrap-repo` and runs that copy's `setup.sh`.
 - `test-sysup`: copy `bin/lib/rotm-mode` into the fixture beside the copied `sysup`, so `"$(dirname "$0")/lib/rotm-mode"` resolves. Add `MISE_DATA_DIR` to its `unset` line. For the installed case, export `MISE_DATA_DIR="$tmp/data"` and make `$tmp/data/bootstrap-repo` a symlink to `$DOTFILES`.
 
 Run: `bash bin/lib/test-bootstrap && bash bin/lib/test-sysup`
@@ -263,7 +254,11 @@ run_installed -y
 check_true "installed: the retry hint names rotm" grep -q 'To retry: rotm install' <<< "$out"
 check_true "installed: a warning names rotm" grep -q 'then rerun rotm install' <<< "$out"
 check_true "installed: ~/dotfiles links to mise's checkout" [ "$HOME/dotfiles" -ef "$HOME/.local/share/mise/bootstrap-repo" ]
+check_true "installed: a link into the checkout at a real-folder key is removed" [ ! -L "$HOME/.config/gh" ]
+check_true "installed: a real folder at such a key is kept" [ -d "$HOME/.config/keep" ]
+check_true "installed: a link that points elsewhere is kept" [ -L "$HOME/.config/elsewhere" ]
 run -y
+check_true "clone: a link into the clone at such a key is kept" [ -L "$HOME/.config/gh" ]
 check_true "clone: the hints still name ./setup.sh" grep -q 'then rerun ./setup.sh' <<< "$out"
 ```
 
@@ -291,6 +286,7 @@ Expected: each stops at its first new assertion (`check_true` exits on a failure
 - `bin/sysup`, dotfiles step: on an installed copy, do not call `dotfiles`. Report `status notice dotfiles "installed copy: run rotm update"`.
 - `bin/sysup`, Claude config: on an installed copy, skip `claude-config save` and the action that advises it, and report `status ok "Claude config" "installed copy: not saved into it"`.
 - `bin/dotfiles`: on an installed copy, print `This is an installed copy. Run: rotm update` and exit 0 without pulling.
+- `setup.sh`, on an installed copy only, before `mise dotfiles apply`: for each key that `config.installed.toml` declares with `permissions` alone, when that path is a symlink whose target is inside `$DOTFILES_DIR`, remove the symlink and print `Unlinked <path>: it is a real folder on an installed copy`. Probe 14 showed mise otherwise keeps the link and writes the folder's per-file entries into the checkout. The key list is read with `sed -n 's/^"\([^"]*\)" = { permissions = .*/\1/p'`, and a leading `~/` becomes `$HOME/`. A real folder, a missing path and a link that points outside the checkout are left alone.
 - `bin/vscode-settings`: when `VSCODE_SETTINGS_DIR` is unset and the copy is installed, `dir` is `$HOME/Library/Application Support/Code/User`. Task 5 makes that folder real on an installed copy.
 
 - [ ] **Step 5: Run to see them pass**
