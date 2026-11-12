@@ -49,7 +49,8 @@ declared() {
   names=$(printf '"%s",' "$@")
   echo "cd ~ && mise bootstrap packages status --json | /usr/bin/jq -c '[.[].packages[]? | select(.package | IN(${names%,})) | \"\\(.package) \\(.state)\"]'"
 }
-PATH="$HOME/.local/bin:$PATH"
+# A terminal opened before the install has no /opt/homebrew/bin, where the formulae land
+PATH="$HOME/.local/bin:/opt/homebrew/bin:$PATH"
 
 out="$here/p2-$(date +%Y%m%d)"
 mkdir -p "$out" || exit 1
