@@ -8,6 +8,7 @@ bin/license
 *.zsh
 zsh/zsh-completions/
 tilde/.zshrc
+tilde/.zshrc.installed
 tilde/.zshenv
 tilde/.zprofile
 # Remember plugin memory (ignored by its own .remember/.gitignore)

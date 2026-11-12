@@ -1,0 +1,3 @@
+# Yours to edit: installers append here. returnofthemac's shell setup is the
+# line below and updates with it.
+source "$DOTFILES/tilde/.zshrc"

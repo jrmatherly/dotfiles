@@ -1,0 +1,30 @@
+# The `installed` config environment: how a copy fetched by `mise bootstrap
+# --from` deploys the targets that apps and tools write to. The install line
+# selects it with `-E installed --save-env`, and it beats conf.d/40-dotfiles.toml
+# key by key (probe 12). A development clone never reads it.
+#
+# Without these entries such a write goes through a symlink into mise's
+# checkout, and `rotm update` then refuses to fast-forward it. Every entry is a
+# seeded copy (create_if_missing: written once, then the user's), a merge or a
+# real folder, never a symlink (bin/lib/test-dotfiles checks). New entries come
+# from row 8 of the VM proof in the P1 plan: use the Mac, then list what
+# `git status` shows in the checkout.
+
+[dotfiles]
+# Thin wrappers that include ours, so `git config --global` and an installer's
+# `>> ~/.zshrc` land in the user's file while our settings keep updating
+"~/.gitconfig" = { source = "~/dotfiles/tilde/.gitconfig.installed", mode = "copy", create_if_missing = true }
+"~/.zshrc" = { source = "~/dotfiles/tilde/.zshrc.installed", mode = "copy", create_if_missing = true }
+
+# gh rewrites config.yml and keeps hosts.yml beside it
+"~/.config/gh" = { permissions = "0700" }
+"~/.config/gh/config.yml" = { source = "~/dotfiles/tilde/.config/gh/config.yml", mode = "copy", create_if_missing = true }
+
+# VS Code writes keybindings, tasks and snippets here. settings.json is
+# rendered into this folder by bin/vscode-settings, not copied.
+"~/Library/Application Support/Code/User" = { permissions = "0700" }
+"~/Library/Application Support/Code/User/keybindings.json" = { source = "~/dotfiles/vscode/User/keybindings.json", mode = "copy", create_if_missing = true }
+"~/Library/Application Support/Code/User/tasks.json" = { source = "~/dotfiles/vscode/User/tasks.json", mode = "copy", create_if_missing = true }
+"~/Library/Application Support/Code/User/chatLanguageModels.json" = { source = "~/dotfiles/vscode/User/chatLanguageModels.json", mode = "copy", create_if_missing = true }
+"~/Library/Application Support/Code/User/snippets" = { permissions = "0700" }
+"~/Library/Application Support/Code/User/snippets/global.code-snippets" = { source = "~/dotfiles/vscode/User/snippets/global.code-snippets", mode = "copy", create_if_missing = true }

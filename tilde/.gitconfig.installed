@@ -1,0 +1,6 @@
+# Yours to edit: git config --global writes here. returnofthemac's settings
+# come from the first include and update with it.
+[include]
+  path = ~/dotfiles/tilde/.gitconfig
+[include]
+  path = ~/.gitconfig.local

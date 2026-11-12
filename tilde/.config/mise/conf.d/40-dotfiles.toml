@@ -8,6 +8,11 @@
 # A real file where a link belongs stops the whole apply and nothing is
 # written. `--force` replaces it with no backup. A link that points elsewhere
 # is repointed without asking.
+#
+# A copy mise fetched itself (bin/lib/rotm-mode prints `installed`) also reads
+# ../config.installed.toml, which redeclares the targets apps and tools write
+# to as seeded copies and real folders. An entry added here for such a target
+# needs its counterpart there.
 
 [dotfiles]
 # tilde/ top-level files, one entry each. Not one `"~"` walk: until its first

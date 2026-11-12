@@ -79,6 +79,53 @@ So the work is mostly restructuring this repository into a bootstrap project, sp
 - Releases: the install and update commands name `?ref=stable`. mise's docs say `--update` with a branch ref checks the branch out and fast-forwards it, and probe 10 saw exactly that. Promotion is one fast-forward of `stable` to a commit on `main` that passed the VM install, done by the owner. Tags are not used: a user would have to act to get a fix.
 - The owner's Mac stays on `setup.sh` from the clone (decision 7, as changed). Probe 10 ran `--from <url>?ref=stable --from-dir <clone>` on a clone that was on `main` with an uncommitted edit. The install applied from the clone as it was and left the branch alone. `--update` then switched the clone to `stable`. The edit survived both. A working clone cannot follow `stable` without losing its branch.
 
+#### How each entry deploys on an installed copy
+
+One row per key in `conf.d/40-dotfiles.toml`. `tilde/.config/mise/config.installed.toml` holds every row that is not a plain symlink. "read" means the row comes from reading the config and the tool's behaviour, not from a run. `bin/lib/test-dotfiles` applies the environment in a scratch home and checks the wrapper, `gh` and VS Code rows deploy as written. What an app really writes is measured by row 8 of the P1 plan's VM proof, which turns a row into "measured" or into a new entry.
+
+| Target | On an installed copy | Why | Basis |
+| --- | --- | --- | --- |
+| `~/.ackrc` | symlink | read-only to the tool that uses it | read |
+| `~/.bash_profile` | symlink | nothing here writes it; an installer that appends to it would dirty the checkout, as with `~/.zshrc` before the wrapper | read |
+| `~/.bunfig.toml` | symlink | read-only to the tool that uses it | read |
+| `~/.curlrc` | symlink | read-only to the tool that uses it | read |
+| `~/.gitconfig` | wrapper | `git config --global` and package installers write it; the seeded file includes ours | read |
+| `~/.gitignore` | symlink | read-only to the tool that uses it | read |
+| `~/.gitmessage` | symlink | read-only to the tool that uses it | read |
+| `~/.hushlogin` | symlink | read-only to the tool that uses it | read |
+| `~/.inputrc` | symlink | read-only to the tool that uses it | read |
+| `~/.ripgreprc` | symlink | read-only to the tool that uses it | read |
+| `~/.starship.toml` | symlink | read-only to the tool that uses it | read |
+| `~/.tlrc.toml` | symlink | read-only to the tool that uses it | read |
+| `~/.zprofile` | symlink | as `~/.bash_profile` | read |
+| `~/.zshenv` | symlink | as `~/.bash_profile` | read |
+| `~/.zshrc` | wrapper | installers append to it; the seeded file sources ours | read |
+| `~/.claude/rules` | one symlink per rule | Claude Code reads rules. `/jstack:setup-jstack` and `dotfiles-settings` rewrite `jstack-models.md` through its link, which would dirty the checkout: open, see below | read |
+| `~/.claude/statusline-command.sh` | symlink | read-only to the tool that uses it | read |
+| `~/.config/amp` | symlink | Amp writes `settings.json.amp-write-meta`, which is git-ignored. Not checked: whether Amp rewrites the tracked `settings.json` | read |
+| `~/.config/bat` | symlink | read-only to the tool that uses it | read |
+| `~/.config/btop` | symlink | Not checked: btop may rewrite `btop.conf` on quit. Row 8 opens and quits it | read |
+| `~/.config/cmux` | symlink | Not checked: whether cmux rewrites `cmux.json`. Row 8 opens it | read |
+| `~/.config/fastfetch` | symlink | read-only to the tool that uses it | read |
+| `~/.config/gh` | real folder, `config.yml` a seeded copy | `gh config set` rewrites `config.yml` and `gh auth` writes `hosts.yml` beside it | read |
+| `~/.config/ghostty` | symlink | Ghostty reads its config and themes and is not known to write them. Row 8 opens it | read |
+| `~/.config/hunk` | symlink | hunk keeps its state in `state.json` beside the config, which is git-ignored | read |
+| `~/.config/mise` | symlink | mise made this link itself; the files written through it (`config.override.toml`, `*.local.toml`) are git-ignored (probe 9) | read |
+| `~/.claude/skills/project-stack` | symlink | read-only to the tool that uses it | read |
+| `~/.ssh` | real folder | already a real folder in both modes | read |
+| `~/.ssh/config` | symlink | read-only to the tool that uses it | read |
+| `~/.gnupg` | real folder | already a real folder in both modes | read |
+| `~/.gnupg/gpg-agent.conf` | symlink | read-only to the tool that uses it | read |
+| `~/.codex/AGENTS.md` | symlink | read-only to the tool that uses it | read |
+| `~/.codex/config.toml/defaults` | merge | already a `merge = "missing"` edit of a real file, the same in both modes | read |
+| `~/Library/Application Support/Code/User` | real folder, four seeded copies | VS Code writes keybindings, tasks, snippets and its own state there; `settings.json` is rendered into it | read |
+| `~/Library/Application Support/lazydocker/config.yml` | symlink | read-only to the tool that uses it | read |
+| `~/Library/Application Support/rtk/config.toml` | symlink | read-only to the tool that uses it | read |
+| `~/.config/mole/whitelist` | symlink | Mole writes `clean-list.txt` and `purge_paths` beside it, not this file | read |
+| `~/.config/mole/whitelist_optimize` | symlink | as `whitelist` | read |
+
+Open after this table: `~/.claude/rules/jstack-models.md` is a link to a tracked file that two tools rewrite, and `~/.config/amp/settings.json` and `~/.config/btop/btop.conf` may be rewritten by their apps. None has an entry yet. Row 8 decides each.
+
 ### Opt-outs
 
 - The base splits into modules by what a person would decline: apps, fonts, VS Code extensions, the Claude Code plugins and skills, the other agent tooling, the macOS defaults groups that already have switches.
