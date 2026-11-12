@@ -786,9 +786,11 @@ git commit -m "Add a switch per module to the settings, and document opting out"
 
 - Consumes: everything above, pushed to `main`. The install line follows `?ref=main`, as P1's proof did.
 
-- [ ] **Step 1: Write `p2-evidence.sh`, lint it, copy it to the share**
+- [x] **Step 1: Write `p2-evidence.sh`, lint it, copy it to the share**
 
 One function per row, each writing `row-<n>.txt` to the shared folder.
+
+**As built, 2026-11-12:** one `case` branch per row, as `p1-evidence.sh` has, not one function. Rows 1, 3, 4 and 5 are one guest in that order; rows 2 and 6 each need a fresh one with mise installed. Row 2 proves LFS with a scratch repository cloned locally (`filter.lfs.required` is what fails without `git-lfs`), and clones a public one only when `P2_LFS_REPO` names it: no URL was guessed. Row 5 appends the `[bootstrap.packages]` table to `config.local.toml`, and asks for a hand edit when the file already has one. On the host the script was linted, seen to refuse to run, and its read-only status commands were run. No row has run.
 
 - [ ] **Step 2: The owner runs the rows in a disposable guest**
 
