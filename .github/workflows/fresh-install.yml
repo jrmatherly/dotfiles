@@ -1,6 +1,7 @@
 name: fresh-install
 
-# The path a new Mac takes: ./setup.sh on a runner without Homebrew.
+# The two paths a new Mac takes, on a runner without Homebrew: ./setup.sh from
+# a clone, and the install line that needs no clone (mise fetches the copy).
 # Manual only (gh workflow run fresh-install.yml): it installs every formula,
 # cask, extension and tool, and runs the bootstrap task. A hosted runner is not a clean Mac; the full proof is the
 # VM run in plan A6's Task 6
@@ -21,6 +22,10 @@ jobs:
     # Hosted jobs stop at 360 minutes; a pkg installer waiting on a prompt must
     # not hold the job that long. Lowered after the first measured run
     timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        path: [clone, installed]
     env:
       MISE_GITHUB_TOKEN: ${{ github.token }}
       MISE_YES: 1
@@ -57,10 +62,27 @@ jobs:
       # packages or tools failed: the steps below judge each one, so the
       # tolerated royal-tsx miss alone does not fail the job
       - name: setup.sh
+        if: matrix.path == 'clone'
         # --skip user: chsh asks for the account's password, which a runner has none of
         run: |
           rc=0
           ./setup.sh -y --skip-codegraph -- --skip user || rc=$?
+          [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit "$rc"
+      # What a stranger does first. ~/.local/bin stays off PATH here: the
+      # install line must work without it, as on a new Mac
+      - name: Install mise
+        if: matrix.path == 'installed'
+        run: curl -fsSL https://mise.run | sh
+      # The README's install line, following the branch under test instead of
+      # stable. The checkout from actions/checkout is not used on this path
+      - name: Install line
+        if: matrix.path == 'installed'
+        env:
+          REF: ${{ github.ref_name }}
+        run: |
+          rc=0
+          { ~/.local/bin/mise -E installed bootstrap --from "https://github.com/jrmatherly/returnofthemac.git?ref=$REF" --config-dir tilde/.config/mise --save-env --only final-hook \
+            && ~/.local/share/mise/bootstrap-repo/setup.sh -y --skip-codegraph -- --skip user; } || rc=$?
           [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit "$rc"
       - name: Disk after setup
         if: always()
@@ -73,7 +95,8 @@ jobs:
           du -sh ~/.local/share/mise/installs 2> /dev/null || true
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           echo /opt/homebrew/bin >> "$GITHUB_PATH"
-          echo "MISE_CONFIG_DIR=$GITHUB_WORKSPACE/tilde/.config/mise" >> "$GITHUB_ENV"
+          # The same folder on both paths, through the link setup made
+          echo "MISE_CONFIG_DIR=$HOME/.config/mise" >> "$GITHUB_ENV"
       - name: mise installed
         run: |
           test -x "$HOME/.local/bin/mise"
@@ -122,3 +145,19 @@ jobs:
         if: always()
         working-directory: ${{ runner.temp }}
         run: MISE_DISABLE_TOOLS=npm:@colbymchenry/codegraph mise bootstrap status --missing || true
+      - name: The copy is an installed one
+        if: matrix.path == 'installed'
+        run: test "$("$HOME/dotfiles/bin/lib/rotm-mode")" = installed
+      # The update path, right after an install: nothing to fetch, setup runs again
+      - name: rotm update
+        if: matrix.path == 'installed'
+        run: |
+          rc=0
+          "$HOME/dotfiles/bin/rotm" update -y --skip-codegraph -- --skip user || rc=$?
+          [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit "$rc"
+      # An install, an update and every check above wrote no tracked file into the copy
+      - name: The copy is clean
+        if: matrix.path == 'installed'
+        run: |
+          git -C "$HOME/dotfiles" status --porcelain --untracked-files=no
+          test -z "$(git -C "$HOME/dotfiles" status --porcelain --untracked-files=no)"
