@@ -9,7 +9,7 @@ sysup
 - pulls the latest dotfiles (`git pull` in the clone)
 - installs macOS software updates (a macOS update asks for your login password: see [below](#macos-update-password-from-1password-optional)); one that needs a restart, such as a new macOS version, is only downloaded, and the summary tells you to install it from System Settings → General → Software Update → Restart Now or with `sudo softwareupdate -ia --restart`, since a plain restart doesn't install it
 - updates mise itself (`mise self-update`)
-- upgrades the formulae and casks in [`30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml), VS Code included, without asking for confirmation (`mise bootstrap packages upgrade --yes`; the pairs whose installed version moved go to the screen). VS Code updates its own extensions
+- upgrades the formulae and casks in [`30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml) and the [modules](modules.md) that are on, VS Code included, without asking for confirmation (`mise bootstrap packages upgrade --yes`; the pairs whose installed version moved go to the screen). VS Code updates its own extensions
 - lists any declared package that is still not installed
 - reports, as one notice, the formulae and casks installed on this Mac that no mise config declares (`mise bootstrap packages prune --dry-run`, and again with `-m brew-cask`). It never removes them; review the list and run `mise bootstrap packages prune` yourself to remove every one
 - runs `mise prune`, which deletes the tool versions the previous run replaced that no project's mise config still uses, and reports how much it freed. The versions this run replaces stay until the next run, so you can go back to one. The prune is skipped, with a notice, while a leftover mise rust install would make it hang
@@ -27,7 +27,7 @@ sysup
 - asks Raycast to check for app and extension updates
 - updates Amp, if it's installed
 
-A step that belongs to a module you switched off (`rotm-modules set <module> off`) prints `the <module> module is off` and does nothing: the font with `fonts`, Raycast with `apps`, the Claude Code steps with `claude`, and the REA, Hindsight, SnippetsLab, Scrapling and mise MCP steps with `agents`. The package steps need no switch, because mise no longer reads that module's file. The packages it installed stay, so the notice that counts packages no config declares names the modules that are off. A package you declared `{ state = "absent" }` in `config.local.toml` is not reported as missing.
+A step that belongs to a [module](modules.md) you switched off (`rotm settings set modules.<module> off`) prints `the <module> module is off` and does nothing: the font with `fonts`, Raycast with `apps`, the Claude Code steps with `claude`, and the REA, Hindsight, SnippetsLab, Scrapling and mise MCP steps with `agents`. The package steps need no switch, because mise no longer reads that module's file. The packages it installed stay, so the notice that counts packages no config declares names the modules that are off. A package you declared `{ state = "absent" }` in `config.local.toml` is not reported as missing.
 
 It doesn't re-apply the dotfiles. When a pull brings new symlinks, tools or config, run setup again:
 

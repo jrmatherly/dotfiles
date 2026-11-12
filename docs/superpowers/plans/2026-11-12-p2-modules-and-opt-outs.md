@@ -711,7 +711,7 @@ git commit -m "Leave an off module's steps out of sysup"
 - Consumes: `rotm-modules list`, `off`, `set <name> on|off` (Task 2).
 - Produces: twelve settings `modules.<name>`, `kind = "module"`, `key = "<name>"`, `type = "bool"`, `true_value = "on"`, `default = "on"`, `access = "rw"`, `section = "Modules"`. `ModuleAdapter` with `read`, `write`, `reset` and `write_note` in the shape of the other adapters. It runs `$DOTFILES/bin/lib/rotm-modules` the way `adapters/tool.py`'s `run` runs a `bin/` script, and raises `SettingsError("DOTFILES is not set")` when the variable is missing. `bin/dotfiles-settings` must export `DOTFILES` (Step 3 adds it).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `settings/tests/test_module.py`. A fixture sets `DOTFILES` to a temp dir holding a stub `bin/lib/rotm-modules` that keeps its off list in a temp file and appends each call's arguments to a log:
 
@@ -730,21 +730,21 @@ def test_allowed_on_an_installed_copy(adapter, setting):        # no refuse_inst
 
 In `bin/lib/test-modules`: the `key`s of the registry's `kind = "module"` rows equal `rotm-modules list`, in order.
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `cd settings && uv run --locked pytest tests/test_module.py -q`
 Expected: FAIL, `adapters/module.py` does not exist.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 The adapter, the `KINDS` and `ADAPTERS` entries, and the twelve registry rows. Each row's `help` says in one sentence what the module holds, from the "Modules" table, and names the module it leans on where the table gives one. `package.py`'s two messages name the module files as well as `30-packages.toml`. Its `summarize` counts every state but `installed` as drift, and its `apply` passes `--manager`: a package in state `absent` or `unexpectedly_installed` is neither drift nor a failed apply, by the rule `setup.sh` uses (Task 5), with a test for each in the package adapter's tests. `bin/dotfiles-settings` assigns `DOTFILES` without exporting it, so the Python side sees it only when the caller's shell exported it: add `export DOTFILES`. The registry's `packages.formulae` and `packages.tools` help texts name `30-packages.toml` and `config.toml` as the only files; they name the module files too.
 
-- [ ] **Step 4: Run to see them pass**
+- [x] **Step 4: Run to see them pass**
 
 Run: `cd settings && uv run --locked pytest -q && cd .. && LC_ALL=en_US.UTF-8 bin/lib/test-modules`
 Expected: all pass, then `ok`.
 
-- [ ] **Step 5: Write `docs/modules.md` and fix the docs that changed**
+- [x] **Step 5: Write `docs/modules.md` and fix the docs that changed**
 
 `docs/modules.md` (not named after a command, so `help modules` reads it): the table of modules in a reader's words, with the "leans on" column; all on by default; `rotm settings set modules.<name> off` and `on`; `--without` on the install line; what off does, in three plain sentences (nothing more is installed for it; formulae, casks and extensions stay until `mise bootstrap packages prune`, which is not limited to one module, so read its dry run first; its mise tools are removed by the next `sysup`); that `sysup` will keep mentioning the undeclared packages; skipping one thing:
 
@@ -770,6 +770,8 @@ Expected: exit 0.
 git add settings docs README.md setup/README.md CLAUDE.md bin/CLAUDE.md bin/vscode-settings bin/dotfiles-settings .claude bin/lib/test-modules
 git commit -m "Add a switch per module to the settings, and document opting out"
 ```
+
+**As built, 2026-11-12:** the settings tests are plain scripts, not pytest (the project has no pytest), so `test_module.py` asserts at module level, prints `ok`, and is listed in `settings_tests` in `bin/lib/check`; Steps 2 and 4 ran it as `python3 settings/tests/test_module.py`. It failed before the adapter existed (`KeyError: 'module'`), and `test-modules`' registry assertion failed before the rows did. A failed `rotm-modules off` makes a row unset rather than an error, as the plugin stack row does, so one bad call does not stop `list`; a failed `set` is a `SettingsError` with the helper's message. The adapter also watches `modules-off.local`. `package.py`'s apply succeeds when mise stops only at an installed package declared absent, by `setup.sh`'s rule, and `summarize` counts neither absent state. The plan's line for people who work on the repo was partly false: no module or base file declares `shellcheck` (CI installs it), and `bin/lib/check` and `test-conventions` skip `actionlint` and `rtk` when they are missing, so `docs/modules.md` says that. The docs that named `30-packages.toml` for a package that moved (the 1Password, Raycast, Warp and OrbStack pages, `docs/privacy.md`, `docs/mole.md`, the fonts, VS Code and Syntax Highlight READMEs, the tips page, `.claude/rules/vscode.md`, `bin/CLAUDE.md`'s `cwebp`) now name its module; `.claude/agents/docs-auditor.md` already lists `conf.d/*.toml` and is unchanged, as is `ci.md`'s dry-run sentence, which Task 4 made true. Set and reset were run through `bin/dotfiles-settings` against a scratch `MISE_CONFIG_DIR`, and the terminal UI was mounted with the real rows (twelve switches, all on). Not run: a switch on a real home, and that `rotm update` installs a module switched back on (VM row 3).
 
 ---
 

@@ -4,7 +4,7 @@
 
 ## Repo setup
 
-- **Install:** `"brew-cask:warp"` in `tilde/.config/mise/conf.d/30-packages.toml`. Warp's download URL only answers Homebrew's User-Agent, so `[settings.url_replacements]` in `tilde/.config/mise/config.toml` sends mise to the release file instead. The repo doesn't track any Warp settings
+- **Install:** `"brew-cask:warp"` in `tilde/.config/mise/conf.d/60-rotm-apps.toml`. Warp's download URL only answers Homebrew's User-Agent, so `[settings.url_replacements]` in `tilde/.config/mise/config.toml` sends mise to the release file instead. The repo doesn't track any Warp settings
 - **Shell config:** Warp runs your normal zsh, so `zsh/` and the Starship prompt (`tilde/.starship.toml`, loaded in `zsh/init.zsh`) apply here too
 
 ## Using the Starship prompt

@@ -8,11 +8,14 @@ from ..model import Setting, SettingsError, Source, Value
 MANAGERS = ("brew", "brew-cask", "vscode")
 TTL = 5.0
 NAMED = 10
+# What a { state = "absent" } entry reports, installed or not: the user's choice, not drift
+CHOSEN = ("absent", "unexpectedly_installed")
+FILES = "tilde/.config/mise/conf.d/30-packages.toml or a module's 60-rotm-<name>.toml"
 
 
 def summarize(packages: list[dict]) -> tuple[str, bool]:
-    bad = [p for p in packages if p.get("state") != "installed"]
-    value = f"{len(packages) - len(bad)} installed"
+    bad = [p for p in packages if p.get("state") not in ("installed", *CHOSEN)]
+    value = f"{sum(p.get('state') == 'installed' for p in packages)} installed"
     if not bad:
         return value, False
     names = ", ".join(f"{p['package']} ({p.get('state')})" for p in bad[:NAMED])
@@ -71,10 +74,10 @@ class PackageAdapter:
         return Value(s.id, value, Source.SEED, value, drift)
 
     def write(self, s: Setting, value: str) -> None:
-        raise SettingsError(f"{s.id} is read-only: edit tilde/.config/mise/conf.d/30-packages.toml")
+        raise SettingsError(f"{s.id} is read-only: edit {FILES}")
 
     def reset(self, s: Setting) -> None:
-        raise SettingsError(f"{s.id} is read-only: edit tilde/.config/mise/conf.d/30-packages.toml")
+        raise SettingsError(f"{s.id} is read-only: edit {FILES}")
 
     def apply(self, settings: list[Setting]) -> list[str]:
         # Installs what is missing; never upgrades or prunes
@@ -87,7 +90,17 @@ class PackageAdapter:
             try:
                 mise.run_mise(args)
             except SettingsError as e:
-                raise SettingsError(last_line(e)) from None
+                if key == "tools" or not self._only_chosen(key):
+                    raise SettingsError(last_line(e)) from None
             lines.append(f"{key}: applied")
         self._status = None
         return lines
+
+    def _only_chosen(self, manager: str) -> bool:
+        # With --manager mise fails an installed package declared absent. As setup.sh decides: when nothing is
+        # missing and one is in that state, the apply did what was asked
+        self._status = None
+        status = self.status()
+        packages = [] if isinstance(status, SettingsError) else status.get(manager, {}).get("packages", [])
+        states = {p.get("state") for p in packages}
+        return "missing" not in states and "unexpectedly_installed" in states

@@ -1,8 +1,8 @@
 # Online Privacy
 
 1. Install a trustworthy and non-logging [VPN client](https://www.privacyguides.org/en/vpn/#recommended-providers).
-1. Use a secure [password manager](https://www.privacyguides.org/en/passwords/#cloud-based). This setup installs 1Password (`1password` and `1password-cli` casks in `30-packages.toml`); see `help gui/1password`.
-1. Install a privacy focused [browser](https://www.privacyguides.org/en/desktop-browsers/). (The default browser in `30-packages.toml` is Comet, Perplexity's AI browser, which is a convenience choice rather than a privacy one; the settings below apply to whichever browser you use.)
+1. Use a secure [password manager](https://www.privacyguides.org/en/passwords/#cloud-based). This setup installs 1Password (`1password` and `1password-cli` casks in the `apps` module); see `help gui/1password`.
+1. Install a privacy focused [browser](https://www.privacyguides.org/en/desktop-browsers/). (The default browser in the `apps` module is Comet, Perplexity's AI browser, which is a convenience choice rather than a privacy one; the settings below apply to whichever browser you use.)
    - Use **HTTPS-only mode**.
    - Use encrypted DNS (**DNS over HTTPS** in Firefox, **Secure DNS** in Chrome) only when you're **not** connected to a VPN:
      - Without a VPN, turn it on and choose a trusted [DNS provider](https://www.privacyguides.org/en/dns/#recommended-providers).

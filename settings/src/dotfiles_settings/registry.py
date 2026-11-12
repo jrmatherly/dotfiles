@@ -4,7 +4,7 @@ from pathlib import Path
 
 from .model import Setting, SettingsError
 
-KINDS = ("env", "macos-default", "package", "dotfile", "tool")
+KINDS = ("env", "macos-default", "package", "dotfile", "tool", "module")
 TYPES = ("bool", "string", "int", "enum", "path")
 WIDGETS = ("", "lines", "seats")
 REQUIRED = ("id", "section", "label", "help", "kind", "key", "type", "access")

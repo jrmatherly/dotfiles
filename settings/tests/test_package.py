@@ -61,6 +61,22 @@ mise.run_mise = broken
 try: PackageAdapter().apply([setting("packages.formulae", "brew")]); raise AssertionError("apply raises on a mise failure")
 except SettingsError as e: assert str(e) == "code --list-extensions exited 1"
 
+# A package declared absent in config.local.toml is a choice, not drift, installed or not
+chosen = [{"package": "warp", "state": "unexpectedly_installed"}, {"package": "zoom", "state": "absent"},
+          {"package": "utm", "state": "installed"}]
+assert summarize(chosen) == ("1 installed", False)
+# With --manager mise fails an installed package declared absent; with nothing missing, apply still succeeds
+STATUS["brew-cask"]["packages"] = chosen
+def refuses(args, stdin=None):
+    if args[:3] == ["bootstrap", "packages", "apply"]: raise SettingsError("mise ERROR warp is installed but declared absent")
+    return fake(args)
+mise.run_mise = refuses
+assert PackageAdapter().apply([setting("packages.casks", "brew-cask")]) == ["brew-cask: applied"]
+STATUS["brew-cask"]["packages"] = chosen + [{"package": "codex", "state": "missing"}]
+try: PackageAdapter().apply([setting("packages.casks", "brew-cask")]); raise AssertionError("a missing package passed")
+except SettingsError as e: assert str(e) == "mise ERROR warp is installed but declared absent"
+mise.run_mise = fake
+
 by_id = {s.id: s for s in registry.load()}
 for id, key in (("packages.formulae", "brew"), ("packages.casks", "brew-cask"), ("packages.vscode", "vscode"),
                 ("packages.tools", "tools")):

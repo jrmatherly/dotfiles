@@ -169,11 +169,11 @@ Both commands are in this repo's [`bin/`](../bin) folder (`bin/node-modules-size
 
 Manage formulae, apps and VS Code extensions with mise's package list.
 
-The list is [`tilde/.config/mise/conf.d/30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml). Each entry is `"brew:<formula>"`, `"brew-cask:<cask>"` or `"vscode:<publisher.id>"`, and every value is `"latest"`: mise installs no older versions.
+The list is [`tilde/.config/mise/conf.d/30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml) for the base and one `60-rotm-<name>.toml` per [module](modules.md). Each entry is `"brew:<formula>"`, `"brew-cask:<cask>"` or `"vscode:<publisher.id>"`, and every value is `"latest"`: mise installs no older versions.
 
 - See what is installed, missing or different: `mise bootstrap packages status`
 - Install what is missing: `mise bootstrap packages apply`
-- Add one: write its line in the file, then `mise bootstrap packages apply brew:<formula>`
+- Add one: write its line in the right file, then `mise bootstrap packages apply brew:<formula>`
 - Remove one: delete its line. That uninstalls nothing. Then preview what mise would uninstall (read-only):
 
   ```sh

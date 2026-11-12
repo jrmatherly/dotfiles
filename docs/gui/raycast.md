@@ -2,7 +2,7 @@
 
 > Launcher, clipboard history and window management. It replaces Spotlight on ⌘Space.
 
-Installed by mise from `tilde/.config/mise/conf.d/30-packages.toml` (`"brew-cask:raycast"`).
+Installed by mise from `tilde/.config/mise/conf.d/60-rotm-apps.toml` (`"brew-cask:raycast"`).
 
 ## Setup
 

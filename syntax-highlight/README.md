@@ -1,6 +1,6 @@
 # Syntax Highlight
 
-[Syntax Highlight](https://github.com/sbarex/SourceCodeSyntaxHighlight) adds syntax-highlighted source code to Finder's Quick Look previews. mise installs it (`"brew-cask:syntax-highlight"` in [`30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml)).
+[Syntax Highlight](https://github.com/sbarex/SourceCodeSyntaxHighlight) adds syntax-highlighted source code to Finder's Quick Look previews. mise installs it (`"brew-cask:syntax-highlight"` in [`60-rotm-apps.toml`](../tilde/.config/mise/conf.d/60-rotm-apps.toml)).
 
 This folder holds the Squirrelsong Light color scheme for the Syntax Highlight Quick Look extension: [themes/Squirrelsong Light.theme](themes/Squirrelsong%20Light.theme). The file is owned by this repo; import it in the app's color scheme settings, then choose it as the color scheme ([`install-color-themes`](../bin/install-color-themes) prints the path).
 

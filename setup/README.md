@@ -71,7 +71,7 @@ It is a plain push, so GitHub refuses anything that is not a fast-forward. Never
 
 ## packages
 
-`setup.sh` installs everything declared in [`tilde/.config/mise/conf.d/30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml) with `mise bootstrap packages apply`, before `mise bootstrap` and with the `packages` part skipped there. mise downloads Homebrew's bottles and casks into `/opt/homebrew` itself; Homebrew is not installed and `brew` is never run. Pass `-- --skip packages` to `setup.sh` to leave the packages alone. In order, it:
+`setup.sh` installs everything declared in [`tilde/.config/mise/conf.d/30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml) and the [modules](../docs/modules.md) that are on with `mise bootstrap packages apply`, before `mise bootstrap` and with the `packages` part skipped there. mise downloads Homebrew's bottles and casks into `/opt/homebrew` itself; Homebrew is not installed and `brew` is never run. Pass `-- --skip packages` to `setup.sh` to leave the packages alone. In order, it:
 
 1. Installs mise with mise's own installer (`curl -fsSL https://mise.run | sh`, into `~/.local/bin`) when no `mise` is on PATH.
 1. Warns when gh has no GitHub token and `MISE_GITHUB_TOKEN` is unset, then carries on. Tap formulae resolve through GitHub's API, whose anonymous limit is 60 calls an hour. `setup.sh` exports no token: mise asks gh for one itself (`[settings.github] credential_command` in `tilde/.config/mise/config.toml`), since gh keeps it in the Keychain where mise can't read it.

@@ -43,7 +43,9 @@ Some rows are read-only (`access = "ro"`). `set` and `reset` refuse them with ex
 
 The macOS preferences in the "macOS (tracked in git)" section are the `macos-default` kind. Their value is the one declared in `tilde/.config/mise/conf.d/20-macos.toml`, `seed` when it matches the committed file and `override` when it does not, and `drift` is true when the Mac's preference differs. `set` edits that one line of the tracked fragment in place and writes that one preference with `defaults write`. It never applies the whole fragment, so commit the file to keep the change. `reset` returns the line to the committed value. Applying every declared preference is `set-defaults`' job, which shows mise's planned writes and runs the extras script; `dotfiles-settings apply macos-default` has nothing to apply. The "macOS (this Mac)" switches are `env` settings that `setup/macos-extras.sh` reads at the next `set-defaults`.
 
-The four rows in the Packages section are the `package` kind and are read-only. Each shows how many formulae, casks, VS Code extensions or mise tools are installed and names the ones that are not; the casks row also counts those Homebrew still manages. `dotfiles-settings apply package` installs what is missing (`mise bootstrap packages apply` per manager, then `mise install`). It never upgrades or prunes.
+The four rows in the Packages section are the `package` kind and are read-only. Each shows how many formulae, casks, VS Code extensions or mise tools are installed and names the ones that are not; the casks row also counts those Homebrew still manages. A package declared `{ state = "absent" }` is not counted as either. `dotfiles-settings apply package` installs what is missing (`mise bootstrap packages apply` per manager, then `mise install`). It never upgrades or prunes. When the only thing mise stops at is an installed package declared absent, the apply still succeeds, as in `setup.sh`.
+
+The twelve rows in the Modules section are the `module` kind, one switch per [module](../docs/modules.md). Each reads and writes through `bin/lib/rotm-modules`, which keeps the off list in `modules-off.local` and the `ignored_config_paths` line of `miserc.local.toml`, both git-ignored in mise's config dir, so an installed copy can switch them too. mise stops reading an off module's file at once, and a module switched on is installed at the next `rotm update`. `set` prints what turning a module off leaves installed.
 
 The rows in the Agents section are the `tool` kind, apart from `ui.claude_panel`, which is `env`. Each reads the tool's own file and writes through its CLI or one atomic edit of that file, so no value is copied: Hindsight's kill switch, survey and opt-in paths (`hindsight-memory`), the Claude Code default model (`~/.claude/settings.json`, with `agents/claude-settings.json` as the seed), one row per jstack role (`jstack-models.md`, a tracked file) and the read-only daemon and plugin stack rows. [`agents/README.md`](../agents/README.md) says what each change needs afterwards.
 
@@ -131,7 +133,7 @@ Add one `[[setting]]` table to `registry.toml`. These eight fields are required:
 | `section` | The group the UI shows it under |
 | `label` | The row's name |
 | `help` | One or two sentences under the row |
-| `kind` | The adapter, `env`, `macos-default`, `package`, `dotfile` or `tool` |
+| `kind` | The adapter, `env`, `macos-default`, `package`, `dotfile`, `tool` or `module` |
 | `key` | For `env`, the variable name (`[A-Z_][A-Z0-9_]*`). For `macos-default`, `<domain>/<key>` |
 | `type` | `bool`, `string`, `int`, `enum` or `path` |
 | `access` | `rw` or `ro` |

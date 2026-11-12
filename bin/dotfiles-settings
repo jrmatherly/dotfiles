@@ -32,7 +32,8 @@
 
 set -euo pipefail
 
-DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+# Exported: the Python side runs bin/ scripts from it
+export DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 
 if ! command -v uv &> /dev/null; then
   echo "dotfiles-settings: needs uv (https://docs.astral.sh/uv/)" >&2

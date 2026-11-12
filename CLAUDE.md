@@ -10,7 +10,7 @@ Personal macOS dotfiles for Apple Silicon (mise installs formulae and casks into
 
 - No application code: bash setup scripts, `bin/` CLI scripts, zsh config, and app config files.
 - The repo is the source of truth. Everything is symlinked into `$HOME` and configured by editing files in the clone.
-- Covers formulae, casks and VS Code extensions (`tilde/.config/mise/conf.d/30-packages.toml`, installed by mise; nothing calls `brew`), runtimes via mise, macOS defaults, VS Code, Ghostty/cmux, Obsidian, Firefox, and coding-agent config (Claude Code, Amp, Codex).
+- Covers formulae, casks and VS Code extensions (`conf.d/30-packages.toml` and its modules, installed by mise; nothing calls `brew`), runtimes via mise, macOS defaults, VS Code, Ghostty/cmux, Obsidian, Firefox, and coding-agent config (Claude Code, Amp, Codex).
 - Squirrelsong color theme files for many apps are owned by the repo.
 
 <!-- END AUTO-MANAGED -->

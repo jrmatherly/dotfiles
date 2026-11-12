@@ -59,7 +59,7 @@ User CLI scripts, all on `PATH`. `zsh/path.zsh` prepends both `$DOTFILES/bin` an
 
 ## Key Dependencies
 
-- CLIs from `30-packages.toml`: `gh`, `fzf`, `bat`, `rg`, `jq`, `cwebp`, and `tldr` (tlrc, configured by `tilde/.tlrc.toml`).
+- CLIs from `30-packages.toml`: `gh`, `fzf`, `bat`, `rg`, `jq` and `tldr` (tlrc, configured by `tilde/.tlrc.toml`). `cwebp` is in the `media` module.
 - `node` from mise, for `get-tldr-md`, `myip` and other ESM scripts. `package.json` is `"type": "module"`.
 - `mise`, for `sysup` and runtime-related scripts.
 - macOS system tools: `lsof` (`check-port`/`clear-port`), `defaults`, `softwareupdate`, `dscacheutil`.

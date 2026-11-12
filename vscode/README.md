@@ -32,7 +32,7 @@ Settings in the template that are there for a non-obvious reason (each has a com
 
 `VSCODE_FONT_PRESET` in the environment, which `dotfiles-settings set apps.vscode_font_preset` sets for new shells, beats the saved preset for that render and is not saved. `--preset` and `--choose` beat both.
 
-Each preset except `fira` falls back to FiraCode Nerd Font Mono. Iosevka Code comes from `bin/install-iosevka-code` (see [fonts](../fonts/README.md)), ProFont and FiraCode from the font casks in `30-packages.toml`; the renderer warns when a preset's font isn't installed. `vscode-settings --preset warp` switches directly, `--check` compares without writing.
+Each preset except `fira` falls back to FiraCode Nerd Font Mono. Iosevka Code comes from `bin/install-iosevka-code` (see [fonts](../fonts/README.md)), ProFont and FiraCode from the font casks in the `fonts` module; the renderer warns when a preset's font isn't installed. `vscode-settings --preset warp` switches directly, `--check` compares without writing.
 
 Edit **`User/settings.json.j2`**, never `settings.json`, then run `vscode-settings`. When you change a setting in VS Code's UI (or an extension writes one), it lands only in the generated file. The renderer remembers a hash of what it last wrote, so the next render refuses to overwrite such a change: it shows the diff, you copy the change into the template and re-run, or pass `--force` to drop it. `pnpm check` runs the renderer's tests and Prettier-checks every preset's render.
 
@@ -63,7 +63,7 @@ No manual step needed: the `visual-studio-code` cask links `code` into `/opt/hom
 
 ## Install extensions
 
-The extensions are the `"vscode:<publisher.id>"` entries in [`30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml). mise installs them through the in-repo plugin [`mise-plugins/vscode`](../mise-plugins/vscode), which calls `code --install-extension`; `setup.sh` links the plugin and applies them. VS Code keeps them up to date itself, and `sysup` upgrades VS Code, a cask in the same file. Install all the missing ones with:
+The extensions are the `"vscode:<publisher.id>"` entries in [`60-rotm-vscode.toml`](../tilde/.config/mise/conf.d/60-rotm-vscode.toml), the `vscode` [module](../docs/modules.md). mise installs them through the in-repo plugin [`mise-plugins/vscode`](../mise-plugins/vscode), which calls `code --install-extension`; `setup.sh` links the plugin and applies them. VS Code keeps them up to date itself, and `sysup` upgrades VS Code, a cask in `30-packages.toml`. Install all the missing ones with:
 
 ```shell
 mise bootstrap packages apply --manager vscode

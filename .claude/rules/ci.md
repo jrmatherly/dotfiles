@@ -5,6 +5,7 @@ paths:
   - 'pnpm-workspace.yaml'
   - 'package.json'
   - 'tilde/.config/mise/config.toml'
+  - 'tilde/.config/mise/conf.d/60-rotm-*.toml'
 ---
 
 # CI and Renovate
