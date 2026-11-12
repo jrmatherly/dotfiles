@@ -248,7 +248,7 @@ if grep -q 'Label:' <<< "$macos_updates"; then
   # only downloaded, and a plain restart doesn't install it either (checked
   # 2026-10-27): Software Update's Restart Now or `softwareupdate -ia --restart`
   # does. Restarting here would cut off the steps below, so that's an action
-  installed=$(awk '/Label: /{ if (l != "") print l; sub(/.*Label: /, ""); l = $0 } /Action: restart/{ l = "" } END { if (l != "") print l }' <<< "$macos_updates" | list)
+  macos_installed=$(awk '/Label: /{ if (l != "") print l; sub(/.*Label: /, ""); l = $0 } /Action: restart/{ l = "" } END { if (l != "") print l }' <<< "$macos_updates" | list)
   pending=$(awk '/Label: /{ sub(/.*Label: /, ""); l = $0 } /Action: restart/{ print l }' <<< "$macos_updates" | list)
   # On Apple Silicon, softwareupdate itself asks for the account password
   # before an OS update (volume-owner authorization); sudo and Touch ID don't
@@ -280,7 +280,7 @@ if grep -q 'Label:' <<< "$macos_updates"; then
   fi && macos_rc=0 || macos_rc=$?
   unset mac_password
   if [ "$macos_rc" -eq 0 ]; then
-    status changed macOS "${installed:+$installed installed}${installed:+${pending:+; }}${pending:+$pending downloaded, not installed yet}"
+    status changed macOS "${macos_installed:+$macos_installed installed}${macos_installed:+${pending:+; }}${pending:+$pending downloaded, not installed yet}"
     [ -z "$pending" ] || actions+=("Install $pending: System Settings → General → Software Update → Restart Now, or run: sudo softwareupdate -ia --restart (a plain restart doesn't install it)")
   else
     status fail macOS "install failed; run: sudo softwareupdate -ia --verbose"

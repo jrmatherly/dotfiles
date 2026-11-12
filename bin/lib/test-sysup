@@ -446,7 +446,12 @@ rm -rf "$DOTFILES/logs" "$STATE/claude-config.log"
 touch "$STATE/config-pending"
 run
 check_true "installed, pending config: restore is the action, save is not" has 'claude-config restore$' && check_true "installed, pending config: … and no save" no_save
-rm -rf "$MISE_DATA_DIR" "$STATE/config-pending"
+rm -rf "$DOTFILES/logs" "$STATE/claude-config.log" "$STATE/config-pending"
+touch "$STATE/macos"
+run
+check_true "installed, with a macOS update: claude-config save is still not run" no_save
+check_true "installed, with a macOS update: the dotfiles step still points at rotm update" has 'dotfiles.*rotm update'
+rm -rf "$MISE_DATA_DIR" "$STATE/macos"
 unset MISE_DATA_DIR
 
 rm -rf "$DOTFILES/logs"

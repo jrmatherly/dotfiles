@@ -694,7 +694,7 @@ git add bin/sysup bin/lib/test-sysup bin/lib/test-packages .claude/rules/sysup.m
 git commit -m "Leave an off module's steps out of sysup"
 ```
 
-**As built, 2026-11-12:** `mise bootstrap packages upgrade --yes` exits 0 with an installed extension declared absent (mise 2026.11.5, the fake `code`, `test-packages` pins it), so the "packages" step reads no states. That is measured for `vscode` only, whose plugin upgrades nothing: a real cask is VM row 5. `module_off <module> <step>…` in `sysup` asks first and gives each step its line, so a step that is also conditional (`rea`, the Hindsight config, the SnippetsLab app, `scrapling`) prints the off line whether or not its tool is there. The Claude and agents steps still sit inside `command -v claude`, so a Mac with no `claude` prints none of them, as before. The tests were seen to fail before the code ("Iosevka is left out"), and two mutations failed the other two: the old state filter failed "a package declared absent is not a notice", and the notice without its suffix failed "the prune notice names them". No fact in `.claude/rules/sysup.md` became false, so it is unchanged; `docs/updating.md` gained the paragraph. Found and not fixed: the macOS step reuses the name `installed` for the labels it installed, so on an installed copy with a macOS update listed the later `[ "$installed" = true ]` tests are false and `claude-config save` runs.
+**As built, 2026-11-12:** `mise bootstrap packages upgrade --yes` exits 0 with an installed extension declared absent (mise 2026.11.5, the fake `code`, `test-packages` pins it), so the "packages" step reads no states. That is measured for `vscode` only, whose plugin upgrades nothing: a real cask is VM row 5. `module_off <module> <step>…` in `sysup` asks first and gives each step its line, so a step that is also conditional (`rea`, the Hindsight config, the SnippetsLab app, `scrapling`) prints the off line whether or not its tool is there. The Claude and agents steps still sit inside `command -v claude`, so a Mac with no `claude` prints none of them, as before. The tests were seen to fail before the code ("Iosevka is left out"), and two mutations failed the other two: the old state filter failed "a package declared absent is not a notice", and the notice without its suffix failed "the prune notice names them". No fact in `.claude/rules/sysup.md` became false, so it is unchanged; `docs/updating.md` gained the paragraph. Found, and fixed in the commit after Task 7: the macOS step reused the name `installed` for the labels it installed, so on an installed copy with a macOS update listed the later `[ "$installed" = true ]` tests were false and `claude-config save` ran.
 
 ---
 
@@ -761,7 +761,7 @@ and that an absent package already installed is left in place. One line for peop
 
 `README.md`: one line and a link. `docs/forking.md`: the `30-packages.toml` row now says a fork trims modules or turns them off. `docs/README.md`: the page in the index. The instruction files: only sentences that became false, chiefly "formulae, casks and VS Code extensions (`30-packages.toml`)" and where a new package goes. The `add-tool` skill gains the question "which module". `.claude/rules/ci.md` lists `config.toml` in its `paths:` and not the module files: add `tilde/.config/mise/conf.d/60-rotm-*.toml`, and correct its sentence about the dry run.
 
-- [ ] **Step 6: Gate and commit**
+- [x] **Step 6: Gate and commit**
 
 Run: `pnpm check`
 Expected: exit 0.
