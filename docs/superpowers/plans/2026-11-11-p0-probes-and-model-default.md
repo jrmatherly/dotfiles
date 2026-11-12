@@ -282,7 +282,7 @@ git commit -m "Probe the user layer and updates over a dirty checkout"
 
 - [ ] **Step 1: `probe_6`, sync between two homes**
 
-`new_home mac-a` and `new_origin`. Create `$MISE_CONFIG_DIR/config.toml` with the comment `# shared-marker` and `$MISE_CONFIG_DIR/config.local.toml` with the comment `# local-marker`. Run `m dot track "$MISE_CONFIG_DIR"`, `m dot save`, `m dot origin set "$origin" --sync manual`, `m dot sync`. Then `new_home mac-b` and `m bootstrap --adopt "$origin"`. Record whether `# shared-marker` and `# local-marker` are anywhere under mac-b's `$MISE_CONFIG_DIR`. The markers matter: `mise dot origin set` writes its connection into `config.local.toml`, so that file exists on both sides either way. Then edit `config.toml` differently in both homes (`use_home` to switch), save and sync in `mac-a`, then save, sync and pull in `mac-b`. Answer: `shared=<arrived|missing> local-toml=<stayed|leaked> conflict=<paused|overwrote-b|overwrote-a> conflicts-cmd=<lists-file|empty|error>`, the last from `m dot conflicts`.
+`new_home mac-a` and `new_origin`. In this probe only, `MISE_CONFIG_DIR` is `$HOME/.config/mise` in both homes (the harness's `sync_home`), as on a real Mac: with the config dir beside the home, a tracked path would be mac-a's absolute path and mean nothing in mac-b. Create `$MISE_CONFIG_DIR/config.toml` with the comment `# shared-marker` and `$MISE_CONFIG_DIR/config.local.toml` with the comment `# local-marker`. Run `m dot track "$MISE_CONFIG_DIR"`, `m dot save`, `m dot origin set "$origin" --sync manual`, `m dot sync`. Then `new_home mac-b` and `m bootstrap --adopt "$origin"`. Record whether `# shared-marker` and `# local-marker` are anywhere under mac-b's `$MISE_CONFIG_DIR`. The markers matter: `mise dot origin set` writes its connection into `config.local.toml`, so that file exists on both sides either way. Then edit `config.toml` differently in both homes (`use_home` to switch), save and sync in `mac-a`, then save, sync and pull in `mac-b`. Answer: `shared=<arrived|missing> local-toml=<stayed|leaked> conflict=<paused|overwrote-b|overwrote-a> conflicts-cmd=<lists-file|empty|error>`, the last from `m dot conflicts`.
 
 - [ ] **Step 2: `probe_7`, a saved profile**
 
@@ -290,7 +290,7 @@ git commit -m "Probe the user layer and updates over a dirty checkout"
 
 - [ ] **Step 3: `probe_8`, removing a module**
 
-`new_home mac-a` and `new_project`. Run `m -E extras bootstrap --from "file://$project"`, confirm `~/.probe/extra` exists, then run `m -C <checkout> bootstrap unapply extras`. When that fails, record its last line of output and try `m bootstrap unapply extras --from "file://$project"`. Answer: `extra=<removed|kept> linked=<kept|removed> ran-from=<checkout|from-flag|neither> first-error=<none|untrusted|other>`. `untrusted` is for a failure whose message names trust.
+`new_home mac-a` and `new_project`. Run `m -E extras bootstrap --from "file://$project"`, confirm `~/.probe/extra` exists, then run `m -C <checkout> bootstrap unapply extras`. When that fails, record its output and try `m -C <checkout> -E extras bootstrap unapply extras` (`bootstrap unapply` has no `--from` on 2026.11.5, read from `mise usage`). Answer: `extra=<removed|kept|untested> linked=<kept|removed|untested> ran-from=<checkout|checkout-with-env|neither> first-error=<none|untrusted|other>`. `untested` is for a run where neither command worked. `untrusted` is for a failure whose message names trust.
 
 - [ ] **Step 4: `probe_9`, the config-dir shape**
 
@@ -352,13 +352,13 @@ Rename "Not verified, and the check that settles each" to "Verified facts" and r
 | Probe 6: `local-toml=leaked` or `conflict=overwrote-*` | Sync gets an explicit exclude step and stays manual-only |
 | Probe 6: `shared=missing` or `conflicts-cmd=error` | Sync is not designable from this probe. P3's first task repeats it in the VM against a real private repository before anything else |
 | Probe 7: `remembered=no` | Profiles store the choice themselves and pass `-E` on every run |
-| Probe 8: `ran-from=untrusted` | Distribution says which commands need `mise trust` on the checkout, and P1 decides whether the install command trusts it |
+| Probe 8: `first-error=untrusted` | Distribution says which commands need `mise trust` on the checkout, and P1 decides whether the install command trusts it |
 | Probe 9: `config-dir=symlink-into-checkout` and `update-with-local-toml=updates` | Distribution may choose the config-dir shape. The spec states what that costs the user layer |
 | Probe 9: anything else | Distribution chooses the project shape |
 | Probe 10: both branches stay `main` and both edits are `kept` | Decision 7 stands: the owner's Mac can use `--from-dir` on the dev clone once the VM proof passes |
 | Probe 10: a branch moves, an edit is `lost`, or `applied` is not `yes` | Decision 7 changes: the owner's Mac keeps `setup.sh` from the clone, and the spec says installed mode is proven in the VM only. Tell the owner before anything else |
 | Probe 8: `linked=removed` | Opt-outs must not offer removal: unapply takes more than the module |
-| Probe 8: `ran-from=from-flag` or `neither` | Opt-outs record the command that works, or that there is none |
+| Probe 8: `ran-from=checkout-with-env` or `neither` | Opt-outs record the command that works, or that there is none |
 | Probe 8: `extra=kept` | Opt-outs say turning a module off stops future installs and removes nothing |
 
 - [ ] **Step 4: Commit and stop for review**
