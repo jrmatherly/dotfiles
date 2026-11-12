@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Name the returnofthemac modules, keep the list of those switched off, and write mise's env list from it.
+# Name the returnofthemac modules, keep the list of those switched off, and tell mise which to skip.
 #
 # - List every module:
 #
@@ -18,18 +18,20 @@
 #
 # `rotm-modules set {{module}} {{on|off}}`
 #
-# - Rewrite mise's env list, first turning some modules off:
+# - Rewrite the list of modules mise skips, first turning some off:
 #
 # `rotm-modules sync --without {{fonts,cloud}}`
 #
 # ---
-# A module is tilde/.config/mise/config.rotm-<name>.toml, loaded only while
-# the env list in miserc.local.toml names rotm-<name>. The stored truth is the
-# off list (modules-off.local): env is derived as every module minus those, so
-# a module that arrives in an update is on for everyone. The env entries carry
-# the rotm- prefix because a saved env name also selects mise.<name>.toml in
-# every project on the Mac. Callers run this by path, never through PATH, so a
-# test fixture uses its own copy. Exits 2 for a name that is not a module.
+# A module is tilde/.config/mise/conf.d/60-rotm-<name>.toml, which mise always
+# loads unless ignored_config_paths in miserc.local.toml names it. The stored
+# truth is the off list (modules-off.local) and that line is derived from it,
+# so a Mac with no state loads every module and one that arrives in an update
+# is on for everyone. The paths are relative to the miserc's dir because only
+# that form matches however mise reached the config dir (through the
+# ~/.config/mise link or by its real path). Callers run this by path, never
+# through PATH, so a test fixture uses its own copy. Exits 2 for a name that
+# is not a module.
 #
 # License: MIT
 
@@ -76,9 +78,24 @@ write_off() {
   done | replace "$off_file"
 }
 
+# The entries of a one-line TOML list that do not match a glob, joined with ", ".
+# The glob is matched after the entry's opening quote: bash 3.2 does not match a quote held in a pattern variable
+# shortcut: splits on commas, so an entry that holds one breaks; parse the TOML if a path ever does
+kept() {
+  local inner part out=''
+  inner=$(sed -E 's/^[^[]*\[(.*)\][[:space:]]*$/\1/' <<< "$1")
+  while IFS= read -r part; do
+    part=$(sed -E 's/^[[:space:]]+|[[:space:]]+$//g' <<< "$part")
+    # shellcheck disable=SC2254 # $2 is a glob on purpose
+    case ${part#\"} in '' | $2) continue ;; esac
+    out="$out${out:+, }$part"
+  done < <(tr ',' '\n' <<< "$inner")
+  echo "$out"
+}
+
 sync() {
   [ -d "$dir" ] || die 1 "no mise config dir at $dir"
-  local line='' entries='' inner part m stray
+  local line='' entries='' names='' new='' env_line='' env_new='' have='' want m stray
   if [ -f "$off_file" ]; then
     while IFS= read -r stray; do
       case " ${modules[*]} " in
@@ -87,34 +104,43 @@ sync() {
       esac
     done < "$off_file"
   fi
-  if [ -n "${MISE_ENV:-}" ]; then
-    echo "rotm-modules: MISE_ENV is set ($MISE_ENV), and mise uses it in place of the saved list: no module loads in this shell" >&2
+  if [ -n "${MISE_IGNORED_CONFIG_PATHS:-}" ]; then
+    echo "rotm-modules: MISE_IGNORED_CONFIG_PATHS is set, and mise uses it in place of the saved list: a module that is off still loads in this shell" >&2
   fi
 
-  if [ -f "$rc_file" ] && grep -qE '^env[[:space:]]*=' "$rc_file"; then
-    line=$(grep -E '^env[[:space:]]*=[[:space:]]*\[.*\][[:space:]]*$' "$rc_file" | head -1) \
-      || die 1 "the env list in miserc.local.toml is not on one line; not rewriting $rc_file"
-    inner=$(sed -E 's/^[^[]*\[(.*)\][[:space:]]*$/\1/' <<< "$line")
-    # Entries that are not ours (installed, a profile) stay first, in their order
-    while IFS= read -r part; do
-      part=$(sed -E 's/^[[:space:]]+|[[:space:]]+$//g' <<< "$part")
-      case $part in '' | '"rotm-'*) continue ;; esac
-      entries="$entries${entries:+, }$part"
-    done < <(tr ',' '\n' <<< "$inner")
+  if [ -f "$rc_file" ]; then
+    have=$(cat "$rc_file")
+    if grep -qE '^ignored_config_paths[[:space:]]*=' "$rc_file"; then
+      line=$(grep -E '^ignored_config_paths[[:space:]]*=[[:space:]]*\[.*\][[:space:]]*$' "$rc_file" | head -1) \
+        || die 1 "the ignored_config_paths list in miserc.local.toml is not on one line; not rewriting $rc_file"
+      # The user's own entries stay first, in their order
+      entries=$(kept "$line" 'conf.d/60-rotm-*')
+    fi
+    # The first design's sync wrote "rotm-<name>" entries into env
+    env_line=$(grep -E '^env[[:space:]]*=[[:space:]]*\[.*"rotm-.*\][[:space:]]*$' "$rc_file" | head -1 || true)
+    if [ -n "$env_line" ]; then
+      env_new=$(kept "$env_line" 'rotm-*')
+      env_new=${env_new:+env = [$env_new]}
+    fi
   fi
   for m in "${modules[@]}"; do
-    is_off "$m" || entries="$entries${entries:+, }\"rotm-$m\""
+    if is_off "$m"; then
+      entries="$entries${entries:+, }\"conf.d/60-rotm-$m.toml\""
+      names="$names${names:+, }$m"
+    fi
   done
+  # With nothing off and no line there is nothing to write: no state means every module loads
+  if [ -n "$line" ] || [ -n "$entries" ]; then new="ignored_config_paths = [$entries]"; fi
 
-  local new="env = [$entries]"
-  [ "$new" != "$line" ] || return 0
-  if [ -n "$line" ]; then
-    NEW="$new" awk '!done && /^env[[:space:]]*=/ { print ENVIRON["NEW"]; done = 1; next } { print }' "$rc_file"
-  else
-    if [ -f "$rc_file" ]; then cat "$rc_file"; fi
-    echo "$new"
-  fi | replace "$rc_file"
-  echo "modules: $new"
+  want=$({ [ -z "$have" ] || printf '%s\n' "$have"; } | IGN="$new" ENV_OLD="$env_line" ENV_NEW="$env_new" awk '
+    !i && /^ignored_config_paths[[:space:]]*=/ { print ENVIRON["IGN"]; i = 1; next }
+    ENVIRON["ENV_OLD"] != "" && $0 == ENVIRON["ENV_OLD"] { if (ENVIRON["ENV_NEW"] != "") print ENVIRON["ENV_NEW"]; next }
+    { print }
+    END { if (!i && ENVIRON["IGN"] != "") print ENVIRON["IGN"] }')
+  [ "$want" != "$have" ] || return 0
+  printf '%s' "${want:+$want
+}" | replace "$rc_file"
+  echo "modules: off = [$names]"
 }
 
 case "${1:-}" in

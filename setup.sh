@@ -228,8 +228,8 @@ if ! link_into_repo "$HOME/.config/mise" "$DOTFILES_DIR/tilde/.config/mise"; the
   exit 1
 fi
 
-# mise loads a module (config.rotm-<name>.toml) only while the env list in
-# miserc.local.toml names it, so the list is written before any mise call
+# mise skips a module (conf.d/60-rotm-<name>.toml) only while ignored_config_paths
+# in miserc.local.toml names it, so the list is written before any mise call
 if [ -n "$dry_run_flag" ]; then
   echo "dry run: the module list is not written"
 else

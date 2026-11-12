@@ -424,12 +424,13 @@ prepare() { :; }
 
 # The module list (bin/lib/rotm-modules)
 line_of() { grep -nF -- "$1" <<< "$out" | head -1 | cut -d: -f1; }
+rc_file="$HOME/.config/mise/miserc.local.toml"
 run -y
-check_true "setup writes the module list" grep -q 'rotm-media' "$HOME/.config/mise/miserc.local.toml"
-check_true "the list is written before the dotfiles are applied" [ "$(line_of 'modules: env = ')" -lt "$(line_of 'Linking the dotfiles')" ]
+check_true "setup with every module on writes no module state" [ ! -e "$rc_file" ]
 run -y --without fonts,security
 check_true "--without is stored" [ "$(tr '\n' ' ' < "$HOME/.config/mise/modules-off.local")" = "fonts security " ]
-check_true "--without modules are not in the list" eval '! grep -q "rotm-fonts\|rotm-security" "$HOME/.config/mise/miserc.local.toml"'
+check_true "and mise is told to skip those files" grep -qxF 'ignored_config_paths = ["conf.d/60-rotm-fonts.toml", "conf.d/60-rotm-security.toml"]' "$rc_file"
+check_true "the list is written before the dotfiles are applied" [ "$(line_of 'modules: off = ')" -lt "$(line_of 'Linking the dotfiles')" ]
 run -y --without=cloud
 check_true "--without= is stored" [ "$(cat "$HOME/.config/mise/modules-off.local")" = cloud ]
 run -y --without nope
@@ -438,8 +439,8 @@ check_true "and names it" has 'nope'
 check_true "before any mise call" log_empty
 check_true "and before the password prompt" [ ! -s "$STATE/sudo.log" ]
 check_true "and before the warning" lacks 'WARNING'
-run -y -- --dry-run
-check_true "a dry run writes no module list" [ ! -e "$HOME/.config/mise/miserc.local.toml" ]
+run -y --without fonts -- --dry-run
+check_true "a dry run writes no module state" [ ! -e "$rc_file" ]
 check_true "and says so" has 'dry run: the module list is not written'
 
 conf="$repo/tilde/.config/mise/conf.d"

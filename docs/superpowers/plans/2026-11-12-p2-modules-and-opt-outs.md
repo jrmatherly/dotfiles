@@ -62,6 +62,17 @@ Measured again on 2026-11-12 after Task 3, the same way (scratch home, mise 2026
 | `ignored_config_paths = []` | Read without complaint, every fragment loaded |
 | The same tool in `config.toml` and in a `conf.d` fragment | `config.toml` won. No module repeats a base key (Task 4 asserts it) |
 
+Measured while building Task 3b, the same way, with fresh state dirs:
+
+| Claim | Measured |
+| --- | --- |
+| `mise bootstrap` and `mise dotfiles status` run with a module file ignored | No, on a Mac with no trust record. Both exit 1 with "cannot read history configuration: ~/.config/mise/conf.d/60-rotm-fonts.toml" and "not trusted". The same with the config dir real or a link, with `MISE_TRUSTED_CONFIG_PATHS` set to it, and after a bootstrap that ran before the file was ignored. `bootstrap packages status`, `packages apply --dry-run`, `bootstrap status` and `bootstrap --only packages --dry-run` are not affected |
+| What makes them pass | A trust record for the ignored file itself (`mise trust <config dir>/conf.d/60-rotm-fonts.toml`, by the link path), or for the real home dir. The file stays ignored. `mise trust` of the config dir through the link did not help. The owner's Mac has a record for its home dir, which is why the earlier `--save-env` row passed |
+| An ignored path whose file does not exist, and an empty list | Both pass, so Task 3b is safe to land before Task 4 creates the files |
+| Fixed in a newer mise | Not named in the 2026.11.6 or 2026.11.7 release notes (read, not run) |
+
+**Open for the owner before Task 4:** where the trust record comes from. `sync` runs before mise is installed on a first run, so it cannot be the only caller of `mise trust`. `test-modules` trusts the file by hand for its `--save-env` pin.
+
 Read from mise's docs that day, not measured: `ignored_config_paths` is an early-init setting, set in a `miserc.toml` file or `MISE_IGNORED_CONFIG_PATHS`, and `mise settings` refuses it. Commands that act on every tracked config honour only the variable and "the global and system `miserc.toml` files". From mise 2027.8.10 a `conf.d` filename may carry an environment segment (`env_conf_d`), so fragment names keep to one dot.
 
 Not measured, and settled later in this plan:
@@ -389,22 +400,22 @@ git commit -m "Sync the module list from setup and sysup, and take --without"
 
 - Produces: the Task 2 and Task 3 interfaces as written above. `list`, `off`, `is-on`, `set` and `--without` keep their arguments and exit statuses, so `setup.sh` and `sysup` change only in comments.
 
-- [ ] **Step 1: Pin the two measurements this design rests on**
+- [x] **Step 1: Pin the two measurements this design rests on**
 
 Both were measured by hand on 2026-11-12 (the second table above) and no self-check holds them yet. In the scratch `smise` block of `test-modules`, with `fonts` off in `miserc.local.toml` and a second fragment: `MISE_IGNORED_CONFIG_PATHS` naming the second makes the first load again (the variable replaces the list), and `smise -E installed bootstrap --save-env --only final-hook --yes` leaves the `ignored_config_paths` line as it was. A mise release that changes either then fails the check.
 
-- [ ] **Step 2: Rewrite the failing tests**
+- [x] **Step 2: Rewrite the failing tests**
 
 `test-modules` to the block in Task 2 Step 1, `test-bootstrap` and `test-sysup` to the block in Task 3 Step 2.
 
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-modules; LC_ALL=en_US.UTF-8 bin/lib/test-bootstrap; LC_ALL=en_US.UTF-8 bin/lib/test-sysup`
 Expected: each FAILs on its first rewritten assertion.
 
-- [ ] **Step 3: Rework `sync`**
+- [x] **Step 3: Rework `sync`**
 
 One line changes owner: `ignored_config_paths`, not `env`. The `rotm-` env prefix goes, and the warning names `MISE_IGNORED_CONFIG_PATHS`, not `MISE_ENV`. `sync` also drops any `"rotm-..."` entry from an `env` line, because a `setup.sh` or `sysup` run between `6d14c35` and this task wrote twelve of them. It removes the line when nothing else is in it.
 
-- [ ] **Step 4: Run to see them pass, fix the docs, commit**
+- [x] **Step 4: Run to see them pass, fix the docs, commit**
 
 Run: the three self-checks, then `shellcheck --severity=warning bin/lib/rotm-modules bin/lib/test-modules`.
 Expected: `ok` three times, then no output.

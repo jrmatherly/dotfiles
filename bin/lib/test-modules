@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Self-check for rotm-modules: the module names, the off list and mise's env line.
+# Self-check for rotm-modules: the module names, the off list and the list of files mise skips.
 #
 # - Run it (pnpm check does too); exits 1 naming the first failed assertion:
 #
@@ -8,7 +8,7 @@
 #
 # ---
 # Never touches the real home or mise config: MISE_CONFIG_DIR is a temp dir,
-# and the one mise call runs with every mise dir in it. Installs nothing.
+# and every mise call runs with every mise dir in it. Installs nothing.
 #
 # License: MIT
 
@@ -27,7 +27,7 @@ tmp=$(cd "$(mktemp -d)" && pwd -P)
 trap 'rm -rf "$tmp"' EXIT
 cfg="$tmp/cfg"
 export MISE_CONFIG_DIR="$cfg"
-unset MISE_ENV
+unset MISE_ENV MISE_IGNORED_CONFIG_PATHS
 reset() {
   rm -rf "$cfg"
   mkdir -p "$cfg"
@@ -36,39 +36,39 @@ reset
 
 m="$repo/bin/lib/rotm-modules"
 [ "$("$m" list | tr '\n' ' ')" = "fonts apps vscode claude agents cloud kubernetes devops security network languages media " ] || fail "list"
-all='"rotm-fonts", "rotm-apps", "rotm-vscode", "rotm-claude", "rotm-agents", "rotm-cloud", "rotm-kubernetes", "rotm-devops", "rotm-security", "rotm-network", "rotm-languages", "rotm-media"'
+line() { grep '^ignored_config_paths' "$cfg/miserc.local.toml"; }
 
-# First run on a Mac with no list: every module, in order
-"$m" sync > "$tmp/out"
-[ "$(cat "$cfg/miserc.local.toml")" = "env = [$all]" ] || fail "sync on an empty dir"
-grep -q '^modules: env = \[' "$tmp/out" || fail "sync did not say what it wrote"
-[ -z "$("$m" sync)" ] || fail "a second sync printed something"
-
-# Entries that are not ours stay first, in their order; other keys stay; a stale rotm- entry goes
-reset
-printf 'env = ["installed", "rotm-gone", "work"]\nfoo = 1\n' > "$cfg/miserc.local.toml"
-"$m" sync > /dev/null
-grep -qxF "env = [\"installed\", \"work\", $all]" "$cfg/miserc.local.toml" || fail "entries that are not modules were not kept first"
-grep -qx 'foo = 1' "$cfg/miserc.local.toml" || fail "sync dropped another key"
+# Nothing off: no file, no line, no output. This is every Mac that never ran sync
+[ -z "$("$m" sync)" ] || fail "sync with nothing off printed something"
+[ -z "$(ls -A "$cfg")" ] || fail "sync with nothing off wrote something"
 
 # Off, and back on
-"$m" set security off > /dev/null
-! grep -q 'rotm-security' "$cfg/miserc.local.toml" || fail "an off module is still in env"
+"$m" set security off > "$tmp/out"
+[ "$(cat "$cfg/miserc.local.toml")" = 'ignored_config_paths = ["conf.d/60-rotm-security.toml"]' ] || fail "set off on an empty dir"
+grep -qx 'modules: off = \[security\]' "$tmp/out" || fail "set off did not say what is off"
+[ -z "$("$m" sync)" ] || fail "a second sync printed something"
 [ "$("$m" off)" = security ] || fail "off does not list it"
 "$m" is-on fonts || fail "is-on fonts"
 if "$m" is-on security; then fail "is-on security"; fi
 "$m" set security on > /dev/null
-grep -q 'rotm-security' "$cfg/miserc.local.toml" || fail "set on did not put the module back in env"
+[ "$(line)" = 'ignored_config_paths = []' ] || fail "set on left the module ignored"
 [ -z "$("$m" off)" ] || fail "set on left the module in the off list"
 rc=0
 "$m" set security maybe 2> /dev/null || rc=$?
 [ "$rc" = 2 ] || fail "set with a third word other than on or off exited $rc"
 
-# --without; a module that is not in the off list is on, which is how one that arrives later behaves
+# Only our entries of the one line change: env, other keys and the user's own ignores stay; a stale module entry goes
+reset
+printf 'env = ["installed"]\nignored_config_paths = ["/opt/mine.toml", "conf.d/60-rotm-gone.toml"]\nfoo = 1\n' > "$cfg/miserc.local.toml"
 "$m" sync --without fonts,cloud > /dev/null
+grep -qxF 'env = ["installed"]' "$cfg/miserc.local.toml" || fail "sync touched the env line"
+# The first design's sync wrote rotm- entries into env: they go, the rest stays
+sed -i '' 's/^env = .*/env = ["installed", "rotm-fonts", "rotm-media"]/' "$cfg/miserc.local.toml"
+"$m" sync > /dev/null
+grep -qxF 'env = ["installed"]' "$cfg/miserc.local.toml" || fail "sync left the first design's env entries"
+grep -qx 'foo = 1' "$cfg/miserc.local.toml" || fail "sync dropped another key"
+[ "$(line)" = 'ignored_config_paths = ["/opt/mine.toml", "conf.d/60-rotm-fonts.toml", "conf.d/60-rotm-cloud.toml"]' ] || fail "the user's entry was not kept first, or a stale one stayed"
 [ "$("$m" off | tr '\n' ' ')" = "fonts cloud " ] || fail "--without"
-grep -q 'rotm-media' "$cfg/miserc.local.toml" || fail "a module not in the off list is off"
-! grep -q 'rotm-fonts\|rotm-cloud' "$cfg/miserc.local.toml" || fail "--without left its modules in env"
 
 # Unknown names
 rc=0
@@ -86,47 +86,74 @@ echo typo >> "$cfg/modules-off.local"
 "$m" sync 2> "$tmp/err" || fail "a stray name in modules-off.local failed sync"
 grep -q 'typo' "$tmp/err" || fail "a stray name was not reported"
 
-# A list mise cannot have written, MISE_ENV, and no config dir
+# An env line that held only the first design's entries goes whole
 reset
-printf 'env = [\n  "installed",\n]\n' > "$cfg/miserc.local.toml"
-rc=0
-"$m" sync 2> "$tmp/err" || rc=$?
-[ "$rc" = 1 ] || fail "a multi-line env list exited $rc"
-grep -q 'one line' "$tmp/err" || fail "a multi-line env list was not explained"
-[ "$(sed -n 1p "$cfg/miserc.local.toml")" = 'env = [' ] || fail "a multi-line env list was rewritten"
-reset
-MISE_ENV=work "$m" sync 2> "$tmp/err" > /dev/null || fail "sync with MISE_ENV set"
-grep -q 'MISE_ENV' "$tmp/err" || fail "no warning that MISE_ENV replaces the saved list"
-rc=0
-MISE_CONFIG_DIR="$tmp/missing" "$m" sync 2> /dev/null || rc=$?
-[ "$rc" = 1 ] || fail "sync without a config dir exited $rc"
-[ ! -e "$tmp/missing" ] || fail "sync created a config dir"
+printf 'env = ["rotm-fonts", "rotm-media"]\n' > "$cfg/miserc.local.toml"
+"$m" sync > /dev/null
+[ ! -s "$cfg/miserc.local.toml" ] || fail "an env line of only rotm- entries stayed"
 
-# What mise makes of the list: a module's cask is declared only while the module is on
+# A list on several lines, the variable that replaces the saved list, and no config dir
+reset
+printf 'ignored_config_paths = [\n  "/opt/mine.toml",\n]\n' > "$cfg/miserc.local.toml"
+rc=0
+"$m" set fonts off 2> "$tmp/err" || rc=$?
+[ "$rc" = 1 ] || fail "a multi-line list exited $rc"
+grep -q 'one line' "$tmp/err" || fail "a multi-line list was not explained"
+[ "$(sed -n 1p "$cfg/miserc.local.toml")" = 'ignored_config_paths = [' ] || fail "a multi-line list was rewritten"
+reset
+MISE_IGNORED_CONFIG_PATHS=/x "$m" set fonts off 2> "$tmp/err" > /dev/null || fail "set with MISE_IGNORED_CONFIG_PATHS set"
+grep -q 'MISE_IGNORED_CONFIG_PATHS' "$tmp/err" || fail "no warning that the variable replaces the saved list"
+rc=0
+MISE_CONFIG_DIR="$tmp/missing" "$m" set fonts off 2> /dev/null || rc=$?
+[ "$rc" = 1 ] || fail "set without a config dir exited $rc"
+[ ! -e "$tmp/missing" ] || fail "set created a config dir"
+
+# What mise makes of it: a module's cask is declared unless the module is off
 if ! command -v mise > /dev/null; then
   echo "test-modules: mise is not on PATH, skipping the mise cases" >&2
   echo ok
   exit 0
 fi
 reset
-mkdir -p "$cfg/conf.d" "$tmp/misebin" "$tmp/home" "$tmp/nobrew"
+mkdir -p "$cfg/conf.d" "$tmp/misebin" "$tmp/home/.config" "$tmp/nobrew"
 ln -s "$(command -v mise)" "$tmp/misebin/mise"
+ln -s "$cfg" "$tmp/home/.config/mise"
 printf '[bootstrap.packages]\n"brew:jq" = "latest"\n' > "$cfg/conf.d/30-packages.toml"
-printf '[bootstrap.packages]\n"brew-cask:font-fira-code" = "latest"\n' > "$cfg/config.rotm-fonts.toml"
-# mise with only temp state, from the temp dir
+printf '[bootstrap.packages]\n"brew-cask:font-fira-code" = "latest"\n' > "$cfg/conf.d/60-rotm-fonts.toml"
+printf '[bootstrap.packages]\n"brew:nmap" = "latest"\n' > "$cfg/conf.d/60-rotm-security.toml"
+# mise with only temp state, from the temp dir; extra VAR=value words go first
 smise() {
   (cd "$tmp" && env -i HOME="$tmp/home" TMPDIR="$tmp" PATH="$tmp/misebin:/usr/bin:/bin" \
     MISE_CONFIG_DIR="$cfg" MISE_TRUSTED_CONFIG_PATHS="$cfg" MISE_CEILING_PATHS="$tmp" \
     MISE_SYSTEM_BREW_PREFIX="$tmp/nobrew" \
-    MISE_DATA_DIR="$tmp/data" MISE_STATE_DIR="$tmp/state" MISE_CACHE_DIR="$tmp/cache" mise "$@")
+    MISE_DATA_DIR="$tmp/data" MISE_STATE_DIR="$tmp/state" MISE_CACHE_DIR="$tmp/cache" "$@")
 }
-"$m" sync > /dev/null
-smise bootstrap packages status --json 2> /dev/null > "$tmp/on.json" || fail "mise: status with the module on"
-grep -q '"jq"' "$tmp/on.json" || fail "mise: the base's formula is not declared"
-grep -q 'font-fira-code' "$tmp/on.json" || fail "mise: a module that is on does not declare its cask"
+declared() { smise "$@" mise bootstrap packages status --json 2> /dev/null; }
+declared | grep -q '"jq"' || fail "mise: the base's formula is not declared"
+declared | grep -q font-fira-code || fail "mise: a module with no state does not declare its cask"
+declared MISE_ENV=dev | grep -q font-fira-code || fail "mise: MISE_ENV dropped a module"
 "$m" set fonts off > /dev/null
-smise bootstrap packages status --json 2> /dev/null > "$tmp/off.json" || fail "mise: status with the module off"
-grep -q '"jq"' "$tmp/off.json" || fail "mise: the base's formula went with the module"
-! grep -q 'font-fira-code' "$tmp/off.json" || fail "mise: a module that is off still declares its cask"
+declared | grep -q '"jq"' || fail "mise: the base's formula went with the module"
+if declared | grep -q font-fira-code; then fail "mise: a module that is off still declares its cask"; fi
+if declared MISE_ENV=dev | grep -q font-fira-code; then fail "mise: MISE_ENV brought an off module back"; fi
+if declared MISE_CONFIG_DIR= | grep -q font-fira-code; then fail "mise: an off module loads through the ~/.config/mise link"; fi
+declared MISE_CONFIG_DIR= | grep -q nmap || fail "mise: the link case loaded no module at all"
+
+# Two mise behaviours the design rests on: the variable replaces the saved list, and --save-env keeps the line
+declared MISE_IGNORED_CONFIG_PATHS="$cfg/conf.d/60-rotm-security.toml" > "$tmp/var.json"
+grep -q font-fira-code "$tmp/var.json" || fail "mise: MISE_IGNORED_CONFIG_PATHS no longer replaces the saved list"
+if grep -q nmap "$tmp/var.json"; then fail "mise: MISE_IGNORED_CONFIG_PATHS did not ignore its own file"; fi
+before=$(line)
+# mise 2026.11.5 reads an ignored file for dotfile history and refuses it as untrusted unless that file has its own trust record
+smise MISE_CONFIG_DIR= mise trust "$tmp/home/.config/mise/conf.d/60-rotm-fonts.toml" > /dev/null 2>&1 || fail "mise: trust"
+smise MISE_CONFIG_DIR= mise -E installed bootstrap --save-env --only final-hook --yes > "$tmp/save.out" 2>&1 || {
+  cat "$tmp/save.out" >&2
+  fail "mise: bootstrap --save-env"
+}
+grep -q '^env = \["installed"\]' "$cfg/miserc.local.toml" || fail "mise: --save-env did not save the env list"
+[ "$(line)" = "$before" ] || fail "mise: --save-env changed the ignored_config_paths line"
+
+"$m" set fonts on > /dev/null
+declared | grep -q font-fira-code || fail "mise: a module switched back on does not declare its cask"
 
 echo ok

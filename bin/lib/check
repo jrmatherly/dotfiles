@@ -99,7 +99,7 @@ bash bin/lib/test-override-env > /dev/null
 bash bin/lib/test-bin > /dev/null
 # bin/lib/rotm-mode and bin/rotm against fixture repositories with mise, setup.sh and dotfiles-settings stubbed
 bash bin/lib/test-rotm > /dev/null
-# bin/lib/rotm-modules: the off list and mise's env line under a temp MISE_CONFIG_DIR, and what a scratch mise makes of them
+# bin/lib/rotm-modules: the off list and mise's ignored_config_paths line under a temp MISE_CONFIG_DIR, and what a scratch mise makes of them
 bash bin/lib/test-modules > /dev/null
 # bin/rea-mcp against a fixture Ghidra keg under a temp HOMEBREW_PREFIX and a fake mise shim (REA never starts)
 bash bin/lib/test-rea-mcp > /dev/null

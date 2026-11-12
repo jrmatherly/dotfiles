@@ -190,7 +190,7 @@ run() {
 run
 check_true "off HOME: the log path stays absolute" has "^Logging to $DOTFILES/logs/sysup-[0-9]{8}-[0-9]{6}\\.log\$"
 check_true "any directory: mise runs from HOME, not the caller's project" [ "$(cat "$STATE/mise-pwd")" = "$(cd "$HOME" && pwd -P)" ]
-check_true "sysup syncs the module list" grep -q 'rotm-media' "$HOME/.config/mise/miserc.local.toml"
+check_true "sysup with nothing off writes no module state" [ ! -e "$HOME/.config/mise/miserc.local.toml" ]
 check_true "up to date: packages are ok" has '^✔ packages +up to date$'
 check_true "up to date: every package installed" has '^✔ packages status +all installed$'
 check_true "up to date: nothing undeclared" has '^✔ packages prune +nothing undeclared$'
@@ -455,9 +455,11 @@ check_true "a byte sed can't decode: the output after it still reaches the log" 
 rm -f "$STATE/bad-byte"
 
 rm -rf "$DOTFILES/logs"
+echo cloud > "$HOME/.config/mise/modules-off.local"
 rc=0
 screen=$(TERM=xterm-256color script -q /dev/null "$script" < /dev/null | tr -d '\r') || rc=$?
 check_true "terminal: sysup exited $rc" [ "$rc" -eq 0 ]
+check_true "sysup syncs the module list" grep -q '60-rotm-cloud' "$HOME/.config/mise/miserc.local.toml"
 check_true "terminal: status lines colored" has $'\x1b\\[[0-9;]*m✔'
 check_true "terminal: a running step shows a … line" has '… packages'
 check_true "terminal: summary colored" has $'^  \x1b\\[[0-9;]*m✖'

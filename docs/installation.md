@@ -86,7 +86,7 @@ To automate the setup of your dotfiles on a new machine, use the [setup](../setu
 
 1. checks for the Command Line Tools, and stops with the install command when they are missing
 1. links `~/dotfiles` to the clone and `~/.config/mise` to the clone's mise config, and stops when something else is at either path
-1. writes the list of modules to load: every one, minus those you turned off
+1. writes the list of modules mise skips, and nothing when none is off
 1. installs mise into `~/.local/bin` when it is missing
 1. links the dotfiles into your home directory, before any package can put a file where a link belongs
 1. installs the formulae and casks

@@ -220,7 +220,7 @@ else
   show
 fi
 
-# mise's env list of modules, after the pull so a module that arrived in it is on for this run
+# The list of modules mise skips, after the pull so the helper knows a module that arrived in it
 if ! modules_out=$("$modules" sync 2>&1); then
   status fail modules "$(tail -1 <<< "$modules_out")"
 fi
