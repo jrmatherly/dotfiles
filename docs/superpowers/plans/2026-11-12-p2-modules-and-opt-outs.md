@@ -278,11 +278,11 @@ git commit -m "Add rotm-modules, which keeps mise's env list from what is switch
 - Consumes: `rotm-modules is-on <name>` and `sync [--without <a,b>]` (Task 2).
 - Produces: `./setup.sh --without <a,b>`, also reachable as `rotm install --without <a,b>` and `rotm update --without <a,b>`, since `rotm` passes its arguments to `setup.sh`. After this task every Mac that ran `setup.sh` or `sysup` has an `env` list naming all twelve modules, which is what makes Task 4 safe.
 
-- [ ] **Step 1: Make the fixture forget the list between runs**
+- [x] **Step 1: Make the fixture forget the list between runs**
 
 `test-bootstrap`'s `run()` deletes `$tmp/home`, but `~/.config/mise` is a link into `$fix/tilde/.config/mise`, so the two state files would survive from one case to the next. Add to `run()`, beside its `rm -rf`: `rm -f "$fix/tilde/.config/mise/miserc.local.toml" "$fix/tilde/.config/mise/modules-off.local"`. Copy `bin/lib/rotm-modules` into the fixture where it copies `bin/lib/rotm-mode`.
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 In `bin/lib/test-bootstrap`, after the existing cases. `in_order` reads the mise log, so the order is taken from the screen:
 
@@ -310,12 +310,12 @@ check_true "and says so" has 'dry run: the module list is not written'
 
 In `bin/lib/test-sysup`: the fixture's `$HOME/.config/mise` must exist (`mkdir -p` it where the fixture builds `$HOME`), and after `run`: `check_true "sysup syncs the module list" grep -q 'rotm-media' "$HOME/.config/mise/miserc.local.toml"`.
 
-- [ ] **Step 3: Run to see them fail**
+- [x] **Step 3: Run to see them fail**
 
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-bootstrap; LC_ALL=en_US.UTF-8 bin/lib/test-sysup`
 Expected: FAIL "setup writes the module list", and the `sysup` case.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 `setup.sh`:
 
@@ -327,12 +327,12 @@ Expected: FAIL "setup writes the module list", and the `sysup` case.
 
 `rotm update --without nope` still fetches before `setup.sh` rejects the name. That is accepted: the fetch changes nothing the user chose.
 
-- [ ] **Step 5: Run to see them pass**
+- [x] **Step 5: Run to see them pass**
 
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-bootstrap && LC_ALL=en_US.UTF-8 bin/lib/test-sysup`
 Expected: `ok` twice.
 
-- [ ] **Step 6: Document and commit**
+- [x] **Step 6: Document and commit**
 
 `setup/README.md`: the flag, and the step in the order list. `docs/installation.md`: one paragraph under the install line, "To leave groups out from the start, add `--without <names>` after `setup.sh`", pointing at `docs/modules.md` (written in Task 7).
 

@@ -18,6 +18,8 @@ DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 # An installed copy (mise's checkout) is updated by rotm update, and nothing here may write tracked files into it
 installed=false
 [ "$("$(dirname "$0")/lib/rotm-mode" "$DOTFILES")" != installed ] || installed=true
+# By path, as rotm-mode is, and resolved before the cd below
+modules="$(cd "$(dirname "$0")/lib" && pwd -P)/rotm-modules"
 mkdir -p "$DOTFILES/logs"
 log="$DOTFILES/logs/sysup-$(date +%Y%m%d-%H%M%S).log"
 changed=() notices=() failed=() actions=()
@@ -217,6 +219,12 @@ else
   status fail dotfiles "couldn't pull, carried on; run: dotfiles"
   show
 fi
+
+# mise's env list of modules, after the pull so a module that arrived in it is on for this run
+if ! modules_out=$("$modules" sync 2>&1); then
+  status fail modules "$(tail -1 <<< "$modules_out")"
+fi
+[ -z "$modules_out" ] || echo "$modules_out" >> "$log"
 
 # macOS. List first: with nothing to install there's no second scan, and the
 # list says whether an OS update (the one that restarts) is among them.

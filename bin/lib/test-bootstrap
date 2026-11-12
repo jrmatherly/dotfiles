@@ -39,6 +39,7 @@ mkdir -p "$fix/setup" "$fix/bin/lib" "$fix/tilde/.config/gh" "$fix/tilde/.config
 cp "$repo/setup.sh" "$fix/setup.sh"
 cp "$repo/setup/mise-floor.sh" "$fix/setup/mise-floor.sh"
 cp "$repo/bin/lib/rotm-mode" "$fix/bin/lib/rotm-mode"
+cp "$repo/bin/lib/rotm-modules" "$fix/bin/lib/rotm-modules"
 # Folders an installed copy keeps real: one linked into the copy, one already real, one linked elsewhere
 printf '[dotfiles]\n"~/.config/gh" = { permissions = "0700" }\n"~/.config/keep" = { permissions = "0700" }\n"~/.config/elsewhere" = { permissions = "0700" }\n' > "$fix/tilde/.config/mise/config.installed.toml"
 # The real extras script must not run here, and setup.sh finds it beside itself
@@ -122,6 +123,8 @@ prepare() { :; }
 copy=$fix
 run() {
   rm -rf "${tmp:?}/home" "$STATE" "$tmp/bin/gh" "$tmp/bin/code"
+  # ~/.config/mise links into the fixture, so the module state would outlive the HOME it was written through
+  rm -f "$fix/tilde/.config/mise/miserc.local.toml" "$fix/tilde/.config/mise/modules-off.local"
   export HOME="$tmp/home"
   mkdir -p "$HOME" "$STATE"
   touch "$STATE/mise.log" "$STATE/extras.log" "$STATE/sudo.log" "$STATE/curl.log" "$STATE/order.log"
@@ -418,6 +421,26 @@ run -y
 check_true "clone: a link into the clone at such a key is kept" [ -L "$HOME/.config/gh" ]
 check_true "clone: the hints still name ./setup.sh" grep -q 'then rerun ./setup.sh' <<< "$out"
 prepare() { :; }
+
+# The module list (bin/lib/rotm-modules)
+line_of() { grep -nF -- "$1" <<< "$out" | head -1 | cut -d: -f1; }
+run -y
+check_true "setup writes the module list" grep -q 'rotm-media' "$HOME/.config/mise/miserc.local.toml"
+check_true "the list is written before the dotfiles are applied" [ "$(line_of 'modules: env = ')" -lt "$(line_of 'Linking the dotfiles')" ]
+run -y --without fonts,security
+check_true "--without is stored" [ "$(tr '\n' ' ' < "$HOME/.config/mise/modules-off.local")" = "fonts security " ]
+check_true "--without modules are not in the list" eval '! grep -q "rotm-fonts\|rotm-security" "$HOME/.config/mise/miserc.local.toml"'
+run -y --without=cloud
+check_true "--without= is stored" [ "$(cat "$HOME/.config/mise/modules-off.local")" = cloud ]
+run -y --without nope
+check_true "an unknown module stops setup" [ "$rc" -eq 2 ]
+check_true "and names it" has 'nope'
+check_true "before any mise call" log_empty
+check_true "and before the password prompt" [ ! -s "$STATE/sudo.log" ]
+check_true "and before the warning" lacks 'WARNING'
+run -y -- --dry-run
+check_true "a dry run writes no module list" [ ! -e "$HOME/.config/mise/miserc.local.toml" ]
+check_true "and says so" has 'dry run: the module list is not written'
 
 conf="$repo/tilde/.config/mise/conf.d"
 PATH=$(tr ':' '\n' <<< "$real_path" | grep -v '/mise/shims$' | paste -sd: -)

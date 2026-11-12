@@ -28,7 +28,7 @@ PATH=$(tr ':' '\n' <<< "$PATH" | grep -v '/mise/shims$' | paste -sd: -)
 export HOME="$tmp/home" DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
 # A caller's own token would reach the mise stub and fail the no-token assertion
 unset DOTFILES_MAC_PASSWORD_OP MISE_GITHUB_TOKEN MISE_DATA_DIR
-mkdir -p "$HOME" "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
+mkdir -p "$HOME/.config/mise" "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
 printf 'skill one src claude-code\nskill two src claude-code\n' > "$DOTFILES/agents/claude-skills.txt"
 git -C "$DOTFILES" init -q
 git -C "$DOTFILES" add -A
@@ -190,6 +190,7 @@ run() {
 run
 check_true "off HOME: the log path stays absolute" has "^Logging to $DOTFILES/logs/sysup-[0-9]{8}-[0-9]{6}\\.log\$"
 check_true "any directory: mise runs from HOME, not the caller's project" [ "$(cat "$STATE/mise-pwd")" = "$(cd "$HOME" && pwd -P)" ]
+check_true "sysup syncs the module list" grep -q 'rotm-media' "$HOME/.config/mise/miserc.local.toml"
 check_true "up to date: packages are ok" has '^✔ packages +up to date$'
 check_true "up to date: every package installed" has '^✔ packages status +all installed$'
 check_true "up to date: nothing undeclared" has '^✔ packages prune +nothing undeclared$'

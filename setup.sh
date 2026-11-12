@@ -3,10 +3,12 @@
 # Set up computer environment: a wrapper around `mise bootstrap`
 #
 # Usage:
-#   ./setup.sh [-y|--yes] [--skip-codegraph] [--dash] [-h|--help] [-- <mise bootstrap args>]
+#   ./setup.sh [-y|--yes] [--without <modules>] [--skip-codegraph] [--dash] [-h|--help] [-- <mise bootstrap args>]
 #
 #   -y, --yes         Don't wait for confirmation, and pass --yes to mise;
 #                     the VS Code font menu and the gh login question are skipped
+#   --without <a,b>   Turn these modules off before installing (docs/modules.md).
+#                     It is remembered: a later run leaves them off
 #   --skip-codegraph  Don't install CodeGraph or wire it into Claude Code
 #   --dash            Also run the optional Dash docset configuration
 #   -h, --help        Print this help and exit
@@ -50,6 +52,7 @@ yes=""
 # Also settable in the environment
 skip_codegraph="${DOTFILES_SKIP_CODEGRAPH:-false}"
 RUN_DASH=false
+without=""
 orig_args=("$@")
 
 while [ $# -gt 0 ]; do
@@ -61,6 +64,15 @@ while [ $# -gt 0 ]; do
       ;;
     --skip-codegraph) skip_codegraph=true ;;
     --dash) RUN_DASH=true ;;
+    --without)
+      [ $# -ge 2 ] || {
+        echo "--without needs a list of modules" >&2
+        exit 1
+      }
+      without="${without:+$without,}$2"
+      shift
+      ;;
+    --without=*) without="${without:+$without,}${1#--without=}" ;;
     --skip-brew)
       echo "--skip-brew is gone: use $self -- --skip packages" >&2
       exit 1
@@ -81,6 +93,17 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+# A typo stops here, before the banner, the password prompt and the mise install
+modules="$DOTFILES_DIR/bin/lib/rotm-modules"
+if [ -n "$without" ]; then
+  IFS=, read -ra without_names <<< "$without"
+  for name in "${without_names[@]}"; do
+    rc=0
+    "$modules" is-on "$name" || rc=$?
+    [ "$rc" -ne 2 ] || exit 2
+  done
+fi
 
 user_skip="" dry_run_flag="" upgrade=false
 mise_args=()
@@ -203,6 +226,14 @@ if ! link_into_repo "$HOME/.config/mise" "$DOTFILES_DIR/tilde/.config/mise"; the
   # shellcheck disable=SC2088 # display text
   echo "~/.config/mise is not a link to $DOTFILES_DIR/tilde/.config/mise. Move it aside (mv ~/.config/mise ~/.config/mise.backup) and rerun $self" >&2
   exit 1
+fi
+
+# mise loads a module (config.rotm-<name>.toml) only while the env list in
+# miserc.local.toml names it, so the list is written before any mise call
+if [ -n "$dry_run_flag" ]; then
+  echo "dry run: the module list is not written"
+else
+  "$modules" sync ${without:+--without "$without"} || exit $?
 fi
 
 # On an installed copy ~/.zshrc and ~/.gitconfig are seeded once and then the

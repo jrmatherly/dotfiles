@@ -23,7 +23,7 @@ You need macOS on Apple Silicon. There are two ways in. [Without a clone](#insta
    ~/.local/bin/mise -E installed bootstrap --from 'https://github.com/jrmatherly/returnofthemac.git?ref=stable' --config-dir tilde/.config/mise --save-env --only final-hook && ~/.local/share/mise/bootstrap-repo/setup.sh
    ```
 
-   mise fetches the `stable` branch into `~/.local/share/mise/bootstrap-repo`, links `~/.config/mise` into it and applies nothing itself. `setup.sh` then runs from that copy, with the prompts described under [Run setup](#run-setup), and takes the same flags after its path. `--from` trusts this repository's mise configuration for the run, so [read it](../tilde/.config/mise) first if you want to know what it does. Adding `--dry-run` after `bootstrap` previews mise's part.
+   mise fetches the `stable` branch into `~/.local/share/mise/bootstrap-repo`, links `~/.config/mise` into it and applies nothing itself. `setup.sh` then runs from that copy, with the prompts described under [Run setup](#run-setup), and takes the same flags after its path. `--from` trusts this repository's mise configuration for the run, so [read it](../tilde/.config/mise) first if you want to know what it does. Adding `--dry-run` after `bootstrap` previews mise's part. To leave groups out from the start, add `--without <names>` after `setup.sh`, as in `setup.sh --without security,cloud`. The groups are `fonts`, `apps`, `vscode`, `claude`, `agents`, `cloud`, `kubernetes`, `devops`, `security`, `network`, `languages` and `media`.
 
 1. Open a new terminal and run `gh auth login`. Without a login GitHub allows 60 anonymous API calls an hour, and mise uses them to read the tap formulae: an update in the same hour as the install can fail on that limit.
 1. Finish the steps setup can't do for you: see [After setup](#after-setup). macOS preferences are not applied by the install: see [Set macOS defaults](#set-macos-defaults).
@@ -86,6 +86,7 @@ To automate the setup of your dotfiles on a new machine, use the [setup](../setu
 
 1. checks for the Command Line Tools, and stops with the install command when they are missing
 1. links `~/dotfiles` to the clone and `~/.config/mise` to the clone's mise config, and stops when something else is at either path
+1. writes the list of modules to load: every one, minus those you turned off
 1. installs mise into `~/.local/bin` when it is missing
 1. links the dotfiles into your home directory, before any package can put a file where a link belongs
 1. installs the formulae and casks
@@ -106,6 +107,7 @@ Options:
 | Flag | Effect |
 | --- | --- |
 | `-y`, `--yes` | Don't wait for confirmation before starting, and pass `--yes` to mise. The task then takes the default at its own questions: it keeps the saved VS Code font preset and doesn't offer `gh auth login`. The git identity prompt on a new Mac still asks |
+| `--without <a,b>` | Turn these modules off before anything is installed, and keep them off on later runs. The modules are `fonts`, `apps`, `vscode`, `claude`, `agents`, `cloud`, `kubernetes`, `devops`, `security`, `network`, `languages` and `media` |
 | `--skip-codegraph` | Don't install [CodeGraph](https://github.com/colbymchenry/codegraph) or connect it to Claude Code (an existing install is left alone) |
 | `--dash` | Also run the optional [Dash docset setup](../setup/dash.sh) |
 | `-h`, `--help` | Print usage and exit |
@@ -125,7 +127,7 @@ To see what a run would do on a Mac that has mise but not the `~/.config/mise` l
 cd ~ && MISE_CONFIG_DIR=~/dev/dotfiles/tilde/.config/mise mise bootstrap --dry-run --skip macos-defaults
 ```
 
-It changes nothing. `./setup.sh -- --dry-run` previews through the wrapper instead, but it still makes the two links and installs mise.
+It changes nothing. `./setup.sh -- --dry-run` previews through the wrapper instead, but it still makes the two links and installs mise. It does not write the module list.
 
 ## After setup
 
