@@ -124,6 +124,8 @@ One row per key in `conf.d/40-dotfiles.toml`. `tilde/.config/mise/config.install
 | `~/.config/mole/whitelist` | symlink | Mole writes `clean-list.txt` and `purge_paths` beside it, not this file | read |
 | `~/.config/mole/whitelist_optimize` | symlink | as `whitelist` | read |
 
+Measured on 2026-11-11 in the disposable guest (rows 7 and 8 of the P1 plan's VM proof, mise 2026.11.6): after a full install the copy had no changed tracked file, and it still had none after `git config --global`, `gh config set`, an append to `~/.zshrc`, a changed VS Code keybinding and setting, and a first run of btop, Ghostty, cmux and lazygit. So the `~/.gitconfig`, `~/.zshrc`, `~/.config/gh`, `Code/User`, `~/.config/btop`, `~/.config/ghostty` and `~/.config/cmux` rows are measured for those actions. Amp was not on the guest, so its row stays read.
+
 Open after this table: `~/.claude/rules/jstack-models.md` is a link to a tracked file that two tools rewrite, and `~/.config/amp/settings.json` and `~/.config/btop/btop.conf` may be rewritten by their apps. None has an entry yet. Row 8 decides each.
 
 Two more writers were found by review, not by a run. `rotm settings` stored a macOS preference by editing the tracked `conf.d/20-macos.toml`, and a jstack role by editing `jstack-models.md`: on an installed copy it now refuses both and says why, until P2 gives the user a layer of their own. `setup/misc.sh` runs `pnpm install` in the copy without `--frozen-lockfile`. Not checked: whether that can rewrite `pnpm-lock.yaml`. Row 7 shows it if it does.

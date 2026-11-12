@@ -12,6 +12,7 @@ aliases:
     clone: repo clone
     co: pr checkout
     pv: pr view --web
+    pc: pr create --web
     v: repo view --web
     status: >
         !gh api graphql -f emoji="${1%% *}" -f msg="${1#* }" -f query='mutation ($msg: String!, $emoji: String) {changeUserStatus(input:{message:$msg,emoji:$emoji}) {status { message, emoji }}}'
