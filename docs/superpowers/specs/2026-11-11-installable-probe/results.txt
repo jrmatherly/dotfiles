@@ -8,3 +8,6 @@ PROBE 7 work-first-run=applied remembered=yes saved-in=miserc.local.toml
 PROBE 8 extra=removed linked=kept ran-from=checkout first-error=none
 PROBE 9 config-dir=symlink-into-checkout from-cfg=applied local-toml-in-checkout=yes update-with-local-toml=updates
 PROBE 10 applied=yes branch-after-install=main edit-after-install=kept branch-after-update=stable edit-after-update=kept update-exit=0
+PROBE 11 only-final-hook=ok skip-all=untested no-root-toml=ok
+PROBE 12 file-override=file dir-override=real-dir remembered=yes
+PROBE 13 update-fetch-only=updates exit=0 flags=final-hook

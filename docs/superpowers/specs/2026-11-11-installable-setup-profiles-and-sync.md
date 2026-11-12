@@ -152,6 +152,9 @@ Measured on 2026-11-11 in the UTM guest (macOS 27.2.1, mise 2026.11.6, a disposa
 | `mise bootstrap unapply <module>` removes that module's dotfile entries and nothing else | Yes, run in the checkout with no trust error (probe 8) |
 | `--from <url> --config-dir <dir>` links the config dir into the checkout, and a `*.local.toml` written there does not block `--update` | Yes. The file shows as untracked in the checkout's `git status` (probe 9) |
 | `--from <url> --from-dir <clone>` on a clone with uncommitted edits, on a branch other than the ref | The install applies from the clone as it is. `--update` switches the clone to the ref's branch and exits 0. The edit survives both (probe 10) |
+| `--only final-hook` with `--from` and `--config-dir` clones and links and applies nothing, and the repository needs no root `mise.toml` | Yes to both (probe 11) |
+| A `config.<env>.toml` in the config dir redeclares a `conf.d` dotfile entry, for a file and for a linked folder, and the selection saved by `--save-env` holds for a later `mise dotfiles apply` | Yes: the file became a seeded copy, the folder a real one, and the second apply kept both (probe 12) |
+| The fetch-only call with `--update` fast-forwards the checkout | Yes, exit 0 (probe 13) |
 
 ### Still not verified
 
@@ -160,6 +163,7 @@ Measured on 2026-11-11 in the UTM guest (macOS 27.2.1, mise 2026.11.6, a disposa
 | The user layer can cancel one package or tool key the project declares | P2's first task: a dry run against the real package list. Probe 4 measured a dotfile key only |
 | The same behaviours on the 2026.11.5 floor in `setup/mise-floor.sh` | The guest ran 2026.11.6, the release mise's installer gave it. The owner decided on 2026-11-11 to leave the floor at 2026.11.5 and accept this gap. Decision 10 still applies: each promotion to `stable` is proven in the VM on the mise current that day |
 | A project's `.miserc.toml` is read when `mise bootstrap` runs from inside the checkout, without `--from` | Not measured. It matters only if a later run stops passing `--from` |
+| `--save-env` writes the selection on a run that applies nothing, the next `--update` still works after `mise dotfiles apply` has redeclared the config dir link through `~/dotfiles`, and an environment file that arrives in an update turns an existing linked folder into a real one | Probe 14, written and not run. It is Task 1 of the P1 plan |
 | What an adopted home in mode `sync` does once the history watcher is declared | P3, in the VM, against a real private repository |
 
 Measured on this Mac on 2026-11-11: `mise --version` prints 2026.11.5, and `mise dot --help` lists `origin`, `sync`, `pull`, `track`, `conflicts` and `exclude`.
@@ -169,7 +173,7 @@ Also measured that day: with `HOME` and every `MISE_*_DIR` pointed at a scratch 
 ## Plans
 
 - `docs/superpowers/plans/completed/2026-11-11-p0-probes-and-model-default.md` (done 2026-11-11): the probes in a scratch home, and the `claude-config save` model rule. Its results fill in this spec and decide the open points.
-- `docs/superpowers/plans/2026-11-11-p1-install-and-update.md` (written 2026-11-11, not started): the config-dir shape, mise to fetch and link followed by `setup.sh`, the `rotm` command, and an `installed` config environment for targets apps rewrite.
+- `docs/superpowers/plans/2026-11-11-p1-install-and-update.md` (written and reviewed 2026-11-11; probes 11 to 13 run, probe 14 and all code still to do): the config-dir shape, mise to fetch and link followed by `setup.sh`, the `rotm` command, and an `installed` config environment for targets apps rewrite.
 - P2 to P6 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
 
 ## Phase briefs

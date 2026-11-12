@@ -475,14 +475,150 @@ probe_10() {
   answer 10 "applied=$applied branch-after-install=$b1 edit-after-install=$e1 branch-after-update=$(clone_branch "$clone") edit-after-update=$(pick kept lost grep -q dev-edit "$clone/files/linked") update-exit=$code"
 }
 
+# P1's questions: can mise fetch and link without applying, and can a config
+# environment redeclare a dotfile entry.
+
+skip_all='--skip accounts,plugins,packages,files,services,firewall,compose,repos,dotfiles,mise-shell-activate,macos-defaults,macos-launchd-agents,user,tools,task,final-hook'
+
+# cfg_project <keep|drop>: a project with a cfg/ config dir, with or without its root mise.toml
+cfg_project() {
+  new_project || return 1
+  mkdir "$project/cfg"
+  printf '[dotfiles]\n"~/.probe/from-cfg" = "../files/linked"\n' > "$project/cfg/config.toml"
+  [ "$1" = keep ] || g -C "$project" rm -q mise.toml mise.extras.toml mise.work.toml
+  commit_all "$project" "add a config dir"
+}
+
+# fetch_only <flags> [<more args>]: clone and link, asking mise to apply nothing
+fetch_only() {
+  local flags=$1
+  shift
+  # shellcheck disable=SC2086 # the flags are two words
+  step m bootstrap --from "file://$project" --config-dir cfg $flags "$@"
+}
+
+# fetched <flags> <keep|drop>: ok when a fresh home ends linked with nothing applied
+fetched() {
+  new_home mac-a
+  cfg_project "$2" || return 1
+  rmdir "$MISE_CONFIG_DIR"
+  fetch_only "$1" && [ -L "$MISE_CONFIG_DIR" ] && ! has "$HOME/.probe/from-cfg" && ! has "$HOME/.probe/linked"
+}
+
+probe_11() {
+  local hook skip=untested bare
+  hook=$(pick ok error fetched '--only final-hook' keep)
+  [ "$hook" = ok ] || skip=$(pick ok error fetched "$skip_all" keep)
+  if [ "$hook" = ok ]; then
+    bare=$(pick ok error fetched '--only final-hook' drop)
+  else
+    bare=$(pick ok error fetched "$skip_all" drop)
+  fi
+  answer 11 "only-final-hook=$hook skip-all=$skip no-root-toml=$bare"
+}
+
+probe_12() {
+  local app dir again
+  new_home mac-a
+  new_project || return 1
+  mkdir -p "$project/cfg/conf.d"
+  cat > "$project/cfg/conf.d/40.toml" << 'EOF'
+[dotfiles]
+"~/.probe/app" = { source = "../../files/linked", mode = "symlink" }
+"~/.probe/dir" = { source = "../../files", mode = "symlink" }
+EOF
+  cat > "$project/cfg/config.installed.toml" << 'EOF'
+[dotfiles]
+"~/.probe/app" = { source = "../files/linked", mode = "copy", create_if_missing = true }
+"~/.probe/dir" = { permissions = "0755" }
+"~/.probe/dir/one" = { source = "../files/copied", mode = "symlink" }
+EOF
+  commit_all "$project" "add a config dir with an environment file" || return 1
+  rmdir "$MISE_CONFIG_DIR"
+  step m -E installed bootstrap --from "file://$project" --config-dir cfg --save-env || return $?
+  app=$(kind "$HOME/.probe/app")
+  if [ -L "$HOME/.probe/dir" ]; then
+    dir=symlink
+  elif [ -d "$HOME/.probe/dir" ]; then
+    dir='real-dir'
+  else
+    dir=error
+  fi
+  rm -rf "$HOME/.probe"
+  step m dotfiles apply --yes
+  again=$(kind "$HOME/.probe/app")
+  answer 12 "file-override=$app dir-override=$dir remembered=$(pick yes no [ "$again" = file ])"
+}
+
+probe_13() {
+  local flags='--only final-hook' code=0
+  if ! fetched "$flags" keep; then
+    flags=$skip_all
+    fetched "$flags" keep || return 1
+  fi
+  upstream extra || return 1
+  fetch_only "$flags" --update || code=$?
+  answer 13 "update-fetch-only=$(synced "$(checkout)") exit=$code flags=$(pick final-hook skip-all [ "$flags" = '--only final-hook' ])"
+}
+
+# The install line's exact flags, then what setup.sh does next: a dotfiles
+# apply that redeclares the config dir link through ~/dotfiles, an update, and
+# an environment file that arrives in that update.
+probe_14() {
+  local saved link code=0 updated conv co
+  new_home mac-a
+  export MISE_CONFIG_DIR="$HOME/.config/mise"
+  mkdir -p "$HOME/.config"
+  new_project || return 1
+  g -C "$project" rm -q mise.toml mise.extras.toml mise.work.toml
+  mkdir -p "$project/cfg/conf.d"
+  cat > "$project/cfg/conf.d/40.toml" << 'EOF'
+[dotfiles]
+"~/.config/mise" = { source = "~/dotfiles/cfg", mode = "symlink" }
+"~/.probe/dir" = { source = "~/dotfiles/files", mode = "symlink" }
+EOF
+  commit_all "$project" "a config dir that links itself through ~/dotfiles" || return 1
+  step m -E installed bootstrap --from "file://$project" --config-dir cfg --save-env --only final-hook || return $?
+  if [ ! -L "$MISE_CONFIG_DIR" ]; then
+    echo "probe: the config dir is not a link after the install line" >&2
+    return 1
+  fi
+  saved=$(pick yes no grep -qs installed "$MISE_CONFIG_DIR/miserc.local.toml")
+  co="$MISE_DATA_DIR/bootstrap-repo"
+  ln -s "$co" "$HOME/dotfiles"
+  step m dotfiles apply --yes
+  case $(readlink "$MISE_CONFIG_DIR") in
+    "$co"/*) link=direct ;;
+    *dotfiles/*) link=via-dotfiles ;;
+    *) link=other ;;
+  esac
+  cat > "$project/cfg/config.installed.toml" << 'EOF'
+[dotfiles]
+"~/.probe/dir" = { permissions = "0755" }
+"~/.probe/dir/one" = { source = "~/dotfiles/files/copied", mode = "symlink" }
+EOF
+  commit_all "$project" "add the environment file" || return 1
+  step m -E installed bootstrap --from "file://$project" --config-dir cfg --save-env --update --only final-hook || code=$?
+  updated=$(synced "$co")
+  step m dotfiles apply --yes
+  if [ -L "$HOME/.probe/dir" ]; then
+    conv=symlink
+  elif [ -d "$HOME/.probe/dir" ]; then
+    conv='real-dir'
+  else
+    conv=missing
+  fi
+  answer 14 "save-env-with-final-hook=$saved link-after-apply=$link update=$updated exit=$code folder-converted=$conv"
+}
+
 main() {
   local n
-  [ $# -gt 0 ] || set -- 1 2 3 4 5 6 7 8 9 10
+  [ $# -gt 0 ] || set -- 1 2 3 4 5 6 7 8 9 10 11 12 13 14
   new_home mac-a
   (self_check) || exit $?
   for n in "$@"; do
     case $n in
-      [1-9] | 10) probe "$n" "probe_$n" ;;
+      [1-9] | 1[0-4]) probe "$n" "probe_$n" ;;
       *) echo "probe: no probe $n" >&2 ;;
     esac
   done
