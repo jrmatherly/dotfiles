@@ -1,0 +1,88 @@
+#!/bin/bash
+#
+# Install, update and configure returnofthemac.
+#
+# - Run setup again, with any of `setup.sh`'s options:
+#
+# `rotm install {{-y}}`
+#
+# - Fetch the latest release into an installed copy, then run setup:
+#
+# `rotm update {{-y}}`
+#
+# - See and change the settings, as `dotfiles-settings` does:
+#
+# `rotm settings {{list}}`
+#
+# - Print this help:
+#
+# `rotm help`
+#
+# ---
+# `update` works only on an installed copy (mise's checkout, see
+# bin/lib/rotm-mode): a development clone is pulled by hand. It stops before
+# setup when mise cannot fast-forward the copy, and lists the tracked files
+# that differ in it.
+#
+# License: MIT
+
+set -euo pipefail
+
+DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+
+usage() {
+  awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); if ($0 == "---") exit; print; next } NR > 1 { exit }' "$0"
+}
+
+update() {
+  local branch url arg rc yes=""
+  if [ "$("$(dirname "$0")/lib/rotm-mode" "$DOTFILES")" = clone ]; then
+    echo "rotm: this is a development clone. Pull it yourself, then run ./setup.sh" >&2
+    exit 1
+  fi
+  if ! branch=$(git -C "$DOTFILES" symbolic-ref -q --short HEAD); then
+    echo "rotm: the installed copy is not on a branch (git -C $DOTFILES status shows where it is)" >&2
+    exit 1
+  fi
+  # mise refuses a URL that differs from the checkout's origin, so it is read
+  url=$(git -C "$DOTFILES" remote get-url origin)
+  for arg in "$@"; do
+    case "$arg" in
+      --) break ;;
+      -y | --yes) yes=--yes ;;
+    esac
+  done
+  cd "$HOME"
+  # --only final-hook: fetch and link, apply nothing (probes 11 and 13). setup.sh does the installing.
+  mise bootstrap --from "$url?ref=$branch" --config-dir tilde/.config/mise --update --only final-hook ${yes:+"$yes"} || {
+    rc=$?
+    {
+      echo "rotm: mise refused or failed to update the installed copy. Tracked files that differ in it:"
+      git -C "$DOTFILES" status --short --untracked-files=no
+      echo "Nothing was installed."
+    } >&2
+    exit "$rc"
+  }
+  # The update may have replaced this file: bash keeps reading the one it opened
+  exec "$DOTFILES/setup.sh" "$@"
+}
+
+case "${1:-help}" in
+  install)
+    shift
+    exec "$DOTFILES/setup.sh" "$@"
+    ;;
+  update)
+    shift
+    update "$@"
+    ;;
+  settings)
+    shift
+    exec "$DOTFILES/bin/dotfiles-settings" "$@"
+    ;;
+  help | -h | --help) usage ;;
+  *)
+    echo "rotm: unknown command: $1" >&2
+    exit 2
+    ;;
+esac

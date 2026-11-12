@@ -38,4 +38,54 @@ ln -s "$HOME/.local/share/mise/bootstrap-repo" "$tmp/link"
 check "a link to the checkout is installed" "[ \"\$(bash '$mode' '$tmp/link')\" = installed ]"
 check "no checkout at all is a clone" "[ \"\$(HOME='$tmp/empty' bash '$mode' '$tmp/dev')\" = clone ]"
 
+# rotm: an installed fixture on branch stable with a bare origin, and a dev clone of the same files
+fix="$HOME/.local/share/mise/bootstrap-repo"
+origin="$tmp/origin.git"
+make_copy() {
+  mkdir -p "$1/bin/lib"
+  cp "$repo/bin/rotm" "$1/bin/rotm"
+  cp "$mode" "$1/bin/lib/rotm-mode"
+  printf '#!/bin/bash\necho "setup $*" >> "%s/log"\n' "$tmp" > "$1/setup.sh"
+  printf '#!/bin/bash\necho "dotfiles-settings $*" >> "%s/log"\n' "$tmp" > "$1/bin/dotfiles-settings"
+  chmod +x "$1/setup.sh" "$1/bin/dotfiles-settings"
+}
+make_copy "$fix"
+make_copy "$tmp/dev"
+git init -q --bare "$origin"
+git -C "$fix" init -q -b stable
+git -C "$fix" add .
+git -C "$fix" -c user.name=t -c user.email=t@example.com commit -q -m fixture
+git -C "$fix" remote add origin "$origin"
+# So "no untracked file is listed" means something
+touch "$fix/untracked"
+mkdir "$tmp/stubs"
+# shellcheck disable=SC2016 # the stub expands these when it runs
+printf '#!/bin/bash\n{ echo "cwd $PWD"; echo "mise $*"; } >> "%s/log"\nexit "${STUB_MISE_RC:-0}"\n' "$tmp" > "$tmp/stubs/mise"
+chmod +x "$tmp/stubs/mise"
+PATH="$tmp/stubs:$PATH"
+rotm() { bash "$fix/bin/rotm" "$@"; }
+
+check "install passes its arguments to setup.sh" "rotm install -y -- --upgrade && grep -qx 'setup -y -- --upgrade' '$tmp/log'"
+check "settings passes through" "rotm settings list && grep -qx 'dotfiles-settings list' '$tmp/log'"
+: > "$tmp/log"
+check "update fetches the branch it is on" "rotm update && grep -q -- \"--from $origin?ref=stable --config-dir tilde/.config/mise --update --only final-hook\" '$tmp/log'"
+check "update runs mise from HOME" "grep -qx \"cwd $HOME\" '$tmp/log'"
+check "update then runs setup.sh" "[ \"\$(tail -1 '$tmp/log')\" = 'setup ' ]"
+check "update without -y does not pass --yes to mise" "! grep -q -- '--yes' '$tmp/log'"
+: > "$tmp/log"
+check "update -y passes --yes to mise and -y to setup.sh" "rotm update -y && grep -q -- '--only final-hook --yes' '$tmp/log' && grep -qx 'setup -y' '$tmp/log'"
+: > "$tmp/log"
+check "a -y after -- is for mise bootstrap, not this update" "rotm update -- -y && ! grep -q -- '--yes' '$tmp/log'"
+: > "$tmp/log"
+echo edit >> "$fix/setup.sh"
+check "a refused update exits with mise's code" "STUB_MISE_RC=1 rotm update > '$tmp/out' 2>&1; [ \$? -eq 1 ]"
+check "a refused update does not run setup.sh" "! grep -q '^setup' '$tmp/log'"
+check "a refused update names the tracked files that differ" "grep -q 'setup.sh' '$tmp/out' && ! grep -q '??' '$tmp/out'"
+git -C "$fix" checkout -q -- setup.sh
+git -C "$fix" checkout -q --detach
+check "a detached copy stops the update" "! rotm update 2> '$tmp/err' && grep -q 'not on a branch' '$tmp/err'"
+check "update in a dev clone refuses" "! bash '$tmp/dev/bin/rotm' update 2> '$tmp/err' && grep -q 'development clone' '$tmp/err'"
+check "an unknown command exits 2" "rotm frobnicate 2> /dev/null; [ \$? -eq 2 ]"
+check "no argument prints usage" "rotm | grep -q 'rotm update'"
+
 exit $((fails > 0))
