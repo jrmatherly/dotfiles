@@ -1,0 +1,41 @@
+#!/bin/bash
+#
+# Self-check for rotm-mode and rotm against fixture repositories.
+#
+# - Run it (pnpm check does too); exits 1 when an assertion fails:
+#
+# `test-rotm`
+#
+# ---
+# Never touches the real home or mise: HOME is a temp dir, and mise, setup.sh
+# and dotfiles-settings are stubs that log their arguments.
+#
+# License: MIT
+
+set -u
+
+repo="$(cd "$(dirname "$0")/../.." && pwd -P)"
+tmp=$(cd "$(mktemp -d)" && pwd -P)
+trap 'rm -rf "$tmp"' EXIT
+export HOME="$tmp/home"
+unset DOTFILES MISE_DATA_DIR
+fails=0
+
+check() {
+  if eval "$2"; then echo "ok   $1"; else
+    echo "FAIL $1"
+    fails=$((fails + 1))
+  fi
+}
+
+mode="$repo/bin/lib/rotm-mode"
+mkdir -p "$HOME/.local/share/mise/bootstrap-repo" "$tmp/dev" "$tmp/data/bootstrap-repo"
+check "mise's checkout is installed" "[ \"\$(bash '$mode' '$HOME/.local/share/mise/bootstrap-repo')\" = installed ]"
+check "another folder is a clone" "[ \"\$(bash '$mode' '$tmp/dev')\" = clone ]"
+check "MISE_DATA_DIR moves the checkout" "[ \"\$(MISE_DATA_DIR='$tmp/data' bash '$mode' '$tmp/data/bootstrap-repo')\" = installed ]"
+check "the default checkout is a clone under another MISE_DATA_DIR" "[ \"\$(MISE_DATA_DIR='$tmp/data' bash '$mode' '$HOME/.local/share/mise/bootstrap-repo')\" = clone ]"
+ln -s "$HOME/.local/share/mise/bootstrap-repo" "$tmp/link"
+check "a link to the checkout is installed" "[ \"\$(bash '$mode' '$tmp/link')\" = installed ]"
+check "no checkout at all is a clone" "[ \"\$(HOME='$tmp/empty' bash '$mode' '$tmp/dev')\" = clone ]"
+
+exit $((fails > 0))

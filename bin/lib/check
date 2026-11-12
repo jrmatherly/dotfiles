@@ -97,6 +97,8 @@ bash bin/lib/test-packages > /dev/null
 bash bin/lib/test-override-env > /dev/null
 # bin/serve, bin/git-find and bin/git-tidy under a scratch HOME and git repo
 bash bin/lib/test-bin > /dev/null
+# bin/lib/rotm-mode and bin/rotm against fixture repositories with mise, setup.sh and dotfiles-settings stubbed
+bash bin/lib/test-rotm > /dev/null
 # bin/rea-mcp against a fixture Ghidra keg under a temp HOMEBREW_PREFIX and a fake mise shim (REA never starts)
 bash bin/lib/test-rea-mcp > /dev/null
 # the Claude Code hooks against sample payloads

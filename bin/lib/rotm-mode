@@ -1,0 +1,26 @@
+#!/bin/bash
+#
+# Print `installed` when a returnofthemac copy is mise's own checkout, `clone` otherwise.
+#
+# - Say which kind the copy holding this script is:
+#
+# `rotm-mode`
+#
+# - Say which kind another folder is:
+#
+# `rotm-mode {{path/to/folder}}`
+#
+# ---
+# An installed copy is the one `mise bootstrap --from` fetched: it is updated
+# by `rotm update` and nothing may write into it. Always exits 0. Callers run
+# this by path, never through PATH, so a test fixture uses its own copy.
+#
+# License: MIT
+
+dir="${1:-$(dirname "$0")/../..}"
+# -ef is false when either side is missing, so no checkout means a clone
+if [ "$dir" -ef "${MISE_DATA_DIR:-$HOME/.local/share/mise}/bootstrap-repo" ]; then
+  echo installed
+else
+  echo clone
+fi
