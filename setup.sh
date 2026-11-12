@@ -369,9 +369,16 @@ packages_for() {
       exit 1
     fi
     # mise stops at the first package that fails, so each one after it gets its own apply
-    local missing pkg
-    missing=$(mise bootstrap packages status --json | jq -r --arg m "$1" '.[$m].packages[]? | select(.state == "missing") | .package') || missing=""
-    if [ -z "$missing" ]; then
+    local states missing pkg
+    states=$(mise bootstrap packages status --json | jq -r --arg m "$1" '.[$m].packages[]? | "\(.state)\t\(.package)"') || states=""
+    missing=$(awk -F'\t' '$1 == "missing" { print $2 }' <<< "$states")
+    if [ -n "$missing" ]; then
+      :
+    elif grep -q '^unexpectedly_installed' <<< "$states"; then
+      # With --manager mise fails an installed package that a local config declares { state = "absent" }.
+      # Nothing is missing, so that choice is not a problem
+      echo "Nothing is missing: mise stopped at $2 that are installed and declared absent, and they stay as they are."
+    else
       warning "Some $2 failed to install. See above, then rerun $self"
       problem "$3" "some $2" "$out"
     fi

@@ -554,7 +554,7 @@ git commit -m "Split the packages and tools into twelve modules"
 - Consumes: `rotm-modules is-on <name>` (Task 2).
 - Produces: in `misc.sh`, `module_on <name>`, true when the module is on, and for an off module one line per gated step: `skipped: the <name> module is off`.
 
-- [ ] **Step 1: Make `misc.sh` runnable under stubs**
+- [x] **Step 1: Make `misc.sh` runnable under stubs**
 
 No self-check runs `setup/misc.sh` today: `test-bootstrap` only greps it. It also puts `/opt/homebrew/bin` first on `PATH` and names `/opt/homebrew/opt/rustup` and `/opt/homebrew/opt/ghidra` directly, so under a test it would run this Mac's real `uv`, `rtk`, `gh` and `claude`. Change those three places to `${HOMEBREW_PREFIX:-/opt/homebrew}`, as `setup.sh` does. In `test-bootstrap`, add the guard it already has for `setup.sh`:
 
@@ -563,7 +563,7 @@ No self-check runs `setup/misc.sh` today: `test-bootstrap` only greps it. It als
   || fail "setup/misc.sh names /opt/homebrew without HOMEBREW_PREFIX; not running it"
 ```
 
-- [ ] **Step 2: Build the harness, every module on**
+- [x] **Step 2: Build the harness, every module on**
 
 A folder `$tmp/mfix` holds copies of `setup/misc.sh` and `bin/lib/rotm-modules` at their repo paths, and one-line stubs at `bin/install-iosevka-code`, `bin/claude-config`, `bin/claude-catalog`, `bin/hindsight-memory` and `bin/install-snippetslab-skill` that append their name and arguments to `$STATE/misc.log`. `stub` adds `curl`, `uv`, `uvx`, `npx`, `jq`, `rtk` and `mise` to `$tmp/bin`, each logging the same way. The `claude` stub goes in `$tmp/bin` and at `$HOME/.local/bin/claude`, logs, and exits 1 when its first two arguments are `mcp get`: `misc.sh` registers a server only when `mcp get` fails.
 
@@ -588,7 +588,7 @@ check_true "all on: rtk is wired" ran 'init -g'
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-bootstrap`
 Expected: `ok`. These cases must pass before Step 3, or the off cases prove nothing. If a step does not fire, fix the stubs, not `misc.sh`.
 
-- [ ] **Step 3: Write the failing tests**
+- [x] **Step 3: Write the failing tests**
 
 ```bash
 fresh
@@ -619,12 +619,12 @@ check_true "and setup exits 0" [ "$rc" -eq 0 ]
 
 The second case is the same with one more package in state `missing`: `has 'Setup finished with 1 problem'`.
 
-- [ ] **Step 4: Run to see them fail**
+- [x] **Step 4: Run to see them fail**
 
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-bootstrap`
 Expected: FAIL "modules off: no install-iosevka-code".
 
-- [ ] **Step 5: Implement**
+- [x] **Step 5: Implement**
 
 `setup/dotfiles-extras.sh` writes `gpg.ssh.program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign` with `commit.gpgSign` and `tag.gpgSign` when the user picks SSH signing, and the `1password` cask is in `apps`. With `apps` off and no 1Password, every commit and tag would then fail. When the method is `ssh` and that program is not executable, warn and write the identity with no signing lines, as the `none` choice does. Add the file to this task's commit and one case to the self-check that covers it (find it with `grep -l dotfiles-extras bin/lib/test-*`; a grep assertion in `test-bootstrap` if none runs it). The other answer, keeping the cask in the base, would force 1Password on everyone, against decision 3. It is the owner's to overrule.
 
@@ -632,7 +632,7 @@ Expected: FAIL "modules off: no install-iosevka-code".
 
 `setup.sh` `packages_for`: when the manager's apply fails, nothing for that manager is in state `missing` afterwards, and at least one of its packages is in state `unexpectedly_installed`, it is not a problem. The decision reads states from `status --json`, not mise's wording. Any other failure stays a problem. mise 2026.11.7 added a `skipped` state for a key no manager can install; every key here carries a manager, so it is not handled, and a package in it stays a problem.
 
-- [ ] **Step 6: Run to see them pass, then commit**
+- [x] **Step 6: Run to see them pass, then commit**
 
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-bootstrap`
 Expected: `ok`.
@@ -641,6 +641,8 @@ Expected: `ok`.
 git add setup/misc.sh setup/dotfiles-extras.sh setup.sh bin/lib/test-bootstrap
 git commit -m "Skip the Claude, agent, app and font steps of a module that is off"
 ```
+
+**As built, 2026-11-12:** the harness keeps its stubs in `$tmp/mbin`, not `$tmp/bin`, because a logging `curl` or `jq` there would break the `setup.sh` cases. The `agents` steps share one flag set once, so the module prints one `skipped` line, not one per step. The code was written before the tests were seen to fail, so two mutations stood in for Step 4: `module_on` always true failed "modules off: no install-iosevka-code", and the `unexpectedly_installed` branch disabled failed "an installed package declared absent is not a problem". The signing guard also clears the key and skips the key prompt. It is covered by a grep assertion only: no self-check runs `dotfiles-extras.sh`.
 
 ---
 

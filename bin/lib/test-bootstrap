@@ -9,7 +9,7 @@
 # ---
 # Never sets anything up. Part one runs a copy of setup.sh in a fixture clone
 # with a temp HOME and mise, sudo, xcode-select, curl, gh and code as stubs on
-# PATH. Part two asks the real mise for a dry run of the tracked
+# PATH, then a copy of setup/misc.sh the same way with its own stubs. Part two asks the real mise for a dry run of the tracked
 # conf.d/50-bootstrap.toml from a scratch HOME, and is skipped without mise.
 #
 # License: MIT
@@ -65,6 +65,7 @@ case $1 in
       "bootstrap packages status --json")
         printf '{"brew-cask":{"available":true,"packages":['
         for p in $(cat "$STATE/missing-casks" 2> /dev/null); do printf '{"package":"%s","state":"missing"},' "$p"; done
+        for p in $(cat "$STATE/absent-casks" 2> /dev/null); do printf '{"package":"%s","state":"unexpectedly_installed"},' "$p"; done
         printf '{"package":"ghostty","state":"installed"}]}}\n' ;;
       "bootstrap packages apply --yes brew-cask:"*)
         ! grep -qxF "${5#brew-cask:}" "$STATE/bad-casks" 2> /dev/null || { echo "mise ERROR download returned 404"; exit 1; } ;;
@@ -442,6 +443,98 @@ check_true "and before the warning" lacks 'WARNING'
 run -y --without fonts -- --dry-run
 check_true "a dry run writes no module state" [ ! -e "$rc_file" ]
 check_true "and says so" has 'dry run: the module list is not written'
+
+# An installed cask declared absent in a local config: with --manager mise fails it, and nothing is missing
+prepare() {
+  touch "$STATE/casks-fail"
+  echo warp > "$STATE/absent-casks"
+}
+run -y
+check_true "an installed package declared absent is not a problem" lacks 'Setup finished with'
+check_true "and setup exits 0" [ "$rc" -eq 0 ]
+check_true "and says nothing is missing" has 'Nothing is missing'
+prepare() {
+  touch "$STATE/casks-fail"
+  echo warp > "$STATE/absent-casks"
+  echo utm > "$STATE/missing-casks"
+  echo utm > "$STATE/bad-casks"
+}
+run -y
+check_true "a package that is missing beside it still is a problem" has 'Setup finished with 1 problem'
+prepare() { :; }
+
+# setup/misc.sh under stubs. It puts the Homebrew prefix on PATH and names two kegs, so it must read HOMEBREW_PREFIX
+! grep -q '/opt/homebrew' <(grep -v 'HOMEBREW_PREFIX:-/opt/homebrew' "$repo/setup/misc.sh" | grep -v '^ *#') \
+  || fail "setup/misc.sh names /opt/homebrew without HOMEBREW_PREFIX; not running it"
+mfix="$tmp/mfix"
+mkdir -p "$mfix/setup" "$mfix/bin/lib"
+cp "$repo/setup/misc.sh" "$mfix/setup/misc.sh"
+cp "$repo/bin/lib/rotm-modules" "$mfix/bin/lib/rotm-modules"
+logging='echo "$(basename "$0") $*" >> "$STATE/misc.log"'
+for helper in install-iosevka-code claude-config claude-catalog hindsight-memory install-snippetslab-skill; do
+  printf '#!/bin/bash\n%s\n' "$logging" > "$mfix/bin/$helper"
+done
+chmod +x "$mfix"/bin/*
+# Its own stub dir: a logging curl or jq on $tmp/bin would break the setup.sh cases
+mstub() {
+  printf '#!/bin/bash\n%s\n%s\n' "$logging" "${2:-}" > "$1"
+  chmod +x "$1"
+}
+# fresh [no-claude]: a new HOME and log, and the stubs misc.sh finds on PATH
+fresh() {
+  rm -rf "${tmp:?}/home" "$STATE" "$tmp/mbin"
+  mkdir -p "$HOME/.config/mise" "$HOME/.local/bin" "$STATE" "$tmp/mbin"
+  : > "$STATE/misc.log"
+  for tool in sudo curl uv uvx npx jq rtk; do mstub "$tmp/mbin/$tool"; done
+  # No npm:typescript, so the link step warns when the apps module is on
+  mstub "$tmp/mbin/mise" '[ "$1" != where ]'
+  [ "${1:-}" = no-claude ] && return
+  # misc.sh registers a server only when `mcp get` fails
+  mstub "$tmp/mbin/claude" '[ "$1 $2" != "mcp get" ]'
+  cp "$tmp/mbin/claude" "$HOME/.local/bin/claude"
+}
+misc() {
+  rc=0
+  out=$(cd "$HOME" && PATH="$tmp/mbin:/usr/bin:/bin" DOTFILES_YES=1 "$mfix/setup/misc.sh" 2>&1 < /dev/null) || rc=$?
+}
+ran() { grep -qF -- "$1" "$STATE/misc.log"; }
+
+fresh
+misc
+check_true "all on: misc.sh exits 0" [ "$rc" -eq 0 ]
+check_true "all on: the font step runs" ran install-iosevka-code
+check_true "all on: Claude's config is restored" ran 'claude-config restore'
+check_true "all on: the catalog is built" ran claude-catalog
+check_true "all on: an MCP server is registered" ran 'mcp add'
+check_true "all on: a uv tool is installed" ran 'tool install'
+check_true "all on: Hindsight is set up" ran 'hindsight-memory init'
+check_true "all on: rtk is wired" ran 'init -g'
+check_true "all on: the TypeScript link step warns without the tool" has 'npm:typescript is not installed'
+check_true "all on: nothing is skipped" lacks 'skipped: the'
+
+fresh
+printf 'claude\nagents\nfonts\napps\n' > "$HOME/.config/mise/modules-off.local"
+misc
+check_true "modules off: misc.sh still exits 0" [ "$rc" -eq 0 ]
+for call in install-iosevka-code 'claude-config restore' claude-catalog 'mcp add' 'tool install' hindsight-memory 'init -g'; do
+  check_true "modules off: no $call" eval '! ran "$call"'
+done
+check_true "a gated step says why it was skipped" has 'skipped: the claude module is off'
+check_true "and so does the font step" has 'skipped: the fonts module is off'
+check_true "the agents steps say it once" [ "$(grep -c 'skipped: the agents module is off' <<< "$out")" = 1 ]
+check_true "no TypeScript warning with apps off" lacks 'npm:typescript is not installed'
+
+fresh no-claude
+misc
+check_true "claude on and not installed: the installer is fetched" ran 'claude.ai/install.sh'
+fresh no-claude
+printf 'claude\n' > "$HOME/.config/mise/modules-off.local"
+misc
+check_true "claude off: the installer is not fetched" eval '! ran "claude.ai/install.sh"'
+
+# SSH signing needs 1Password's helper, and the 1password cask is in the apps module
+grep -q 'sign_method" = "ssh" \] && \[ ! -x "\$op_sign"' "$repo/setup/dotfiles-extras.sh" \
+  || fail "setup/dotfiles-extras.sh writes SSH signing without checking for op-ssh-sign"
 
 conf="$repo/tilde/.config/mise/conf.d"
 PATH=$(tr ':' '\n' <<< "$real_path" | grep -v '/mise/shims$' | paste -sd: -)

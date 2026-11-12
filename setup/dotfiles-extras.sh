@@ -75,6 +75,7 @@ configure_git_identity() {
   local email="${DOTFILES_GIT_EMAIL:-}"
   local sign_method="${DOTFILES_GIT_SIGN_METHOD:-}" # ssh | gpg | none
   local signing_key="${DOTFILES_GIT_SIGNINGKEY:-}"
+  local op_sign=/Applications/1Password.app/Contents/MacOS/op-ssh-sign
 
   if [ -t 0 ]; then
     # An earlier setup step can leave the terminal without echo or line mode
@@ -94,11 +95,19 @@ configure_git_identity() {
       esac
     fi
 
-    if [ "$sign_method" = "ssh" ] && [ -z "$signing_key" ]; then
+    if [ "$sign_method" = "ssh" ] && [ -z "$signing_key" ] && [ -x "$op_sign" ]; then
       read -rp "SSH public key for signing (e.g. from 1Password: 'ssh-ed25519 AAAA...'): " signing_key
     elif [ "$sign_method" = "gpg" ] && [ -z "$signing_key" ]; then
       read -rp "GPG signing key ID: " signing_key
     fi
+  fi
+
+  # Signing through a program that is not there would fail every commit and tag
+  # (the 1password cask is in the apps module, which can be switched off)
+  if [ "$sign_method" = "ssh" ] && [ ! -x "$op_sign" ]; then
+    warn "1Password's op-ssh-sign is not installed, so commit signing is left off. Install 1Password, delete $(tildify "$gitconfig_local") and rerun to turn it on"
+    sign_method="none"
+    signing_key=""
   fi
 
   if [ -z "$name" ] || [ -z "$email" ]; then
@@ -118,7 +127,7 @@ configure_git_identity() {
         echo "[gpg]"
         echo "  format = ssh"
         echo "[gpg \"ssh\"]"
-        echo "  program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign"
+        echo "  program = $op_sign"
         echo
         echo "[commit]"
         echo "  gpgSign = true"

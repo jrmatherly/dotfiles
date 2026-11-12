@@ -13,7 +13,9 @@ sudo -k 2> /dev/null || true
 DOTFILES_DIR="${DOTFILES_DIR:-${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}}"
 cd "$DOTFILES_DIR"
 
-export PATH="$HOME/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+# HOMEBREW_PREFIX so a self-check can point the script away from this Mac's tools
+prefix="${HOMEBREW_PREFIX:-/opt/homebrew}"
+export PATH="$HOME/.local/bin:$prefix/bin:$prefix/sbin:$PATH"
 
 # tput fails with TERM unset (CI, a launchd job), which would abort this set -e script
 tput() { command tput "$@" 2> /dev/null || true; }
@@ -40,6 +42,13 @@ command_exists() {
   command -v "$@" &> /dev/null
 }
 
+# module_on <name>: false, with a line saying why, when that module is switched off (bin/lib/rotm-modules)
+module_on() {
+  "$DOTFILES_DIR/bin/lib/rotm-modules" is-on "$1" && return 0
+  echo "skipped: the $1 module is off" | indent
+  return 1
+}
+
 # Make custom binary scripts executable
 info 'Changing access permissions for binary scripts…'
 # shellcheck disable=SC2016 # ${0##*/} is for the inner bash -c, so it must stay unexpanded here
@@ -51,9 +60,11 @@ echo
 # Iosevka Code Nerd Font — VS Code's editor and terminal font (companion of the
 # SpaceBox theme; no Homebrew cask). Installs it when missing and reinstalls it
 # when the upstream release zip changed; unchanged costs one conditional request.
-info "🔤 Checking the Iosevka Code font…"
-"$DOTFILES_DIR/bin/install-iosevka-code" 2>&1 | indent \
-  || warning "Iosevka Code font not installed — run it later: install-iosevka-code"
+if module_on fonts; then
+  info "🔤 Checking the Iosevka Code font…"
+  "$DOTFILES_DIR/bin/install-iosevka-code" 2>&1 | indent \
+    || warning "Iosevka Code font not installed — run it later: install-iosevka-code"
+fi
 
 # A prompt needs a terminal, and `./setup.sh -y` takes each default instead
 asks() { [ -t 0 ] && [ -z "${DOTFILES_YES:-}" ]; }
@@ -106,7 +117,9 @@ if command_exists mise; then
   # tool its own prefix, so link the global `npm:typescript` where that walk
   # finds it. The target path carries the exact version: sysup relinks after
   # `mise upgrade`.
-  if ts_dir="$(mise where npm:typescript 2> /dev/null)"; then
+  if ! module_on apps; then
+    :
+  elif ts_dir="$(mise where npm:typescript 2> /dev/null)"; then
     mkdir -p "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules"
     ln -sfn "$ts_dir/node_modules/typescript" "${MISE_DATA_DIR:-$HOME/.local/share/mise}/node_modules/typescript"
   else
@@ -125,7 +138,7 @@ fi
 # stable the default when it isn't: a proxy with no default toolchain downloads
 # one on first use, which Hindsight's daemon start runs inside a 10 s
 # `cargo --version` check. `rustup default` alone is a local read.
-rustup=/opt/homebrew/opt/rustup/bin/rustup
+rustup="$prefix/opt/rustup/bin/rustup"
 if [ -x "$rustup" ]; then
   if "$rustup" default 2> /dev/null | grep -q '^stable-'; then
     echo "Rust: stable is the default toolchain" | indent
@@ -140,7 +153,7 @@ fi
 # https://docs.claude.com/en/docs/claude-code/setup
 if [ -x "$HOME/.local/bin/claude" ] || command_exists claude; then
   echo "Claude Code already installed — it updates itself" | indent
-else
+elif module_on claude; then
   info "🤖 Installing Claude Code…"
   curl -fsSL https://claude.ai/install.sh | bash | indent \
     || warning "Claude Code install failed — run it later: curl -fsSL https://claude.ai/install.sh | bash"
@@ -152,7 +165,11 @@ fi
 # Idempotent. Claude Code only: the installer writes via tmp file + rename,
 # which would replace the ~/.codex/AGENTS.md symlink with a regular file.
 # https://github.com/colbymchenry/codegraph#2-connect-your-agents
-if [ "${DOTFILES_SKIP_CODEGRAPH:-false}" = true ]; then
+# The agents module gates every step from here to rtk; its one "skipped" line is printed here
+if module_on agents; then agents_on=true; else agents_on=false; fi
+if ! $agents_on; then
+  :
+elif [ "${DOTFILES_SKIP_CODEGRAPH:-false}" = true ]; then
   echo "Skipping CodeGraph (--skip-codegraph)" | indent
 elif command_exists codegraph; then
   info "🕸️ Connecting CodeGraph to Claude Code…"
@@ -208,7 +225,7 @@ register_mcp() {
 # Claude runs in): exposes tools, tasks, env and config, and can run tasks.
 # Note `mise://env` shows real environment values, secrets included, to the
 # agent. https://mise.jdx.dev/mcp.html
-if command_exists mise && [ -x "$claude_bin" ]; then
+if $agents_on && command_exists mise && [ -x "$claude_bin" ]; then
   register_mcp mise mise -- "$(command -v mise)" mcp
 fi
 
@@ -218,12 +235,12 @@ fi
 # user-scope registration, --project-from-cwd): ~/.claude/rules/serena.md
 # https://github.com/oraios/serena
 serena_bin="$HOME/.local/bin/serena"
-if command_exists uv && [ ! -x "$serena_bin" ]; then
+if $agents_on && command_exists uv && [ ! -x "$serena_bin" ]; then
   info "🧰 Installing Serena…"
   uv tool install -p 3.13 serena-agent | indent \
     || warning "Serena install failed — run it later: uv tool install -p 3.13 serena-agent"
 fi
-if [ -x "$serena_bin" ] && [ -x "$claude_bin" ]; then
+if $agents_on && [ -x "$serena_bin" ] && [ -x "$claude_bin" ]; then
   register_mcp serena Serena -- serena start-mcp-server --context claude-code --project-from-cwd
 fi
 
@@ -236,12 +253,12 @@ fi
 # it without the shell's PATH. https://scrapling.readthedocs.io/en/latest/ai/mcp-server/
 scrapling_bin="$HOME/.local/bin/scrapling"
 scrapling_mcp_bin="$HOME/.local/bin/scrapling-mcp"
-if command_exists uv && [ ! -x "$scrapling_bin" ]; then
+if $agents_on && command_exists uv && [ ! -x "$scrapling_bin" ]; then
   info "🕷️ Installing Scrapling…"
   uv tool install -p 3.13 "scrapling[ai]" | indent \
     || warning "Scrapling install failed — run it later: uv tool install -p 3.13 'scrapling[ai]'"
 fi
-if [ -x "$scrapling_bin" ]; then
+if $agents_on && [ -x "$scrapling_bin" ]; then
   "$scrapling_bin" install 2>&1 | indent \
     || warning "Scrapling's browser download failed — run it later: scrapling install"
 fi
@@ -249,7 +266,7 @@ fi
 # `scrapling-mcp --help` passes there (the server module is imported lazily),
 # so import it from the tool's venv before registering a server that would
 # die on launch
-if [ -x "$scrapling_mcp_bin" ] && [ -x "$claude_bin" ] && command_exists uv; then
+if $agents_on && [ -x "$scrapling_mcp_bin" ] && [ -x "$claude_bin" ] && command_exists uv; then
   if "$(uv tool dir)/scrapling/bin/python" -c 'import scrapling.core.ai' 2> /dev/null; then
     register_mcp scrapling Scrapling -- "$scrapling_mcp_bin"
   else
@@ -263,7 +280,9 @@ fi
 # clean: `claude-config save` drops `hooks`, and the [mcp_servers] block lands in
 # the seeded copy ~/.codex/config.toml. It registers its MCP server with
 # `claude mcp add`, hence the PATH prefix. `bin/sysup` upgrades it.
-if command_exists npx && command_exists uvx && command_exists jq && [ -x "$claude_bin" ]; then
+if ! $agents_on; then
+  :
+elif command_exists npx && command_exists uvx && command_exists jq && [ -x "$claude_bin" ]; then
   info "🧠 Setting up Hindsight memory…"
   PATH="$(dirname "$claude_bin"):$PATH" "$DOTFILES_DIR/bin/hindsight-memory" init 2>&1 | indent \
     || warning "Hindsight memory setup failed — run it later: hindsight-memory init"
@@ -284,7 +303,7 @@ fi
 # which drifts from the installed server and makes `rea doctor` call it stale).
 # https://github.com/morluto/rea
 rea_shim="${MISE_DATA_DIR:-$HOME/.local/share/mise}/shims/rea"
-if [ -x "$rea_shim" ]; then
+if $agents_on && [ -x "$rea_shim" ]; then
   # The skills CLI linked ~/.claude/skills/<name> into ~/.agents/skills; rea setup
   # refuses to replace a link, so an older install's link goes first
   rea_link="$HOME/.claude/skills/reverse-engineer-anything"
@@ -293,7 +312,9 @@ if [ -x "$rea_shim" ]; then
   "$rea_shim" setup --skill-client shared --skill-client claude_code --skill --yes --format json > /dev/null \
     || warning "REA skill install failed — run it later: rea setup --skill-client shared --skill-client claude_code --skill --yes"
 fi
-if [ -x "$rea_shim" ] && [ -x "$claude_bin" ] && [ -d /opt/homebrew/opt/ghidra/libexec ]; then
+if ! $agents_on; then
+  :
+elif [ -x "$rea_shim" ] && [ -x "$claude_bin" ] && [ -d "$prefix/opt/ghidra/libexec" ]; then
   register_mcp rea REA -- "$DOTFILES_DIR/bin/rea-mcp"
 else
   echo "rea shim or the ghidra formula not found — skipping REA's MCP server" | indent
@@ -307,7 +328,7 @@ fi
 # is the app's own setting (Settings > Integrations).
 # https://www.renfei.org/snippets-lab/manual/mac/agentic-tools.html
 snippetslab_lab="/Applications/SnippetsLab.app/Contents/Helpers/lab"
-if [ -x "$snippetslab_lab" ]; then
+if $agents_on && [ -x "$snippetslab_lab" ]; then
   info "📎 Setting up SnippetsLab's agent skill and MCP server…"
   "$DOTFILES_DIR/bin/install-snippetslab-skill" 2>&1 | indent \
     || warning "SnippetsLab skill not written — run it later: install-snippetslab-skill"
@@ -335,7 +356,7 @@ fi
 # Auth, and Sidero Labs (Talos Linux, Omni; its `siderolabs` skill comes from
 # agents/claude-skills.txt via `claude-config restore` below).
 # https://docs.siderolabs.com/talos/v1.14/learn-more/ai-agent-integration
-if [ -x "$claude_bin" ]; then
+if $agents_on && [ -x "$claude_bin" ]; then
   while read -r name url; do
     if existing=$("$claude_bin" mcp get "$name" 2> /dev/null); then
       if grep -qF "$url" <<< "$existing"; then
@@ -364,7 +385,7 @@ fi
 # `claude-config` doesn't track hooks; rtk skips it when already present.
 # Claude Code only: --codex would write through the ~/.codex/AGENTS.md symlink
 # into agents/instructions.md. https://github.com/rtk-ai/rtk#auto-rewrite-hook
-if command_exists rtk; then
+if $agents_on && command_exists rtk; then
   info "✂️ Connecting rtk to Claude Code…"
   rtk init -g --hook-only --auto-patch < /dev/null 2>&1 | indent \
     || warning "rtk init failed — run it later: rtk init -g --hook-only"
@@ -459,7 +480,7 @@ fi
 # retired allow rules and never overwrites other settings), then the catalog of everything
 # installed (~/.claude/catalog). claude may not be on PATH yet on a fresh Mac,
 # so put its directory first for both.
-if [ -x "$claude_bin" ]; then
+if [ -x "$claude_bin" ] && module_on claude; then
   info "🧩 Restoring Claude Code plugins, settings and skills…"
   PATH="$(dirname "$claude_bin"):$PATH" "$DOTFILES_DIR/bin/claude-config" restore 2>&1 | indent \
     || warning "Some of it didn't restore — re-run: claude-config restore"
