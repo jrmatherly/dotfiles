@@ -467,6 +467,27 @@ Row 9 discards the stranger's edits to the files row 8 found because those files
 
 Add `#### Results` here: the date, the guest build, the mise version, the commit proven, one line per row. A failure in rows 1 to 7 or 9 to 12 is fixed on `main` and rerun from a fresh disposable guest. Row 8's findings are data, not failures.
 
+#### Results
+
+Run on 2026-11-11 in the disposable UTM guest `macOS` (account `j`), mise 2026.11.6, with the install line following `main`. The install was proven on `851addb` (rows 1 to 8) and the update on `795b576` (rows 9 to 12). The guest was not signed in to GitHub. The raw output is in `~/vm-proof/p1/p1-20261111/row-<n>.txt` on the host.
+
+| # | Result |
+| --- | --- |
+| 1 | Pass. mise cloned the repository, then refused: "~/.config/mise already holds a global config; move it aside", exit 1. `setup.sh` did not start. |
+| 2 | Pass. `setup.sh` stopped at the `~/dotfiles` folder and named it. After `rmdir`, the same install line ran over the existing checkout and stopped at `~/.zshrc`, which still held `mine`. The stop came after the sudo prompt, fixed in `2612777`. |
+| 3 | Pass. "All done", exit 0, no failed package or tool. 27 GB free at the end. |
+| 4 | Pass. Both links correct, `rotm-mode` prints `installed`, `miserc.local.toml` holds `env = ["installed"]`. |
+| 5 | Pass from a terminal opened after the install: nothing missing for `brew`, `brew-cask` or `vscode`. A terminal opened before it has no `code` on `PATH`, and mise then reports every extension as skipped. |
+| 6 | Pass. `rotm` resolves under the checkout, `rotm settings list` prints, and `git config --get core.excludesfile` prints `~/.gitignore` through the wrapper. The first `rotm settings list` took long enough to be interrupted once. |
+| 7 | Pass. No changed tracked file after the install. |
+| 8 | Nothing listed after `git config --global`, `gh config set editor vim`, an append to `~/.zshrc`, a changed VS Code keybinding and setting, and a first run of btop, Ghostty, cmux and lazygit. `gh auth setup-git` refused without a login, and Amp was not on the guest. No new entry was needed. |
+| 9 | Pass for the update. `rotm update -y` fast-forwarded `851addb..795b576` and ran `setup.sh`. `gh config get editor` printed `vim`, `alias.zz` printed `status`, and no tracked file was changed. `setup.sh` exited 2 with one problem: the anonymous GitHub API limit (60 calls an hour) was used up, so mise could not read the `jrmatherly/homebrew-tap` cask. |
+| 10 | Pass. Nothing listed after the row 8 actions again, and the second `rotm update -y` ended with "All done", exit 0. |
+| 11 | Pass for what the row checks: `sysup` printed "installed copy: run rotm update" and "Claude config: installed copy: not saved into it", and no tracked file was changed. Its `packages` and `packages prune` steps failed on the same GitHub rate limit. |
+| 12 | Pass. `dotfiles` printed "This is an installed copy. Run: rotm update" and pulled nothing. |
+
+What the proof adds to Task 7's docs: a Mac that is not signed in to GitHub runs out of anonymous API calls after an install and an update in the same hour, so the install section says to run `gh auth login` once the first install has finished.
+
 - [ ] **Step 4: Commit**
 
 ```bash
