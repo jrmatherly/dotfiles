@@ -94,7 +94,7 @@ What to know about the package list:
 
 Eight tools that Homebrew taps used to supply are mise `[tools]` in [`config.toml`](../tilde/.config/mise/config.toml) instead, installed with the other tools by `setup.sh`'s `mise install` (or the `tools` part of a bare `mise bootstrap`): `azd`, `azure-functions-core-tools` (`func`), `aqua:Azure/kubelogin`, `flux2` (`flux`), `hunk`, `lazydocker`, `talosctl` and the Sentry CLI (`github:getsentry/toolkit`, binary `sentry`). The Aspire CLI and `flate` are `github:` tools there too. `mirrord` is a tool there because its VS Code extension only downloads the binary after a version check that the telemetry-off setting disables. `flux2`, `talosctl` and `sentry` carry a mise `postinstall` that writes their zsh completions to `~/.cache/dotfiles/completions` on every `mise install` and every upgrade, and `zsh/completion.zsh` puts that directory first in `fpath`. A new completion shows up in a shell started after the file exists; a shell whose `~/.zcompdump` is under a day old may need `rm -f ~/.zcompdump` once, because `compinit -C` skips the scan.
 
-**.NET / PowerShell:** the list uses Microsoft's `dotnet-sdk` cask. Don't add the `dotnet` or `powershell` formulae — `powershell` depends on `dotnet`, and that formula takes over `/opt/homebrew/bin/dotnet`. PowerShell is installed as a .NET global tool by `misc.sh` instead.
+**.NET / PowerShell:** the list uses Microsoft's `dotnet-sdk` cask. Don't add the `dotnet` or `powershell` formulae: `powershell` depends on `dotnet`, and that formula takes over `/opt/homebrew/bin/dotnet`. PowerShell is installed as a .NET global tool by `misc.sh` instead.
 
 ## login shell
 
@@ -110,7 +110,7 @@ Eight tools that Homebrew taps used to supply are mise `[tools]` in [`config.tom
 - If the GitHub CLI isn't authenticated, offers to run `gh auth login`. gh keeps the token in the macOS keychain; `~/.config/gh/hosts.yml` is gitignored anyway, since gh falls back to storing the token there in plain text when no keychain is available.
 - The runtimes and CLIs are there before this task: `setup.sh`'s `mise install` (or the `tools` part of a bare `mise bootstrap`) installs them from the tracked global config [`tilde/.config/mise/config.toml`](../tilde/.config/mise/config.toml), which `setup.sh` linked into `~/.config/mise`. When a tool lists several versions, mise installs all of them and the first is the default on PATH. A tool that fails to install is listed at the end of the run, and the task runs anyway; rerun `./setup.sh`. In a bare `mise bootstrap` it stops the run at the `tools` part, before this task. The task itself only puts mise's shims on its PATH and links TypeScript (below):
   - Node `24` (Active LTS, pinned rather than the moving `lts` alias), plus `22` and `26`.
-  - Python `3.14`, plus `3.11`–`3.13` and `3.15`. Every version's `python3.x` is on PATH.
+  - Python `3.14`, plus `3.11` to `3.13` and `3.15`. Every version's `python3.x` is on PATH.
   - `npm:typescript` (major 6), for a global `tsc`.
   - `npm:@colbymchenry/codegraph` ([CodeGraph](https://github.com/colbymchenry/codegraph)), tracking `latest`. Upgrade it with `mise upgrade`, not `codegraph upgrade`.
   - `npm:serverless` (major 4) and `npm:@antfu/ni` (major 30): global npm CLIs installed by mise instead of `npm install -g`.
@@ -170,8 +170,8 @@ A real file or folder where a link belongs stops the run: `mise dotfiles apply` 
 
 It puts `~/.local/bin` and `bin` and `sbin` under `$HOMEBREW_PREFIX` (default `/opt/homebrew`) on its PATH first, so the `bat`, `cot` and `code` checks below see the installed tools even when run outside a login shell. Then, in order:
 
-- It runs `configure_git_identity`, which resets the terminal (`stty sane`, since an earlier step can leave it without echo) and then prompts for your git name/email and signing method and writes `~/.gitconfig.local` (never committed — see `tilde/.gitconfig`'s `[include]`). SSH signing means 1Password: it writes `gpg.ssh.program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign` and asks for your public key; GPG asks for a key ID. The whole step is skipped if `~/.gitconfig.local` already exists. `DOTFILES_GIT_NAME`, `DOTFILES_GIT_EMAIL`, `DOTFILES_GIT_SIGN_METHOD` and `DOTFILES_GIT_SIGNINGKEY` pre-fill (and skip) their own prompts; without a name and email the file isn't written.
-- It warns if `~/.ssh/github_personal.pub` — the public key that pins GitHub to your 1Password key — is missing.
+- It runs `configure_git_identity`, which resets the terminal (`stty sane`, since an earlier step can leave it without echo) and then prompts for your git name/email and signing method and writes `~/.gitconfig.local` (never committed, see `tilde/.gitconfig`'s `[include]`). SSH signing means 1Password: it writes `gpg.ssh.program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign` and asks for your public key; GPG asks for a key ID. The whole step is skipped if `~/.gitconfig.local` already exists. `DOTFILES_GIT_NAME`, `DOTFILES_GIT_EMAIL`, `DOTFILES_GIT_SIGN_METHOD` and `DOTFILES_GIT_SIGNINGKEY` pre-fill (and skip) their own prompts; without a name and email the file isn't written.
+- It warns if `~/.ssh/github_personal.pub`, the public key that pins GitHub to your 1Password key, is missing.
 - It links the `cot` and `code` command-line tools into `/usr/local/bin` if they're not already on PATH. A CLI whose app isn't installed is skipped with a warning, and a file already at that path that isn't the link is left alone with a warning. It asks for the administrator password only when a link has to be made and `/usr/local/bin` is missing or not writable.
 - It hard-links the Firefox Developer Edition styles into its profile. A file there with different content is moved to `<name>.backup` first, or to `<name>.backup.<YYYYmmdd-HHMMSS>` when that already exists, so an earlier backup is never overwritten and a pull that changes a tracked file reaches Firefox on the next run. There is no prompt. Without a dev-edition profile it is skipped with a warning.
 - It rebuilds bat's cache so the themes in `tilde/.config/bat/themes` load.
@@ -200,7 +200,7 @@ Always applied, from the fragment or by the extras script (`pmset`, the file fla
 - Energy (`pmset`): lid wake on, disk sleep 10 min, no wake for network access, hibernation mode 3.
 - Crash-reporter dialog off; Terminal.app uses UTF-8 and Secure Keyboard Entry.
 
-Safari isn't configured — it's sandboxed, so its preferences can't be set from a script; use Safari → Settings.
+Safari isn't configured. It's sandboxed, so its preferences can't be set from a script; use Safari → Settings.
 
 What changed from the old script:
 
@@ -212,8 +212,8 @@ What changed from the old script:
 
 ## dash
 
-Optional, interactive: adds Dash docsets generated from local folders of **HTML** documentation (Dash's Docset Generator doesn't read Markdown). Docsets you download inside Dash need nothing from this — Dash syncs that list itself.
+Optional, interactive: adds Dash docsets generated from local folders of **HTML** documentation (Dash's Docset Generator doesn't read Markdown). Docsets you download inside Dash need nothing from this: Dash syncs that list itself.
 
-Prerequisite: in Dash → Settings → General, set the sync folder to the repo's `dash/` folder and tick all four "What to sync" options (General settings, View options, Docsets/search profiles/keywords, Bookmarks and web searches) — but not "Sync Snippets", which would move Dash's snippet database into the repo.
+Prerequisite: in Dash → Settings → General, set the sync folder to the repo's `dash/` folder and tick all four "What to sync" options (General settings, View options, Docsets/search profiles/keywords, Bookmarks and web searches), but not "Sync Snippets", which would move Dash's snippet database into the repo.
 
-Dash writes absolute paths and has no variable expansion, so folder docsets can't be committed portably — quit Dash, run `setup/dash.sh` (or `setup.sh --dash`) and enter the folders to index, then build them in Dash → Settings → Downloads → Docset Generator. Also usable non-interactively: `setup/dash.sh add <folder> [name] [keyword]`.
+Dash writes absolute paths and has no variable expansion, so folder docsets can't be committed portably. Quit Dash, run `setup/dash.sh` (or `setup.sh --dash`) and enter the folders to index, then build them in Dash → Settings → Downloads → Docset Generator. Also usable non-interactively: `setup/dash.sh add <folder> [name] [keyword]`.

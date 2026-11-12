@@ -1,10 +1,10 @@
 # Firefox Developer Edition
 
-> Optional — not installed by setup; install manually if you use it. Config: `firefox/README.md`.
+> Optional and not installed by setup; install manually if you use it. Config: `firefox/README.md`.
 
 ## Basic
 
-- **Cmd+1** … **Cmd+8:** switch to tab 1–8
+- **Cmd+1** … **Cmd+8:** switch to tab 1 to 8
 - **Cmd+9:** go to the last tab
 - **Cmd+Shift+[** / **Cmd+Shift+]:** previous/next tab
 - **Cmd+L:** focus the address bar

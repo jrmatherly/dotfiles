@@ -44,7 +44,7 @@
 
 ## CLI
 
-The `cmux` CLI (linked into `/opt/homebrew/bin` by the cask) talks to the app over a Unix socket (`~/.local/state/cmux/cmux.sock`). Some commands start the app if it isn't running — `cmux <path>` opens a directory in a new workspace, launching cmux if needed, and `cmux shortcuts` does too — so don't run them expecting a headless answer.
+The `cmux` CLI (linked into `/opt/homebrew/bin` by the cask) talks to the app over a Unix socket (`~/.local/state/cmux/cmux.sock`). Some commands start the app if it isn't running: `cmux <path>` opens a directory in a new workspace, launching cmux if needed, and `cmux shortcuts` does too. So don't run them expecting a headless answer.
 
 - **`cmux config validate`:** check `cmux.json` syntax without the app
 - **`cmux reload-config`:** reload both the Ghostty config and `cmux.json`, refreshing terminals in place. cmux must be running, and with the default `socketControlMode: "cmuxOnly"` the command only works from a terminal inside cmux (elsewhere it reports "No live cmux socket found")

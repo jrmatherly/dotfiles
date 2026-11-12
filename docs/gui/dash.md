@@ -8,7 +8,7 @@ Dash's settings sync to the repo's `dash/` folder (`dash/Dash.dashsync`), which 
 
 - **Dash → Settings → General → Syncing: Set Up Syncing…** opens the sync sheet; **Set Sync Folder…** → the repo's `dash/` folder (`$DOTFILES/dash`, e.g. `~/dev/dotfiles/dash`). **Stop Syncing** on the same sheet turns it off
 - Under **What to sync**, tick: **General settings**, **View options**, **Docsets, search profiles and docset keywords**, **Bookmarks and web searches**
-- Do **not** use **Sync Snippets** — it moves the snippet database into the folder, which doesn't belong in git
+- Do **not** use **Sync Snippets**: it moves the snippet database into the folder, which doesn't belong in git
 - Docsets live in `~/Library/Application Support/Dash/DocSets`; sync only records which ones you installed from Settings → Downloads, and Dash re-downloads them on other Macs. Docset order and disabled docsets stay per-Mac
 - Quit Dash before editing `dash/Dash.dashsync` by hand so it doesn't overwrite your change
 
@@ -19,7 +19,7 @@ Dash's settings sync to the repo's `dash/` folder (`dash/Dash.dashsync`), which 
 
 ## Searching
 
-- **`keyword:query`:** search one docset, e.g. `php:printf` — works even if the docset is disabled
+- **`keyword:query`:** search one docset, e.g. `php:printf`. It works even if the docset is disabled
 - Edit docset keywords in **Settings → Docsets** (drag to reorder results too); one keyword can cover several docsets
 - **Search profiles:** collections of docsets, set up from the icon in the main search field. A profile can be activated by a typed keyword (e.g. `web:`), when an app becomes active, or by its own global shortcut; profiles persist between searches
 - **Option+↓ / Option+↑:** move through the table of contents (left pane)

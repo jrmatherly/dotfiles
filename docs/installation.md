@@ -49,7 +49,7 @@ Nothing is overwritten. The run stops and names what it found, and you move it a
 
 ## Install from a clone
 
-On a new Mac, clone over HTTPS — SSH only works after 1Password is set up (keys live there, see [`~/.ssh/github_personal.pub`](local-customizations.md#sshgithub_personalpub)).
+On a new Mac, clone over HTTPS. SSH only works after 1Password is set up (keys live there, see [`~/.ssh/github_personal.pub`](local-customizations.md#sshgithub_personalpub)).
 
 1. Install the Command Line Tools (for `git`):
 
@@ -65,11 +65,11 @@ On a new Mac, clone over HTTPS — SSH only works after 1Password is set up (key
 
    Setting up your own Mac? Fork the repo, clone your fork instead, and go through [Make it yours](forking.md) before running setup.
 
-1. Optional, for signed commits from the start: install 1Password (download it: mise isn't installed until `./setup.sh` runs), sign in and turn on **Settings → Developer → Use the SSH agent**. `setup/dotfiles-extras.sh` asks how to sign commits — [SSH via 1Password](https://www.1password.dev/ssh/git-commit-signing) (`op-ssh-sign`; paste your public key when asked), GPG, or none — and writes `~/.gitconfig.local`. Choose none if 1Password isn't ready yet and add signing to `~/.gitconfig.local` later.
+1. Optional, for signed commits from the start: install 1Password (download it: mise isn't installed until `./setup.sh` runs), sign in and turn on **Settings → Developer → Use the SSH agent**. `setup/dotfiles-extras.sh` asks how to sign commits ([SSH via 1Password](https://www.1password.dev/ssh/git-commit-signing) (`op-ssh-sign`; paste your public key when asked), GPG, or none) and writes `~/.gitconfig.local`. Choose none if 1Password isn't ready yet and add signing to `~/.gitconfig.local` later.
 1. [Run setup](#run-setup). To see first what it would do, see [Preview](#preview).
 1. Finish the steps setup can't do for you: see [After setup](#after-setup).
 
-The repo can live anywhere — the scripts resolve their own location, and `~/.zshenv` exports it as `$DOTFILES`. `setup.sh` also creates a `~/dotfiles` symlink pointing at the clone, for the few configs that can't expand variables (e.g. lazygit's `shellFunctionsFile`).
+The repo can live anywhere: the scripts resolve their own location, and `~/.zshenv` exports it as `$DOTFILES`. `setup.sh` also creates a `~/dotfiles` symlink pointing at the clone, for the few configs that can't expand variables (e.g. lazygit's `shellFunctionsFile`).
 
 ## Run setup
 
@@ -158,7 +158,7 @@ Refer to the [icons documentation](../icons/README.md) for available icon varian
 install-color-themes
 ```
 
-The [Squirrelsong](../colors/) theme files are owned by this repo — nothing is downloaded. bat, btop and Ghostty (and cmux) read theirs straight from the repo; the script rebuilds bat's theme cache, prints where to import the Nimble Commander, Syntax Highlight and CotEditor themes, and copies the Obsidian theme into your vault (`$OBSIDIAN_VAULT`) if it exists. To change a theme, edit the file in the repo and commit it.
+The [Squirrelsong](../colors/) theme files are owned by this repo. Nothing is downloaded. bat, btop and Ghostty (and cmux) read theirs straight from the repo; the script rebuilds bat's theme cache, prints where to import the Nimble Commander, Syntax Highlight and CotEditor themes, and copies the Obsidian theme into your vault (`$OBSIDIAN_VAULT`) if it exists. To change a theme, edit the file in the repo and commit it.
 
 ### Set up the Obsidian vault
 
@@ -171,7 +171,7 @@ See [obsidian](../obsidian/README.md) for the vault layout and the first-time wa
 
 ### Configure Dash docsets
 
-Dash's built-in Docset Generator (Settings → Downloads → Docset Generator) can index local folders of **HTML** documentation — not Markdown. The paths are machine-specific, so they're configured interactively rather than committed. Docsets you download inside Dash are separate: Dash stores those in `~/Library/Application Support/Dash/DocSets` and syncs the list itself.
+Dash's built-in Docset Generator (Settings → Downloads → Docset Generator) can index local folders of **HTML** documentation, not Markdown. The paths are machine-specific, so they're configured interactively rather than committed. Docsets you download inside Dash are separate: Dash stores those in `~/Library/Application Support/Dash/DocSets` and syncs the list itself.
 
 ```shell
 setup/dash.sh                                          # prompts for folder, name, keyword

@@ -7,6 +7,6 @@ This folder holds the Squirrelsong Light color scheme for the Syntax Highlight Q
 ![ql-plugin-preview](./screenshot.png)
 
 > [!IMPORTANT]  
-> Launch the app once (`open -a "Syntax Highlight"`, or double-click it in `/Applications`) so macOS discovers its Quick Look extension — until then it doesn't appear in System Settings. Then turn it on in **System Settings** → **General** → **Login Items & Extensions** → **Extensions** → **Quick Look**.
+> Launch the app once (`open -a "Syntax Highlight"`, or double-click it in `/Applications`) so macOS discovers its Quick Look extension. Until then it doesn't appear in System Settings. Then turn it on in **System Settings** → **General** → **Login Items & Extensions** → **Extensions** → **Quick Look**.
 
 ![ql-plugin-activation](./preview-activation.png)

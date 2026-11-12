@@ -1,7 +1,7 @@
 # Firefox Developer Edition Setup
 
 > [!NOTE]  
-> Optional — not installed by setup; install manually if you use it. This config targets **Firefox Developer Edition** only (it isn't in `30-packages.toml`, and regular Firefox profiles are not touched).
+> Optional and not installed by setup; install manually if you use it. This config targets **Firefox Developer Edition** only (it isn't in `30-packages.toml`, and regular Firefox profiles are not touched).
 
 ## Configuration and UI styles
 
@@ -19,7 +19,7 @@ After installing Developer Edition, launch it once so it creates its profile, qu
 
 ## Install extensions
 
-- [uBlock Origin](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/) — _Run in Private Windows_
+- [uBlock Origin](https://addons.mozilla.org/en-US/firefox/addon/ublock-origin/): _Run in Private Windows_
   - Set up your [blocking mode](https://github.com/gorhill/uBlock/wiki/Blocking-mode)
   - Enable `AdGuard URL Tracking Protection`
   - Enable `EasyList – Cookie Notices`
@@ -27,9 +27,9 @@ After installing Developer Edition, launch it once so it creates its profile, qu
     - Check `Import…` under `Filter lists`
     - Paste in the linked URL above
     - Click `Apply changes`
-- [Privacy Badger](https://addons.mozilla.org/en-US/firefox/addon/privacy-badger17/) — _Run in Private Windows_
+- [Privacy Badger](https://addons.mozilla.org/en-US/firefox/addon/privacy-badger17/): _Run in Private Windows_
   - Firefox [includes tracker blocking](https://blog.mozilla.org/security/2021/02/23/total-cookie-protection/) already; Privacy Badger is optional on top of it.
-- [1Password: Password Manager](https://addons.mozilla.org/en-US/firefox/addon/1password-x-password-manager/) — pairs with the 1Password app that setup installs
+- [1Password: Password Manager](https://addons.mozilla.org/en-US/firefox/addon/1password-x-password-manager/): pairs with the 1Password app that setup installs
 - [UnTrap for YouTube](https://addons.mozilla.org/en-US/firefox/addon/untrap-for-youtube/)
   - [Settings](./settings/untrap.txt)
 - [Instapaper](https://addons.mozilla.org/en-US/firefox/addon/instapaper-official/)
@@ -37,6 +37,6 @@ After installing Developer Edition, launch it once so it creates its profile, qu
 - [Refined GitHub](https://addons.mozilla.org/en-US/firefox/addon/refined-github-/)
 - [Catppuccin for Web File Explorer Icons](https://addons.mozilla.org/en-US/firefox/addon/catppuccin-web-file-icons/)
 - [LanguageTool](https://addons.mozilla.org/en-US/firefox/addon/languagetool/)
-- [Blank Sky New Tab Page](https://addons.mozilla.org/en-US/firefox/addon/blank-sky-new-tab-page/) — _Run in Private Windows_
+- [Blank Sky New Tab Page](https://addons.mozilla.org/en-US/firefox/addon/blank-sky-new-tab-page/): _Run in Private Windows_
 - [Video Speed Controller](https://addons.mozilla.org/en-US/firefox/addon/videospeed/)
 - [Obsidian Web Clipper](https://addons.mozilla.org/en-US/firefox/addon/web-clipper-obsidian/)

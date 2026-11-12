@@ -1,12 +1,12 @@
 # Raycast
 
-> Launcher, clipboard history and window management — replaces Spotlight on ⌘Space.
+> Launcher, clipboard history and window management. It replaces Spotlight on ⌘Space.
 
 Installed by mise from `tilde/.config/mise/conf.d/30-packages.toml` (`"brew-cask:raycast"`).
 
 ## Setup
 
-- `set-defaults` (`20-macos.toml`) turns off macOS's Spotlight shortcuts, freeing ⌘Space — Raycast doesn't take it by itself
+- `set-defaults` (`20-macos.toml`) turns off macOS's Spotlight shortcuts, freeing ⌘Space. Raycast doesn't take it by itself
 - Raycast → **Settings (Cmd+,) → General → Raycast Hotkey:** click the field and press ⌘Space
 - **General → Open at Login:** keep it on
 - If ⌘Space still doesn't register, check **System Settings → Keyboard → Keyboard Shortcuts → Input Sources**, and the Siri shortcut in **System Settings → Siri**
@@ -23,7 +23,7 @@ Raycast handles window management here (the repo's Rectangle config is optional 
 
 - **Settings → Shortcuts:** every command in one table; click its **Alias** cell to type one, or **Add Hotkey** to record one (Raycast 2.9)
 - Or select a command in Root Search, press **Cmd+,** (Configure Command) → **Set Alias** / **Set Hotkey**
-- Clipboard History has no default hotkey — assign one the same way
+- Clipboard History has no default hotkey. Assign one the same way
 
 ## Everywhere
 

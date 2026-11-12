@@ -1,6 +1,6 @@
 # Adobe Lightroom
 
-> Optional — not installed by setup; install manually if you use it. The shortcuts below are Adobe's defaults for Lightroom Desktop (macOS), checked on 2026-10-24 against the page listed under Sources.
+> Optional and not installed by setup; install manually if you use it. The shortcuts below are Adobe's defaults for Lightroom Desktop (macOS), checked on 2026-10-24 against the page listed under Sources.
 
 ## Basic
 

@@ -104,7 +104,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `nnn` | Install and activate the Node.js version the current project asks for (via `mise`) |
 | `mise use node@{{version}}` | Switch the current project's Node version ([mise](https://mise.jdx.dev/)). For the global default, reorder the version list in `tilde/.config/mise/config.toml` (first = default) rather than `mise use -g`, which replaces the whole list |
 | `mise install` | Install the versions a project asks for (`mise.toml`, `.nvmrc`, `.node-version`, `.python-version`) |
-| `mise exec node@{{version}} -- {{command}}` | Run a command with another installed version (Node 22/24/26, Python 3.11–3.15). Python versions also work directly: `python3.12` |
+| `mise exec node@{{version}} -- {{command}}` | Run a command with another installed version (Node 22/24/26, Python 3.11 to 3.15). Python versions also work directly: `python3.12` |
 | `nio` | Install dependencies, preferring the offline cache. More information: <https://github.com/antfu/ni>. |
 | `ns` `nd` `nb` `nbw` `nt` `ntw` `ntc` `nf` | Run common package scripts through `nr` (`@antfu/ni`): `ns` → `start`, `nd` → `dev`, `nb` → `build`, `nbw` → `build --watch`, `nt` → `test`, `ntw` → `test --watch`, `ntc` → `typecheck`, `nf` → `format` |
 | `lint` `lintf` | Run the project linter (optionally with `--fix`) |
@@ -136,7 +136,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `gdc` | Show the differences (`diff`) between staged changes and the last commit |
 | `gl` | Display compact and readable log |
 | `gpuf` | Push with `--force-with-lease` |
-| `br` | Switch branches, create a new local branch if it doesn’t exist, or delete local branches (`-d`/`-D`). Adds remote tracking when a remote branch with the same name exists. With no argument, lists recent local branches; `-r` lists remote branches; `br -` switches to the previous branch and pulls |
+| `br` | Switch branches, create a new local branch if it doesn't exist, or delete local branches (`-d`/`-D`). Adds remote tracking when a remote branch with the same name exists. With no argument, lists recent local branches; `-r` lists remote branches; `br -` switches to the previous branch and pulls |
 | `pull` | Pull remote changes using rebase while safely stashing and restoring local changes. Automatically updates submodules and reinstalls dependencies when lockfiles or package manifests change |
 | `push` | Push local changes to the tracked remote branch. Intelligently maintains upstream tracking so you can push without specifying a remote or branch. Any extra arguments will be passed through to `git push`, for example `push -f` |
 | `stash` | Stash all local changes (including untracked files), or run `git stash` with all the provided arguments |
@@ -151,7 +151,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | --- | --- |
 | `dotfiles` | Pull the latest dotfiles (re-run `setup.sh` afterwards to apply new links) |
 | `set-defaults` | Apply this repo's macOS defaults |
-| `install-color-themes` | Install the repo's Squirrelsong themes into apps — bat cache, Obsidian vault, import hints (see [colors](../colors/README.md)) |
+| `install-color-themes` | Install the repo's Squirrelsong themes into apps: bat cache, Obsidian vault, import hints (see [colors](../colors/README.md)) |
 | `obsidian-vault install` `obsidian-vault capture` | Install the repo's Obsidian settings/templates into the vault, or bring vault changes back (see [obsidian](../obsidian/README.md)) |
 | `install-iosevka-code` | Install VS Code's Iosevka Code font, or update it when the upstream zip changed (see [fonts](../fonts/README.md)) |
 | `install-snippetslab-skill` | Write SnippetsLab's agent skill (`lab skill show`) to `~/.agents/skills/snippetslab` and link it into `~/.claude/skills`; run by setup and `sysup` |
@@ -181,7 +181,7 @@ Each replacement only applies when the tool is installed. Run the original comma
 | `check-port {{port}}` `clear-port {{port}}` | Show / kill the process using a port |
 | `lint-dups {{file}}` `lint-passive-voice {{file}}` `lint-weasel-words {{file}}` | Find duplicate words, passive voice or weasel words in prose |
 | `optimize-image` `optimize-image {{file}}` | Convert images to WebP/AVIF and keep the smallest result |
-| `ocr {{file}}` | Extract text from images with Apple’s text recognition |
+| `ocr {{file}}` | Extract text from images with Apple's text recognition |
 | `license` | Print the MIT license |
 | `cpwd` `ppp {{file}}` | Copy the current directory path / a file's full path to the clipboard |
 | `copy-ssh` | Copy your SSH public key (`~/.ssh/github_personal.pub`) to the clipboard |

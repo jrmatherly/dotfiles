@@ -3,14 +3,14 @@
 The repo is the source of truth for the vault's setup; your notes live in the
 vault itself.
 
-- [`.obsidian/`](.obsidian) — settings, hotkeys, bookmarks, community plugins,
+- [`.obsidian/`](.obsidian): settings, hotkeys, bookmarks, community plugins,
   the `custom.css` snippet and the [Squirrelsong](../colors/README.md) theme
   (selected in `appearance.json`; text font Iosevka Code, installed by
   [`bin/install-iosevka-code`](../bin/install-iosevka-code); monospace font
   Hack Nerd Font Mono)
-- [`Meta/Templates`](Meta/Templates) — note templates (Daily Note, Project,
+- [`Meta/Templates`](Meta/Templates): note templates (Daily Note, Project,
   Post, Recipe, Trip) and web-clipper templates
-- [`Meta/Bases`](Meta/Bases) — Bases views (recent logs, active projects,
+- [`Meta/Bases`](Meta/Bases): Bases views (recent logs, active projects,
   recipes, "on this day", …)
 
 The vault is **iCloud Drive → Notes**
@@ -46,7 +46,7 @@ Neither command deletes anything. `install` copies the repo's `.obsidian` and
 `Dashboard.md`, `Inbox/Quickies.md` and `Resources/Food/Recipes.md` (the
 bookmarked notes) only if they're missing. `capture` copies settings and
 templates you changed in Obsidian back into the repo; check the diff before
-committing — plugin data can contain tokens. Obsidian's per-machine window
+committing: plugin data can contain tokens. Obsidian's per-machine window
 layout (`workspace.json`) is never copied either way.
 
 ## First-time setup
@@ -61,7 +61,7 @@ layout (`workspace.json`) is never copied either way.
    left → **Manage Vaults…**), click **Open** next to **Open folder as vault**
    and choose iCloud Drive → **Notes**.
 5. When asked about the vault's community plugins, choose **Trust author and
-   enable plugins** — they come from this repo (Hider, File Explorer Note Count,
+   enable plugins**. They come from this repo (Hider, File Explorer Note Count,
    Auto h1 heading, Simple gallery, Typezen; Calendar is copied too but left
    disabled). Or browse in restricted mode and
    enable them later in Settings → Community plugins.

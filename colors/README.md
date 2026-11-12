@@ -4,12 +4,12 @@ This setup uses the [Squirrelsong](https://sapegin.me/squirrelsong/) theme where
 
 ## Files in this folder
 
-- [fzf-squirrelsong-dark-dp.sh](fzf-squirrelsong-dark-dp.sh) — fzf colors (Dark Deep Purple), sourced by [zsh/fzf.zsh](../zsh/fzf.zsh)
-- [fast-syntax-highlighting.ini](fast-syntax-highlighting.ini) — command-line highlighting theme for zsh-fast-syntax-highlighting, loaded with `fast-theme` in [zsh/init.zsh](../zsh/init.zsh)
+- [fzf-squirrelsong-dark-dp.sh](fzf-squirrelsong-dark-dp.sh): fzf colors (Dark Deep Purple), sourced by [zsh/fzf.zsh](../zsh/fzf.zsh)
+- [fast-syntax-highlighting.ini](fast-syntax-highlighting.ini): command-line highlighting theme for zsh-fast-syntax-highlighting, loaded with `fast-theme` in [zsh/init.zsh](../zsh/init.zsh)
 
 ## Theme files (owned by this repo)
 
-Every theme file lives in this repo and is maintained here — nothing is pulled from upstream. To change a theme, edit its file and commit it. [`install-color-themes`](../bin/install-color-themes) applies them where an app needs a step (bat's cache, an Obsidian vault) and prints where to import the rest. Setup doesn't run it: run it yourself, or through `sync-all`. `setup/dotfiles-extras.sh` only rebuilds bat's cache.
+Every theme file lives in this repo and is maintained here. Nothing is pulled from upstream. To change a theme, edit its file and commit it. [`install-color-themes`](../bin/install-color-themes) applies them where an app needs a step (bat's cache, an Obsidian vault) and prints where to import the rest. Setup doesn't run it: run it yourself, or through `sync-all`. `setup/dotfiles-extras.sh` only rebuilds bat's cache.
 
 | App | Theme file(s) | How it's applied |
 | --- | --- | --- |

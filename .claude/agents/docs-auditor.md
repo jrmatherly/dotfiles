@@ -17,7 +17,7 @@ For each doc file in scope:
    - **Vendor claims** (a GUI app's shortcut or menu table, Renovate or GitHub behaviour, a formula's caveats, a vendor package's install footprint): fetch the vendor's own documentation with WebFetch and compare. Name the URL in the evidence column. A vendor page that does not state the claim is Unverifiable with that URL as the evidence.
 3. Report only mismatches and dead references (paths/commands that don't exist, versions or counts that differ, shortcuts the vendor page contradicts). Skip style and wording. When the wrong text only restates what the code shows, the fix is to delete it, not to extend it. A list that isn't complete is not a mismatch unless it claims to be.
 
-Output format — one table per doc file, most severe first:
+Output format: one table per doc file, most severe first:
 
 | Doc location | Claim | Actual (file:line, command, or URL) | Fix |
 

@@ -5,11 +5,11 @@ Setup already asks for your git identity and commit signing. These values are ha
 | File | What to change |
 | --- | --- |
 | [`README.md`](../README.md), [`docs/installation.md`](installation.md), [`docs/macos tips & tricks.md`](macos%20tips%20%26%20tricks.md) | Title, intro and the `jrmatherly/returnofthemac` clone URL and link |
-| [`agents/README.md`](../agents/README.md) | The `jrmatherly/skills` links point to my skills repo — use it, your own, or the [skills CLI](https://github.com/vercel-labs/skills) alone |
+| [`agents/README.md`](../agents/README.md) | The `jrmatherly/skills` links point to my skills repo. Use it, your own, or the [skills CLI](https://github.com/vercel-labs/skills) alone |
 | [`tilde/.config/fastfetch/config.jsonc`](../tilde/.config/fastfetch/config.jsonc) | Name, URL and weather `location` |
 | [`lazygit/config.yml`](../lazygit/config.yml) | The author name under `authorColors` |
-| [`agents/claude-*`](../agents/) | My Claude Code plugins, settings and skills, including the `jrmatherly-skills` marketplace (`jstack`, `resume`) and the `coding-standards` and `supabase-prompts` skills from my public skills repo — keep them or drop those lines. Run `claude-config save` once yours are installed and commit the result |
-| [`agents/catalog/curated.toml`](../agents/catalog/curated.toml) | Notes on my tools. `claude-catalog` still builds but exits 1 (a warning in setup) for each skill, command or agent you don't have installed — delete those. An `[mcp.*]` entry you lack, like my `coolify` server, only prints a `lint:` note, because MCP registration is per machine |
+| [`agents/claude-*`](../agents/) | My Claude Code plugins, settings and skills, including the `jrmatherly-skills` marketplace (`jstack`, `resume`) and the `coding-standards` and `supabase-prompts` skills from my public skills repo. Keep them or drop those lines. Run `claude-config save` once yours are installed and commit the result |
+| [`agents/catalog/curated.toml`](../agents/catalog/curated.toml) | Notes on my tools. `claude-catalog` still builds but exits 1 (a warning in setup) for each skill, command or agent you don't have installed. Delete those. An `[mcp.*]` entry you lack, like my `coolify` server, only prints a `lint:` note, because MCP registration is per machine |
 | [`30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml), and the tools in [`config.toml`](../tilde/.config/mise/config.toml) | My formulae, apps and VS Code extensions. Trim them before the first run. The `jrmatherly/tap` entries (`claude-multipass` and its app) are my own projects |
 | [`settings/registry.toml`](../settings/registry.toml) | `macos.disable_time_machine` and `macos.firewall` default to on, my choice. **If you use Time Machine, run `dotfiles-settings set macos.disable_time_machine off` before `set-defaults`, which otherwise stops all backups.** |
 | [`package.json`](../package.json) | The `author` field |

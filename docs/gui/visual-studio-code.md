@@ -1,6 +1,6 @@
 # Visual Studio Code
 
-> Stock macOS keyboard shortcuts — this repo ships no custom keybindings.
+> Stock macOS keyboard shortcuts. This repo ships no custom keybindings.
 
 Settings, snippets and tasks come from `vscode/User` (symlinked by setup); Settings Sync is off. `vscode/User/keybindings.json` is intentionally empty (`[]`), so every shortcut below is a VS Code default.
 

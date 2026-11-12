@@ -1,7 +1,7 @@
 # Rectangle
 
 > [!NOTE]  
-> Optional — not installed by setup; install it yourself (`mise bootstrap packages apply brew-cask:rectangle`) if you use it. Window management in this setup is handled by Raycast (`help gui/raycast`).
+> Optional and not installed by setup; install it yourself (`mise bootstrap packages apply brew-cask:rectangle`) if you use it. Window management in this setup is handled by Raycast (`help gui/raycast`).
 
 ## Import the config
 

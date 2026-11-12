@@ -89,7 +89,7 @@ Assuming your work repositories are inside the `~/dev/acme` folder.
    git config -f ~/dev/acme/.gitconfig user.name "John Doe"
    ```
 
-1. Then, add this to `~/.gitconfig.local` (setup already created it with your identity and signing settings — append, don't replace):
+1. Then, add this to `~/.gitconfig.local` (setup already created it with your identity and signing settings, so append, don't replace):
 
    ```ini
    [includeIf "gitdir:~/dev/acme/"]
