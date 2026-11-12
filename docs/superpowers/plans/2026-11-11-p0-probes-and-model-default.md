@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Measure the nine mise behaviours the installable-setup design rests on, in a scratch home, and stop `claude-config save` from replacing the tracked `opus` model with one Mac's choice.
+**Goal:** Measure the ten mise behaviours the installable-setup design rests on, in a scratch home inside the VM, and stop `claude-config save` from replacing the tracked `opus` model with one Mac's choice.
 
 **Architecture:** One committed harness script builds a throwaway home, a small fixture bootstrap project in a local Git repository and a bare repository that stands in for the user's private GitHub repository. Every probe gets a fresh copy of each, so no probe sees what another left behind. Each probe is a function in that script that runs real mise commands against the fixtures and prints one `PROBE <n> <answer>` line. The answers are copied into the spec, which then decides P1 to P4.
 
@@ -19,7 +19,9 @@
 - The fixture project declares only `[dotfiles]` entries and files. It declares no packages, no tools, no macOS defaults, no login shell, no task and no `[bootstrap.services]`, so a real `mise bootstrap` inside the scratch home installs nothing and registers no LaunchAgent. mise's history watcher is a LaunchAgent only when a config declares `[bootstrap.services.mise-history]` (https://mise.jdx.dev/dotfiles/history.html); the harness never declares it and never runs `mise dot watch`.
 - No network. The project and the origin are local Git repositories. `--from` is documented as taking a Git URL, so the harness passes `file://$project`. `--adopt` and `mise dot origin set` are documented as taking local paths.
 - The harness does not pre-trust the fixture (`MISE_TRUSTED_CONFIG_PATHS` stays unset), because whether a later command in the checkout needs trust is one of the things a stranger would hit.
-- Where it runs: the harness is safe on the owner's Mac by the isolation above, and the macOS VM is the preferred place when it is available, because there a mistake in that isolation costs nothing. In the VM it needs only git and mise at the floor or newer; copy `probe.sh` in, run it, and copy `results.txt` back. Task 1 runs on the owner's Mac either way: it is a script and its self-check.
+- Where it runs (owner's decision, 2026-11-11): the probes run in the UTM guest `macOS`, started with "Run without saving changes". The harness is written and its guards are checked on the owner's Mac (Task 2, which runs no `mise bootstrap` beyond the stub probes), then `probe.sh` is copied to the guest through the shared folder, run there, and `results.txt` is copied back to the host. The guest needs git and mise at the floor or newer for that run: `xcode-select --install`, then mise's installer (`curl -fsSL https://mise.run | sh`), both inside the disposable run. The isolation rules above still apply in the guest, so the same script is safe in either place. Task 1 runs on the owner's Mac: it is a script and its self-check.
+- The owner runs the steps inside the guest. An agent session on the host cannot reach it.
+- So in Tasks 3 to 5, every "Run: bash …/probe.sh <numbers>" step is run in the guest, not on the host: copy the current `probe.sh` in, run those numbers, and bring the `PROBE` lines back. Expect more than one round trip per task. A probe that prints `ERROR` because of a mistake in the harness is fixed on the host and rerun in the guest; one that prints `ERROR` because mise lacks the feature is a result. On the host, Tasks 3 to 5 may run only `bash -n` and `shellcheck` on the script.
 - Never run `./setup.sh`, `sysup`, or `mise bootstrap` against the real home. Never edit `config.local.toml` or `config.override.toml`.
 - The Claude Code ask rule is `Bash(mise bootstrap*)`. It does not match `bash …/probe.sh`, so one approval of the harness covers every bootstrap inside it. The harness's own guards are therefore the only check: Task 2's `config ls` self-check must pass before any probe that runs `mise bootstrap` is written or run.
 - mise checks for a newer release when it starts, so "no network" means no network the probes depend on.
@@ -42,7 +44,7 @@
 - `bin/claude-config`: `save_settings` keeps the tracked `model`.
 - `bin/lib/test-claude-config`: four new checks.
 - `docs/claude-config.md`, `settings/registry.toml`, `agents/README.md`, `.claude/rules/claude-config.md`: say that `save` does not record the model.
-- `docs/superpowers/specs/2026-11-11-installable-probe/probe.sh`: the harness and the nine probes. It lives beside the spec, like `specs/completed/2026-10-09-mods-probe/`, because it is evidence for the spec and not part of the product.
+- `docs/superpowers/specs/2026-11-11-installable-probe/probe.sh`: the harness and the ten probes. It lives beside the spec, like `specs/completed/2026-10-09-mods-probe/`, because it is evidence for the spec and not part of the product.
 - `docs/superpowers/specs/2026-11-11-installable-probe/results.txt`: the `PROBE` lines from the run, committed.
 - `docs/superpowers/specs/2026-11-11-installable-setup-profiles-and-sync.md`: its "Not verified" table becomes "Verified facts".
 
@@ -141,7 +143,7 @@ git push
   - `self_check`: runs `m config ls` and exits 4 with "probe: mise sees config outside the scratch folder" when any line of its output names a path that does not start with `$scratch`. `main` calls it after the first `new_home` and before any probe.
   - `answer <n> <text…>`: prints `PROBE <n> <text>`.
   - `probe <n> <function>`: runs the function in a subshell without `set -e`. When it exits non-zero, prints `PROBE <n> ERROR <code>` and returns 0. Several probes run commands that are expected to fail (an update that refuses, a pull that conflicts), so a probe function captures each exit code it cares about and returns non-zero only when it could not produce its answer.
-  - `main`: runs `probe 1 probe_1` to `probe 9 probe_9` in order, or only the numbers given as arguments.
+  - `main`: runs `probe 1 probe_1` to `probe 10 probe_10` in order, or only the numbers given as arguments.
 
 - [ ] **Step 1: Write the harness with the fixture project**
 
@@ -167,12 +169,12 @@ git push
 "~/.probe/work" = "files/work"
 ```
 
-and the five files under `files/`, each holding its own name. Write `probe_1` to `probe_9` as functions that only call `answer <n> not-written`.
+and the five files under `files/`, each holding its own name. Write `probe_1` to `probe_10` as functions that only call `answer <n> not-written`.
 
 - [ ] **Step 2: Check the three harness guards**
 
 Run: `bash docs/superpowers/specs/2026-11-11-installable-probe/probe.sh`
-Expected: nine lines, `PROBE 1 not-written` to `PROBE 9 not-written`, and exit 0.
+Expected: ten lines, `PROBE 1 not-written` to `PROBE 10 not-written`, and exit 0.
 
 Run: `PROBE_KEEP=1 bash docs/superpowers/specs/2026-11-11-installable-probe/probe.sh 1; ls "$TMPDIR" | grep -c dotfiles-probe`
 Expected: the kept folder exists. Run it again without `PROBE_KEEP`: it builds a new folder and does not reuse the kept one. Remove the kept folder afterwards.
@@ -182,7 +184,7 @@ Expected: exit 0 and no "outside the scratch folder" message. Then temporarily m
 Expected: exit 4 with "probe: mise sees config outside the scratch folder", and no `PROBE` line. Restore it. This is the check that the measured hole in Global Constraints is closed, so do not write Task 3 until it behaves this way.
 
 Temporarily make `probe_2` run `false`, and `probe_3` call `HOME=/tmp m --version`.
-Expected: `PROBE 2 ERROR 1`, then `PROBE 3 ERROR 3` with "probe: scratch home not set" on stderr, then probes 4 to 9 still print. Restore both.
+Expected: `PROBE 2 ERROR 1`, then `PROBE 3 ERROR 3` with "probe: scratch home not set" on stderr, then probes 4 to 10 still print. Restore both.
 
 - [ ] **Step 3: Commit**
 
@@ -210,7 +212,7 @@ Each probe starts with `new_home mac-a` and `new_project`, and installs with `m 
 
 - [ ] **Step 1: `probe_1`, the commands exist**
 
-Run `m --version`, then `m bootstrap --help` and `m bootstrap unapply --help`. Answer: `version=<first word of --version> from=<yes|no> adopt=<yes|no> update=<yes|no> unapply=<yes|no>`, each from whether the help text names the flag or the subcommand exits 0.
+Run `m --version`, then `m bootstrap --help` and `m bootstrap unapply --help`. Answer: `version=<first word of --version> from=<yes|no> from-dir=<yes|no> config-dir=<yes|no> adopt=<yes|no> update=<yes|no> save-env=<yes|no> unapply=<yes|no>`, each from whether the help text names the flag or the subcommand exits 0.
 
 - [ ] **Step 2: `probe_2`, relative sources**
 
@@ -268,7 +270,7 @@ git commit -m "Probe the user layer and updates over a dirty checkout"
 
 ---
 
-### Task 5: Probes 6 to 9, sync, profiles, removal and the config-dir shape
+### Task 5: Probes 6 to 10, sync, profiles, removal, the config-dir shape and a dev clone
 
 **Files:**
 
@@ -294,14 +296,18 @@ git commit -m "Probe the user layer and updates over a dirty checkout"
 
 `new_home mac-a` and `new_project`. Add a folder `cfg/` to this probe's project holding `config.toml` with one `[dotfiles]` entry, `"~/.probe/from-cfg" = "../files/linked"`, and commit. Remove the empty `$MISE_CONFIG_DIR` folder, then run `m bootstrap --from "file://$project" --config-dir cfg`. Record what `$MISE_CONFIG_DIR` is now. Write `$MISE_CONFIG_DIR/config.local.toml` with one comment line, make an upstream commit that changes `files/extra`, and run the same command with `--update`. Answer: `config-dir=<symlink-into-checkout|real-dir|error> from-cfg=<applied|missing> local-toml-in-checkout=<yes|no> update-with-local-toml=<updates|refuses>`. `local-toml-in-checkout` is whether `git status --porcelain` in the checkout lists the file.
 
-- [ ] **Step 5: Run and commit**
+- [ ] **Step 5: `probe_10`, a dev clone as the checkout**
 
-Run: `bash docs/superpowers/specs/2026-11-11-installable-probe/probe.sh 6 7 8 9`
-Expected: four `PROBE` lines, none `not-written`.
+`new_home mac-a` and `new_project`. Make a second branch `stable` in the project at its first commit, then add one more commit on `main`. Clone the project to `$scratch/clone` with `g clone`, so the clone is on `main` with `origin` set to the project. In the clone, append a line to `files/linked` and leave it uncommitted. Run `m bootstrap --from "file://$project?ref=stable" --from-dir "$scratch/clone"`, record the clone's branch and whether the edit is still there, then add an upstream commit on `stable` and run the same command with `--update`. Answer: `applied=<yes|no|error> branch-after-install=<main|stable|detached> edit-after-install=<kept|lost> branch-after-update=<main|stable|detached> edit-after-update=<kept|lost> update-exit=<code>`. This is the owner's Mac in miniature: a working clone on `main` with local edits, asked to follow `stable`.
+
+- [ ] **Step 6: Run and commit**
+
+Run: `bash docs/superpowers/specs/2026-11-11-installable-probe/probe.sh 6 7 8 9 10`
+Expected: five `PROBE` lines, none `not-written`.
 
 ```bash
 git add docs/superpowers/specs/2026-11-11-installable-probe/probe.sh
-git commit -m "Probe sync, saved profiles, module removal and the config-dir shape"
+git commit -m "Probe sync, saved profiles, module removal, the config-dir shape and a dev clone"
 ```
 
 ---
@@ -315,12 +321,12 @@ git commit -m "Probe sync, saved profiles, module removal and the config-dir sha
 
 **Interfaces:**
 
-- Consumes: the nine `PROBE` lines.
+- Consumes: the ten `PROBE` lines.
 
 - [ ] **Step 1: Run everything once and keep the output**
 
-Run: `bash docs/superpowers/specs/2026-11-11-installable-probe/probe.sh 2> /dev/null | grep '^PROBE ' > docs/superpowers/specs/2026-11-11-installable-probe/results.txt; cat docs/superpowers/specs/2026-11-11-installable-probe/results.txt`
-Expected: exactly nine lines, each starting `PROBE`. The first names the mise version. Only the answer lines are committed: mise's own output holds temp paths that differ on every run.
+In the guest, from the folder `probe.sh` was copied to, run: `bash probe.sh 2> probe.err | grep '^PROBE ' > results.txt; cat results.txt`. Copy `results.txt` (and `probe.err` if any line says `ERROR`) to the shared folder, then on the host save it as `docs/superpowers/specs/2026-11-11-installable-probe/results.txt`.
+Expected: exactly ten lines, each starting `PROBE`. The first names the mise version. Only the answer lines are committed: mise's own output holds temp paths that differ on every run.
 
 - [ ] **Step 2: Rewrite the spec's table**
 
@@ -349,6 +355,8 @@ Rename "Not verified, and the check that settles each" to "Verified facts" and r
 | Probe 8: `ran-from=untrusted` | Distribution says which commands need `mise trust` on the checkout, and P1 decides whether the install command trusts it |
 | Probe 9: `config-dir=symlink-into-checkout` and `update-with-local-toml=updates` | Distribution may choose the config-dir shape. The spec states what that costs the user layer |
 | Probe 9: anything else | Distribution chooses the project shape |
+| Probe 10: both branches stay `main` and both edits are `kept` | Decision 7 stands: the owner's Mac can use `--from-dir` on the dev clone once the VM proof passes |
+| Probe 10: a branch moves, an edit is `lost`, or `applied` is not `yes` | Decision 7 changes: the owner's Mac keeps `setup.sh` from the clone, and the spec says installed mode is proven in the VM only. Tell the owner before anything else |
 | Probe 8: `linked=removed` | Opt-outs must not offer removal: unapply takes more than the module |
 | Probe 8: `ran-from=from-flag` or `neither` | Opt-outs record the command that works, or that there is none |
 | Probe 8: `extra=kept` | Opt-outs say turning a module off stops future installs and removes nothing |
@@ -361,4 +369,4 @@ git commit -m "Record the probe results in the installable-setup spec"
 git push
 ```
 
-Then ask the owner to review the spec and answer its three open points. P1 and P2 are written only after that. A probe that printed `ERROR` blocks the plan that waits on it (the spec's phase briefs name which) until it is rerun or the owner accepts the gap in writing in the spec.
+Then ask the owner to review the updated spec. P1 and P2 are written only after that. A probe that printed `ERROR` blocks the plan that waits on it (the spec's phase briefs name which) until it is rerun or the owner accepts the gap in writing in the spec.
