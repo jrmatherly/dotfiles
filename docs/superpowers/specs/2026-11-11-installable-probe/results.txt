@@ -1,0 +1,10 @@
+PROBE 1 version=2026.11.6 from=yes from-dir=yes config-dir=yes adopt=yes update=yes save-env=yes unapply=yes
+PROBE 2 checkout=mac-a/data/bootstrap-repo linked=mac-a/data/bootstrap-repo/files/linked copied=file
+PROBE 3 shipped-list=ignored shipped-file=none local-override=untested
+PROBE 4 enabled-false=ignored absent=ignored winner=project user-layer=read
+PROBE 5 exit-codes=0,0,1 copy-edit=updates symlink-edit-other-file=updates symlink-edit-same-file=refuses copy-target-after=overwritten seeded-target-after=kept-user-edit
+PROBE 6 shared=arrived local-toml=stayed conflict=paused conflicts-cmd=lists-file adopt-mode=sync set-manual-after=ok
+PROBE 7 work-first-run=applied remembered=yes saved-in=miserc.local.toml
+PROBE 8 extra=removed linked=kept ran-from=checkout first-error=none
+PROBE 9 config-dir=symlink-into-checkout from-cfg=applied local-toml-in-checkout=yes update-with-local-toml=updates
+PROBE 10 applied=yes branch-after-install=main edit-after-install=kept branch-after-update=stable edit-after-update=kept update-exit=0

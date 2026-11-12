@@ -16,7 +16,7 @@ The owner's workflow stays: edit files in a clone, commit, push.
 4. macOS only. Linux is a later follow-up.
 5. The tracked Claude Code default model is `opus`. One Mac's choice does not change it.
 6. The product is named `kitbag`. Checked that day: no Homebrew formula or cask and no npm package has the name, and GitHub's top repository by that name has 14 stars and is unrelated. A wider check the same evening found three problems, so the name is back with the owner (see "Names considered"). PyPI has a `kitbag` package (0.3.0, July 2026, 34 downloads in the last month): a developer CLI installed with `uv tool install kitbag` that puts `kitbag` on PATH and owns `~/.kitbag/` and `KITBAG_HOME`. `TomaszJanusz/kitbag` on GitHub (created 2026-10-24, 93 commits, pushed 2026-11-11, one star, no release) is a Go CLI named `kitbag` that syncs coding agents' skills, instructions, MCP servers and settings from one Git repository to every machine, is tagged `dotfiles`, builds with mise and plans a `kitbag` Homebrew tap formula. The GitHub user `kitbag` and the npm scope `@kitbag` (kitbagjs, a Vue router) are taken. Domains: `kitbag.com` and `.org` belong to the Fanatics retailer, `.dev`, `.app`, `.io` and `.tools` have name servers, and whois reports `kitbag.sh` as not found. Trademark: the US registration KITBAG (4861547, Fanatics (International) Limited) is live for Class 35 retail of sporting goods only, with every other class cancelled and no software in it (USPTO TSDR, read 2026-11-11). Not checked: UK and EU registers.
-7. The owner's Mac moves to installed mode on the existing clone (`--from-dir`), and only after installed mode is proven in the VM.
+7. The owner's Mac moves to installed mode on the existing clone (`--from-dir`), and only after installed mode is proven in the VM. **Changed by probe 10 (2026-11-11):** `--update` with `?ref=stable` switched the clone from `main` to `stable`, so the owner's Mac keeps `setup.sh` from the clone and installed mode is proven in the VM only. This was the rule the P0 plan set for that result.
 8. Sync is manual first. Automatic background sync is a later opt-in, after manual sync has been used for real.
 9. Users follow a `stable` branch. The owner keeps pushing to `main`, and a commit is promoted to `stable` only after the VM install passes on it.
 10. mise has a tested minimum version that the install checks, raised deliberately. Each promotion to `stable` is proven in the VM on the mise version current that day.
@@ -40,11 +40,13 @@ VS Code's Settings Sync is the model: a shared base, a per-user layer that syncs
 | User | The user | Their own `~/.config/mise` (a real directory, not a link into our checkout), and the files they choose to track | They edit it, or `dotfiles-settings` does. It syncs through their private repository |
 | Machine | The user, on one Mac | `*.local.toml` in `~/.config/mise`, `~/.zsh.local`, `~/.gitconfig.local`, `~/.ssh/config.local` | Never synced. mise's docs say files ending `.local.toml` stay on each machine |
 
+Measured in probe 4: a `--from` run reads the user's global config and applies its own entries, but a project entry beats a user entry with the same key, and neither `enabled = false` nor `mode = "absent"` in the user's config cancels it. The user layer adds to the base; it does not override the base's dotfile entries.
+
 The owner's own values (name, clone URL, weather location, personal taps, the `coolify` MCP note) move out of the base into the owner's user layer. That layer is the first real test of the design.
 
 ## How each requirement maps onto mise
 
-Everything in this table is from mise's documentation, read on 2026-11-11. None of it has been run against this repository. See [Not verified](#not-verified-and-the-check-that-settles-each).
+Everything in this table is from mise's documentation, read on 2026-11-11. The probes then measured ten of these behaviours in the VM, and two rows did not hold as read: a shipped `.miserc.toml` and `enabled = false` from the user's config. Where this table and [Verified facts](#verified-facts) differ, the measurement wins.
 
 | Requirement | mise feature | Doc |
 | --- | --- | --- |
@@ -68,32 +70,36 @@ So the work is mostly restructuring this repository into a bootstrap project, sp
 ### Distribution
 
 - `mise bootstrap --from <url>` is the documented install. `setup.sh` stays as the owner's path from a clone, and as the path for a Mac without mise.
-- There are two shapes, and P0 measures both before P1 picks one:
+- Installed mode needs no `~/dotfiles` link: a relative source resolved into mise's checkout at `$MISE_DATA_DIR/bootstrap-repo` (probe 2).
+- There are two shapes. P0 measured that both work (probes 2 and 9), and P1 picks one:
   - **Project shape.** The repository gains a root `mise.toml`. The user's `~/.config/mise` stays their own directory and loads on top of ours. This gives the cleanest user layer, and needs the most restructuring: the four `conf.d` fragments move or are included from the root file.
-  - **Config-dir shape.** `--from <url> --config-dir tilde/.config/mise` links `~/.config/mise` into the checkout, as `setup.sh` does today. Almost nothing moves. The user layer shrinks to the `*.local.toml` and override files, which then sit inside our checkout (git-ignored), and a user has no global config of their own to sync.
+  - **Config-dir shape.** `--from <url> --config-dir tilde/.config/mise` links `~/.config/mise` into the checkout, as `setup.sh` does today. Almost nothing moves. The user layer shrinks to the `*.local.toml` and override files, which then sit inside our checkout (git-ignored), and a user has no global config of their own to sync. Measured in probe 9: mise makes the link, a `config.local.toml` written through it shows in the checkout's `git status` unless the repository ignores it (this one does), and `--update` still fast-forwards.
 - Installed mode and clone mode read the same declarations. What differs is where the checkout is and who may edit it.
-- The installed checkout must stay fast-forwardable. No app may write into it. Each `[dotfiles]` entry whose target an app rewrites (VS Code's `settings.json`, `gh`'s `config.yml`, and others found by the probe) stops being a symlink in installed mode. It becomes a `merge` edit where we own some keys, as `~/.codex/config.toml` already is, or a `create_if_missing` copy where we only seed the file. A plain `copy` is wrong for these: mise's docs say it overwrites the user's edits on every apply.
-- Releases: the install and update commands name `?ref=stable`. mise's docs say `--update` with a branch ref checks the branch out and fast-forwards it. Promotion is one fast-forward of `stable` to a commit on `main` that passed the VM install, done by the owner. Tags are not used: a user would have to act to get a fix.
-- The owner's Mac runs the same command with `--from-dir ~/dev/dotfiles`, so the checkout mise uses is the dev clone. mise's docs say an existing checkout's origin must be the URL passed and that mise "uses the checkout as it is". On a clone with local edits and on a branch other than `stable`, what `--update` and `?ref=stable` do is unmeasured, and a wrong guess could move the owner's working branch, so P0 measures it and decision 7 waits for the VM proof.
+- The installed checkout must stay fast-forwardable. No app may write into it. Each `[dotfiles]` entry whose target an app rewrites (VS Code's `settings.json`, `gh`'s `config.yml`, and others found by the probe) stops being a symlink in installed mode. It becomes a `merge` edit where we own some keys, as `~/.codex/config.toml` already is, or a `create_if_missing` copy where we only seed the file. A plain `copy` is wrong for these: mise's docs say it overwrites the user's edits on every apply. Probe 5 measured all of it: an edit made through a symlink left the checkout dirty, and `--update` exited 1 when upstream changed that same file (it still fast-forwarded when upstream changed a different one); an edited `copy` target was overwritten; an edited `create_if_missing` target was kept. So P1's first task lists every target an app rewrites, and each becomes a `create_if_missing` or `merge` entry.
+- Releases: the install and update commands name `?ref=stable`. mise's docs say `--update` with a branch ref checks the branch out and fast-forwards it, and probe 10 saw exactly that. Promotion is one fast-forward of `stable` to a commit on `main` that passed the VM install, done by the owner. Tags are not used: a user would have to act to get a fix.
+- The owner's Mac stays on `setup.sh` from the clone (decision 7, as changed). Probe 10 ran `--from <url>?ref=stable --from-dir <clone>` on a clone that was on `main` with an uncommitted edit. The install applied from the clone as it was and left the branch alone. `--update` then switched the clone to `stable`. The edit survived both. A working clone cannot follow `stable` without losing its branch.
 
 ### Opt-outs
 
 - The base splits into modules by what a person would decline: apps, fonts, VS Code extensions, the Claude Code plugins and skills, the other agent tooling, the macOS defaults groups that already have switches.
 - All modules are on by default. A user turns one off in `dotfiles-settings`, which writes the `env` list in `miserc.local.toml`.
-- Opting out of one item inside a module needs a way for the user layer to cancel a key the base declares. For a dotfile entry the docs give one: `enabled = false`. For a package or a tool (one cask, one extension) no such key was found in the pages read, so the probe measures it. If there is none, the fallback is a deny list that `setup.sh` and `sysup` already know how to pass as skips.
+- The base cannot ship that default list: under `--from`, a project's `.miserc.toml` and `.config/miserc.toml` were both ignored (probe 3). So the install command passes the full module list with `-E` and `--save-env`, which writes `env = [...]` to `miserc.local.toml` and is honoured on later runs without `-E` (probe 7). That file is then the one list `dotfiles-settings` edits.
+- Turning a module off can offer to remove it: `mise bootstrap unapply <module>`, run in the checkout, removed the module's entry, kept the base's, and needed no `mise trust` (probe 8).
+- Opting out of one item inside a module needs a way for the user layer to cancel a key the base declares. For a dotfile entry the docs give one, `enabled = false`, but from the user's global config it did not cancel a project entry, and neither did `mode = "absent"` (probe 4). So single items use a deny list that `setup.sh` and `sysup` already know how to pass as skips, and P2 gives the base a hook for user overrides. A package or a tool (one cask, one extension) is still unmeasured: P2's first task.
 - Claude Code: `claude-config restore` only adds. Opting out skips the restore. It never removes plugins a user installed.
 
 ### Sync and sign-in
 
 - `dotfiles-settings sync on` signs in with `gh`, creates a private repository in the user's account, connects it with `mise dot origin set`, and tracks the user layer. `sync off` disconnects and leaves the history.
-- Manual first (decision 8): `mise dot sync` and `mise dot pull` on demand, and `dotfiles-settings` always passes `--sync manual` when it connects an origin, because mise's own default is automatic and its docs say that mode "lets the origin write your live files". Automatic mode needs mise's background watcher, a LaunchAgent, and is a later opt-in.
+- Manual first (decision 8): `mise dot sync` and `mise dot pull` on demand, and `dotfiles-settings` always passes `--sync manual` when it connects an origin, because mise's own default is automatic and its docs say that mode "lets the origin write your live files". Automatic mode needs mise's background watcher, a LaunchAgent, and is a later opt-in. Restoring on a new Mac needs a second step: `mise bootstrap --adopt` takes no `--sync` flag and the adopted home came up in mode `sync`, the automatic one, although the first Mac was manual. `mise dot origin set <origin> --sync manual` right after it was accepted (probe 6). No mise LaunchAgent was registered in the guest after the run (`launchctl list`), so nothing was running that mode.
+- mise leaves `config.local.toml` out of the history by itself ("machine-local configuration"), and it reached neither the second home nor the origin's history (probe 6).
 - Never tracked: `*.local.toml`, `~/.gitconfig.local`, `~/.ssh/**`, anything `claude-config save` already strips (`hooks`, credential helpers, token-like `env`). mise's docs warn that connecting an origin shares the whole saved history, so the exclude list is set before the first save, and a secret that was ever saved stays in old commits.
-- A conflict is shown, not resolved for the user: `dotfiles-settings` lists the files from `mise dot conflicts`.
+- A conflict is shown, not resolved for the user: `dotfiles-settings` lists the files from `mise dot conflicts`. Measured: two homes editing the same line paused sync, neither side was overwritten, and `mise dot conflicts` named the file and printed the diff (probe 6).
 - mise reads tracking entries and its `[history]` table only from system and global config (reference page). So sync belongs to the user layer by construction: our project cannot declare what a user tracks, and `dotfiles-settings` writes those entries into the user's own config.
 
 ### Profiles
 
-- A profile is a config environment. `dotfiles-settings profile use work` runs with `-E work` and saves the choice.
+- A profile is a config environment. `dotfiles-settings profile use work` runs with `-E work` and saves the choice (`--save-env`, measured in probe 7). The profile and the module list share the one `env` list in `miserc.local.toml`.
 - A profile can change the module list and any setting. A file that differs by profile uses a `variants` entry with a `profile` selector. Machine-scoped values stay outside profiles.
 
 ### Menu bar app
@@ -123,27 +129,38 @@ Decision for now: stay on mise alone. Two tools owning the same files is the thi
 ## Risks
 
 - **A dirty checkout blocks updates.** One symlinked file an app rewrites, and `--update` may refuse. This decides how every dotfile entry deploys.
-- **`~/dotfiles/…` sources.** They assume a link at `~/dotfiles`. A bootstrap project may resolve relative sources itself, which would remove the link, or it may not.
+- **`~/dotfiles/…` sources.** They assume a link at `~/dotfiles`. A bootstrap project resolves relative sources itself (probe 2), so installed mode rewrites them as relative and drops the link.
 - **Two configs at once.** Installed mode loads our project and the user's global config together. A stranger's existing `~/.config/mise` may declare tools or packages that clash with ours.
 - **Trust.** `--from` trusts our configuration for that run. The install page must say so and say how to preview (`--dry-run`).
 - **History holds secrets forever.** One bad first save puts a token in a private repository's history.
 - **Background writes.** Automatic sync lets a remote change a user's live files.
 
-## Not verified, and the check that settles each
+## Verified facts
 
-| Claim | Check |
+Measured on 2026-11-11 in the UTM guest (macOS 27.2.1, mise 2026.11.6, a disposable run), each probe in its own scratch home. The harness is `2026-11-11-installable-probe/probe.sh` and its answers are in `results.txt` beside it.
+
+| Claim | Measured |
 | --- | --- |
-| mise 2026.11.5 (the floor in `setup/mise-floor.sh`) has `--from`, `--adopt`, `--update` and `unapply` | Probe 1 |
-| A bootstrap project resolves a relative `[dotfiles]` source from the project directory. The managed-files page says a relative source starts from the directory of the config file that declares it | Probe 2 |
-| A project can ship its own default module list in `.miserc.toml`, and `miserc.local.toml` in the user's config dir replaces it | Probe 3 |
-| The user layer can cancel one package or tool key the project declares | Probe 4 |
-| `--update` on a checkout with an uncommitted change: which cases fast-forward and which refuse | Probe 5 |
-| `copy` and `create_if_missing` entries keep the checkout clean when the target is rewritten, and only the second keeps the user's edit | Probe 5 |
-| `mise dot origin set`, `sync`, `pull` and a conflict between two Macs behave as documented, and `*.local.toml` stays put | Probe 6 |
-| `-E work` with `--save-env` selects `mise.work.toml` in a project on later runs | Probe 7 |
-| `mise bootstrap unapply <module>` removes that module's dotfile entries and nothing else | Probe 8 |
-| `--from <url> --config-dir <dir>` links the config dir into the checkout, and a `*.local.toml` written there does not block `--update` | Probe 9 |
-| `--from <url> --from-dir <clone>` on a clone with uncommitted edits, on a branch other than the ref: it applies from the clone as it is, and `--update` leaves the branch and the edits alone or refuses | Probe 10 |
+| mise has `--from`, `--from-dir`, `--config-dir`, `--adopt`, `--update`, `--save-env` and `bootstrap unapply` | Yes, all seven, on 2026.11.6 (probe 1) |
+| A bootstrap project resolves a relative `[dotfiles]` source from the project directory | Yes. The symlink points at `$MISE_DATA_DIR/bootstrap-repo/files/…`, and a `copy` entry lands as a regular file (probe 2) |
+| A project can ship its own default module list in `.miserc.toml` | No. Under `--from` it was ignored as `.miserc.toml` and as `.config/miserc.toml`, so the override by `miserc.local.toml` could not be tested (probe 3) |
+| The user layer can cancel or replace one dotfile entry the project declares | No. `enabled = false` and `mode = "absent"` were both ignored and the project's entry won, although the user's config was read and its own entry applied (probe 4) |
+| `--update` on a checkout with an uncommitted change | Fast-forwards when upstream changed a different file. Exits 1 when upstream changed the edited file (probe 5) |
+| `copy` and `create_if_missing` entries keep the checkout clean when the target is rewritten, and only the second keeps the user's edit | Yes to both. The update went through, the `copy` target was overwritten and the `create_if_missing` target kept the edit (probe 5) |
+| `mise dot origin set`, `sync`, `pull` and a conflict between two Macs behave as documented, and `*.local.toml` stays put | Yes. The shared file arrived, `config.local.toml` stayed, a conflict paused sync without overwriting either side, and `mise dot conflicts` listed the file. An adopted home starts in mode `sync` and accepts `origin set --sync manual` afterwards (probe 6) |
+| `-E work` with `--save-env` selects `mise.work.toml` in a project on later runs | Yes. It wrote `env = ["work"]` to `miserc.local.toml`, and a run without `-E` applied the profile again (probe 7) |
+| `mise bootstrap unapply <module>` removes that module's dotfile entries and nothing else | Yes, run in the checkout with no trust error (probe 8) |
+| `--from <url> --config-dir <dir>` links the config dir into the checkout, and a `*.local.toml` written there does not block `--update` | Yes. The file shows as untracked in the checkout's `git status` (probe 9) |
+| `--from <url> --from-dir <clone>` on a clone with uncommitted edits, on a branch other than the ref | The install applies from the clone as it is. `--update` switches the clone to the ref's branch and exits 0. The edit survives both (probe 10) |
+
+### Still not verified
+
+| Claim | What settles it |
+| --- | --- |
+| The user layer can cancel one package or tool key the project declares | P2's first task: a dry run against the real package list. Probe 4 measured a dotfile key only |
+| The same behaviours on the 2026.11.5 floor in `setup/mise-floor.sh` | The guest ran 2026.11.6, the release mise's installer gave it. Either rerun the probes on 2026.11.5 or raise the floor to 2026.11.6 before P1 ships an install command |
+| A project's `.miserc.toml` is read when `mise bootstrap` runs from inside the checkout, without `--from` | Not measured. It matters only if a later run stops passing `--from` |
+| What an adopted home in mode `sync` does once the history watcher is declared | P3, in the VM, against a real private repository |
 
 Measured on this Mac on 2026-11-11: `mise --version` prints 2026.11.5, and `mise dot --help` lists `origin`, `sync`, `pull`, `track`, `conflicts` and `exclude`.
 
@@ -151,7 +168,7 @@ Also measured that day: with `HOME` and every `MISE_*_DIR` pointed at a scratch 
 
 ## Plans
 
-- `docs/superpowers/plans/2026-11-11-p0-probes-and-model-default.md`: the probes in a scratch home, and the `claude-config save` model rule. Its results fill in this spec and decide the open points.
+- `docs/superpowers/plans/completed/2026-11-11-p0-probes-and-model-default.md` (done 2026-11-11): the probes in a scratch home, and the `claude-config save` model rule. Its results fill in this spec and decide the open points.
 - P1 to P6 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
 
 ## Phase briefs
@@ -165,7 +182,7 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 - **Outcome.** On a Mac with only mise, one documented command installs the setup, a second updates it, and neither needs the user to clone, fork or edit our repository. `./setup.sh` from a clone still works for the owner.
 - **Delivers.** The chosen shape from Distribution (project or config-dir). An `update` command that runs `mise bootstrap --from <url> --update` with the flags `setup.sh` passes today. A decision for every `[dotfiles]` entry: symlink, `create_if_missing` copy or `merge` edit. `$DOTFILES` and the `~/dotfiles` link resolved for a checkout under `~/.local/share/mise/bootstrap-repo`.
 - **Known.** `setup.sh` does more than `mise bootstrap`: it installs packages one manager at a time so a failure only warns, skips `macos-defaults`, runs `mise install` itself, runs the task as a second call, then `setup/dotfiles-extras.sh` (see `setup/README.md`). An install from mise alone has no `setup.sh`, so each of those either moves into the config (hooks, the `bootstrap` task) or the install command becomes "run mise, then run our script from the checkout". `40-dotfiles.toml` has 38 entries, 36 of them with a `~/dotfiles/…` source.
-- **Waiting on.** Probes 2, 5, 9 and 10 (relative sources, updates over a dirty checkout, the config-dir shape, the owner's clone as the checkout).
+- **Settled by P0.** Probes 2, 5, 9 and 10: relative sources work, app-written targets must not be symlinks or plain copies, both shapes work, and the owner's clone cannot be the checkout. Open: the mise floor (see "Still not verified").
 - **Decided.** The command and the product are `kitbag`; P1 decides whether `dotfiles-settings` is renamed or `kitbag` wraps it. Users follow `?ref=stable`, and P1 creates that branch and writes the promotion step. The install checks the mise floor in `setup/mise-floor.sh` before anything else. The owner's Mac switches last, after the VM proof.
 - **VM baseline.** The existing UTM guest named `macOS` is the baseline as it stands. The A6 plan's Task 6 (`docs/superpowers/plans/completed/2026-11-09-a6-bootstrap-entry-point.md`) records it: UTM 5.0.8, guest macOS 27.2.1 (26B131), 4 cores, 8 GB of memory, a 100 GB disk made at that size in the wizard, a local admin account, no Apple ID, and no Command Line Tools, Xcode or Homebrew. Every A6 run used "Run without saving changes", so nothing from this repository is on it; the owner confirmed on 2026-11-11 that it is still a fresh install. Run each first-install test in that disposable mode. The Command Line Tools stay off the baseline on purpose: installing them is the stranger's real first step, since mise needs `git` to clone. A test that must survive a shutdown (install, log out for the login shell, then update) starts from a UTM snapshot instead, restored afterwards. Measured in A6: a full install took the guest's free space from 68 GiB to 29 GiB, and evidence went to the host's `~/vm-proof/` through a shared folder. Not checked: whether a restart inside one disposable run keeps its changes.
 - **Done when.** A fresh macOS VM with mise and nothing else reaches the same `mise bootstrap status` as a `setup.sh` run, an upstream commit arrives with the update command, and an app rewriting its config does not block that update. The `fresh-install` workflow gains a job for this path.
@@ -175,7 +192,7 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 - **Outcome.** A stranger can decline any group before or after installing, and gets nothing that is only true for the owner.
 - **Delivers.** The base split into modules (apps, fonts, VS Code extensions, Claude Code plugins and skills, other agent tooling). A default list with everything on. A switch per module in `dotfiles-settings`. A documented way to skip one item. The 13 owner-specific values in `docs/forking.md` moved into an owner layer, with `docs/forking.md` shrinking to match.
 - **Known.** `30-packages.toml` declares the formulae, casks and extensions in one `[bootstrap.packages]` table, so splitting it is mechanical. The macOS groups already have switches (`macos.*` in `settings/registry.toml`). `claude-config restore` only adds, so a Claude opt-out means skipping the restore. Turning a module off does not uninstall packages: mise's docs point to `mise bootstrap packages prune`, which is not limited to one module, and `sysup` never runs it for that reason.
-- **Waiting on.** Probes 3, 4 and 8 (a shipped default list, cancelling one key, removing a module). Whether a package key can be cancelled from the user layer is not in the pages read, so P2's first task measures it with a dry run against the real package list.
+- **Settled by P0.** Probes 3, 4 and 8: no shipped default list, so the install passes it; no cancelling a dotfile key from the user layer, so a deny list; `unapply` removes one module cleanly. Whether a package key can be cancelled from the user layer is not in the pages read, so P2's first task measures it with a dry run against the real package list.
 - **Done when.** With one module off, a dry run of the install lists none of that module's packages. With the owner layer absent, `git grep -i` for the owner's name, domain and account finds nothing outside that layer, LICENSE and the README credits.
 
 ### P3: Sign in and sync
@@ -183,7 +200,7 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 - **Outcome.** A user signs in with GitHub once, and their own changes follow them to their next Mac. Nothing that looks like a secret leaves the machine.
 - **Delivers.** `dotfiles-settings sync on|off|now|status`. Sign-in through `gh`. A private repository created in the user's account. The tracked set and the exclude list. A conflict view. A restore path for a second Mac that composes with P1's install.
 - **Known.** mise reads tracking entries only from global and system config, so `dotfiles-settings` writes them into the user's own config, never ours. Connecting an origin shares the whole saved history. mise refuses credential-named files unless `allow_plaintext` is set, and tracked entries can be encrypted. `pull` writes files but does not install tools or render templates, so a pull that changes declarations needs a bootstrap run after it. `mise bootstrap --adopt <setup repo>` is the documented restore, and it and `--from` cannot be combined, so the second-Mac flow is two commands and their order has to be designed. `claude-config save` already has a secrets filter worth reusing as the model for the exclude list.
-- **Waiting on.** Probe 6. P1's shape: under the config-dir shape the user has no global config of their own, and what "the user layer" means for sync has to be redefined around the `*.local.toml` and override files.
+- **Settled by P0.** Probe 6: sync, local files and conflicts behave as documented, and a restore must set manual mode after `--adopt`. Still waiting on P1's shape: under the config-dir shape the user has no global config of their own, and what "the user layer" means for sync has to be redefined around the `*.local.toml` and override files.
 - **Decided.** Manual sync only in this phase. No LaunchAgent, no `[bootstrap.services.mise-history]`. Automatic sync is its own later plan.
 - **Done when.** Two scratch homes exchange a changed setting through a private repository, a `*.local.toml` value stays put, a file holding a token is refused, and a conflicting edit pauses with both versions shown.
 
@@ -192,7 +209,7 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 - **Outcome.** One Mac, or one user across Macs, switches between named variants such as personal and work.
 - **Delivers.** `dotfiles-settings profile list|use|new`. A profile as a config environment, with the choice saved. Per-profile module lists and settings. A rule for which settings are machine-scoped and so ignore profiles.
 - **Known.** `-E work` selects `mise.work.toml` or `config.work.toml`, and `--save-env` writes the choice to `miserc.local.toml`. `[env_sets]` names a group of environments, so a profile can be "these modules plus these settings". A dotfile entry can differ by profile with `variants`. `-E` replaces the saved selection for that run and does not add to it, so a profile and the module list share one `env` list: P2 and P4 must agree on its shape, and P2 lands first.
-- **Waiting on.** Probe 7. P2's module list format.
+- **Settled by P0.** Probe 7: `--save-env` is remembered. Still waiting on P2's module list format.
 - **Done when.** Switching profile and applying changes exactly the entries that differ, and switching back restores them.
 
 ### P5: Menu bar app

@@ -259,7 +259,7 @@ probe_3() {
 
 # cancel_with <toml value for the user's "~/.probe/linked" entry>
 cancel_with() {
-  printf '[dotfiles]\n"~/.probe/linked" = %s\n' "$1" > "$MISE_CONFIG_DIR/config.toml"
+  printf '[dotfiles]\n"~/.probe/user-own" = "other"\n"~/.probe/linked" = %s\n' "$1" > "$MISE_CONFIG_DIR/config.toml"
   rm -rf "$HOME/.probe"
   if boot; then pick ignored cancels has "$HOME/.probe/linked"; else echo error; fi
 }
@@ -269,16 +269,17 @@ probe_4() {
   new_home mac-a
   new_project || return 1
   boot || return $?
+  echo user > "$MISE_CONFIG_DIR/other"
   off=$(cancel_with '{ enabled = false }')
   absent=$(cancel_with '{ mode = "absent" }')
-  echo user > "$MISE_CONFIG_DIR/other"
   cancel_with '"other"' > /dev/null
   case $(cat "$HOME/.probe/linked" 2> /dev/null) in
     user) winner=user ;;
     linked) winner=project ;;
     *) winner=neither ;;
   esac
-  answer 4 "enabled-false=$off absent=$absent winner=$winner"
+  # Without this, "ignored" could also mean the user's config was never loaded
+  answer 4 "enabled-false=$off absent=$absent winner=$winner user-layer=$(pick read not-read has "$HOME/.probe/user-own")"
 }
 
 probe_5() {
@@ -320,7 +321,7 @@ sync_home() {
 }
 
 probe_6() {
-  local a b shared local_toml conflict=untested listed out
+  local a b shared local_toml conflict=untested listed out mode manual
   new_home mac-a
   sync_home mac-a
   a=$MISE_CONFIG_DIR
@@ -336,7 +337,14 @@ probe_6() {
   new_home mac-b
   sync_home mac-b
   b=$MISE_CONFIG_DIR
-  step m bootstrap --adopt "$origin" || return $?
+  out=$(m bootstrap --adopt "$origin" 2>&1) || {
+    echo "$out" >&2
+    return 1
+  }
+  echo "$out" >&2
+  # --adopt takes no --sync, so this is the mode a new Mac gets before anyone chooses
+  mode=$(sed -n 's/^Sync mode \([a-z-]*\):.*/\1/p' <<< "$out" | head -1)
+  manual=$(pick ok error step m dot origin set "$origin" --sync manual)
   shared=$(pick arrived missing grep -rqs '# shared-marker' "$HOME")
   local_toml=$(pick leaked stayed grep -rqs '# local-marker' "$HOME")
   g -C "$origin" log --all --name-only --format= | grep -q 'config\.local\.toml' && local_toml=leaked
@@ -370,7 +378,7 @@ probe_6() {
       conflict=$(pick paused overwrote-a grep -q '# edit-a' "$a/config.toml")
     fi
   fi
-  answer 6 "shared=$shared local-toml=$local_toml conflict=$conflict conflicts-cmd=$listed"
+  answer 6 "shared=$shared local-toml=$local_toml conflict=$conflict conflicts-cmd=$listed adopt-mode=${mode:-unknown} set-manual-after=$manual"
 }
 
 probe_7() {
