@@ -1,6 +1,55 @@
 # Installation
 
-You need macOS on Apple Silicon. On a new Mac, clone over HTTPS — SSH only works after 1Password is set up (keys live there, see [`~/.ssh/github_personal.pub`](local-customizations.md#sshgithub_personalpub)).
+You need macOS on Apple Silicon. There are two ways in. [Without a clone](#install-without-cloning) is for using the setup as it is, and updates with one command. [From a clone](#install-from-a-clone) is for changing it or forking it.
+
+## Install without cloning
+
+1. Install the Command Line Tools (for `git`):
+
+   ```shell
+   xcode-select --install
+   ```
+
+1. Install [mise](https://mise.run):
+
+   ```shell
+   curl https://mise.run | sh
+   ```
+
+1. Check [what must not be in the way](#what-must-not-be-in-the-way).
+1. Run the install line. It names mise by its path, because a new Mac's `PATH` does not have `~/.local/bin` yet:
+
+   ```shell
+   ~/.local/bin/mise -E installed bootstrap --from 'https://github.com/jrmatherly/returnofthemac.git?ref=stable' --config-dir tilde/.config/mise --save-env --only final-hook && ~/.local/share/mise/bootstrap-repo/setup.sh
+   ```
+
+   mise fetches the `stable` branch into `~/.local/share/mise/bootstrap-repo`, links `~/.config/mise` into it and applies nothing itself. `setup.sh` then runs from that copy, with the prompts described under [Run setup](#run-setup), and takes the same flags after its path. `--from` trusts this repository's mise configuration for the run, so [read it](../tilde/.config/mise) first if you want to know what it does. Adding `--dry-run` after `bootstrap` previews mise's part.
+
+1. Open a new terminal and run `gh auth login`. Without a login GitHub allows 60 anonymous API calls an hour, and mise uses them to read the tap formulae: an update in the same hour as the install can fail on that limit.
+1. Finish the steps setup can't do for you: see [After setup](#after-setup). macOS preferences are not applied by the install: see [Set macOS defaults](#set-macos-defaults).
+
+Later:
+
+- `rotm update` fetches the newest `stable` and runs setup again. It stops before setup when it cannot fast-forward the copy, and lists the files that differ in it.
+- `rotm install` runs setup again without fetching.
+- `rotm settings` opens the settings (`rotm settings list` prints them).
+
+The copy is not for editing: `rotm update` replaces its files. `~/.gitconfig`, `~/.zshrc`, `gh`'s `config.yml` and VS Code's keybindings, tasks and snippets are yours: they are written once and then left alone. With `MISE_DATA_DIR` set, the copy is at `$MISE_DATA_DIR/bootstrap-repo`, and the second path in the install line changes with it.
+
+### What must not be in the way
+
+Nothing is overwritten. The run stops and names what it found, and you move it aside and run the line again.
+
+| In the way | Move it aside |
+| --- | --- |
+| `~/.config/mise`, your own mise configuration | `mv ~/.config/mise ~/.config/mise.backup` |
+| `~/dotfiles`, a folder or a link to something else | `mv ~/dotfiles ~/dotfiles.backup` |
+| `~/.zshrc` or `~/.gitconfig` | `mv ~/.zshrc ~/.zshrc.backup`, or keep yours and add the lines of [`tilde/.zshrc.installed`](../tilde/.zshrc.installed) or [`tilde/.gitconfig.installed`](../tilde/.gitconfig.installed) to it |
+| `~/.zprofile`, `~/.zshenv`, `~/.bash_profile` or another file that [`40-dotfiles.toml`](../tilde/.config/mise/conf.d/40-dotfiles.toml) links | `mv <file> <file>.backup` |
+
+## Install from a clone
+
+On a new Mac, clone over HTTPS — SSH only works after 1Password is set up (keys live there, see [`~/.ssh/github_personal.pub`](local-customizations.md#sshgithub_personalpub)).
 
 1. Install the Command Line Tools (for `git`):
 

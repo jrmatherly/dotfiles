@@ -58,6 +58,16 @@ A copy that `mise bootstrap --from` fetched lives in `~/.local/share/mise/bootst
 
 `rotm update` fetches the branch the copy is on and then runs `setup.sh`. It stops before `setup.sh` when mise cannot update the copy, and lists the tracked files that differ in it.
 
+## Releasing to `stable`
+
+The install line and `rotm update` follow the `stable` branch, so a commit reaches users only when `stable` moves to it. Promote a commit after the install passed on it in the disposable VM (the rows are in the P1 plan, `docs/superpowers/plans/`), or a later commit that differs from such a one in Markdown files only:
+
+```shell
+git push origin "$sha:refs/heads/stable"
+```
+
+It is a plain push, so GitHub refuses anything that is not a fast-forward. Never force it: every installed copy fast-forwards from the commit it has.
+
 ## packages
 
 `setup.sh` installs everything declared in [`tilde/.config/mise/conf.d/30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml) with `mise bootstrap packages apply`, before `mise bootstrap` and with the `packages` part skipped there. mise downloads Homebrew's bottles and casks into `/opt/homebrew` itself; Homebrew is not installed and `brew` is never run. Pass `-- --skip packages` to `setup.sh` to leave the packages alone. In order, it:

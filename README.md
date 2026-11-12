@@ -26,6 +26,26 @@ Jason's personal dotfiles for macOS on Apple Silicon: Zsh, [mise](https://mise.j
 
 You need macOS on Apple Silicon. The macOS defaults were reviewed for macOS 27.
 
+### Install without cloning
+
+For using the setup as it is. To change it or make it your own, [clone it](#install-from-a-clone) instead.
+
+```shell
+xcode-select --install
+curl https://mise.run | sh
+~/.local/bin/mise -E installed bootstrap --from 'https://github.com/jrmatherly/returnofthemac.git?ref=stable' --config-dir tilde/.config/mise --save-env --only final-hook && ~/.local/share/mise/bootstrap-repo/setup.sh
+```
+
+1. **Install the Command Line Tools and [mise](https://mise.run).** The line names mise by its path, because a new Mac's `PATH` does not have `~/.local/bin` yet.
+1. **Run the install line.** mise fetches this repository's `stable` branch and links `~/.config/mise` into it, then `setup.sh` installs from that copy. `--from` trusts this repository's configuration for the run: [read it first](tilde/.config/mise), and add `--dry-run` after `bootstrap` to preview what mise would do.
+1. **Move your own files aside first.** Nothing is overwritten: the run stops and names the file. See [what must not be in the way](docs/installation.md#what-must-not-be-in-the-way).
+1. **Open a new terminal**, then run `gh auth login`. Without it GitHub allows 60 anonymous API calls an hour, and an update soon after the install can run out.
+1. **Update later** with `rotm update`. `rotm settings` opens the settings.
+
+macOS preferences are not applied: `set-defaults` does that, see the warning below. The copy lives in `~/.local/share/mise/bootstrap-repo` and is not for editing: `rotm update` replaces its files.
+
+### Install from a clone
+
 ```shell
 xcode-select --install
 git clone https://github.com/jrmatherly/returnofthemac.git ~/dev/dotfiles
