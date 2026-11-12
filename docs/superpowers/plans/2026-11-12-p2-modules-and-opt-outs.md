@@ -445,7 +445,7 @@ git commit -m "Switch modules off with ignored_config_paths, so a Mac with no st
 - Consumes: `rotm-modules list` (Task 2), reworked by Task 3b.
 - Produces: the file layout in "Modules". Each module file starts with a comment naming the module, what turning it off leaves installed, and `rotm settings set modules.<name> off`.
 
-- [ ] **Step 1: Record what this Mac reports today**
+- [x] **Step 1: Record what this Mac reports today**
 
 Ask the owner first: these read this Mac's real state and change nothing.
 
@@ -454,7 +454,7 @@ Confirm first that `~/.config/mise/miserc.local.toml` holds no `ignored_config_p
 Run: `cd ~ && mise bootstrap packages status --json | jq -S '[to_entries[] | .key as $m | .value.packages[] | "\($m):\(.package)"] | sort' > /tmp/p2-before-packages.json; mise ls --global --json | jq -S keys > /tmp/p2-before-tools.json; jq length /tmp/p2-before-packages.json /tmp/p2-before-tools.json`
 Expected: two files of sorted keys, and their two counts. Put the tool count in the Step 2 assertion. These are what is declared, not what is missing: a key dropped from every file would not show as missing. `mise ls --global` counts a tool a `conf.d` fragment declares (measured 2026-11-12 in a scratch home).
 
-- [ ] **Step 2: Rewrite the `test-packages` assertions to read every file**
+- [x] **Step 2: Rewrite the `test-packages` assertions to read every file**
 
 The Python block loads `conf.d/30-packages.toml`, `config.toml` and each `conf.d/60-rotm-<name>.toml` for `name` in `rotm-modules list`, and asserts:
 
@@ -481,12 +481,12 @@ assert all(p.name.count(".") == 1 for p in (config_dir / "conf.d").iterdir()), "
 
 The completion-hook block reads `flux2` and `talosctl` from `conf.d/60-rotm-kubernetes.toml`.
 
-- [ ] **Step 3: Run to see it fail**
+- [x] **Step 3: Run to see it fail**
 
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-packages`
 Expected: FAIL "conf.d/30-packages.toml", at the first missing `60-rotm-*.toml`.
 
-- [ ] **Step 4: Move the entries**
+- [x] **Step 4: Move the entries**
 
 `~/.config/mise` is this clone, so a half-moved state is live on this Mac while it exists, and this session's own MCP shims resolve against it. Write the fourteen files (the two that shrink and the twelve new) into a scratch dir with a throwaway script, run the Step 2 Python block against that dir (it takes the config dir as its argument), then copy them into place in one `cp`.
 
@@ -494,7 +494,7 @@ Follow the "Modules" table. Move lines, do not retype them: each entry keeps its
 
 Before moving a formula or tool out of the base, apply the rule in "Decisions" to the files it lists. One that is used unguarded stays in the base, in the framework section, and is added to the base assertion in Step 2 in the same commit.
 
-- [ ] **Step 5: Add the "one module off" case to `test-modules`**
+- [x] **Step 5: Add the "one module off" case to `test-modules`**
 
 Not a copy of the whole tracked config dir: `config.toml` carries a `credential_command` that would run this Mac's real `gh`, the tools would be resolved from the network on every commit, and `test-modules` runs in the commit gate. Build the dir as `check.yml`'s dry run does: `conf.d/30-packages.toml` and every `conf.d/60-rotm-*.toml`, each with its `[tools]` table dropped. Status only, so nothing is fetched:
 
@@ -514,7 +514,7 @@ jq -e '.brew.packages[] | select(.package == "git")' "$tmp/s.json" > /dev/null |
 
 The spec's "Done when" for P2 is a dry run, which downloads formula metadata. It runs in CI, not in the commit gate: Step 7 adds it to `check.yml`.
 
-- [ ] **Step 6: Run to see both pass, and compare this Mac**
+- [x] **Step 6: Run to see both pass, and compare this Mac**
 
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-packages && LC_ALL=en_US.UTF-8 bin/lib/test-modules`
 Expected: `ok` twice.
@@ -522,7 +522,7 @@ Expected: `ok` twice.
 Run: `cd ~ && mise bootstrap packages status --json | jq -S '[to_entries[] | .key as $m | .value.packages[] | "\($m):\(.package)"] | sort' | diff /tmp/p2-before-packages.json - && mise ls --global --json | jq -S keys | diff /tmp/p2-before-tools.json -`
 Expected: no output. A difference means an entry was lost, doubled or renamed in the move. This is the proof that the move changed nothing on a Mac with no module state.
 
-- [ ] **Step 7: CI and Renovate see the module files**
+- [x] **Step 7: CI and Renovate see the module files**
 
 `check.yml`, "Package list dry run": copy `conf.d/30-packages.toml` and every `conf.d/60-rotm-*.toml` into `$d/config/conf.d`. No list is written: they load as they are. Add a second dry run with one module off (`rotm-modules set security off` against `$d/config`), which fails when its output names `nmap`, `hydra` or `ghidra`: this is the spec's "Done when". The tools are still left out, for the reason the comment gives, so each copy drops its `[tools]` table: `awk '/^\[tools\]/{skip=1; next} /^\[/{skip=0} !skip'`. Say so in the comment.
 
@@ -531,12 +531,14 @@ Expected: no output. A difference means an entry was lost, doubled or renamed in
 Run: `actionlint .github/workflows/check.yml && npx --yes --package renovate -- renovate-config-validator renovate.json`
 Expected: no output from `actionlint`, and "Config validated successfully". If `npx` is denied here, validate the JSON with `jq . renovate.json > /dev/null` and say the Renovate check was not run.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add tilde/.config/mise bin/lib/test-packages bin/lib/test-modules .github/workflows renovate.json
 git commit -m "Split the packages and tools into twelve modules"
 ```
+
+**As built, 2026-11-12:** the snapshot was 365 packages and 27 tools, and Step 6's diff was empty. No formula or tool beyond the five known ones had to stay in the base: a scan of the files in "Decisions" found every other use behind `command_exists`, or in an alias. Step 5's block also drops the taps and their six packages from its copies, so it declares 170, not 176: with them mise clones each tap and needs Ruby 3+, which the commit gate should not depend on. `check.yml`'s dry run covers them, and its two runs were rehearsed locally in a scratch dir (613 lines with every module on, 593 and no `nmap`, `hydra` or `ghidra` with `security` off). Renovate's mise manager does not read `conf.d`, so `renovate.json` adds `tilde/.config/mise/conf.d/60-rotm-*.toml`. Comments that named both files were split between the modules and reworded; every entry line moved byte for byte.
 
 ---
 

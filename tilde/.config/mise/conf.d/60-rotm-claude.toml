@@ -1,0 +1,11 @@
+# returnofthemac module `claude`: what Claude Code's setup needs.
+#
+# Switch it off with `rotm settings set modules.claude off` (on again with `on`).
+# Claude Code and its config stay as they are; setup and `sysup` stop installing and updating them. `bun` goes at the next `sysup` (`mise prune`).
+# `mise bootstrap packages prune --dry-run` lists what no config declares any more.
+
+[tools]
+# Bun — runs the jstack plugin's j-mode scripts (jrmatherly/skills). Its
+# package-manager settings are in tilde/.bunfig.toml; crash reports are off
+# via DO_NOT_TRACK (zsh/env.zsh).
+bun = "latest"

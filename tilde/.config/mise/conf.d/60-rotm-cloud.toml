@@ -1,0 +1,33 @@
+# returnofthemac module `cloud`: Cloud / Azure / AWS.
+#
+# Switch it off with `rotm settings set modules.cloud off` (on again with `on`).
+# The formulae and casks stay installed; the mise tools go at the next `sysup` (`mise prune`).
+# `mise bootstrap packages prune --dry-run` lists what no config declares any more.
+
+[bootstrap.packages]
+"brew:aws-cdk" = "latest" # AWS Cloud Development Kit
+"brew:awscli" = "latest" # Official Amazon AWS command-line interface
+"brew-cask:azure-cli" = "latest" # Azure CLI (`az`)
+"brew:azurite" = "latest" # Local Azure Storage emulator
+# Microsoft's official SDK build at /usr/local/share/dotnet — what workloads,
+# Aspire and VS tooling expect. Do NOT also install the `dotnet` formula: both
+# claim /opt/homebrew/bin/dotnet (Homebrew/homebrew-core#275368).
+"brew-cask:dotnet-sdk" = "latest" # .NET SDK
+
+[tools]
+# A global npm CLI installed by mise (not `npm install -g`), so it survives
+# switching the default Node and upgrades with `mise upgrade` (within the major).
+"npm:serverless" = "4"
+# The binary straight from GitHub releases (github backend, which verifies the
+# release checksums and, where published, attestations): the project's tap
+# ships a cask on deprecated stanzas that Homebrew warns about on every run,
+# with no user-side opt-out. Installed this way the Aspire CLI runs
+# "sidecar-less" (microsoft/aspire install-routes.md): Aspire home stays
+# ~/.aspire and `aspire update --self` is off, so mise owns upgrades. Move
+# back to a cask once microsoft/homebrew-aspire#23 has landed.
+"github:microsoft/aspire" = "latest" # .NET Aspire CLI; setup/misc.sh runs `aspire certs trust`
+# From mise's registry, not a Homebrew tap: the taps these came from ship no
+# Apple Silicon bottle, and the registry carries the same upstream release
+# binaries (identity checked 2026-11-09: spec D6, plan A4).
+azd = "latest" # Azure Developer CLI (aqua:Azure/azure-dev)
+azure-functions-core-tools = "4" # `func`; 4 is the product line, as the formula name `@4` was

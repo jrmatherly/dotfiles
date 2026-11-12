@@ -127,7 +127,7 @@ jobs:
       - name: Casks and extensions installed
         if: always()
         run: |
-          # The one tolerated miss: its dmg carries a licence agreement, which mise can only accept from a terminal (30-packages.toml)
+          # The one tolerated miss: its dmg carries a licence agreement, which mise can only accept from a terminal (conf.d/60-rotm-apps.toml)
           tolerated='brew-cask royal-tsx'
           status=$(mise bootstrap packages status --json)
           missing=$(jq -r '["brew-cask", "vscode"][] as $m | .[$m] | if .available then .packages[] | select(.state != "installed") | "\($m) \(.package) \(.state)" else "\($m) unavailable" end' <<< "$status")

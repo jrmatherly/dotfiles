@@ -1,0 +1,36 @@
+# returnofthemac module `languages`: Languages / runtimes / build tools.
+#
+# Switch it off with `rotm settings set modules.languages off` (on again with `on`).
+# The formulae stay installed; `ni` goes at the next `sysup` (`mise prune`).
+# `mise bootstrap packages prune --dry-run` lists what no config declares any more.
+
+[bootstrap.packages]
+"brew:bazelisk" = "latest" # Bazel launcher; also links `bazel` and fetches each repo's .bazelversion (conflicts with the `bazel` formula)
+"brew:cmake" = "latest" # Build system generator
+"brew:cmake-docs" = "latest" # CMake documentation
+"brew:coreutils" = "latest" # GNU core utilities (macOS ships outdated BSD versions)
+"brew:cue" = "latest" # CUE data validation language
+"brew:findutils" = "latest" # GNU find/xargs (macOS ships outdated BSD versions)
+"brew:gnu-sed" = "latest" # GNU sed (macOS ships outdated BSD version)
+"brew:grep" = "latest" # GNU grep (macOS ships outdated BSD version)
+"brew:llama.cpp" = "latest" # Run local LLMs (llama-cli, llama-server) from GGUF models
+"brew:luarocks" = "latest" # Lua package manager (brings `lua`)
+"brew:moreutils" = "latest" # Extra useful Unix utilities (sponge, vidir, etc.)
+"brew:perl" = "latest"
+"brew:php" = "latest"
+"brew:pkgconf" = "latest" # Compiler/linker flags for C libraries; also provides `pkg-config`
+"brew:pnpm" = "latest" # Efficient Node.js package manager
+# PowerShell is installed as a .NET global tool by setup/misc.sh — the
+# `powershell` formula depends on the `dotnet` formula, which conflicts with
+# the official dotnet-sdk cask over /opt/homebrew/bin/dotnet.
+"brew:openjdk" = "latest" # Java SDK
+"brew:protobuf" = "latest" # Protocol Buffers compiler
+"brew:vim" = "latest"
+"brew:yarn" = "latest" # Node.js package manager
+"brew:yq" = "latest" # YAML/JSON/XML processor (like jq)
+"brew:z3" = "latest" # SMT theorem prover
+
+[tools]
+# A global npm CLI installed by mise (not `npm install -g`), so it survives
+# switching the default Node and upgrades with `mise upgrade` (within the major).
+"npm:@antfu/ni" = "30"

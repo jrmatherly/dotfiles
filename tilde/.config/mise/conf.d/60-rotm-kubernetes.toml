@@ -1,0 +1,54 @@
+# returnofthemac module `kubernetes`: Kubernetes / containers / infra.
+#
+# Switch it off with `rotm settings set modules.kubernetes off` (on again with `on`).
+# The formulae and casks stay installed; the mise tools go at the next `sysup` (`mise prune`).
+# `mise bootstrap packages prune --dry-run` lists what no config declares any more.
+
+[bootstrap.brew.taps]
+"kubestellar/tap" = "https://github.com/kubestellar/homebrew-tap.git" # kubestellar-deploy / kubestellar-ops
+"skyhook-io/tap" = "https://github.com/skyhook-io/homebrew-tap.git" # radar (Kubernetes visibility)
+
+[bootstrap.packages]
+"brew:cilium-cli" = "latest" # Install and troubleshoot Cilium (CNI) on a cluster
+"brew:cmctl" = "latest" # cert-manager CLI
+"brew:cosign" = "latest" # Sign and verify container images and blobs (Sigstore)
+"brew:crane" = "latest" # Inspect and copy container images and registries (go-containerregistry)
+"brew:docker" = "latest" # Docker CLI
+"brew:docker-buildx" = "latest" # Docker Buildx plugin
+"brew:docker-compose" = "latest" # Docker Compose plugin (OrbStack also ships its own)
+"brew:egctl" = "latest" # Envoy Gateway CLI
+"brew:govc" = "latest" # VMware govc CLI
+"brew:helm" = "latest" # Kubernetes package manager
+"brew:hubble" = "latest" # Cilium network observability CLI
+"brew:jfrog-cli" = "latest" # JFrog Artifactory/Xray CLI
+"brew:kubernetes-cli" = "latest" # kubectl
+"brew:kustomize" = "latest" # Kubernetes config customization
+"brew:sops" = "latest" # Encrypted secrets editor (age/KMS), used by Flux
+"brew:kubestellar/tap/kubestellar-deploy" = "latest" # KubeStellar multi-cluster deployment CLI
+"brew:kubestellar/tap/kubestellar-ops" = "latest" # KubeStellar multi-cluster ops CLI
+"brew:skyhook-io/tap/radar" = "latest" # Kubernetes topology/traffic/Helm visibility (kubectl-radar)
+"brew-cask:freelens" = "latest" # Kubernetes IDE (Lens fork)
+"brew-cask:orbstack" = "latest" # Container runtime, ships `docker-compose` as well
+
+[tools]
+# The binary straight from GitHub releases (github backend, which verifies the
+# release checksums and, where published, attestations): the project's tap
+# ships a cask on deprecated stanzas that Homebrew warns about on every run,
+# with no user-side opt-out. Move back to a cask once
+# goreleaser/goreleaser#6873 has landed.
+"github:home-operations/flate" = "latest" # Render and diff Flux GitOps repos offline
+# From mise's registry, not a Homebrew tap: the taps these came from ship no
+# Apple Silicon bottle, and the registry carries the same upstream release
+# binaries (identity checked 2026-11-09: spec D6, plan A4).
+# The taps' flux and talosctl formulae also installed zsh completions. The
+# postinstall writes them from the tool after every install and upgrade (with
+# "always", on every `mise install` too); zsh/completion.zsh puts the dir first
+# in fpath
+"aqua:Azure/kubelogin" = "latest" # Azure AD login for kubectl; the short name `kubelogin` is int128's, a different tool
+flux2 = { version = "latest", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && flux completion zsh > "$HOME/.cache/dotfiles/completions/_flux"', when = "always" } } # `flux`, the Flux CD CLI
+lazydocker = "latest" # Full Docker management app (zsh `lzd` alias)
+# The VS Code extension (vscode:metalbear.mirrord) downloads this binary only
+# after a version check that VS Code's telemetry-off setting disables, so it
+# finds the shim on PATH instead. Telemetry is off via MIRRORD_TELEMETRY in zsh/env.zsh
+mirrord = "latest" # Run local code in a Kubernetes cluster's context (aqua:metalbear-co/mirrord)
+talosctl = { version = "latest", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && talosctl completion zsh > "$HOME/.cache/dotfiles/completions/_talosctl"', when = "always" } } # Talos Linux/Kubernetes CLI

@@ -1,0 +1,58 @@
+# returnofthemac module `apps`: GUI apps, and the language servers Terax's editor uses.
+#
+# Switch it off with `rotm settings set modules.apps off` (on again with `on`).
+# The apps and the language servers stay installed; the servers go at the next `sysup` (`mise prune`).
+# `mise bootstrap packages prune --dry-run` lists what no config declares any more.
+
+[bootstrap.packages]
+"brew-cask:1password" = "latest" # Password manager
+"brew-cask:1password-cli" = "latest" # 1Password CLI integration
+"brew-cask:comet" = "latest" # Perplexity's AI browser (default browser; auto-updates itself)
+"brew-cask:git-credential-manager" = "latest" # Git credential storage/auth helper
+"brew-cask:hopper-disassembler" = "latest" # Disassembler/decompiler (paid license, free demo; REA's default launcher path)
+"brew-cask:iterm2" = "latest" # Terminal emulator
+"brew-cask:nimble-commander" = "latest" # File manager (zsh `ff` alias, vscode/User/tasks.json)
+"brew-cask:obsidian" = "latest" # Markdown knowledge base (configs tracked in obsidian/)
+"brew-cask:raycast" = "latest" # Launcher / clipboard history / window management
+# Its dmg carries a licence agreement: mise installs it from a terminal and fails without one (CI, an agent shell)
+"brew-cask:royal-tsx" = "latest" # Remote connection manager (RDP/SSH/VNC)
+"brew-cask:syntax-highlight" = "latest" # Quick Look previews with syntax highlighting (theme in syntax-highlight/)
+"brew-cask:terax" = "latest" # Terminal-first AI workspace (terax.app); its language servers: see tilde/.config/mise/config.toml
+"brew-cask:utm" = "latest" # QEMU-based virtual machines
+"brew-cask:vorssaint" = "latest" # Menu bar toolkit (keep-awake, system monitor, volume mixer); auto-updates itself
+"brew-cask:warp" = "latest" # Agentic terminal
+
+[tools]
+# Global `tsc` for scratch files — projects pin `typescript` in their own
+# devDependencies (`pnpm exec tsc`). Held at major 6 while most projects are
+# still on it; bump to "7" once TS 7 is the norm.
+"npm:typescript" = "6"
+# Language servers for Terax's editor (cask `terax` above; the non-npm ones,
+# rust-analyzer, zls, lua-language-server and ruby-lsp, are formulae in the
+# devops module).
+# Terax looks each preset's executable up on the PATH of a non-interactive
+# login shell (`$SHELL -l -c '/usr/bin/env -0'`, 10 s timeout, else the bare
+# GUI PATH), which tilde/.zprofile seeds with mise's shims; each preset is
+# then switched on in Terax's settings. Trailing comments name the executable
+# where it differs from the package.
+# typescript-language-server finds TypeScript in the project's node_modules or
+# by Node resolution from its own install dir, which walks up to mise's data
+# dir; setup/misc.sh and bin/sysup link the `npm:typescript` above there.
+"npm:typescript-language-server" = "6"
+"npm:pyright" = "1" # `pyright-langserver`; Terax's Ruff preset uses the `ruff server` formula
+"npm:intelephense" = "1"
+"npm:yaml-language-server" = "2"
+"npm:bash-language-server" = "5"
+"npm:vscode-langservers-extracted" = "4" # `vscode-json-language-server`, `vscode-css-language-server`, `vscode-html-language-server`
+# svelte-language-server needs svelte ^4.2.19; 4.2.20 is a 2025 backport
+# published without provenance after 5.0.0 had it, which mise's no-downgrade
+# trust check rejects. Reviewed upstream (commit c1eb348 has the trail); drop
+# the exemption once the server depends on a svelte release with provenance.
+"npm:svelte-language-server" = { version = "0", trust_policy_excludes = ["svelte@4.2.20"] } # `svelteserver`
+# @vue/language-service pins volar-service-pug 0.0.71, published by the same
+# trusted CI identity and from the same commit as its 0.0.71 siblings, but
+# without the provenance attestation they and pug 0.0.70 carry, so the
+# no-downgrade check fails a fresh install. Reviewed 2026-11-10: its files match
+# 0.0.70 apart from three package.json lines, no install scripts, registry
+# signature verified. Drop the exemption once the server pins a later pug.
+"npm:@vue/language-server" = { version = "3", trust_policy_excludes = ["volar-service-pug@0.0.71"] } # `vue-language-server`

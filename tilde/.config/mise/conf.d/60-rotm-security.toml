@@ -1,0 +1,23 @@
+# returnofthemac module `security`: Security / pentesting.
+#
+# Switch it off with `rotm settings set modules.security off` (on again with `on`).
+# The formulae stay installed.
+# `mise bootstrap packages prune --dry-run` lists what no config declares any more.
+
+[bootstrap.packages]
+"brew:aircrack-ng" = "latest" # Wi-Fi security auditing suite
+"brew:bfg" = "latest" # Remove large/secret files from git history
+"brew:binwalk" = "latest" # Firmware/binary analysis
+"brew:cifer" = "latest" # Classical cipher cracking
+"brew:dex2jar" = "latest" # Android dex to jar conversion
+"brew:dns2tcp" = "latest" # Tunnel TCP over DNS
+"brew:fcrackzip" = "latest" # Zip password cracking
+"brew:foremost" = "latest" # File carving/recovery
+"brew:ghidra" = "latest" # NSA reverse engineering framework (`ghidraRun`; REA's Ghidra provider; pulls the openjdk@N that bin/rea-mcp hands REA)
+"brew:gitleaks" = "latest" # Scan git repos and files for leaked secrets
+"brew:hydra" = "latest" # Network login cracker
+"brew:john" = "latest" # John the Ripper password cracker
+"brew:knock" = "latest" # Port knocking client/server
+"brew:nmap" = "latest" # Network scanning
+"brew:sqlmap" = "latest" # SQL injection testing
+"brew:vbindiff" = "latest" # Binary file comparison

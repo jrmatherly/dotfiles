@@ -10,93 +10,10 @@
 # 2026-10-28). 22 and 24 are Maintenance LTS. Move the default to 26 once
 # projects do.
 node = ["24", "22", "26"]
-# Global `tsc` for scratch files — projects pin `typescript` in their own
-# devDependencies (`pnpm exec tsc`). Held at major 6 while most projects are
-# still on it; bump to "7" once TS 7 is the norm.
-"npm:typescript" = "6"
-# CodeGraph — code-graph CLI + MCP server for AI agents
-# (https://github.com/colbymchenry/codegraph). Upgrade with `mise upgrade`,
-# not `codegraph upgrade`. setup/misc.sh wires it into Claude Code
-# (`codegraph install --target claude`); indexing a repo (`codegraph init`) is
-# a manual step.
-"npm:@colbymchenry/codegraph" = "latest"
-# REA (https://github.com/morluto/rea) — reverse-engineering MCP server and
-# CLI (`rea`) that drives Ghidra and Hopper (conf.d/30-packages.toml);
-# setup/misc.sh registers `rea mcp` with Claude Code. It ships several releases a day, so
-# mise's default 24 h release-age cutoff would hold `latest` a version or two
-# behind; shortened to 6 h for this tool. The cutoff also screens the tool's
-# transitive dependencies (mise passes it to its embedded npm client), which
-# is why it is not 0: a few hours still catches a pulled release. npm's own
-# `min-release-age=7` from setup/misc.sh never applies to mise installs.
-"npm:rea-agents" = { version = "latest", minimum_release_age = "6h" }
-# Global npm CLIs — installed by mise (not `npm install -g`), so they survive
-# switching the default Node and upgrade with `mise upgrade` (within the major).
-"npm:serverless" = "4"
-"npm:@antfu/ni" = "30"
-# Language servers for Terax's editor (cask `terax` in conf.d/30-packages.toml;
-# the non-npm ones, rust-analyzer, zls, lua-language-server and ruby-lsp, are
-# formulae there).
-# Terax looks each preset's executable up on the PATH of a non-interactive
-# login shell (`$SHELL -l -c '/usr/bin/env -0'`, 10 s timeout, else the bare
-# GUI PATH), which tilde/.zprofile seeds with mise's shims; each preset is
-# then switched on in Terax's settings. Trailing comments name the executable
-# where it differs from the package.
-# typescript-language-server finds TypeScript in the project's node_modules or
-# by Node resolution from its own install dir, which walks up to mise's data
-# dir; setup/misc.sh and bin/sysup link the `npm:typescript` above there.
-"npm:typescript-language-server" = "6"
-"npm:pyright" = "1" # `pyright-langserver`; Terax's Ruff preset uses the `ruff server` formula
-"npm:intelephense" = "1"
-"npm:yaml-language-server" = "2"
-"npm:bash-language-server" = "5"
-"npm:vscode-langservers-extracted" = "4" # `vscode-json-language-server`, `vscode-css-language-server`, `vscode-html-language-server`
-# svelte-language-server needs svelte ^4.2.19; 4.2.20 is a 2025 backport
-# published without provenance after 5.0.0 had it, which mise's no-downgrade
-# trust check rejects. Reviewed upstream (commit c1eb348 has the trail); drop
-# the exemption once the server depends on a svelte release with provenance.
-"npm:svelte-language-server" = { version = "0", trust_policy_excludes = ["svelte@4.2.20"] } # `svelteserver`
-# @vue/language-service pins volar-service-pug 0.0.71, published by the same
-# trusted CI identity and from the same commit as its 0.0.71 siblings, but
-# without the provenance attestation they and pug 0.0.70 carry, so the
-# no-downgrade check fails a fresh install. Reviewed 2026-11-10: its files match
-# 0.0.70 apart from three package.json lines, no install scripts, registry
-# signature verified. Drop the exemption once the server pins a later pug.
-"npm:@vue/language-server" = { version = "3", trust_policy_excludes = ["volar-service-pug@0.0.71"] } # `vue-language-server`
-# Binaries straight from GitHub releases (github backend, which verifies the
-# release checksums and, where published, attestations): both projects' taps
-# ship casks on deprecated stanzas that Homebrew warns about on every run,
-# with no user-side opt-out. Installed this way the Aspire CLI runs
-# "sidecar-less" (microsoft/aspire install-routes.md): Aspire home stays
-# ~/.aspire and `aspire update --self` is off, so mise owns upgrades. Move
-# back to casks in conf.d/30-packages.toml once microsoft/homebrew-aspire#23
-# and goreleaser/goreleaser#6873 have landed.
-"github:microsoft/aspire" = "latest" # .NET Aspire CLI; setup/misc.sh runs `aspire certs trust`
-"github:home-operations/flate" = "latest" # Render and diff Flux GitOps repos offline
-# Formulae that used to come from third-party Homebrew taps. Those taps ship
-# no Apple Silicon bottle, and mise's registry carries the same upstream
-# release binaries (identity checked 2026-11-09: spec D6, plan A4).
-# The taps' flux and talosctl formulae also installed zsh completions. The
-# postinstall writes them from the tool after every install and upgrade (with
-# "always", on every `mise install` too); zsh/completion.zsh puts the dir first
-# in fpath
-azd = "latest" # Azure Developer CLI (aqua:Azure/azure-dev)
-azure-functions-core-tools = "4" # `func`; 4 is the product line, as the formula name `@4` was
-"aqua:Azure/kubelogin" = "latest" # Azure AD login for kubectl; the short name `kubelogin` is int128's, a different tool
-flux2 = { version = "latest", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && flux completion zsh > "$HOME/.cache/dotfiles/completions/_flux"', when = "always" } } # `flux`, the Flux CD CLI
+# From mise's registry, not a Homebrew tap: the taps these came from ship no
+# Apple Silicon bottle, and the registry carries the same upstream release
+# binaries (identity checked 2026-11-09: spec D6, plan A4).
 hunk = "latest" # Git pager used by tilde/.gitconfig, lazygit and gh
-lazydocker = "latest" # Full Docker management app (zsh `lzd` alias)
-# The VS Code extension (vscode:metalbear.mirrord) downloads this binary only
-# after a version check that VS Code's telemetry-off setting disables, so it
-# finds the shim on PATH instead. Telemetry is off via MIRRORD_TELEMETRY in zsh/env.zsh
-mirrord = "latest" # Run local code in a Kubernetes cluster's context (aqua:metalbear-co/mirrord)
-talosctl = { version = "latest", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && talosctl completion zsh > "$HOME/.cache/dotfiles/completions/_talosctl"', when = "always" } } # Talos Linux/Kubernetes CLI
-# Sentry's new CLI (`sentry`, log in with `sentry auth`), not the legacy
-# `sentry-cli` that build tooling pulls in per project and that mise's registry
-# calls `sentry`. Telemetry is off via DO_NOT_TRACK in zsh/env.zsh. Not the
-# getsentry/tools tap formula: mise cannot build it (it runs the release's
-# bare .gz without unpacking it). The repo tags other packages too, so the
-# prefix keeps `latest` on the CLI's tags
-"github:getsentry/toolkit" = { version = "latest", version_prefix = "cli@", bin = "sentry", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && sentry cli completion zsh > "$HOME/.cache/dotfiles/completions/_sentry"', when = "always" } } # Sentry CLI: issues, events, root cause
 # Python for VS Code and scripts — Homebrew's python@3.x only exists as a
 # dependency of other formulae (pipx, awscli…), so don't rely on it. Projects
 # pin their own with `.python-version` / `mise.toml`; uv manages their venvs.
@@ -104,10 +21,6 @@ talosctl = { version = "latest", postinstall = { run = 'mkdir -p "$HOME/.cache/d
 # directly; plain `python`/`python3` is 3.14. Renovate leaves this list alone
 # (renovate.json), so new minors are added here by hand.
 python = ["3.14", "3.11", "3.12", "3.13", "3.15"]
-# Bun — runs the jstack plugin's j-mode scripts (jrmatherly/skills). Its
-# package-manager settings are in tilde/.bunfig.toml; crash reports are off
-# via DO_NOT_TRACK (zsh/env.zsh).
-bun = "latest"
 
 [settings]
 # Read `.nvmrc` / `.node-version` (like nvm and fnm) and `.python-version`

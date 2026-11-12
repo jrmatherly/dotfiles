@@ -167,4 +167,28 @@ grep -q '^env = \["installed"\]' "$cfg/miserc.local.toml" || fail "mise: --save-
 rotm set fonts on > /dev/null
 declared | grep -q font-fira-code || fail "mise: a module switched back on does not declare its cask"
 
+# The tracked fragments with one module off. Dropped from the copies: the [tools] tables (status would resolve every tool
+# from the network) and the taps with their six packages (mise clones a tap and needs Ruby 3+ to read it; check.yml's dry run covers them)
+real="$tmp/real"
+mkdir -p "$real/conf.d"
+for f in "$repo"/tilde/.config/mise/conf.d/30-packages.toml "$repo"/tilde/.config/mise/conf.d/60-rotm-*.toml; do
+  awk '/^\[(tools|bootstrap\.brew\.taps)\]/{skip=1; next} /^\[/{skip=0} !skip' "$f" \
+    | grep -vE '^"brew(-cask)?:[^"/]+/[^"/]+/' > "$real/conf.d/$(basename "$f")"
+done
+tracked() { smise MISE_CONFIG_DIR="$real" MISE_TRUSTED_CONFIG_PATHS="$real" "$@"; }
+if ! tracked mise bootstrap packages status --json > "$tmp/all.json" 2> "$tmp/all.err"; then
+  cat "$tmp/all.err" >&2
+  fail "mise: status of the tracked fragments"
+fi
+all=$(jq '[.brew.packages[], ."brew-cask".packages[]] | length' "$tmp/all.json")
+[ "$all" = 170 ] || fail "every module on declares $all formulae and casks outside the taps, not 170"
+tracked "$m" set security off > /dev/null
+tracked mise bootstrap packages status --json > "$tmp/s.json" 2> /dev/null || fail "mise: status with security off"
+for p in nmap hydra ghidra; do
+  if jq -e --arg p "$p" '.brew.packages[] | select(.package == $p)' "$tmp/s.json" > /dev/null; then
+    fail "security is off and $p is still declared"
+  fi
+done
+jq -e '.brew.packages[] | select(.package == "git")' "$tmp/s.json" > /dev/null || fail "the base lost git"
+
 echo ok

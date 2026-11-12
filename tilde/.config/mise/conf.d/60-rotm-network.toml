@@ -1,0 +1,19 @@
+# returnofthemac module `network`: Networking / system utilities.
+#
+# Switch it off with `rotm settings set modules.network off` (on again with `on`).
+# The formulae stay installed.
+# `mise bootstrap packages prune --dry-run` lists what no config declares any more.
+
+[bootstrap.packages]
+"brew:lynx" = "latest" # Text-based web browser
+"brew:mtr" = "latest" # Network diagnostics (traceroute + ping)
+"brew:openssh" = "latest" # SSH client/server
+"brew:prettyping" = "latest" # Colorized ping (zsh `ping` alias)
+"brew:rlwrap" = "latest" # Readline wrapper for other CLIs
+"brew:screen" = "latest" # Terminal multiplexer
+"brew:socat" = "latest" # Multipurpose relay for bidirectional data transfer
+"brew:ssh-copy-id" = "latest" # Install SSH keys on remote hosts
+"brew:tcpflow" = "latest" # Capture and analyze TCP flows
+"brew:tcpreplay" = "latest" # Replay captured network traffic
+"brew:tmux" = "latest" # Terminal multiplexer
+"brew:ucspi-tcp" = "latest" # TCP client/server utilities

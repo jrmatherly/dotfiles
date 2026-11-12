@@ -3,6 +3,9 @@
   "extends": ["config:recommended"],
   "timezone": "America/New_York",
   "minimumReleaseAge": "7 days",
+  "mise": {
+    "managerFilePatterns": ["tilde/.config/mise/conf.d/60-rotm-*.toml"]
+  },
   "packageRules": [
     {
       "matchPackageNames": ["@ampcode/plugin"],

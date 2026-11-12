@@ -49,25 +49,33 @@ jobs:
       - run: mise bootstrap packages apply --yes brew:actionlint brew:shellcheck brew:minijinja-cli brew:rtk
         env:
           MISE_GITHUB_TOKEN: ${{ github.token }}
-      # Every formula, cask, tap and dependency in the package list resolves.
-      # An empty prefix (MISE_SYSTEM_BREW_PREFIX: read by mise's source and its
-      # own tests, not documented) so the runner's Homebrew counts for nothing,
-      # and the fragment alone, because the whole config dir installs its
-      # pythons first. Downloads metadata only. VS Code ids are not checked:
-      # the plugin is not linked here and no dry run asks VS Code
+      # Every formula, cask, tap and dependency in the package list resolves,
+      # in the base and in every module. An empty prefix
+      # (MISE_SYSTEM_BREW_PREFIX: read by mise's source and its own tests, not
+      # documented) so the runner's Homebrew counts for nothing, and the package
+      # fragments alone with their [tools] tables dropped, because the whole
+      # config dir installs its pythons first. Downloads metadata only. VS Code
+      # ids are not checked: the plugin is not linked here and no dry run asks
+      # VS Code. A second dry run with one module off must not name its formulae
       - name: Package list dry run
         env:
           MISE_GITHUB_TOKEN: ${{ github.token }}
         run: |
           d=$RUNNER_TEMP/packages-dry-run
           mkdir -p "$d/config/conf.d" "$d/prefix"
-          cp tilde/.config/mise/conf.d/30-packages.toml "$d/config/conf.d/"
+          for f in tilde/.config/mise/conf.d/30-packages.toml tilde/.config/mise/conf.d/60-rotm-*.toml; do
+            awk '/^\[tools\]/{skip=1; next} /^\[/{skip=0} !skip' "$f" > "$d/config/conf.d/$(basename "$f")"
+          done
           # Tap definitions are read with Ruby 3+, and a dry run never provisions one
           ruby -e 'exit(RUBY_VERSION.to_i >= 3 ? 0 : 1)' || { echo "::error::no Ruby 3+ first on PATH: $(command -v ruby) $(ruby -v)"; exit 1; }
+          modules=$PWD/bin/lib/rotm-modules
           cd "$d"
-          MISE_CONFIG_DIR=$d/config MISE_TRUSTED_CONFIG_PATHS=$d/config \
+          export MISE_CONFIG_DIR=$d/config MISE_TRUSTED_CONFIG_PATHS=$d/config \
             MISE_DATA_DIR=$d/data MISE_STATE_DIR=$d/state MISE_CACHE_DIR=$d/cache \
-            MISE_SYSTEM_BREW_PREFIX=$d/prefix \
-            mise bootstrap packages apply --dry-run
+            MISE_SYSTEM_BREW_PREFIX=$d/prefix
+          mise bootstrap packages apply --dry-run
+          "$modules" set security off
+          mise bootstrap packages apply --dry-run 2>&1 | tee off.log
+          if grep -wE 'nmap|hydra|ghidra' off.log; then echo "::error::security is off and its formulae are still in the dry run"; exit 1; fi
       - run: pnpm install --frozen-lockfile
       - run: pnpm check

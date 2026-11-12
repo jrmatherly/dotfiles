@@ -1,0 +1,14 @@
+# returnofthemac module `fonts`: Nerd Font casks.
+#
+# Switch it off with `rotm settings set modules.fonts off` (on again with `on`).
+# The fonts stay installed. VS Code and the terminals fall back to a system font only on a Mac that never had them.
+# `mise bootstrap packages prune --dry-run` lists what no config declares any more.
+
+[bootstrap.packages]
+"brew-cask:font-anonymice-nerd-font" = "latest"
+"brew-cask:font-fira-code-nerd-font" = "latest" # VS Code fallback; its main font, Iosevka Code, has no cask: bin/install-iosevka-code
+"brew-cask:font-hack-nerd-font" = "latest"
+"brew-cask:font-profont-nerd-font" = "latest"
+"brew-cask:font-sauce-code-pro-nerd-font" = "latest"
+"brew-cask:font-tinos-nerd-font" = "latest"
+"brew-cask:font-ubuntu-nerd-font" = "latest"

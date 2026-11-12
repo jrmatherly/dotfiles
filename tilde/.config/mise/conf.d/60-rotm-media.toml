@@ -1,0 +1,31 @@
+# returnofthemac module `media`: File / text / image processing.
+#
+# Switch it off with `rotm settings set modules.media off` (on again with `on`).
+# The formulae stay installed.
+# `mise bootstrap packages prune --dry-run` lists what no config declares any more.
+
+[bootstrap.brew.taps]
+"bramstein/webfonttools" = "https://github.com/bramstein/homebrew-webfonttools.git"
+
+[bootstrap.packages]
+"brew:bash-completion@2" = "latest" # Bash completion
+"brew:bats-core" = "latest" # Bash testing framework
+"brew:binutils" = "latest" # GNU binary tools
+"brew:ffmpeg" = "latest" # Audio/video conversion
+"brew:ghostscript" = "latest" # PostScript/PDF interpreter
+"brew:git-filter-repo" = "latest" # Rewrite git history (the tool git itself recommends over filter-branch)
+"brew:imagemagick" = "latest" # Image manipulation
+"brew:mole" = "latest" # Mac cleanup, optimization and disk analyzer (`mo`)
+"brew:netpbm" = "latest" # Image format conversion toolkit
+"brew:p7zip" = "latest" # 7-Zip archiver
+"brew:pigz" = "latest" # Parallel gzip
+"brew:pngcheck" = "latest" # PNG file validator
+"brew:pv" = "latest" # Monitor data through a pipeline
+"brew:rename" = "latest" # Batch file renaming
+"brew:tesseract" = "latest" # OCR (used by bin/ocr)
+"brew:webp" = "latest" # cwebp encoder — required by bin/optimize-image
+"brew:tree-sitter" = "latest" # Parser generator/incremental parsing
+"brew:wget" = "latest" # File retrieval via HTTP/FTP
+"brew:woff2" = "latest" # WOFF2 font format tools
+"brew:xpdf" = "latest" # PDF utilities
+"brew:bramstein/webfonttools/sfnt2woff" = "latest" # Web font conversion

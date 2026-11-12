@@ -1,13 +1,14 @@
 #!/bin/bash
 #
-# Self-check for the package fragment (key shape, the tap list, no version pins) and the vscode plugin.
+# Self-check for the package and tool lists across the base and the modules (key shape, taps, no pins, nothing lost) and the vscode plugin.
 #
 # - Run it (pnpm check does too); exits 1 naming the first failed assertion:
 #
 # `test-packages`
 #
 # ---
-# Reads tilde/.config/mise/conf.d/30-packages.toml with tomllib. Runs the
+# Reads conf.d/30-packages.toml, config.toml and every conf.d/60-rotm-*.toml under
+# tilde/.config/mise with tomllib (or under the dir given as $1). Runs the
 # mise-plugins/vscode hooks against a fake code with every mise dir in a temp
 # dir. Installs nothing and never runs mise against the live config.
 #
@@ -30,50 +31,105 @@ else
   py=(python3)
 fi
 
-"${py[@]}" - << 'PY' || fail "conf.d/30-packages.toml"
+# The config dir to read: the tracked one, or the one given (a split written to a scratch dir is checked before it is copied in)
+config_dir=${1:-tilde/.config/mise}
+
+"${py[@]}" - "$config_dir" "$(bin/lib/rotm-modules list)" << 'PY' || fail "the package and tool lists in $config_dir"
 import re
+import sys
 import tomllib
 from pathlib import Path
 
-doc = tomllib.loads(Path("tilde/.config/mise/conf.d/30-packages.toml").read_text())
-pk = doc["bootstrap"]["packages"]
-brew = doc["bootstrap"]["brew"]
-taps = brew["taps"]
-assert brew.get("adopt") is True, "[bootstrap.brew] adopt must be true"
-assert "homebrew_metadata" not in brew, "homebrew_metadata hands casks back to Homebrew"
-assert all(v == "latest" for v in pk.values()), "every package value is \"latest\": no pins, no inline tables"
-managers = {k.split(":", 1)[0] for k in pk}
+config_dir, modules = Path(sys.argv[1]), sys.argv[2].split()
+
+
+class File:
+    def __init__(self, name, *paths):
+        self.name = name
+        docs = [tomllib.loads(p.read_text()) for p in paths]
+        boot = [d.get("bootstrap", {}) for d in docs]
+        self.brew = {k: v for b in boot for k, v in b.get("brew", {}).items() if k != "taps"}
+        self.taps = {k: v for b in boot for k, v in b.get("brew", {}).get("taps", {}).items()}
+        self.packages = {k: v for b in boot for k, v in b.get("packages", {}).items()}
+        self.tools = {k: v for d in docs for k, v in d.get("tools", {}).items()}
+
+
+# The base is two files: mise reads [tools] from config.toml and the packages from the fragment
+base = File("base", config_dir / "conf.d/30-packages.toml", config_dir / "config.toml")
+mods = {n: File(n, config_dir / f"conf.d/60-rotm-{n}.toml") for n in modules}
+files = [base, *mods.values()]
+
+assert base.brew.get("adopt") is True, "[bootstrap.brew] adopt must be true"
+assert all("homebrew_metadata" not in f.brew for f in files), "homebrew_metadata hands casks back to Homebrew"
+assert all(not f.brew for f in mods.values()), "[bootstrap.brew] settings belong in the base"
+
+every_package, all_tools, all_taps, dupes = {}, {}, {}, []
+for f in files:
+    for table, seen in ((f.packages, every_package), (f.tools, all_tools), (f.taps, all_taps)):
+        dupes += [f"{k} ({f.name})" for k in table if k in seen]
+        seen.update(table)
+assert not dupes, f"declared in two files: {dupes}"
+assert all(v == "latest" for v in every_package.values()), "every package value is \"latest\": no pins, no inline tables"
+managers = {k.split(":", 1)[0] for k in every_package}
 assert managers == {"brew", "brew-cask", "vscode"}, managers
-for key in pk:
+
+
+def tap_of(key):
+    return "/".join(key.split(":", 1)[1].split("/")[:2])
+
+
+def is_tap_key(key):
+    return not key.startswith("vscode:") and key.count("/") == 2
+
+
+for key in every_package:
     manager, name = key.split(":", 1)
-    if manager != "vscode" and name.count("/") == 2:
+    if is_tap_key(key):
         owner, tap, _ = name.split("/")
-        assert taps.get(f"{owner}/{tap}") == f"https://github.com/{owner}/homebrew-{tap}.git", f"undeclared tap for {key}"
+        assert all_taps.get(f"{owner}/{tap}") == f"https://github.com/{owner}/homebrew-{tap}.git", f"undeclared tap for {key}"
     if manager == "vscode":
         assert name == name.lower() and re.fullmatch(r"[a-z0-9-]+\.[a-z0-9-]+", name), key
-used = {"/".join(k.split(":", 1)[1].split("/")[:2]) for k in pk if k.count("/") == 2}
-assert set(taps) == used, f"tap declared but unused, or used but undeclared: {set(taps) ^ used}"
-assert len(taps) <= 5, "more than 5 taps: a new Mac runs out of anonymous GitHub API calls (Review Focus 1)"
-assert "brew:mise" not in pk, "mise is installed by its own installer"
-assert "brew:ruby" in pk, "mise needs Ruby 3+ to read the claude-multipass-app tap cask; macOS ships 2.6"
-count = lambda m: sum(k.startswith(m + ":") for k in pk)
+# A tap sits in the file whose packages use it, so switching a module off drops its tap too
+for f in files:
+    used = {tap_of(k) for k in f.packages if is_tap_key(k)}
+    assert set(f.taps) == used, f"{f.name}: tap declared but unused, or used but undeclared: {set(f.taps) ^ used}"
+assert len(all_taps) <= 5, "more than 5 taps: a new Mac runs out of anonymous GitHub API calls (Review Focus 1)"
+assert "brew:mise" not in every_package, "mise is installed by its own installer"
+
+# The union is what the two files held before the split: nothing lost, nothing added
+count = lambda m: sum(k.startswith(m + ":") for k in every_package)
 assert (count("brew"), count("brew-cask"), count("vscode")) == (143, 33, 184), "counts changed: update this line with the entry you added or removed"
+assert len(all_tools) == 27, f"{len(all_tools)} tools: update this line with the tool you added or removed"
+
+# The base keeps what setup, sysup and the shell run without a guard, and what mise itself needs (ruby reads the tap cask)
+for k in ("brew:uv", "brew:ruby", "brew:jq", "brew:minijinja-cli", "brew:git-lfs", "brew:git", "brew:zsh", "brew-cask:visual-studio-code"):
+    assert k in base.packages, f"{k} must stay in the base"
+assert set(base.tools) == {"node", "python", "hunk"}, set(base.tools)
+assert not any(k.startswith("vscode:") for f in files if f.name != "vscode" for k in f.packages), "a vscode: key outside the vscode module"
+fonts = mods["fonts"].packages
+assert all(k.startswith("brew-cask:font-") for k in fonts) and len(fonts) == 7, fonts
+
+# Files on disk and names in rotm-modules agree, and a name has one dot (mise 2027.8.10 reads a second segment as an environment)
+on_disk = {p.name for p in (config_dir / "conf.d").glob("60-rotm-*")}
+assert on_disk == {f"60-rotm-{n}.toml" for n in modules}, on_disk
+assert all(p.name.count(".") == 1 for p in (config_dir / "conf.d").iterdir()), "a conf.d name with two dots"
 PY
 
 # The flux2 and talosctl postinstall hooks write their zsh completions (P13)
 hooks=$(
-  "${py[@]}" - << 'PY'
+  "${py[@]}" - "$config_dir" << 'PY'
+import sys
 import tomllib
 from pathlib import Path
 
-tools = tomllib.loads(Path("tilde/.config/mise/config.toml").read_text())["tools"]
+tools = tomllib.loads((Path(sys.argv[1]) / "conf.d/60-rotm-kubernetes.toml").read_text())["tools"]
 for tool, binary in (("flux2", "flux"), ("talosctl", "talosctl")):
     entry = tools.get(tool)
     ok = isinstance(entry, dict) and entry.get("version") == "latest" and entry.get("postinstall", {}).get("when") == "always"
     assert ok, f"{tool} has no postinstall that writes its completion (P13)"
     print(f"{binary}\t{entry['postinstall']['run']}")
 PY
-) || fail "config.toml completion hooks"
+) || fail "the kubernetes module's completion hooks"
 
 repo=$PWD
 tmp=$(cd "$(mktemp -d)" && pwd -P)

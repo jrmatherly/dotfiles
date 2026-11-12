@@ -1,0 +1,31 @@
+# returnofthemac module `agents`: CLIs and MCP servers for coding agents.
+#
+# Switch it off with `rotm settings set modules.agents off` (on again with `on`).
+# The CLIs and the MCP registrations stay; setup and `sysup` stop wiring and updating them. The npm tools go at the next `sysup` (`mise prune`).
+# `mise bootstrap packages prune --dry-run` lists what no config declares any more.
+
+[bootstrap.packages]
+# Log in once with `coderabbit auth login`. The cask links only `coderabbit`,
+# not the `cr` alias the vendor's install script adds. The Claude Code plugin
+# is coderabbit@claude-plugins-official in agents/claude-plugins.txt.
+"brew-cask:coderabbit" = "latest" # CodeRabbit AI code review CLI (free on OSS repos)
+# Telemetry is opt-in; RTK_TELEMETRY_DISABLED in zsh/env.zsh blocks it anyway
+"brew:rtk" = "latest" # Compacts command output for coding agents (Claude Code hook: setup/misc.sh)
+
+[tools]
+# CodeGraph — code-graph CLI + MCP server for AI agents
+# (https://github.com/colbymchenry/codegraph). Upgrade with `mise upgrade`,
+# not `codegraph upgrade`. setup/misc.sh wires it into Claude Code
+# (`codegraph install --target claude`); indexing a repo (`codegraph init`) is
+# a manual step.
+"npm:@colbymchenry/codegraph" = "latest"
+# REA (https://github.com/morluto/rea) — reverse-engineering MCP server and
+# CLI (`rea`) that drives Ghidra (the security module) and Hopper (the apps
+# module); setup/misc.sh registers `rea mcp` with Claude Code. It ships several
+# releases a day, so
+# mise's default 24 h release-age cutoff would hold `latest` a version or two
+# behind; shortened to 6 h for this tool. The cutoff also screens the tool's
+# transitive dependencies (mise passes it to its embedded npm client), which
+# is why it is not 0: a few hours still catches a pulled release. npm's own
+# `min-release-age=7` from setup/misc.sh never applies to mise installs.
+"npm:rea-agents" = { version = "latest", minimum_release_age = "6h" }

@@ -1,0 +1,47 @@
+# returnofthemac module `devops`: DevOps / CI / linting.
+#
+# Switch it off with `rotm settings set modules.devops off` (on again with `on`).
+# The formulae stay installed; the `sentry` tool goes at the next `sysup` (`mise prune`).
+# `mise bootstrap packages prune --dry-run` lists what no config declares any more.
+
+[bootstrap.packages]
+"brew:actionlint" = "latest" # GitHub Actions workflow linter
+"brew:ansible" = "latest" # Configuration management / automation
+"brew:ast-grep" = "latest" # Structural code search/lint
+"brew:biome" = "latest" # JS/TS formatter and linter
+"brew:go-air" = "latest" # Live reload for Go apps (`air`); not the `air` formula, an R formatter
+"brew:golangci-lint" = "latest" # Go linters aggregator
+"brew:golines" = "latest" # Go long-line formatter, run on save by VS Code (emeraldwalk.runonsave)
+"brew:gopls" = "latest" # Go language server
+"brew:govulncheck" = "latest" # Go vulnerability scanner (vuln.go.dev)
+"brew:hadolint" = "latest" # Dockerfile linter
+"brew:just" = "latest" # Command runner
+"brew:komac" = "latest" # Create and submit WinGet (Windows Package Manager) manifests
+"brew:lua-language-server" = "latest" # Lua language server
+"brew:markdownlint-cli" = "latest" # Markdown linter
+"brew:markdownlint-cli2" = "latest" # Markdown linter (v2)
+"brew:mermaid-cli" = "latest" # Render Mermaid diagrams
+"brew:pipx" = "latest" # Install Python CLI tools in isolated envs
+"brew:pre-commit" = "latest" # Git hook framework (runs a repo's .pre-commit-config.yaml)
+"brew:ruby-lsp" = "latest" # Ruby language server; runs on the Homebrew Ruby it brings (macOS ships 2.6), so a project on another Ruby needs `gem install ruby-lsp` there
+"brew:ruff" = "latest" # Fast Python linter/formatter
+"brew:rust-analyzer" = "latest" # Rust language server
+# The system Rust (keg-only; PATH order in zsh/path.zsh). setup/misc.sh makes
+# stable the default, sysup runs `rustup update`; a project pinning another
+# version goes through mise's rust backend, which reuses this rustup.
+"brew:rustup" = "latest" # Rust toolchain installer; Hindsight's daemon start needs cargo on macOS
+"brew:cargo-audit" = "latest" # Audits Cargo.lock for advisories; a bottled binary, so it needs no toolchain to install
+# The core formula: Supabase's docs install from supabase/tap, which would
+# need a sixth tap. Telemetry is off via DO_NOT_TRACK in zsh/env.zsh, and
+# persistently via `supabase telemetry disable` in setup/misc.sh.
+"brew:supabase" = "latest" # Supabase CLI: local stack, migrations, Edge Functions
+"brew:zls" = "latest" # Zig language server; pulls `zig`, `llvm@22` and `lld@22` (about 1.8 GB)
+
+[tools]
+# Sentry's new CLI (`sentry`, log in with `sentry auth`), not the legacy
+# `sentry-cli` that build tooling pulls in per project and that mise's registry
+# calls `sentry`. Telemetry is off via DO_NOT_TRACK in zsh/env.zsh. Not the
+# getsentry/tools tap formula: mise cannot build it (it runs the release's
+# bare .gz without unpacking it). The repo tags other packages too, so the
+# prefix keeps `latest` on the CLI's tags
+"github:getsentry/toolkit" = { version = "latest", version_prefix = "cli@", bin = "sentry", postinstall = { run = 'mkdir -p "$HOME/.cache/dotfiles/completions" && sentry cli completion zsh > "$HOME/.cache/dotfiles/completions/_sentry"', when = "always" } } # Sentry CLI: issues, events, root cause
