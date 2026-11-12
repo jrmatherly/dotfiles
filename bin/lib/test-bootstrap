@@ -395,6 +395,25 @@ check_true "installed: a link that points elsewhere is kept" [ -L "$HOME/.config
 check_true "installed: says what it unlinked" has 'Unlinked .*/\.config/gh: ' 
 run_installed -y -- --dry-run
 check_true "installed: a dry run unlinks nothing" [ -L "$HOME/.config/gh" ]
+for own in .zshrc .gitconfig; do
+  prepare() { echo mine > "$HOME/$own"; }
+  run_installed -y
+  check_true "installed: an own ~/$own exits 1" [ "$rc" -eq 1 ]
+  check_true "installed: … names it and the move" has "/$own is your own .*mv .*rerun rotm install"
+  check_true "installed: … before anything is linked" log_empty
+  check_true "installed: … and leaves it alone" [ "$(cat "$HOME/$own")" = mine ]
+  prepare() { echo "mine, then tilde/$own" > "$HOME/$own"; }
+  run_installed -y
+  check_true "installed: an own ~/$own that loads ours passes" [ "$rc" -eq 0 ]
+  prepare() { echo mine > "$HOME/$own"; }
+  run -y
+  check_true "clone: an own ~/$own is left to mise, as before" log_has "args=dotfiles apply"
+done
+prepare() {
+  touch "$STATE/casks-fail"
+  mkdir -p "$HOME/.config/keep"
+  ln -s "$copy/tilde/.config/gh" "$HOME/.config/gh"
+}
 run -y
 check_true "clone: a link into the clone at such a key is kept" [ -L "$HOME/.config/gh" ]
 check_true "clone: the hints still name ./setup.sh" grep -q 'then rerun ./setup.sh' <<< "$out"

@@ -209,6 +209,7 @@ class MacosDefaultAdapter:
         # One key only: `defaults apply` would undo every hand change and write the config.local.toml opt-ins
         domain, key = split_key(s.key)
         literal = to_literal(s, value)
+        mise.refuse_installed(fragment_path())
         text = read_fragment()
         fragment_path().write_text(set_key(text, domain, key, literal))
         try:
@@ -235,5 +236,6 @@ class MacosDefaultAdapter:
         if old is not MISSING:
             self.write(s, render(s, old))
             return
+        mise.refuse_installed(fragment_path())
         fragment_path().write_text(remove_key(read_fragment(), domain, key))
         print(f'mise never deletes a preference. Run: defaults delete {domain} "{key}"', file=sys.stderr)

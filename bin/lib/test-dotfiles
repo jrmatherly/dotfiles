@@ -44,7 +44,7 @@ while IFS= read -r key; do
     || fail "config.installed.toml declares $key, which redeclares nothing and is in no folder it makes real"
 done < <(sed -n 's/^"\([^"]*\)" = .*/\1/p' "$installed")
 # A symlink here would put app writes back in the checkout
-if grep -E '^"' "$installed" | grep -vE 'create_if_missing = true|merge = |= \{ permissions = "[0-7]+" \}' | grep -q .; then
+if grep -E '^"' "$installed" | grep -vE 'mode = "copy", create_if_missing = true|merge = |= \{ permissions = "[0-7]+" \}' | grep -q .; then
   fail "config.installed.toml has an entry that is neither create_if_missing, merge nor a real folder"
 fi
 

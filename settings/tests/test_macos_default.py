@@ -240,4 +240,14 @@ for key, s in local.items():
     assert (s.default == "1") == (key in on_by_default), key
     assert (f"${{{key}-1}}" in extras) == (key in on_by_default), key
 assert "${DOTFILES_MACOS_HIDPI:-}" in extras
+
+# An installed copy: the fragment sits inside mise's checkout, so no write or reset may edit it
+os.environ["MISE_DATA_DIR"] = str(tmp / "data")
+(tmp / "data").mkdir()
+(tmp / "data" / "bootstrap-repo").symlink_to(conf)
+before = fragment_path().read_text()
+raises(SettingsError, lambda: MacosDefaultAdapter().write(dock, "44"), "installed copy")
+macos_default.head_text = lambda: FRAGMENT.replace("tilesize = 38 # trailing why\n", "")
+raises(SettingsError, lambda: MacosDefaultAdapter().reset(dock), "installed copy")
+assert fragment_path().read_text() == before
 print("ok")

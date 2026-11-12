@@ -4,6 +4,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import NamedTuple
 
+from .. import mise
 from ..model import InvalidValue, Setting, SettingsError, Source, Value
 
 Reader = Callable[[str, Setting], Value]
@@ -20,6 +21,7 @@ def run(argv: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess
 
 def edit_file(path: Path, change: Callable[[str], str]) -> None:
     real = path.resolve()  # write the link's target, keep the link
+    mise.refuse_installed(real)
     for _ in (1, 2):
         before = real.read_text()
         after = change(before)

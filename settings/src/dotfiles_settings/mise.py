@@ -24,6 +24,14 @@ def config_dir() -> Path:
     return Path(os.environ.get("MISE_CONFIG_DIR") or Path.home() / ".config/mise")
 
 
+def refuse_installed(path: Path) -> None:
+    """A copy mise fetched (bin/lib/rotm-mode) is updated by fast-forward, so no tracked file in it may be edited."""
+    checkout = Path(os.environ.get("MISE_DATA_DIR") or Path.home() / ".local/share/mise") / "bootstrap-repo"
+    if checkout.exists() and path.resolve().is_relative_to(checkout.resolve()):
+        raise SettingsError("an installed copy cannot keep this setting yet: it is stored in a tracked file, "
+                            "which rotm update must be able to replace")
+
+
 def check_version() -> None:
     out = run_mise(["--version"]).split()
     token = out[0] if out else ""

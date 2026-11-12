@@ -126,6 +126,8 @@ One row per key in `conf.d/40-dotfiles.toml`. `tilde/.config/mise/config.install
 
 Open after this table: `~/.claude/rules/jstack-models.md` is a link to a tracked file that two tools rewrite, and `~/.config/amp/settings.json` and `~/.config/btop/btop.conf` may be rewritten by their apps. None has an entry yet. Row 8 decides each.
 
+Two more writers were found by review, not by a run. `rotm settings` stored a macOS preference by editing the tracked `conf.d/20-macos.toml`, and a jstack role by editing `jstack-models.md`: on an installed copy it now refuses both and says why, until P2 gives the user a layer of their own. `setup/misc.sh` runs `pnpm install` in the copy without `--frozen-lockfile`. Not checked: whether that can rewrite `pnpm-lock.yaml`. Row 7 shows it if it does.
+
 ### Opt-outs
 
 - The base splits into modules by what a person would decline: apps, fonts, VS Code extensions, the Claude Code plugins and skills, the other agent tooling, the macOS defaults groups that already have switches.

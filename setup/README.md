@@ -25,7 +25,7 @@ A run is not a transaction. When a part of `mise bootstrap` or the task fails, m
 
 Flags: `-y/--yes` (also passed to mise, and exported as `DOTFILES_YES` so `misc.sh` skips its font preset menu and its `gh auth login` question), `--skip-codegraph`, `--dash`, `-h/--help` and `-- <args>`, described in the table in the [installation guide](../docs/installation.md#run-setup). Everything after `--` goes to `mise bootstrap`, with these exceptions:
 
-The manual [`fresh-install`](../.github/workflows/fresh-install.yml) workflow (`gh workflow run fresh-install.yml`) runs `./setup.sh` on a hosted runner without Homebrew. A runner is not a clean Mac (Xcode is preinstalled and sudo asks for no password), so it does not replace a run on a new Mac.
+The manual [`fresh-install`](../.github/workflows/fresh-install.yml) workflow (`gh workflow run fresh-install.yml`) runs both install paths on a hosted runner without Homebrew, as two jobs: `./setup.sh` from a clone, and the install line that lets mise fetch the copy, followed by `rotm update` and a check that the copy has no changed tracked file. A runner is not a clean Mac (Xcode is preinstalled and sudo asks for no password), so it does not replace a run on a new Mac.
 
 - `--skip <parts>` is merged into the one `--skip` list that setup passes. `--skip packages` also skips setup's own package step, `--skip tools` its `mise install`, `--skip task` the second bootstrap call, and `--skip dotfiles` also skips `dotfiles-extras.sh`.
 - `--only` is refused, because mise does not accept it together with `--skip`. Run `mise bootstrap --only <parts>` from `~` instead.
@@ -50,9 +50,10 @@ To preview a run without changing anything, once `~/.config/mise` is the link: `
 
 A copy that `mise bootstrap --from` fetched lives in `~/.local/share/mise/bootstrap-repo` (under `$MISE_DATA_DIR` when that is set) and is updated by `rotm update`, never edited. `bin/lib/rotm-mode` prints `installed` for it and `clone` for any other folder. Four scripts read it:
 
-- `setup.sh` names `rotm install` in its retry line and its warnings. Before it links the dotfiles it removes a symlink into the copy at any path `config.installed.toml` declares as a real folder, because mise would otherwise keep the link and write that folder's files into the copy.
+- `setup.sh` names `rotm install` in its retry line and its warnings. It stops when `~/.zshrc` or `~/.gitconfig` is your own file and does not load ours: on an installed copy those two are seeded once (`tilde/.zshrc.installed`, `tilde/.gitconfig.installed`) and then yours, so mise would keep an existing one without a word. Before it links the dotfiles it removes a symlink into the copy at any path `config.installed.toml` declares as a real folder, because mise would otherwise keep the link and write that folder's files into the copy.
 - `sysup` does not pull and reports `installed copy: run rotm update`. It does not run `claude-config save`, which writes `agents/` inside the copy.
 - `dotfiles` prints the `rotm update` hint and pulls nothing.
+- `rotm settings` (`dotfiles-settings`) refuses to change a macOS preference or a jstack model role, because both are stored in tracked files. The settings kept in mise's override file work as on a clone.
 - `vscode-settings` renders `settings.json` into `~/Library/Application Support/Code/User`, not into the copy's `vscode/User`.
 
 `rotm update` fetches the branch the copy is on and then runs `setup.sh`. It stops before `setup.sh` when mise cannot update the copy, and lists the tracked files that differ in it.
