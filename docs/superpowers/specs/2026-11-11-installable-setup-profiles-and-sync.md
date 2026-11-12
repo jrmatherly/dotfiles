@@ -215,12 +215,15 @@ Measured on 2026-11-11 in the UTM guest (macOS 27.2.1, mise 2026.11.6, a disposa
 | A `[bootstrap.brew.taps]` entry and `[tools]` in a module merge with the base's | Yes to both. A dry run resolved a module's tap formula through the module's tap, and a module's tool was listed only while the module was named (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
 | A more local file can cancel one package the base declares | Yes, with `{ state = "absent" }` only, from `config.local.toml` or a module: status reported the key as `absent`. `false` and `{ enabled = false }` are parse errors. Measured for a `brew:` key (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
 | One tool can be switched off from `config.local.toml` | Yes: `[settings] disable_tools = ["npm:prettier"]` (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
+| A name in the saved `env` list reaches a project's files | Yes. With `env = ["security"]` a project's `mise.security.toml` was loaded in that project. With `env = ["rotm-security"]` and `config.rotm-security.toml` the module loaded and the project's file did not. So module names carry a `rotm-` prefix. P1's `installed` environment has the same exposure (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
+| A project's own `.miserc.toml` with an `env` list displaces the saved one | No. The module still loaded inside that project (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
 
 ### Still not verified
 
 | Claim | What settles it |
 | --- | --- |
-| `state = "absent"` on a `vscode:` key, and what `packages apply --manager` exits with when a package declared absent is installed | Task 1 of the P2 plan, against the fake `code` in `bin/lib/test-packages` |
+| `state = "absent"` on a `vscode:` key, and what `packages apply --manager` exits with when a package declared absent is installed | Task 1 of the P2 plan for `vscode`, against the fake `code` in `bin/lib/test-packages`. Row 5 of its VM proof for a real cask |
+| `mise prune` deletes the tools of a module that was switched off | Read from `bin/sysup`'s "mise prune" step and `mise prune --help`, not run. Row 4 of the P2 plan's VM proof |
 | The same behaviours on the 2026.11.5 floor in `setup/mise-floor.sh` | The guest ran 2026.11.6, the release mise's installer gave it. The owner decided on 2026-11-11 to leave the floor at 2026.11.5 and accept this gap. Decision 10 still applies: each promotion to `stable` is proven in the VM on the mise current that day |
 | A project's `.miserc.toml` is read when `mise bootstrap` runs from inside the checkout, without `--from` | Not measured. It matters only if a later run stops passing `--from` |
 | What an adopted home in mode `sync` does once the history watcher is declared | P3, in the VM, against a real private repository |
@@ -233,7 +236,7 @@ Also measured that day: with `HOME` and every `MISE_*_DIR` pointed at a scratch 
 
 - `docs/superpowers/plans/completed/2026-11-11-p0-probes-and-model-default.md` (done 2026-11-11): the probes in a scratch home, and the `claude-config save` model rule. Its results fill in this spec and decide the open points.
 - `docs/superpowers/plans/completed/2026-11-11-p1-install-and-update.md` (done 2026-11-12): the config-dir shape, mise to fetch and link followed by `setup.sh`, the `rotm` command, and an `installed` config environment for targets apps rewrite.
-- `docs/superpowers/plans/2026-11-12-p2-modules-and-opt-outs.md` (written 2026-11-12, not started): twelve modules as `config.<name>.toml` files, a helper that derives mise's `env` list from what is switched off, a switch per module in `dotfiles-settings`, and `--without` on the install line. The owner split P2 that day: the owner's layer is P2b, not written.
+- `docs/superpowers/plans/2026-11-12-p2-modules-and-opt-outs.md` (written and reviewed 2026-11-12, not started): twelve modules as `config.rotm-<name>.toml` files, a helper that derives mise's `env` list from what is switched off, a switch per module in `dotfiles-settings`, and `--without` on the install line. The owner split P2 that day: the owner's layer is P2b, not written.
 - P2b and P3 to P6 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
 
 ## Phase briefs
