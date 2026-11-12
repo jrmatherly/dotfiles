@@ -555,6 +555,8 @@ git push origin HEAD:refs/heads/stable
 
 Expected: `* [new branch] HEAD -> stable`. Between Step 3 and this push the README names a branch that does not exist, so run them together.
 
+Done on 2026-11-12: `stable` was created at `7f837d6` with the owner's go-ahead, and not on Markdown-only drift. Since `851addb` three files outside Markdown had changed: `setup.sh` (the own-file stop moved before the password prompt, `2612777`, which rows 9 and 10 ran through `rotm update`), `tilde/.config/gh/config.yml` (the alias that was row 9's upstream change, removed again in `d09f025`) and `bin/lib/test-dotfiles` (a self-check that read the git wrapper under the real `HOME` and failed on the CI runner). Row 3 was not rerun on that head in the guest.
+
 ---
 
 ### Task 8: A workflow job for the installed path
@@ -589,6 +591,8 @@ git push
 ```
 
 Running the workflow is the owner's call: it takes up to four hours of a hosted runner per path.
+
+Run on 2026-11-12 on `7f837d6` (run 43244545330): both paths passed, `installed` in 23 minutes and `clone` in 27. On each path the one problem `setup.sh` reported was the `royal-tsx` cask, the miss the workflow tolerates. On `installed`, `rotm update` found nothing to fetch, ran `setup.sh` again, and the copy had no changed tracked file afterwards.
 
 ---
 

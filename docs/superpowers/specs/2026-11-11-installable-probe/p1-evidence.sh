@@ -12,7 +12,7 @@
 #
 # ---
 # The rows are the table in Task 6 of
-# docs/superpowers/plans/2026-11-11-p1-install-and-update.md. Each command and
+# docs/superpowers/plans/completed/2026-11-11-p1-install-and-update.md. Each command and
 # its output goes to p1-<date>/row-<n>.txt next to this script, so on the shared
 # folder the host sees them at ~/vm-proof/p1/. Commands run through `script`,
 # which keeps the terminal that setup.sh's prompts and sudo need.
