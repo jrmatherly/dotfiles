@@ -25,6 +25,8 @@ tilde/.config/mise/config.*.override.toml
 tilde/.config/mise/config.local.toml
 tilde/.config/mise/config.*.local.toml
 tilde/.config/mise/miserc.local.toml
+# The modules this Mac switched off (bin/lib/rotm-modules): a tracked copy would switch them off for everyone
+tilde/.config/mise/modules-off.local
 .tlrc/
 private/
 # sysup's per-run logs (bin/sysup); setup.sh logs under private/setup-logs/

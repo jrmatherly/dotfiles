@@ -186,7 +186,7 @@ git commit -m "Measure how an extension is declared absent"
 - Every argument and every line of output uses short names (`fonts`). Only the `env` line carries `rotm-fonts`.
 - The config dir is `${MISE_CONFIG_DIR:-$HOME/.config/mise}`. Both files are written through it, so on a clone and on an installed copy they land in the checkout, git-ignored. The helper creates the dir's files, never the dir: a missing dir is exit 1 with its path.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `bin/lib/test-modules`, with the header shape of `bin/lib/test-rotm`. `cfg` is one temp dir, `MISE_CONFIG_DIR` points at it, `MISE_ENV` is unset, and the cases run in this order on that one dir. `reset` empties it.
 
@@ -242,21 +242,21 @@ rc=0; MISE_CONFIG_DIR="$tmp/missing" "$m" sync 2> /dev/null || rc=$?; [ "$rc" = 
 
 One more block, with a real `mise` on `PATH` and skipped with a message when it is missing, as `test-packages` does. `smise` runs mise from a scratch home with `MISE_CONFIG_DIR`, `MISE_DATA_DIR`, `MISE_STATE_DIR` and `MISE_CACHE_DIR` in `$tmp`, `MISE_CEILING_PATHS="$tmp"` and `MISE_SYSTEM_BREW_PREFIX` at an empty dir. The config dir holds a `conf.d/30-packages.toml` with `"brew:jq"` and a `config.rotm-fonts.toml` with one font cask. Assert `smise bootstrap packages status --json` lists the cask after `sync` and not after `set fonts off`.
 
-- [ ] **Step 2: Run to see it fail**
+- [x] **Step 2: Run to see it fail**
 
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-modules`
 Expected: FAIL at "list", because `bin/lib/rotm-modules` does not exist.
 
-- [ ] **Step 3: Write `bin/lib/rotm-modules`**
+- [x] **Step 3: Write `bin/lib/rotm-modules`**
 
 Header in the `bin/` shape, saying that it is called by path, that the off list is the stored truth, and why the `env` entries carry the prefix. `set -euo pipefail`. The names are one bash array. The `env` line is rewritten in place when a line starting `env = [` and ending `]` exists, appended when no line starts with `env`, and refused (exit 1, "the env list in miserc.local.toml is not on one line") otherwise. Write through a temp file in the same dir and `mv`, so a failed run leaves the old file.
 
-- [ ] **Step 4: Run to see it pass, check the gate**
+- [x] **Step 4: Run to see it pass, check the gate**
 
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-modules && bash -n bin/lib/rotm-modules && shellcheck --severity=warning bin/lib/rotm-modules bin/lib/test-modules`
 Expected: `ok`, then no output.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add bin/lib/rotm-modules bin/lib/test-modules bin/lib/check .gitignore
