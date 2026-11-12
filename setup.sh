@@ -306,12 +306,6 @@ if [ -t 0 ] && [ -z "$dry_run_flag" ]; then
   echo
 fi
 
-# mise asks gh for a token itself ([settings.github] in config.toml), so none is
-# exported here for every build and hook to inherit
-if [ -z "${MISE_GITHUB_TOKEN:-}" ] && ! gh auth token > /dev/null 2>&1; then
-  warning "No GitHub token: tap formulae use the anonymous API limit (60 calls an hour). If packages fail to resolve, run gh auth login and rerun $self"
-fi
-
 # Every mise call below runs from here: started in the clone, mise would take
 # node from the repo's .nvmrc instead of the configured versions
 cd "$HOME"
@@ -415,9 +409,35 @@ move_credential_config() {
   echo "Moved the [credential] sections a package wrote into ~/.gitconfig to ~/.gitconfig.local"
 }
 
+# mise asks gh for a token itself ([settings.github] in config.toml), so none is
+# exported here for every build and hook to inherit
+github_token() { [ -n "${MISE_GITHUB_TOKEN:-}" ] || gh auth token > /dev/null 2>&1; }
+
+# The login comes before the package lists and the tools, which are what spend
+# the anonymous limit: a rerun in the same hour as the install ran out of it.
+# gh is installed alone for that. A run that cannot ask keeps the warning.
+github_login() {
+  github_token && return 0
+  if [ "$run_packages" = true ] && [ -t 0 ] && [ -z "$yes" ] && [ -z "$dry_run_flag" ]; then
+    title "🔑 GitHub login…"
+    command -v gh > /dev/null || mise bootstrap packages apply --yes brew:gh || true
+    if command -v gh > /dev/null; then
+      read -rp "Without a login GitHub allows 60 API calls an hour, and the packages and tools use them. Run \`gh auth login\` now? [y/N] " gh_login || gh_login=""
+      case "$gh_login" in
+        y | Y) gh auth login || echo "gh auth login failed or was cancelled. Run it later." ;;
+      esac
+    fi
+    echo
+  fi
+  github_token || warning "No GitHub token: tap formulae use the anonymous API limit (60 calls an hour). If packages fail to resolve, run gh auth login and rerun $self"
+}
+
+# The pre-packages hook does this for a bare `mise bootstrap`. Before the login,
+# whose apply of gh reads a config that declares vscode: keys
+[ "$run_packages" != true ] || [ -n "$dry_run_flag" ] || mise plugins link --force vscode "$DOTFILES_DIR/mise-plugins/vscode"
+github_login
+
 if [ "$run_packages" = true ]; then
-  # The pre-packages hook does this for a bare `mise bootstrap`
-  [ -n "$dry_run_flag" ] || mise plugins link --force vscode "$DOTFILES_DIR/mise-plugins/vscode"
   # Formulae first: reading the claude-multipass-app tap cask needs the Ruby 3 that brew:ruby installs
   packages_for brew formulae formula
   packages_for brew-cask casks cask

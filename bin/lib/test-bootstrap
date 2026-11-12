@@ -170,6 +170,10 @@ check_true "a: no package is upgraded" log_lacks "packages upgrade"
 check_true "a: no extensions without code" log_lacks "--manager vscode"
 check_true "a: says extensions are skipped" has 'extensions are skipped'
 check_true "a: warns about the anonymous GitHub limit" has 'No GitHub token'
+check_true "a: without a terminal gh is not installed ahead to ask for a login" log_lacks "apply --yes brew:gh"
+check_true "a: the GitHub warning comes before the packages" [ "$(grep -n 'No GitHub token' <<< "$out" | head -1 | cut -d: -f1)" -lt "$(grep -n 'Installing formulae' <<< "$out" | head -1 | cut -d: -f1)" ]
+check_true "the bootstrap task no longer asks for the GitHub login" eval '! grep -q "read -rp.*gh auth login" "$repo/setup/misc.sh"'
+check_true "setup.sh offers the GitHub login before the first package list" [ "$(grep -n '^github_login$' "$repo/setup.sh" | cut -d: -f1)" -lt "$(grep -n '^  packages_for brew formulae' "$repo/setup.sh" | cut -d: -f1)" ]
 check_true "a: a free-space line per manager" [ "$(grep -cE '^[0-9.]+[KMGT]i? free on /$' <<< "$out")" = 2 ]
 check_true "a: the extras script runs once" extras_ran 1
 check_true "a: no sudo prompt without a terminal" [ -z "$(grep -e '-v' "$STATE/sudo.log")" ]

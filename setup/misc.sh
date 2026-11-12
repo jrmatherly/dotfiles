@@ -85,21 +85,10 @@ else
   warning "minijinja-cli not found, so VS Code settings weren't rendered — mise bootstrap packages apply brew:minijinja-cli, then run: vscode-settings"
 fi
 
-# GitHub CLI: authenticate if not logged in already. `gh auth login` asks for
-# the account, protocol and auth method itself, and writes ~/.config/gh/hosts.yml
-# (gitignored — it can hold an OAuth token).
+# GitHub CLI: setup.sh offers `gh auth login` before the packages, so a bare
+# `mise bootstrap` only gets the hint.
 if command_exists gh && ! gh auth status &> /dev/null; then
-  if asks; then
-    read -rp "  [GitHub CLI] Not logged in. Run \`gh auth login\` now? [y/N] " gh_login
-    case "$gh_login" in
-      y | Y)
-        gh auth login || echo "gh auth login failed or was cancelled — run it later" | indent
-        ;;
-      *) echo "Skipped. Log in later with: ${BOLD}gh auth login${RESET}" | indent ;;
-    esac
-  else
-    echo "[GitHub CLI] You are not logged into any GitHub hosts. To log in, run: ${BOLD}gh auth login${RESET}" | indent
-  fi
+  echo "[GitHub CLI] You are not logged into any GitHub hosts. To log in, run: ${BOLD}gh auth login${RESET}" | indent
 fi
 
 # setup.sh (or the tools part of a bare `mise bootstrap`) installed the
