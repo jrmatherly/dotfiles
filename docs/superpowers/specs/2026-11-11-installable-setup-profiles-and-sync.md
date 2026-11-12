@@ -136,7 +136,7 @@ Two more writers were found by review, not by a run. `rotm settings` stored a ma
 - All modules are on by default. A user turns one off in `dotfiles-settings`, which writes the `env` list in `miserc.local.toml`.
 - The base cannot ship that default list: under `--from`, a project's `.miserc.toml` and `.config/miserc.toml` were both ignored (probe 3). So the install command passes the full module list with `-E` and `--save-env`, which writes `env = [...]` to `miserc.local.toml` and is honoured on later runs without `-E` (probe 7). That file is then the one list `dotfiles-settings` edits.
 - Turning a module off can offer to remove it: `mise bootstrap unapply <module>`, run in the checkout, removed the module's entry, kept the base's, and needed no `mise trust` (probe 8).
-- Opting out of one item inside a module needs a way for the user layer to cancel a key the base declares. For a dotfile entry the docs give one, `enabled = false`, but from the user's global config it did not cancel a project entry, and neither did `mode = "absent"` (probe 4). So single items use a deny list that `setup.sh` and `sysup` already know how to pass as skips, and P2 gives the base a hook for user overrides. A package or a tool (one cask, one extension) is still unmeasured: P2's first task.
+- Opting out of one item inside a module: for a dotfile entry, `enabled = false` and `mode = "absent"` from the user's global config did not cancel a project entry (probe 4, project shape). For a package it works under the config-dir shape P1 shipped: `"<manager>:<name>" = { state = "absent" }` in the machine-local `config.local.toml` replaces the base's entry, and `[settings] disable_tools` hides one tool (measured 2026-11-12). So P2 builds no deny list and no hook.
 - Claude Code: `claude-config restore` only adds. Opting out skips the restore. It never removes plugins a user installed.
 
 ### Sync and sign-in
@@ -209,12 +209,18 @@ Measured on 2026-11-11 in the UTM guest (macOS 27.2.1, mise 2026.11.6, a disposa
 | The install line's exact flags (`-E installed --save-env --only final-hook`) save the selection | Yes (probe 14) |
 | After `mise dotfiles apply` redeclares the config dir link through `~/dotfiles`, the next `--update` still works | Yes: mise left its own link as it was (probe 14) |
 | An environment file that arrives in an update turns an existing linked folder into a real one | No. mise warns that a symlink is never followed and creates the per-file entries through the link, inside the checkout. `setup.sh` on an installed copy must remove the link first (probe 14, P1 Task 4) |
+| A `config.<name>.toml` in the config dir adds its packages only when the `env` list in `miserc.local.toml` names it | Yes. Without the list only `conf.d` loaded; with `env = ["fonts"]` the module's cask joined the base's formulae (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
+| An `env` entry with no `config.<name>.toml` is an error | No. The other named modules loaded and nothing was reported (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
+| `MISE_ENV` adds to the saved `env` list | No. It replaced the list, as the docs say `-E` does (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
+| A `[bootstrap.brew.taps]` entry and `[tools]` in a module merge with the base's | Yes to both. A dry run resolved a module's tap formula through the module's tap, and a module's tool was listed only while the module was named (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
+| A more local file can cancel one package the base declares | Yes, with `{ state = "absent" }` only, from `config.local.toml` or a module: status reported the key as `absent`. `false` and `{ enabled = false }` are parse errors. Measured for a `brew:` key (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
+| One tool can be switched off from `config.local.toml` | Yes: `[settings] disable_tools = ["npm:prettier"]` (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
 
 ### Still not verified
 
 | Claim | What settles it |
 | --- | --- |
-| The user layer can cancel one package or tool key the project declares | P2's first task: a dry run against the real package list. Probe 4 measured a dotfile key only |
+| `state = "absent"` on a `vscode:` key, and what `packages apply --manager` exits with when a package declared absent is installed | Task 1 of the P2 plan, against the fake `code` in `bin/lib/test-packages` |
 | The same behaviours on the 2026.11.5 floor in `setup/mise-floor.sh` | The guest ran 2026.11.6, the release mise's installer gave it. The owner decided on 2026-11-11 to leave the floor at 2026.11.5 and accept this gap. Decision 10 still applies: each promotion to `stable` is proven in the VM on the mise current that day |
 | A project's `.miserc.toml` is read when `mise bootstrap` runs from inside the checkout, without `--from` | Not measured. It matters only if a later run stops passing `--from` |
 | What an adopted home in mode `sync` does once the history watcher is declared | P3, in the VM, against a real private repository |
@@ -227,7 +233,8 @@ Also measured that day: with `HOME` and every `MISE_*_DIR` pointed at a scratch 
 
 - `docs/superpowers/plans/completed/2026-11-11-p0-probes-and-model-default.md` (done 2026-11-11): the probes in a scratch home, and the `claude-config save` model rule. Its results fill in this spec and decide the open points.
 - `docs/superpowers/plans/completed/2026-11-11-p1-install-and-update.md` (done 2026-11-12): the config-dir shape, mise to fetch and link followed by `setup.sh`, the `rotm` command, and an `installed` config environment for targets apps rewrite.
-- P2 to P6 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
+- `docs/superpowers/plans/2026-11-12-p2-modules-and-opt-outs.md` (written 2026-11-12, not started): twelve modules as `config.<name>.toml` files, a helper that derives mise's `env` list from what is switched off, a switch per module in `dotfiles-settings`, and `--without` on the install line. The owner split P2 that day: the owner's layer is P2b, not written.
+- P2b and P3 to P6 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
 
 ## Phase briefs
 
@@ -244,13 +251,21 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 - **VM baseline.** The existing UTM guest named `macOS` is the baseline as it stands. The A6 plan's Task 6 (`docs/superpowers/plans/completed/2026-11-09-a6-bootstrap-entry-point.md`) records it: UTM 5.0.8, guest macOS 27.2.1 (26B131), 4 cores, 8 GB of memory, a 100 GB disk made at that size in the wizard, a local admin account, no Apple ID, and no Command Line Tools, Xcode or Homebrew. Every A6 run used "Run without saving changes", so nothing from this repository is on it; the owner confirmed on 2026-11-11 that it is still a fresh install. Run each first-install test in that disposable mode. The Command Line Tools stay off the baseline on purpose: installing them is the stranger's real first step, since mise needs `git` to clone. A test that must survive a shutdown (install, log out for the login shell, then update) starts from a UTM snapshot instead, restored afterwards. Measured in A6: a full install took the guest's free space from 68 GiB to 29 GiB, and evidence went to the host's `~/vm-proof/` through a shared folder. Not checked: whether a restart inside one disposable run keeps its changes.
 - **Done when.** A fresh macOS VM with mise and nothing else reaches the same `mise bootstrap status` as a `setup.sh` run, an upstream commit arrives with the update command, and an app rewriting its config does not block that update. The `fresh-install` workflow gains a job for this path.
 
-### P2: Modules, opt-outs and the owner's layer
+### P2: Modules and opt-outs
 
-- **Outcome.** A stranger can decline any group before or after installing, and gets nothing that is only true for the owner.
-- **Delivers.** The base split into modules (apps, fonts, VS Code extensions, Claude Code plugins and skills, other agent tooling). A default list with everything on. A switch per module in `dotfiles-settings`. A documented way to skip one item. The 13 owner-specific values in `docs/forking.md` moved into an owner layer, with `docs/forking.md` shrinking to match.
+- **Outcome.** A stranger can decline any group before or after installing.
+- **Delivers.** The base split into modules (apps, fonts, VS Code extensions, Claude Code plugins and skills, other agent tooling). A default list with everything on. A switch per module in `dotfiles-settings`. A documented way to skip one item.
 - **Known.** `30-packages.toml` declares the formulae, casks and extensions in one `[bootstrap.packages]` table, so splitting it is mechanical. The macOS groups already have switches (`macos.*` in `settings/registry.toml`). `claude-config restore` only adds, so a Claude opt-out means skipping the restore. Turning a module off does not uninstall packages: mise's docs point to `mise bootstrap packages prune`, which is not limited to one module, and `sysup` never runs it for that reason.
-- **Settled by P0.** Probes 3, 4 and 8: no shipped default list, so the install passes it; no cancelling a dotfile key from the user layer, so a deny list; `unapply` removes one module cleanly. Whether a package key can be cancelled from the user layer is not in the pages read, so P2's first task measures it with a dry run against the real package list.
-- **Done when.** With one module off, a dry run of the install lists none of that module's packages. With the owner layer absent, `git grep -i` for the owner's name, domain and account finds nothing outside that layer, LICENSE and the README credits.
+- **Settled.** Probes 3 and 8: no shipped default list, and `unapply` removes one module's files cleanly. Measured on 2026-11-12 for the plan: modules add, the `env` list selects them, and one package is cancelled with `state = "absent"` (see "Verified facts"). So the list is derived on each Mac from what is switched off, and there is no deny list.
+- **Done when.** With one module off, a dry run of the install lists none of that module's packages.
+
+### P2b: The owner's layer
+
+- **Outcome.** A stranger gets nothing that is only true for the owner.
+- **Delivers.** The 13 owner-specific values in `docs/forking.md` moved into an owner layer, with `docs/forking.md` shrinking to match.
+- **Known.** Split from P2 by the owner on 2026-11-12. Most of the 13 values are not mise config (fastfetch, lazygit, `agents/claude-*`, `agents/catalog/curated.toml`, `package.json`), so where the layer lives is undecided. The mise part can be a module of P2's kind.
+- **Waiting on.** P2, and a design for the layer's home.
+- **Done when.** With the owner layer absent, `git grep -i` for the owner's name, domain and account finds nothing outside that layer, LICENSE and the README credits.
 
 ### P3: Sign in and sync
 
