@@ -78,6 +78,16 @@ check "cot linked without sudo into a writable folder" "[ '$tmp/bin/cot' -ef '$c
 check "VS Code missing: warned" "grep -q 'Visual Studio Code not installed' '$tmp/out'"
 check "bat cache rebuilt" "grep -qx 'bat cache --build' '$tmp/log'"
 
+# SSH signing runs 1Password's helper, so it is written only when the helper is there (the cask is in the apps module)
+h0="$tmp/h0"
+run "$h0" DOTFILES_GIT_NAME='A B' DOTFILES_GIT_EMAIL=a@b.c DOTFILES_GIT_SIGN_METHOD=ssh DOTFILES_GIT_SIGNINGKEY='ssh-ed25519 AAAA'
+check "ssh signing without 1Password: the identity is written" "grep -qx '  name = A B' '$h0/.gitconfig.local'"
+check "ssh signing without 1Password: no signing lines" "! grep -qE 'gpgSign|signingKey|format = ssh|op-ssh-sign' '$h0/.gitconfig.local'"
+check "ssh signing without 1Password: warned" "grep -q 'op-ssh-sign is not installed' '$tmp/out'"
+mkdir -p "$tmp/apps/1Password.app/Contents/MacOS"
+printf '#!/bin/sh\n' > "$tmp/apps/1Password.app/Contents/MacOS/op-ssh-sign"
+chmod +x "$tmp/apps/1Password.app/Contents/MacOS/op-ssh-sign"
+
 run "$h" DOTFILES_GIT_NAME='A B' DOTFILES_GIT_EMAIL=a@b.c DOTFILES_GIT_SIGN_METHOD=ssh DOTFILES_GIT_SIGNINGKEY='ssh-ed25519 AAAA'
 check "knobs write the identity" "grep -qx '  name = A B' '$h/.gitconfig.local' && grep -qx '  signingKey = ssh-ed25519 AAAA' '$h/.gitconfig.local'"
 check "ssh signing written" "grep -qx '  format = ssh' '$h/.gitconfig.local' && grep -q 'op-ssh-sign' '$h/.gitconfig.local'"

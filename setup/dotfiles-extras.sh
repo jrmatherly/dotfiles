@@ -75,7 +75,7 @@ configure_git_identity() {
   local email="${DOTFILES_GIT_EMAIL:-}"
   local sign_method="${DOTFILES_GIT_SIGN_METHOD:-}" # ssh | gpg | none
   local signing_key="${DOTFILES_GIT_SIGNINGKEY:-}"
-  local op_sign=/Applications/1Password.app/Contents/MacOS/op-ssh-sign
+  local op_sign="$apps_dir/1Password.app/Contents/MacOS/op-ssh-sign"
 
   if [ -t 0 ]; then
     # An earlier setup step can leave the terminal without echo or line mode

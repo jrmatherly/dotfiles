@@ -642,7 +642,7 @@ git add setup/misc.sh setup/dotfiles-extras.sh setup.sh bin/lib/test-bootstrap
 git commit -m "Skip the Claude, agent, app and font steps of a module that is off"
 ```
 
-**As built, 2026-11-12:** the harness keeps its stubs in `$tmp/mbin`, not `$tmp/bin`, because a logging `curl` or `jq` there would break the `setup.sh` cases. The `agents` steps share one flag set once, so the module prints one `skipped` line, not one per step. The code was written before the tests were seen to fail, so two mutations stood in for Step 4: `module_on` always true failed "modules off: no install-iosevka-code", and the `unexpectedly_installed` branch disabled failed "an installed package declared absent is not a problem". The signing guard also clears the key and skips the key prompt. It is covered by a grep assertion only: no self-check runs `dotfiles-extras.sh`.
+**As built, 2026-11-12:** the harness keeps its stubs in `$tmp/mbin`, not `$tmp/bin`, because a logging `curl` or `jq` there would break the `setup.sh` cases. The `agents` steps share one flag set once, so the module prints one `skipped` line, not one per step. The code was written before the tests were seen to fail, so two mutations stood in for Step 4: `module_on` always true failed "modules off: no install-iosevka-code", and the `unexpectedly_installed` branch disabled failed "an installed package declared absent is not a problem". The signing guard also clears the key and skips the key prompt. `setup/tests/dotfiles-extras.sh` runs the script (the plan's `grep -l dotfiles-extras bin/lib/test-*` missed it, and CI caught it: its SSH case failed on a runner with no 1Password). The helper path now follows `DOTFILES_EXTRAS_APPS`, and that self-check covers both cases.
 
 ---
 

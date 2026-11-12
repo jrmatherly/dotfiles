@@ -532,10 +532,6 @@ printf 'claude\n' > "$HOME/.config/mise/modules-off.local"
 misc
 check_true "claude off: the installer is not fetched" eval '! ran "claude.ai/install.sh"'
 
-# SSH signing needs 1Password's helper, and the 1password cask is in the apps module
-grep -q 'sign_method" = "ssh" \] && \[ ! -x "\$op_sign"' "$repo/setup/dotfiles-extras.sh" \
-  || fail "setup/dotfiles-extras.sh writes SSH signing without checking for op-ssh-sign"
-
 conf="$repo/tilde/.config/mise/conf.d"
 PATH=$(tr ':' '\n' <<< "$real_path" | grep -v '/mise/shims$' | paste -sd: -)
 if command -v mise > /dev/null; then
