@@ -163,7 +163,7 @@ grep -q '^~/\.gitconfig  *copy ' "$tmp/out" || fail "installed: ~/.gitconfig is 
 mi dotfiles apply --yes > "$tmp/out" 2>&1 || fail "installed: apply failed: $(cat "$tmp/out")"
 [ ! -L "$home/.gitconfig" ] && cmp -s "$home/.gitconfig" "$repo/tilde/.gitconfig.installed" || fail "installed: ~/.gitconfig is not the seeded wrapper"
 [ ! -L "$home/.zshrc" ] && cmp -s "$home/.zshrc" "$repo/tilde/.zshrc.installed" || fail "installed: ~/.zshrc is not the seeded wrapper"
-[ "$(git config --file "$home/.gitconfig" --includes --get core.excludesfile)" = "$(git config --file "$repo/tilde/.gitconfig" --get core.excludesfile)" ] \
+[ "$(HOME="$home" git config --file "$home/.gitconfig" --includes --get core.excludesfile)" = "$(git config --file "$repo/tilde/.gitconfig" --get core.excludesfile)" ] \
   || fail "installed: git does not read the tracked settings through the wrapper"
 [ -d "$home/.config/gh" ] && [ ! -L "$home/.config/gh" ] && [ -f "$home/.config/gh/config.yml" ] && [ ! -L "$home/.config/gh/config.yml" ] \
   || fail "installed: ~/.config/gh is not a real folder with a real config.yml"
