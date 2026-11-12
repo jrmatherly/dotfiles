@@ -1,6 +1,6 @@
 # claude-config
 
-`bin/claude-config` keeps this machine's Claude Code setup in the repo: which plugins are installed, the base `settings.json`, and which user skills are installed for which agents. `save` records the machine into three tracked files under `agents/`; `restore` brings a new Mac up to that state. `setup/misc.sh` runs `restore` last, and `sysup` runs `restore skills --update`, `retire` and then `save`, skipping `save` when `restore --dry-run` finds plugins or settings this Mac lacks, since it would erase them from the tracked files.
+`bin/claude-config` keeps this machine's Claude Code setup in the repo: which plugins are installed, the base `settings.json`, and which user skills are installed for which agents. `save` records the machine into three tracked files under `agents/`; `restore` brings a new Mac up to that state. `setup/misc.sh` runs `restore` last, and `sysup` runs `restore skills --update`, `retire` and then `save`, skipping `save` when `restore --dry-run` finds plugins or settings this Mac lacks, since it would erase them from the tracked files. On an installed copy (see [setup](../setup/README.md#installed-copies)) `sysup` never runs `save`, which would write into mise's checkout.
 
 ## Summary
 

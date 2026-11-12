@@ -94,6 +94,17 @@ sed -i '' "s/'$installed'/'NoSuchFont Mono'/g" "$work/repo/vscode/presets.toml"
 VSCODE_SETTINGS_TEMPLATE="$work/repo/vscode/User/settings.json.j2" "$cmd" --preset warp --force > /dev/null 2> "$work/err"
 check "missing font: warns" "grep -q \"'NoSuchFont Mono' isn't installed\" '$work/err'"
 
+# An installed copy (mise's checkout) renders into the real Code/User, never into itself
+mkdir -p "$work/data" "$work/home"
+ln -s "$DOTFILES_DIR" "$work/data/bootstrap-repo"
+before=$(shasum -a 256 "$DOTFILES_DIR/vscode/User/settings.json" "$DOTFILES_DIR/vscode/User/.settings.rendered" 2>&1)
+(
+  unset VSCODE_SETTINGS_DIR
+  HOME="$work/home" MISE_DATA_DIR="$work/data" "$cmd" --preset warp > /dev/null 2>&1
+)
+check "installed copy: renders into Code/User" "grep -q 'ProFont IIx Nerd Font Mono' '$work/home/Library/Application Support/Code/User/settings.json'"
+check "installed copy: writes nothing under the checkout's vscode/User" "[ \"\$(shasum -a 256 '$DOTFILES_DIR/vscode/User/settings.json' '$DOTFILES_DIR/vscode/User/.settings.rendered' 2>&1)\" = \"$before\" ]"
+
 [ "$fails" -eq 0 ] || {
   echo "$fails failed" >&2
   exit 1

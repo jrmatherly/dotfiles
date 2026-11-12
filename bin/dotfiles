@@ -18,6 +18,12 @@ DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 
 cd "$DOTFILES" || exit 1
 
+# mise's checkout is updated through mise, which also reruns setup
+if [ "$("$(dirname "$0")/lib/rotm-mode" "$DOTFILES")" = installed ]; then
+  echo "This is an installed copy. Run: rotm update"
+  exit 0
+fi
+
 echo "Pulling changes from upstream…"
 before="$(git rev-parse HEAD)"
 git pull

@@ -15,6 +15,9 @@
 set -euo pipefail
 
 DOTFILES="${DOTFILES:-$(cd "$(dirname "$0")/.." && pwd -P)}"
+# An installed copy (mise's checkout) is updated by rotm update, and nothing here may write tracked files into it
+installed=false
+[ "$("$(dirname "$0")/lib/rotm-mode" "$DOTFILES")" != installed ] || installed=true
 mkdir -p "$DOTFILES/logs"
 log="$DOTFILES/logs/sysup-$(date +%Y%m%d-%H%M%S).log"
 changed=() notices=() failed=() actions=()
@@ -199,7 +202,9 @@ sudo -v
 # stop the other updates)
 step dotfiles
 before="$(git -C "$DOTFILES" rev-parse HEAD 2> /dev/null || true)"
-if capture dotfiles; then
+if [ "$installed" = true ]; then
+  status notice dotfiles "installed copy: run rotm update"
+elif capture dotfiles; then
   after="$(git -C "$DOTFILES" rev-parse HEAD 2> /dev/null || true)"
   if [ "$before" = "$after" ]; then
     status ok dotfiles "up to date"
@@ -674,7 +679,10 @@ if command -v claude > /dev/null; then
   pending=$out
   capture claude-config restore settings --dry-run || true
   pending+=$out
-  if [ -n "$pending" ]; then
+  if [ "$installed" = true ]; then
+    status ok "Claude config" "installed copy: not saved into it"
+    [ -z "$pending" ] || actions+=("Take the Claude config this copy ships (review with --dry-run): claude-config restore")
+  elif [ -n "$pending" ]; then
     status notice "Claude config" "the repo has plugins or settings this Mac lacks, so nothing was saved"
     actions+=("Take the tracked Claude config (review with --dry-run): claude-config restore; or drop it from the repo: claude-config save")
   elif ! capture claude-config save; then

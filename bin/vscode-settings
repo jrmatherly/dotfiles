@@ -40,6 +40,10 @@ DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "$0")/.." && pwd -P)}"
 template="${VSCODE_SETTINGS_TEMPLATE:-$DOTFILES_DIR/vscode/User/settings.json.j2}"
 presets="$(dirname "$template")/../presets.toml"
 dir="${VSCODE_SETTINGS_DIR:-$DOTFILES_DIR/vscode/User}"
+# On an installed copy Code/User is a real folder (config.installed.toml), so the render stays out of the checkout
+if [ -z "${VSCODE_SETTINGS_DIR:-}" ] && [ "$("$(dirname "$0")/lib/rotm-mode" "$DOTFILES_DIR")" = installed ]; then
+  dir="$HOME/Library/Application Support/Code/User"
+fi
 env_file="${VSCODE_SETTINGS_ENV:-$HOME/.config/dotfiles/vscode.env}"
 target="$dir/settings.json"
 # sha256 of the last render, so edits VS Code makes afterwards show up as drift

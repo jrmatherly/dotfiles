@@ -34,10 +34,13 @@ grep -qF "\${HOMEBREW_PREFIX:-/opt/homebrew}" "$repo/setup.sh" \
 fix="$tmp/clone"
 export STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
 # A caller's own values would reach the mise stub and fail the assertions on its log
-unset MISE_GITHUB_TOKEN MISE_DISABLE_TOOLS DOTFILES DOTFILES_DIR DOTFILES_SKIP_CODEGRAPH DOTFILES_SETUP_LOG STUB_MISE_VERSION DOTFILES_YES
-mkdir -p "$fix/setup" "$fix/bin" "$fix/tilde/.config/mise" "$tmp/bin" "$tmp/other"
+unset MISE_GITHUB_TOKEN MISE_DISABLE_TOOLS DOTFILES DOTFILES_DIR DOTFILES_SKIP_CODEGRAPH DOTFILES_SETUP_LOG STUB_MISE_VERSION DOTFILES_YES MISE_DATA_DIR
+mkdir -p "$fix/setup" "$fix/bin/lib" "$fix/tilde/.config/gh" "$fix/tilde/.config/mise" "$tmp/bin" "$tmp/other"
 cp "$repo/setup.sh" "$fix/setup.sh"
 cp "$repo/setup/mise-floor.sh" "$fix/setup/mise-floor.sh"
+cp "$repo/bin/lib/rotm-mode" "$fix/bin/lib/rotm-mode"
+# Folders an installed copy keeps real: one linked into the copy, one already real, one linked elsewhere
+printf '[dotfiles]\n"~/.config/gh" = { permissions = "0700" }\n"~/.config/keep" = { permissions = "0700" }\n"~/.config/elsewhere" = { permissions = "0700" }\n' > "$fix/tilde/.config/mise/config.installed.toml"
 # The real extras script must not run here, and setup.sh finds it beside itself
 printf '#!/bin/bash\necho ran >> "$STATE/extras.log"\n' > "$fix/setup/dotfiles-extras.sh"
 printf '#!/bin/bash\nexit 0\n' > "$fix/setup/dash.sh"
@@ -114,7 +117,9 @@ in_order() {
 
 # prepare runs in the fresh HOME and STATE before setup.sh does
 prepare() { :; }
-# run [setup.sh args...]: sets out and rc. The stubs are rebuilt, so a case's own stay its own
+# run [setup.sh args...]: sets out and rc. The stubs are rebuilt, so a case's own stay its own.
+# copy is the folder whose setup.sh runs, for a prepare that links into it
+copy=$fix
 run() {
   rm -rf "${tmp:?}/home" "$STATE" "$tmp/bin/gh" "$tmp/bin/code"
   export HOME="$tmp/home"
@@ -122,8 +127,15 @@ run() {
   touch "$STATE/mise.log" "$STATE/extras.log" "$STATE/sudo.log" "$STATE/curl.log" "$STATE/order.log"
   stub mise "$mise_stub"
   prepare
+  [ "$copy" = "$fix" ] || { mkdir -p "$(dirname "$copy")" && cp -R "$fix" "$copy"; }
   rc=0
-  out=$(PATH="$tmp/bin:/usr/bin:/bin" "$fix/setup.sh" "$@" 2>&1 < /dev/null) || rc=$?
+  out=$(PATH="$tmp/bin:/usr/bin:/bin" "$copy/setup.sh" "$@" 2>&1 < /dev/null) || rc=$?
+}
+# run_installed [setup.sh args...]: the same from a copy of the fixture where mise keeps its checkout
+run_installed() {
+  copy="$tmp/home/.local/share/mise/bootstrap-repo"
+  run "$@"
+  copy=$fix
 }
 apply="args=bootstrap packages apply --yes --manager"
 task="args=bootstrap --only task disable="
@@ -366,6 +378,27 @@ prepare() { :; }
 MISE_GITHUB_TOKEN=mine run
 check_true "i: the caller's own token is passed on" [ -z "$(grep -v ' token=mine ' "$STATE/mise.log")" ]
 check_true "i: … without the warning" lacks 'No GitHub token'
+
+prepare() {
+  touch "$STATE/casks-fail"
+  mkdir -p "$HOME/.config/keep"
+  ln -s "$copy/tilde/.config/gh" "$HOME/.config/gh"
+  ln -s "$tmp/other" "$HOME/.config/elsewhere"
+}
+run_installed -y
+check_true "installed: the retry hint names rotm" grep -q 'To retry: rotm install' <<< "$out"
+check_true "installed: a warning names rotm" grep -q 'then rerun rotm install' <<< "$out"
+check_true "installed: ~/dotfiles links to mise's checkout" [ "$HOME/dotfiles" -ef "$HOME/.local/share/mise/bootstrap-repo" ]
+check_true "installed: a link into the checkout at a real-folder key is removed" [ ! -L "$HOME/.config/gh" ]
+check_true "installed: a real folder at such a key is kept" [ -d "$HOME/.config/keep" ]
+check_true "installed: a link that points elsewhere is kept" [ -L "$HOME/.config/elsewhere" ]
+check_true "installed: says what it unlinked" has 'Unlinked .*/\.config/gh: ' 
+run_installed -y -- --dry-run
+check_true "installed: a dry run unlinks nothing" [ -L "$HOME/.config/gh" ]
+run -y
+check_true "clone: a link into the clone at such a key is kept" [ -L "$HOME/.config/gh" ]
+check_true "clone: the hints still name ./setup.sh" grep -q 'then rerun ./setup.sh' <<< "$out"
+prepare() { :; }
 
 conf="$repo/tilde/.config/mise/conf.d"
 PATH=$(tr ':' '\n' <<< "$real_path" | grep -v '/mise/shims$' | paste -sd: -)

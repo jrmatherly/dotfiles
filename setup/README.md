@@ -46,6 +46,17 @@ The macOS preferences are deliberately not part of the run; use `set-defaults`. 
 
 To preview a run without changing anything, once `~/.config/mise` is the link: `cd ~ && mise bootstrap --dry-run --skip macos-defaults`. The [installation guide](../docs/installation.md#preview) has the form for a Mac without the link.
 
+## Installed copies
+
+A copy that `mise bootstrap --from` fetched lives in `~/.local/share/mise/bootstrap-repo` (under `$MISE_DATA_DIR` when that is set) and is updated by `rotm update`, never edited. `bin/lib/rotm-mode` prints `installed` for it and `clone` for any other folder. Four scripts read it:
+
+- `setup.sh` names `rotm install` in its retry line and its warnings. Before it links the dotfiles it removes a symlink into the copy at any path `config.installed.toml` declares as a real folder, because mise would otherwise keep the link and write that folder's files into the copy.
+- `sysup` does not pull and reports `installed copy: run rotm update`. It does not run `claude-config save`, which writes `agents/` inside the copy.
+- `dotfiles` prints the `rotm update` hint and pulls nothing.
+- `vscode-settings` renders `settings.json` into `~/Library/Application Support/Code/User`, not into the copy's `vscode/User`.
+
+`rotm update` fetches the branch the copy is on and then runs `setup.sh`. It stops before `setup.sh` when mise cannot update the copy, and lists the tracked files that differ in it.
+
 ## packages
 
 `setup.sh` installs everything declared in [`tilde/.config/mise/conf.d/30-packages.toml`](../tilde/.config/mise/conf.d/30-packages.toml) with `mise bootstrap packages apply`, before `mise bootstrap` and with the `packages` part skipped there. mise downloads Homebrew's bottles and casks into `/opt/homebrew` itself; Homebrew is not installed and `brew` is never run. Pass `-- --skip packages` to `setup.sh` to leave the packages alone. In order, it:

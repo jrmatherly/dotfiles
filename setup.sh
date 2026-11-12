@@ -25,6 +25,11 @@ set -euo pipefail
 # DOTFILES is what the hooks and the task in conf.d/50-bootstrap.toml read.
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 export DOTFILES_DIR DOTFILES="$DOTFILES_DIR"
+# An installed copy is mise's own checkout: its hints name rotm, and nothing may write into it
+self=./setup.sh installed=false
+if [ "$("$DOTFILES_DIR/bin/lib/rotm-mode" "$DOTFILES_DIR")" = installed ]; then
+  self='rotm install' installed=true
+fi
 
 # Telemetry opt-outs for the tools this run installs and invokes (dotnet tool
 # install, func, pwsh, az, aspire, codegraph, rtk, claude) — zsh/env.zsh sets the same for
@@ -158,7 +163,7 @@ warning() {
 
 # The clone itself needed git, so on a new Mac the tools are usually there
 if ! xcode-select -p > /dev/null 2>&1; then
-  echo "Command Line Tools missing; run: xcode-select --install, then rerun ./setup.sh" >&2
+  echo "Command Line Tools missing; run: xcode-select --install, then rerun $self" >&2
   exit 1
 fi
 
@@ -188,7 +193,7 @@ link_into_repo() {
 # the hooks and the task fall back to it, so it must be this clone before mise runs
 if ! link_into_repo "$HOME/dotfiles" "$DOTFILES_DIR"; then
   # shellcheck disable=SC2088 # display text
-  echo "~/dotfiles is not a link to $DOTFILES_DIR. Move it aside and rerun ./setup.sh" >&2
+  echo "~/dotfiles is not a link to $DOTFILES_DIR. Move it aside and rerun $self" >&2
   exit 1
 fi
 # mise reads the whole setup through this link. With another config there it
@@ -196,7 +201,7 @@ fi
 mkdir -p "$HOME/.config"
 if ! link_into_repo "$HOME/.config/mise" "$DOTFILES_DIR/tilde/.config/mise"; then
   # shellcheck disable=SC2088 # display text
-  echo "~/.config/mise is not a link to $DOTFILES_DIR/tilde/.config/mise. Move it aside (mv ~/.config/mise ~/.config/mise.backup) and rerun ./setup.sh" >&2
+  echo "~/.config/mise is not a link to $DOTFILES_DIR/tilde/.config/mise. Move it aside (mv ~/.config/mise ~/.config/mise.backup) and rerun $self" >&2
   exit 1
 fi
 
@@ -255,7 +260,7 @@ fi
 # mise asks gh for a token itself ([settings.github] in config.toml), so none is
 # exported here for every build and hook to inherit
 if [ -z "${MISE_GITHUB_TOKEN:-}" ] && ! gh auth token > /dev/null 2>&1; then
-  warning "No GitHub token: tap formulae use the anonymous API limit (60 calls an hour). If packages fail to resolve, run gh auth login and rerun ./setup.sh"
+  warning "No GitHub token: tap formulae use the anonymous API limit (60 calls an hour). If packages fail to resolve, run gh auth login and rerun $self"
 fi
 
 # Every mise call below runs from here: started in the clone, mise would take
@@ -268,9 +273,24 @@ cd "$HOME"
 # nothing left to do.
 if [ "$run_dotfiles" = true ]; then
   title "🔗 Linking the dotfiles…"
+  # A folder that config.installed.toml makes real may still be a link from before
+  # that entry arrived. mise keeps such a link and writes the folder's entries
+  # through it, into the checkout (probe 14), so the link goes first.
+  if [ "$installed" = true ] && [ -z "$dry_run_flag" ]; then
+    while IFS= read -r key; do
+      path="$HOME/${key#\~/}"
+      [ -L "$path" ] || continue
+      case "$(cd "$path" 2> /dev/null && pwd -P)" in
+        "$DOTFILES_DIR"/*)
+          rm "$path"
+          echo "Unlinked $path: it is a real folder on an installed copy"
+          ;;
+      esac
+    done < <(sed -n 's/^"\([^"]*\)" = { permissions = .*/\1/p' "$DOTFILES_DIR/tilde/.config/mise/config.installed.toml" 2> /dev/null)
+  fi
   # --yes: the Enter prompt above was the confirmation, and mise asks per file otherwise
   if ! mise dotfiles apply --yes ${dry_run_flag:+"$dry_run_flag"}; then
-    warning "mise dotfiles apply stopped. Move aside what it reported, then rerun ./setup.sh"
+    warning "mise dotfiles apply stopped. Move aside what it reported, then rerun $self"
     exit 1
   fi
   echo
@@ -303,19 +323,19 @@ packages_for() {
     local missing pkg
     missing=$(mise bootstrap packages status --json | jq -r --arg m "$1" '.[$m].packages[]? | select(.state == "missing") | .package') || missing=""
     if [ -z "$missing" ]; then
-      warning "Some $2 failed to install. See above, then rerun ./setup.sh"
+      warning "Some $2 failed to install. See above, then rerun $self"
       problem "$3" "some $2" "$out"
     fi
     for pkg in $missing; do
       if ! out=$(mise bootstrap packages apply --yes ${dry_run_flag:+"$dry_run_flag"} "$1:$pkg" 2>&1 | tee /dev/stderr); then
-        warning "$1:$pkg failed to install. See above, then rerun ./setup.sh"
+        warning "$1:$pkg failed to install. See above, then rerun $self"
         problem "$3" "$pkg" "$out"
       fi
     done
   fi
   # mise's own --upgrade upgrades packages only in the part setup skips
   if [ "$upgrade" = true ] && ! out=$(mise bootstrap packages upgrade --yes --manager "$1" ${dry_run_flag:+"$dry_run_flag"} 2>&1 | tee /dev/stderr); then
-    warning "Some $2 failed to upgrade. See above, then rerun ./setup.sh -- --upgrade"
+    warning "Some $2 failed to upgrade. See above, then rerun $self -- --upgrade"
     problem upgrade "$2" "$out"
   fi
   # The full install measured about 32 GB; a full disk is the likeliest mid-run failure
@@ -351,7 +371,7 @@ fi
 bootstrap() {
   mise bootstrap ${yes:+--yes} "$@" ${mise_args[@]+"${mise_args[@]}"} || {
     local rc=$?
-    warning "mise bootstrap stopped. Earlier steps stay applied. Fix what it reported, then rerun ./setup.sh"
+    warning "mise bootstrap stopped. Earlier steps stay applied. Fix what it reported, then rerun $self"
     exit "$rc"
   }
 }
@@ -385,7 +405,7 @@ if [ "$run_packages" = true ]; then
   if command -v code > /dev/null; then
     packages_for vscode extensions extension
   else
-    echo "VS Code is not installed yet: extensions are skipped. Rerun ./setup.sh once it is."
+    echo "VS Code is not installed yet: extensions are skipped. Rerun $self once it is."
   fi
   echo
 fi
@@ -425,6 +445,6 @@ awk -F '\t' -v x="${red}✗${reset}" 'NF {
   }
   END { for (i = 1; i <= n; i++) { l = sprintf("  %s %-*s   %-*s   %s", x, kw, k[i], pw, p[i], r[i]); sub(/ +$/, "", l); print l } }' <<< "$problems"
 echo
-echo "  Everything else is installed. To retry: ./setup.sh$([ "$upgrade" = false ] || echo ' -- --upgrade')"
+echo "  Everything else is installed. To retry: $self$([ "$upgrade" = false ] || echo ' -- --upgrade')"
 case "$problems" in tool$'\t'* | *$'\n'tool$'\t'*) echo "  To see why a tool failed: mise install <tool>" ;; esac
 exit 2

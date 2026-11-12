@@ -27,7 +27,7 @@ PATH=$(tr ':' '\n' <<< "$PATH" | grep -v '/mise/shims$' | paste -sd: -)
 # and the stub mise counts as not Homebrew's
 export HOME="$tmp/home" DOTFILES="$tmp/dotfiles" CLAUDE_CONFIG_DIR="$tmp/claude" STATE="$tmp/state" HOMEBREW_PREFIX="$tmp/nobrew"
 # A caller's own token would reach the mise stub and fail the no-token assertion
-unset DOTFILES_MAC_PASSWORD_OP MISE_GITHUB_TOKEN
+unset DOTFILES_MAC_PASSWORD_OP MISE_GITHUB_TOKEN MISE_DATA_DIR
 mkdir -p "$HOME" "$DOTFILES/agents" "$CLAUDE_CONFIG_DIR/plugins" "$STATE" "$tmp/bin"
 printf 'skill one src claude-code\nskill two src claude-code\n' > "$DOTFILES/agents/claude-skills.txt"
 git -C "$DOTFILES" init -q
@@ -426,6 +426,25 @@ no_save() { ! grep -qx save "$STATE/claude-config.log"; }
 check_true "pending config: save would erase it, so it doesn't run" no_save
 check_true "pending config: sysup still merges nothing" lacks_settings_restore
 rm -f "$STATE/config-pending"
+
+# An installed copy: mise's checkout is this repo
+rm -rf "$DOTFILES/logs" "$STATE/claude-config.log"
+export MISE_DATA_DIR="$tmp/data"
+mkdir -p "$MISE_DATA_DIR"
+ln -s "$DOTFILES" "$MISE_DATA_DIR/bootstrap-repo"
+run
+check_true "installed: claude-config save is not run" no_save
+check_true "installed: restore --dry-run still runs" grep -qx 'restore settings --dry-run' "$STATE/claude-config.log"
+check_true "installed: the Claude config line says why" has 'Claude config.*installed copy'
+check_true "installed: the dotfiles step points at rotm update" has 'dotfiles.*rotm update'
+check_true "installed: the copy is not called up to date" lacks 'dotfiles.*up to date'
+check_true "installed: no advice to run claude-config save" lacks 'claude-config save'
+rm -rf "$DOTFILES/logs" "$STATE/claude-config.log"
+touch "$STATE/config-pending"
+run
+check_true "installed, pending config: restore is the action, save is not" has 'claude-config restore$' && check_true "installed, pending config: … and no save" no_save
+rm -rf "$MISE_DATA_DIR" "$STATE/config-pending"
+unset MISE_DATA_DIR
 
 rm -rf "$DOTFILES/logs"
 touch "$STATE/bad-byte"
