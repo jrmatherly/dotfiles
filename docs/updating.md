@@ -27,6 +27,8 @@ sysup
 - asks Raycast to check for app and extension updates
 - updates Amp, if it's installed
 
+A step that belongs to a module you switched off (`rotm-modules set <module> off`) prints `the <module> module is off` and does nothing: the font with `fonts`, Raycast with `apps`, the Claude Code steps with `claude`, and the REA, Hindsight, SnippetsLab, Scrapling and mise MCP steps with `agents`. The package steps need no switch, because mise no longer reads that module's file. The packages it installed stay, so the notice that counts packages no config declares names the modules that are off. A package you declared `{ state = "absent" }` in `config.local.toml` is not reported as missing.
+
 It doesn't re-apply the dotfiles. When a pull brings new symlinks, tools or config, run setup again:
 
 ```shell

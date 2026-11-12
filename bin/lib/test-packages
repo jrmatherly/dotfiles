@@ -250,6 +250,9 @@ out=$(cfg=cfg3 vmise bootstrap packages apply --yes 2>&1) || rc=$?
 [ "$rc" = 0 ] || fail "vscode: apply without --manager and an installed extension declared absent exited $rc: $out"
 ! grep -q -- '--install-extension' "$log" || fail "vscode: an absent extension was installed"
 ! grep -q -- '--uninstall-extension' "$log" || fail "vscode: an absent extension was removed"
+# sysup runs upgrade, with no --manager, and reports a non-zero exit as a failed step
+cfg=cfg3 vmise bootstrap packages upgrade --yes > /dev/null 2>&1 \
+  || fail "vscode: upgrade with an installed extension declared absent"
 
 nocode="$v/misebin:/usr/bin:/bin"
 ! env -i PATH="$nocode" /bin/sh -c 'command -v code' > /dev/null || fail "vscode: code is on the no-code PATH"

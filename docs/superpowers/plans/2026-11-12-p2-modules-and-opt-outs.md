@@ -657,7 +657,7 @@ git commit -m "Skip the Claude, agent, app and font steps of a module that is of
 
 - Consumes: `rotm-modules is-on <name>` and `off` (Task 2), called as `"$(dirname "$0")/lib/rotm-modules"`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `bin/lib/test-sysup`, a case with `claude`, `agents`, `fonts` and `apps` in `$HOME/.config/mise/modules-off.local`:
 
@@ -672,19 +672,19 @@ check_true "the prune notice names the modules that are off" has 'packages prune
 
 A case where the stub's package status holds one package in state `unexpectedly_installed`, one in state `absent` and the rest `installed`: `check_true "an absent package is not a notice" has '^✔ packages status +all installed$'`.
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-sysup`
 Expected: FAIL "Iosevka is left out".
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 - Each named step reports `status ok "<step>" "the <name> module is off"` and does nothing else when its module is off: `Iosevka` on `fonts`; `Claude Code`, `agent skills`, `plugins`, `Claude config`, `catalog` on `claude`; `REA skill`, `Hindsight memory`, `SnippetsLab skill`, `mise MCP`, `Scrapling` on `agents`; `Raycast` on `apps`, since that step opens the app with no check that it is installed. `agent skills` goes with `claude` because `claude-config restore` in `misc.sh`, which installs those skills, is gated on `claude`.
 - "packages status": a package in state `absent` or `unexpectedly_installed` is not `not_installed`.
 - "packages": `sysup` runs `mise bootstrap packages upgrade --yes`, and what that exits with when an installed package is declared absent is not measured. Measure it first in `test-packages`' `cfg3` block, as Task 1 measured `apply`, and pin it. If it fails, the step reads the states as `setup.sh`'s `packages_for` does, so the run does not report "upgrade failed" every time.
 - "packages prune": when its notice fires and `rotm-modules off` prints anything, the notice ends "(modules off: a, b)", so the count is explained.
 
-- [ ] **Step 4: Run to see them pass, then commit**
+- [x] **Step 4: Run to see them pass, then commit**
 
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-sysup`
 Expected: `ok`.
@@ -693,6 +693,8 @@ Expected: `ok`.
 git add bin/sysup bin/lib/test-sysup bin/lib/test-packages .claude/rules/sysup.md
 git commit -m "Leave an off module's steps out of sysup"
 ```
+
+**As built, 2026-11-12:** `mise bootstrap packages upgrade --yes` exits 0 with an installed extension declared absent (mise 2026.11.5, the fake `code`, `test-packages` pins it), so the "packages" step reads no states. That is measured for `vscode` only, whose plugin upgrades nothing: a real cask is VM row 5. `module_off <module> <step>…` in `sysup` asks first and gives each step its line, so a step that is also conditional (`rea`, the Hindsight config, the SnippetsLab app, `scrapling`) prints the off line whether or not its tool is there. The Claude and agents steps still sit inside `command -v claude`, so a Mac with no `claude` prints none of them, as before. The tests were seen to fail before the code ("Iosevka is left out"), and two mutations failed the other two: the old state filter failed "a package declared absent is not a notice", and the notice without its suffix failed "the prune notice names them". No fact in `.claude/rules/sysup.md` became false, so it is unchanged; `docs/updating.md` gained the paragraph. Found and not fixed: the macOS step reuses the name `installed` for the labels it installed, so on an installed copy with a macOS update listed the later `[ "$installed" = true ]` tests are false and `claude-config save` runs.
 
 ---
 

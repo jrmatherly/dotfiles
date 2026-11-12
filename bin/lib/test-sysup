@@ -67,17 +67,19 @@ case $1 in
     case "$2 $3" in
       "packages status")
         [ -e "$STATE/pkg-status-fails" ] && { echo "mise ERROR code --list-extensions exited 1" >&2; exit 1; }
-        gh=2.103.1 codex=0.164.0 jq_state=installed code=true ext_state=installed
+        gh=2.103.1 codex=0.164.0 jq_state=installed utm_state=installed code=true ext_state=installed
         [ ! -e "$STATE/pkg-upgraded" ] || gh=2.103.2 codex=0.165.0
         [ ! -e "$STATE/pkg-broken" ] || jq_state=needs_repair
         [ ! -e "$STATE/pkg-no-code" ] || code=false ext_state=skipped
+        # What mise reports for packages config.local.toml declares absent: one installed, one not
+        [ ! -e "$STATE/pkg-absent" ] || utm_state=unexpectedly_installed ext_state=absent
         cat << JSON
 {"brew": {"available": true, "packages": [
   {"package": "gh", "requested_version": "latest", "desired_state": "present", "state": "installed", "installed_version": "$gh"},
   {"package": "jq", "requested_version": "latest", "desired_state": "present", "state": "$jq_state", "installed_version": "1.8.1"}]},
  "brew-cask": {"available": true, "packages": [
   {"package": "codex", "requested_version": "latest", "desired_state": "present", "state": "installed", "installed_version": "$codex", "managed_by": "mise"},
-  {"package": "utm", "requested_version": "latest", "desired_state": "present", "state": "installed", "installed_version": "5.0.8", "managed_by": "mise"},
+  {"package": "utm", "requested_version": "latest", "desired_state": "present", "state": "$utm_state", "installed_version": "5.0.8", "managed_by": "mise"},
   {"package": "raycast", "requested_version": "latest", "desired_state": "present", "state": "installed", "installed_version": "1.104.0", "auto_updates": true, "managed_by": "homebrew"}]},
  "vscode": {"available": $code, "packages": [
   {"package": "eamodio.gitlens", "requested_version": "latest", "desired_state": "present", "state": "$ext_state", "installed_version": "17.6.1"}]}}
@@ -453,6 +455,18 @@ run
 check_true "a byte sed can't decode: the step still reports" has '^✔ agent skills'
 check_true "a byte sed can't decode: the output after it still reaches the log" grep -qx 'after the bad byte' "$DOTFILES"/logs/sysup-*.log
 rm -f "$STATE/bad-byte"
+
+rm -rf "$DOTFILES/logs" "$STATE/claude-config.log"
+printf 'claude\nagents\nfonts\napps\n' > "$HOME/.config/mise/modules-off.local"
+touch "$STATE/undeclared" "$STATE/pkg-absent"
+run
+for pair in 'Iosevka:fonts' 'Claude Code:claude' 'agent skills:claude' 'plugins:claude' 'Claude config:claude' 'catalog:claude' 'REA skill:agents' 'Hindsight memory:agents' 'SnippetsLab skill:agents' 'mise MCP:agents' 'Scrapling:agents' 'Raycast:apps'; do
+  check_true "modules off: ${pair%%:*} is left out" has "^✔ ${pair%%:*} +the ${pair##*:} module is off\$"
+done
+check_true "modules off: no Claude config is saved" test ! -e "$STATE/claude-config.log"
+check_true "modules off: the prune notice names them" has '^● packages prune +2 packages no config declares; review: mise bootstrap packages prune --dry-run \(modules off: fonts, apps, claude, agents\)$'
+check_true "a package declared absent is not a notice" has '^✔ packages status +all installed$'
+rm -f "$HOME/.config/mise/modules-off.local" "$HOME/.config/mise/miserc.local.toml" "$STATE/undeclared" "$STATE/pkg-absent"
 
 rm -rf "$DOTFILES/logs"
 echo cloud > "$HOME/.config/mise/modules-off.local"
