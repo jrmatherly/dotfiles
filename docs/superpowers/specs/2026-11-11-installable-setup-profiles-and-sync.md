@@ -158,7 +158,7 @@ Measured on 2026-11-11 in the UTM guest (macOS 27.2.1, mise 2026.11.6, a disposa
 | Claim | What settles it |
 | --- | --- |
 | The user layer can cancel one package or tool key the project declares | P2's first task: a dry run against the real package list. Probe 4 measured a dotfile key only |
-| The same behaviours on the 2026.11.5 floor in `setup/mise-floor.sh` | The guest ran 2026.11.6, the release mise's installer gave it. Either rerun the probes on 2026.11.5 or raise the floor to 2026.11.6 before P1 ships an install command |
+| The same behaviours on the 2026.11.5 floor in `setup/mise-floor.sh` | The guest ran 2026.11.6, the release mise's installer gave it. The owner decided on 2026-11-11 to leave the floor at 2026.11.5 and accept this gap. Decision 10 still applies: each promotion to `stable` is proven in the VM on the mise current that day |
 | A project's `.miserc.toml` is read when `mise bootstrap` runs from inside the checkout, without `--from` | Not measured. It matters only if a later run stops passing `--from` |
 | What an adopted home in mode `sync` does once the history watcher is declared | P3, in the VM, against a real private repository |
 
