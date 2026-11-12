@@ -169,7 +169,8 @@ Also measured that day: with `HOME` and every `MISE_*_DIR` pointed at a scratch 
 ## Plans
 
 - `docs/superpowers/plans/completed/2026-11-11-p0-probes-and-model-default.md` (done 2026-11-11): the probes in a scratch home, and the `claude-config save` model rule. Its results fill in this spec and decide the open points.
-- P1 to P6 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
+- `docs/superpowers/plans/2026-11-11-p1-install-and-update.md` (written 2026-11-11, not started): the config-dir shape, mise to fetch and link followed by `setup.sh`, the `rotm` command, and an `installed` config environment for targets apps rewrite.
+- P2 to P6 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
 
 ## Phase briefs
 
