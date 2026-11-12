@@ -217,12 +217,14 @@ Measured on 2026-11-11 in the UTM guest (macOS 27.2.1, mise 2026.11.6, a disposa
 | One tool can be switched off from `config.local.toml` | Yes: `[settings] disable_tools = ["npm:prettier"]` (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
 | A name in the saved `env` list reaches a project's files | Yes. With `env = ["security"]` a project's `mise.security.toml` was loaded in that project. With `env = ["rotm-security"]` and `config.rotm-security.toml` the module loaded and the project's file did not. So module names carry a `rotm-` prefix. P1's `installed` environment has the same exposure (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
 | A project's own `.miserc.toml` with an `env` list displaces the saved one | No. The module still loaded inside that project (P2 plan, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac, status and dry-run calls only) |
+| `state = "absent"` works on a `vscode:` key (a plugin manager) | Yes. Status reported an extension that is not installed as `absent`, and an installed one as `unexpectedly_installed` with `desired_state` `absent`. Neither was installed or removed (P2 Task 1, mise 2026.11.5) |
+| What `packages apply` exits with when an installed package is declared absent | 1 with `--manager vscode` ("vscode does not support declarative package removal"), 0 with a warning when no manager is named. `setup.sh` passes `--manager`, so it has to read the states. Measured for `vscode` against the fake `code` in `bin/lib/test-packages`, which pins both (P2 Task 1, mise 2026.11.5) |
 
 ### Still not verified
 
 | Claim | What settles it |
 | --- | --- |
-| `state = "absent"` on a `vscode:` key, and what `packages apply --manager` exits with when a package declared absent is installed | Task 1 of the P2 plan for `vscode`, against the fake `code` in `bin/lib/test-packages`. Row 5 of its VM proof for a real cask |
+| What `packages apply --manager brew-cask` exits with when an installed cask is declared absent | Measured for `vscode` only (see "Verified facts"). Row 5 of the P2 plan's VM proof for a real cask |
 | `mise prune` deletes the tools of a module that was switched off | Read from `bin/sysup`'s "mise prune" step and `mise prune --help`, not run. Row 4 of the P2 plan's VM proof |
 | The same behaviours on the 2026.11.5 floor in `setup/mise-floor.sh` | The guest ran 2026.11.6, the release mise's installer gave it. The owner decided on 2026-11-11 to leave the floor at 2026.11.5 and accept this gap. Decision 10 still applies: each promotion to `stable` is proven in the VM on the mise current that day |
 | A project's `.miserc.toml` is read when `mise bootstrap` runs from inside the checkout, without `--from` | Not measured. It matters only if a later run stops passing `--from` |

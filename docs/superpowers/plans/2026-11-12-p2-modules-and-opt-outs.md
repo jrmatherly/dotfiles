@@ -120,7 +120,7 @@ The base keeps: the "Dotfiles framework requirements" section plus the five form
 
 - Produces: two facts for Task 5 and the docs. Whether a `vscode:` key honours `state = "absent"`, and the exit status of `packages apply --yes --manager vscode` when an installed extension is declared absent.
 
-- [ ] **Step 1: Add the block to `test-packages`**
+- [x] **Step 1: Add the block to `test-packages`**
 
 A third config dir `cfg3` whose `conf.d/30-packages.toml` declares `vscode:ms-python.python` and `vscode:eamodio.gitlens`, and whose `config.local.toml` holds:
 
@@ -144,16 +144,16 @@ out=$(cfg=cfg3 vmise bootstrap packages apply --yes --manager vscode 2>&1) || rc
 echo "absent+installed: rc=$rc: $out" >&2
 ```
 
-- [ ] **Step 2: Run it and read the last line**
+- [x] **Step 2: Run it and read the last line**
 
 Run: `LC_ALL=en_US.UTF-8 bin/lib/test-packages`
 Expected: exit 0, and one `absent+installed: rc=<n>` line on stderr. If the status assertion fails because the plugin manager ignores `state`, stop and tell the owner: a single extension then cannot be skipped this way, and the docs in Task 7 say so for `vscode:` keys.
 
-- [ ] **Step 3: Pin what was seen**
+- [x] **Step 3: Pin what was seen**
 
 Replace the `echo` with an assertion of the status seen, so a mise release that changes it fails the check.
 
-- [ ] **Step 4: Record in the spec**
+- [x] **Step 4: Record in the spec**
 
 In "Verified facts", add the two rows this task measured, each ending "(P2 Task 1, mise <version>)". Delete the matching row from "Still not verified".
 
@@ -521,7 +521,7 @@ misc
 check_true "claude off: the installer is not fetched" eval '! ran "claude.ai/install.sh"'
 ```
 
-And for `packages_for`, two cases in the existing style. `prepare` makes the stub `mise` exit 1 for `packages apply --yes --manager brew-cask`, with a status that reports every `brew-cask` package `installed` except one in state `absent`:
+And for `packages_for`, two cases in the existing style. `prepare` makes the stub `mise` exit 1 for `packages apply --yes --manager brew-cask`, with a status that reports every `brew-cask` package `installed` except one in state `unexpectedly_installed`, which is what Task 1 measured for an installed package declared absent:
 
 ```bash
 run -y
@@ -540,7 +540,7 @@ Expected: FAIL "modules off: no install-iosevka-code".
 
 `misc.sh`: `module_on() { "$DOTFILES_DIR/bin/lib/rotm-modules" is-on "$1"; }`, and wrap the steps the "Modules" table names for `fonts`, `apps`, `claude` and `agents`. The existing `command_exists` guards stay inside the gate. Steps for other modules need no gate: each already checks for its tool (`rustup`, `dotnet`, `aspire`, `supabase`).
 
-`setup.sh` `packages_for`: when the manager's apply fails, nothing for that manager is in state `missing` afterwards, and at least one of its packages is in state `absent`, it is not a problem. The decision reads states from `status --json`, not mise's wording. Any other failure stays a problem.
+`setup.sh` `packages_for`: when the manager's apply fails, nothing for that manager is in state `missing` afterwards, and at least one of its packages is in state `unexpectedly_installed`, it is not a problem. The decision reads states from `status --json`, not mise's wording. Any other failure stays a problem.
 
 - [ ] **Step 6: Run to see them pass, then commit**
 
@@ -578,7 +578,7 @@ check_true "no Claude config is saved" no_save
 check_true "the prune notice names the modules that are off" has 'packages prune .*modules off: fonts, apps, claude, agents'
 ```
 
-A case where the stub's package status holds one package in state `absent` and the rest `installed`: `check_true "an absent package is not a notice" has '^✔ packages status +all installed$'`.
+A case where the stub's package status holds one package in state `unexpectedly_installed`, one in state `absent` and the rest `installed`: `check_true "an absent package is not a notice" has '^✔ packages status +all installed$'`.
 
 - [ ] **Step 2: Run to see them fail**
 
@@ -588,7 +588,7 @@ Expected: FAIL "Iosevka is left out".
 - [ ] **Step 3: Implement**
 
 - Each named step reports `status ok "<step>" "the <name> module is off"` and does nothing else when its module is off: `Iosevka` on `fonts`; `Claude Code`, `agent skills`, `plugins`, `Claude config`, `catalog` on `claude`; `REA skill`, `Hindsight memory`, `SnippetsLab skill`, `mise MCP`, `Scrapling` on `agents`; `Raycast` on `apps`, since that step opens the app with no check that it is installed. `agent skills` goes with `claude` because `claude-config restore` in `misc.sh`, which installs those skills, is gated on `claude`.
-- "packages status": a package in state `absent` is not `not_installed`.
+- "packages status": a package in state `absent` or `unexpectedly_installed` is not `not_installed`.
 - "packages prune": when its notice fires and `rotm-modules off` prints anything, the notice ends "(modules off: a, b)", so the count is explained.
 
 - [ ] **Step 4: Run to see them pass, then commit**
