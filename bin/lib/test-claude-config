@@ -63,6 +63,24 @@ check "token never saved" "! grep -q OAUTH_TOKEN '$CLAUDE_CONFIG_SAVE_DIR/claude
 check "token counts kept" "grep -q MAX_THINKING_TOKENS '$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json'"
 check "cert store kept" "grep -q CERT_STORE '$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json'"
 
+base="$CLAUDE_CONFIG_SAVE_DIR/claude-settings.json"
+cp "$base" "$tmp/base.keep"
+cp "$CLAUDE_CONFIG_DIR/settings.json" "$tmp/live.keep"
+printf '{"model":"opus","theme":"dark"}' > "$base"
+printf '{"model":"fable","theme":"light"}' > "$CLAUDE_CONFIG_DIR/settings.json"
+cc save settings > /dev/null 2>&1
+check "save keeps the tracked model" "[ \"\$(jq -r .model '$base')\" = opus ]"
+check "save still records other settings" "[ \"\$(jq -r .theme '$base')\" = light ]"
+printf '{"theme":"light"}' > "$CLAUDE_CONFIG_DIR/settings.json"
+cc save settings > /dev/null 2>&1
+check "save keeps the tracked model when the Mac has none" "[ \"\$(jq -r .model '$base')\" = opus ]"
+rm "$base"
+printf '{"model":"fable"}' > "$CLAUDE_CONFIG_DIR/settings.json"
+cc save settings > /dev/null 2>&1
+check "first save records the Mac's model" "[ \"\$(jq -r .model '$base')\" = fable ]"
+cp "$tmp/base.keep" "$base"
+cp "$tmp/live.keep" "$CLAUDE_CONFIG_DIR/settings.json"
+
 cp "$list" "$tmp/list.before"
 rm "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json"
 cc save plugins > /dev/null 2> "$tmp/err"

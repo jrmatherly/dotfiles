@@ -214,8 +214,12 @@ write_settings() {
 save_settings() {
   missing_source "$settings" "$settings_base" && return 0
   valid_json "$settings" "$settings_base" || return 0
-  # Sorted permission lists keep the diff stable
-  jq --arg home "$HOME" --argjson retired "$(retired_rules)" "$untilde $order $settings_filter"' | walk(if type == "string" then untilde($home) else . end)
+  local model
+  model=$(jq -r '.model // empty' "$settings_base" 2> /dev/null || true)
+  # Sorted permission lists keep the diff stable.
+  # The tracked model is the standard for every Mac, so one Mac's choice never replaces it.
+  jq --arg home "$HOME" --arg model "$model" --argjson retired "$(retired_rules)" "$untilde $order $settings_filter"' | if $model != "" then .model = $model else . end
+    | walk(if type == "string" then untilde($home) else . end)
     | if .permissions.allow then .permissions.allow -= $retired else . end
     | if .permissions then .permissions |= with_entries(if (.value | type) == "array" then .value |= order else . end) else . end' \
     "$settings" > "$settings_base.tmp" && mv "$settings_base.tmp" "$settings_base"
