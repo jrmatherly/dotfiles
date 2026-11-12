@@ -78,7 +78,7 @@ installed_only() {
 # What the Results section records for every row
 stamp() {
   run "sw_vers -productVersion; sw_vers -buildVersion; mise --version"
-  [ ! -e "$checkout" ] || run "git -C $checkout log --oneline -1"
+  [ ! -e "$checkout" ] || run "git --no-pager -C $checkout log --oneline -1"
 }
 
 case "$row" in
@@ -87,7 +87,7 @@ case "$row" in
     stamp
     run "$fetch && $checkout/setup.sh --without security,cloud,kubernetes,vscode"
     note "PASS when setup.sh ended with All done, or exit 2 with only tolerated problems."
-    run "git -C $checkout log --oneline -1"
+    run "git --no-pager -C $checkout log --oneline -1"
     run "$(declared nmap awscli helm)"
     run "cd ~ && mise bootstrap packages status --json | /usr/bin/jq -c 'keys'"
     note "PASS when the first list is empty and the managers have no vscode."
@@ -104,7 +104,7 @@ case "$row" in
     note "At the commit-signing question, answer SSH: with apps off there is no 1Password, and the guard must leave signing out."
     run "$fetch && $checkout/setup.sh --without $all"
     note "PASS when setup.sh exits 0, or 2 with only tolerated problems."
-    run "git -C $checkout log --oneline -1"
+    run "git --no-pager -C $checkout log --oneline -1"
     run "cat $cfg/modules-off.local"
     run "zsh -ic 'echo prompt-ok' 2>&1"
     note "PASS when the only output is prompt-ok: a new shell starts with no error."
@@ -167,7 +167,7 @@ case "$row" in
     stamp
     run "$fetch && $checkout/setup.sh"
     note "PASS when setup.sh ended with All done, or exit 2 with only tolerated problems."
-    run "git -C $checkout log --oneline -1"
+    run "git --no-pager -C $checkout log --oneline -1"
     run "$packages"
     run "cd ~ && mise ls --missing"
     run "cat $cfg/miserc.local.toml; ls $cfg/modules-off.local"
