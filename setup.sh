@@ -205,6 +205,20 @@ if ! link_into_repo "$HOME/.config/mise" "$DOTFILES_DIR/tilde/.config/mise"; the
   exit 1
 fi
 
+# On an installed copy ~/.zshrc and ~/.gitconfig are seeded once and then the
+# user's, so mise keeps a file that is already there without a word, and ours
+# would never load. Stop instead, as a clone does at a file in the way of a link,
+# and before the password prompt.
+if [ "$installed" = true ] && [ "$run_dotfiles" = true ]; then
+  for ours in tilde/.zshrc tilde/.gitconfig; do
+    theirs="$HOME/${ours#tilde/}"
+    if [ -f "$theirs" ] && [ ! -L "$theirs" ] && ! grep -qF "$ours" "$theirs"; then
+      echo "$theirs is your own and does not load returnofthemac's. Move it aside (mv $theirs $theirs.backup) or add the lines of $DOTFILES_DIR/$ours.installed to it, then rerun $self" >&2
+      exit 1
+    fi
+  done
+fi
+
 # mise's installer puts it in ~/.local/bin, and a fresh Mac's PATH lacks both.
 # The prefix is here so a code or gh installed earlier in this run is found.
 prefix="${HOMEBREW_PREFIX:-/opt/homebrew}"
@@ -273,18 +287,6 @@ cd "$HOME"
 # nothing left to do.
 if [ "$run_dotfiles" = true ]; then
   title "🔗 Linking the dotfiles…"
-  # On an installed copy ~/.zshrc and ~/.gitconfig are seeded once and then the
-  # user's, so mise keeps a file that is already there without a word, and ours
-  # would never load. Stop instead, as a clone does at a file in the way of a link.
-  if [ "$installed" = true ]; then
-    for ours in tilde/.zshrc tilde/.gitconfig; do
-      theirs="$HOME/${ours#tilde/}"
-      if [ -f "$theirs" ] && [ ! -L "$theirs" ] && ! grep -qF "$ours" "$theirs"; then
-        echo "$theirs is your own and does not load returnofthemac's. Move it aside (mv $theirs $theirs.backup) or add the lines of $DOTFILES_DIR/$ours.installed to it, then rerun $self" >&2
-        exit 1
-      fi
-    done
-  fi
   # A folder that config.installed.toml makes real may still be a link from before
   # that entry arrived. mise keeps such a link and writes the folder's entries
   # through it, into the checkout (probe 14), so the link goes first.
