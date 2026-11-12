@@ -95,7 +95,7 @@ kept() {
 
 sync() {
   [ -d "$dir" ] || die 1 "no mise config dir at $dir"
-  local line='' entries='' names='' new='' env_line='' env_new='' have='' want m stray
+  local line='' entries='' names='' new='' trust='' env_line='' env_new='' have='' want m stray
   if [ -f "$off_file" ]; then
     while IFS= read -r stray; do
       case " ${modules[*]} " in
@@ -127,10 +127,20 @@ sync() {
     if is_off "$m"; then
       entries="$entries${entries:+, }\"conf.d/60-rotm-$m.toml\""
       names="$names${names:+, }$m"
+      if [ -z "$trust" ] && [ -f "$dir/conf.d/60-rotm-$m.toml" ]; then trust="$dir/conf.d/60-rotm-$m.toml"; fi
     fi
   done
   # With nothing off and no line there is nothing to write: no state means every module loads
   if [ -n "$line" ] || [ -n "$entries" ]; then new="ignored_config_paths = [$entries]"; fi
+
+  # mise's dotfiles history still reads an ignored file and refuses it as untrusted, which stops
+  # `mise dotfiles` and `mise bootstrap` (mise 2026.11.5 to 2026.11.7). Trusting one module file
+  # records the home dir as a trusted config root, and that covers every module file.
+  # test-modules fails when mise no longer needs this
+  if [ -n "$trust" ] && command -v mise > /dev/null; then
+    mise trust "$trust" > /dev/null 2>&1 \
+      || echo "rotm-modules: 'mise trust $trust' failed, so mise dotfiles and mise bootstrap will stop at that file" >&2
+  fi
 
   want=$({ [ -z "$have" ] || printf '%s\n' "$have"; } | IGN="$new" ENV_OLD="$env_line" ENV_NEW="$env_new" awk '
     !i && /^ignored_config_paths[[:space:]]*=/ { print ENVIRON["IGN"]; i = 1; next }

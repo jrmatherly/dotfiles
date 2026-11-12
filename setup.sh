@@ -261,6 +261,10 @@ if ! command -v mise > /dev/null; then
 fi
 bash "$DOTFILES_DIR/setup/mise-floor.sh" || exit 1
 
+# Again now that mise exists: with a module off, sync has mise trust the module
+# files, without which mise dotfiles and mise bootstrap stop at an ignored one
+[ -n "$dry_run_flag" ] || "$modules" sync > /dev/null || exit $?
+
 if [ "$skip_codegraph" = true ]; then
   # Read by setup/misc.sh, which reshims without the second one
   export DOTFILES_SKIP_CODEGRAPH=true MISE_DISABLE_TOOLS="${MISE_DISABLE_TOOLS:+$MISE_DISABLE_TOOLS,}npm:@colbymchenry/codegraph"

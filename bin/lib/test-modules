@@ -132,20 +132,31 @@ declared() { smise "$@" mise bootstrap packages status --json 2> /dev/null; }
 declared | grep -q '"jq"' || fail "mise: the base's formula is not declared"
 declared | grep -q font-fira-code || fail "mise: a module with no state does not declare its cask"
 declared MISE_ENV=dev | grep -q font-fira-code || fail "mise: MISE_ENV dropped a module"
-"$m" set fonts off > /dev/null
+# The helper runs inside smise from here on, through the ~/.config/mise link as on a real Mac, so its mise trust writes scratch state
+rotm() { smise MISE_CONFIG_DIR= "$m" "$@"; }
+rotm set fonts off > /dev/null
 declared | grep -q '"jq"' || fail "mise: the base's formula went with the module"
 if declared | grep -q font-fira-code; then fail "mise: a module that is off still declares its cask"; fi
 if declared MISE_ENV=dev | grep -q font-fira-code; then fail "mise: MISE_ENV brought an off module back"; fi
 if declared MISE_CONFIG_DIR= | grep -q font-fira-code; then fail "mise: an off module loads through the ~/.config/mise link"; fi
 declared MISE_CONFIG_DIR= | grep -q nmap || fail "mise: the link case loaded no module at all"
 
+# Dotfiles and bootstrap work with a module off because sync had mise trust the file
+smise MISE_CONFIG_DIR= mise dotfiles status > "$tmp/dot.out" 2>&1 || {
+  cat "$tmp/dot.out" >&2
+  fail "mise: dotfiles status with a module off"
+}
+# Without that record mise refuses the ignored file. When this fails, mise is fixed: drop the mise trust call from rotm-modules and setup.sh's second sync
+if smise MISE_CONFIG_DIR= MISE_STATE_DIR="$tmp/state-untrusted" mise dotfiles status > "$tmp/dot.out" 2>&1; then
+  fail "mise: dotfiles status passes with an ignored file and no trust record, so the mise trust workaround can go"
+fi
+grep -q 'not trusted' "$tmp/dot.out" || fail "mise: dotfiles status failed for another reason: $(head -1 "$tmp/dot.out")"
+
 # Two mise behaviours the design rests on: the variable replaces the saved list, and --save-env keeps the line
 declared MISE_IGNORED_CONFIG_PATHS="$cfg/conf.d/60-rotm-security.toml" > "$tmp/var.json"
 grep -q font-fira-code "$tmp/var.json" || fail "mise: MISE_IGNORED_CONFIG_PATHS no longer replaces the saved list"
 if grep -q nmap "$tmp/var.json"; then fail "mise: MISE_IGNORED_CONFIG_PATHS did not ignore its own file"; fi
 before=$(line)
-# mise 2026.11.5 reads an ignored file for dotfile history and refuses it as untrusted unless that file has its own trust record
-smise MISE_CONFIG_DIR= mise trust "$tmp/home/.config/mise/conf.d/60-rotm-fonts.toml" > /dev/null 2>&1 || fail "mise: trust"
 smise MISE_CONFIG_DIR= mise -E installed bootstrap --save-env --only final-hook --yes > "$tmp/save.out" 2>&1 || {
   cat "$tmp/save.out" >&2
   fail "mise: bootstrap --save-env"
@@ -153,7 +164,7 @@ smise MISE_CONFIG_DIR= mise -E installed bootstrap --save-env --only final-hook 
 grep -q '^env = \["installed"\]' "$cfg/miserc.local.toml" || fail "mise: --save-env did not save the env list"
 [ "$(line)" = "$before" ] || fail "mise: --save-env changed the ignored_config_paths line"
 
-"$m" set fonts on > /dev/null
+rotm set fonts on > /dev/null
 declared | grep -q font-fira-code || fail "mise: a module switched back on does not declare its cask"
 
 echo ok
