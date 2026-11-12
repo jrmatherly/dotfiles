@@ -6,7 +6,7 @@
     "output": ".archify/architecture-dotfiles-runtime-20261111-110553/dotfiles-runtime.html",
     "quality_profile": "showcase",
     "repository": {
-      "url": "git@github.com:jrmatherly/dotfiles.git",
+      "url": "git@github.com:jrmatherly/returnofthemac.git",
       "provider": "github",
       "link_mode": "local-only",
       "revision": "eaa487c0798c2f91371bc0f014b9c9b605968750"

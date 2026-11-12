@@ -172,7 +172,7 @@ uv run --project settings python settings/tests/test_tui.py
 ## Installing without the clone
 
 ```shell
-uv tool install "git+https://github.com/jrmatherly/dotfiles#subdirectory=settings"
+uv tool install "git+https://github.com/jrmatherly/returnofthemac#subdirectory=settings"
 ```
 
 Use your fork's URL if you have one. The wheel carries its own copy of `registry.toml`.

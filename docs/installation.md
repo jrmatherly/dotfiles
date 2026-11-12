@@ -11,7 +11,7 @@ You need macOS on Apple Silicon. On a new Mac, clone over HTTPS — SSH only wor
 1. Clone the repo (no GitHub login needed; `setup/misc.sh` offers `gh auth login` later, and setup only warns when gh has no token, see [Run setup](#run-setup)):
 
    ```shell
-   git clone https://github.com/jrmatherly/dotfiles.git ~/dev/dotfiles
+   git clone https://github.com/jrmatherly/returnofthemac.git ~/dev/dotfiles
    ```
 
    Setting up your own Mac? Fork the repo, clone your fork instead, and go through [Make it yours](forking.md) before running setup.
@@ -83,7 +83,7 @@ It changes nothing. `./setup.sh -- --dry-run` previews through the wrapper inste
 Setup leaves these to you:
 
 1. Open a new terminal, so the shell picks up the new config and `$DOTFILES/bin` is on PATH.
-1. Set up GitHub SSH through 1Password: add your key's public half to GitHub, save it as [`~/.ssh/github_personal.pub`](local-customizations.md#sshgithub_personalpub), check with `ssh -T git@github.com`, and optionally switch the clone to SSH: `git remote set-url origin git@github.com:jrmatherly/dotfiles.git`.
+1. Set up GitHub SSH through 1Password: add your key's public half to GitHub, save it as [`~/.ssh/github_personal.pub`](local-customizations.md#sshgithub_personalpub), check with `ssh -T git@github.com`, and optionally switch the clone to SSH: `git remote set-url origin git@github.com:jrmatherly/returnofthemac.git`.
 1. Apply the macOS defaults: [`set-defaults`](#set-macos-defaults).
 1. In VS Code, run **SpaceBox Enable UI Enhancer** from the Command Palette, then quit and reopen VS Code. The blur settings do nothing until then, and the step is needed again after each VS Code update (see [vscode](../vscode/README.md#spacebox-ui-enhancer)).
 1. Install the Obsidian vault settings: [`obsidian-vault install`](#set-up-the-obsidian-vault).

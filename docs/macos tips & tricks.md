@@ -70,7 +70,7 @@ You can choose what Spotlight searches, which speeds it up and removes irrelevan
 
 ## Tip #7
 
-Automate Mac setup: [jrmatherly/dotfiles](https://github.com/jrmatherly/dotfiles).
+Automate Mac setup: [jrmatherly/returnofthemac](https://github.com/jrmatherly/returnofthemac).
 
 ## Tip #8
 

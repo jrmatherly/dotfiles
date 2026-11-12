@@ -28,7 +28,7 @@ You need macOS on Apple Silicon. The macOS defaults were reviewed for macOS 27.
 
 ```shell
 xcode-select --install
-git clone https://github.com/jrmatherly/dotfiles.git ~/dev/dotfiles
+git clone https://github.com/jrmatherly/returnofthemac.git ~/dev/dotfiles
 ~/dev/dotfiles/setup.sh
 ```
 
