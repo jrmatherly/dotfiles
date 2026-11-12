@@ -434,6 +434,12 @@ check_true "and mise is told to skip those files" grep -qxF 'ignored_config_path
 check_true "the list is written before the dotfiles are applied" [ "$(line_of 'modules: off = ')" -lt "$(line_of 'Linking the dotfiles')" ]
 run -y --without=cloud
 check_true "--without= is stored" [ "$(cat "$HOME/.config/mise/modules-off.local")" = cloud ]
+prepare() { stub code 'exit 0'; }
+run -y --without vscode
+check_true "vscode off with code installed: no extensions are applied" log_lacks "--manager vscode"
+check_true "… setup says so" has 'vscode module is off'
+check_true "… and ends All done" has 'All done'
+prepare() { :; }
 run -y --without nope
 check_true "an unknown module stops setup" [ "$rc" -eq 2 ]
 check_true "and names it" has 'nope'

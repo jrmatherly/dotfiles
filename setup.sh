@@ -458,7 +458,11 @@ fi
 
 if [ "$run_packages" = true ]; then
   # The VS Code cask may have arrived in this run, without code on PATH yet
-  if command -v code > /dev/null; then
+  # The cask is in the base and every extension in the module, so with it off
+  # mise has no vscode package and --manager vscode is its fatal "no packages requested"
+  if ! "$modules" is-on vscode; then
+    echo "The vscode module is off: extensions are skipped."
+  elif command -v code > /dev/null; then
     packages_for vscode extensions extension
   else
     echo "VS Code is not installed yet: extensions are skipped. Rerun $self once it is."
