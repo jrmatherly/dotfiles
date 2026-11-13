@@ -326,7 +326,7 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 
 The three that were here (the name, the owner's Mac, background sync) are decisions 6 to 8.
 
-One, raised on 2026-11-12 and not answered: a few shipped values are facts about the owner, not preferences, and are wrong for anyone else until changed. fastfetch prints the owner's name, site and city (`tilde/.config/fastfetch/config.jsonc`), lazygit's `authorColors` names the owner, and `macos.disable_time_machine` defaults to on, which stops a user's backups when they run `set-defaults`. Under "everything stays" these ship as they are. The alternative is a neutral default for those few, with the owner's values in the owner's layer.
+One, raised and answered on 2026-11-12: a few shipped values are facts about the owner, not preferences, and are wrong for anyone else until changed. fastfetch prints the owner's name, site and city (`tilde/.config/fastfetch/config.jsonc`), lazygit's `authorColors` names the owner, and `macos.disable_time_machine` defaults to on, which stops a user's backups when they run `set-defaults`. The owner's answer: they ship as they are, and the docs say so. `docs/forking.md` ("Make it yours") lists each value that points at the owner or the owner's domain and what a user changes to use that feature themselves. Today that page is written for someone who forks; P6 rewrites it around the user layer, and until then a new owner-pointing value gets its row there in the same commit.
 
 ## Research notes (2026-11-11)
 
