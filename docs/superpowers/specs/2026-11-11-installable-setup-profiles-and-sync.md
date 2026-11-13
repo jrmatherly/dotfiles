@@ -319,9 +319,9 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 ### P7: The owner's Mac moves to stable
 
 - **Outcome.** The Mac this project is written on runs an install from `stable`, like any user's, and has `rotm`.
-- **Decided.** By the owner on 2026-11-12: last, after every phase above has landed. Until then that Mac stays on `setup.sh` from the clone, the owner is the only consumer, and nothing is promoted to `stable`.
+- **Decided.** By the owner on 2026-11-12: last, after every phase above has landed. Until then that Mac stays on `setup.sh` from the clone, the owner is the only consumer, and nothing is promoted to `stable`. The move is done once, by hand: no command, flag or `setup.sh` branch is added to the product for it, and moving a clone-based Mac to an install is not a path users get.
 - **Known.** Probe 10: `--update` with `?ref=stable` switches a clone given as `--from-dir` from `main` to `stable`, so the working clone cannot be the installed copy. `~/dotfiles` has to point at the installed copy instead of the clone. `setup.sh` unlinks the folders `config.rotm-installed.toml` makes real, but only the VM has run that, from a fresh home. The gitignored local files under the clone's `tilde/.config/mise/` and `mole/*.local` do not come with a fresh copy.
-- **Waiting on.** P2b to P6, a promotion of `stable` proven in the VM (decisions 9 and 10), and a design for how the development clone and the installed copy live on one Mac.
+- **Waiting on.** P2b to P6, a promotion of `stable` proven in the VM (decisions 9 and 10), and a written runbook for the hand move, including how the development clone and the installed copy live on one Mac.
 - **Done when.** `bin/lib/rotm-mode` prints `installed` on that Mac, `rotm update` brings a new `stable` commit, and work in the clone at `~/dev/dotfiles` changes nothing in the live config until it is promoted.
 
 ## Open points for the owner
