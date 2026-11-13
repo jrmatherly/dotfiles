@@ -135,7 +135,7 @@ Two more writers were found by review, not by a run. `rotm settings` stored a ma
 - The base splits into modules by what a person would decline: apps, fonts, VS Code extensions, the Claude Code plugins and skills, the other agent tooling, the macOS defaults groups that already have switches.
 - All modules are on by default. A module is a `conf.d` fragment, which mise always loads, and a user turns one off in `dotfiles-settings`, which adds its file to `ignored_config_paths` in `miserc.local.toml` (the owner's decision of 2026-11-12, replacing the `env` list below, which fails off).
 - First design, dropped: the base cannot ship a default `env` list: under `--from`, a project's `.miserc.toml` and `.config/miserc.toml` were both ignored (probe 3). So the install command passes the full module list with `-E` and `--save-env`, which writes `env = [...]` to `miserc.local.toml` and is honoured on later runs without `-E` (probe 7). With the ignore list no default list exists to ship or pass: no state means every module.
-- Turning a module off can offer to remove it: `mise bootstrap unapply <module>`, run in the checkout, removed the module's entry, kept the base's, and needed no `mise trust` (probe 8).
+- Turning a module off removes nothing by itself and offers no removal (`unapply` works on a project's module, probe 8, and a module here is a global `conf.d` fragment). Its packages stay, and `sysup` names how many no config declares. Its tools go at the next `sysup`, whose `mise prune` honours the ignore list (the P2 plan's VM proof, row 4).
 - Opting out of one item inside a module: for a dotfile entry, `enabled = false` and `mode = "absent"` from the user's global config did not cancel a project entry (probe 4, project shape). For a package it works under the config-dir shape P1 shipped: `"<manager>:<name>" = { state = "absent" }` in the machine-local `config.local.toml` replaces the base's entry, and `[settings] disable_tools` hides one tool (measured 2026-11-12). So P2 builds no deny list and no hook.
 - Claude Code: `claude-config restore` only adds. Opting out skips the restore. It never removes plugins a user installed.
 
@@ -226,15 +226,16 @@ Measured on 2026-11-11 in the UTM guest (macOS 27.2.1, mise 2026.11.6, a disposa
 | `mise -E <env> bootstrap --save-env` keeps the other lines of `miserc.local.toml` | Yes. It rewrote only the `env` line and kept an `ignored_config_paths` line, a comment and an unknown key. It replaced the `env` list (`installed` became `work`), it did not add to it, which P4's profile switch has to allow for (P2 plan after Task 3, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac) |
 | `MISE_IGNORED_CONFIG_PATHS` in a shell adds to the saved `ignored_config_paths` | No. It replaced the list: the saved module loaded again (P2 plan after Task 3, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac) |
 | `mise ls --global` counts a tool a `conf.d` fragment declares | Yes, and not one whose fragment is ignored (P2 plan after Task 3, 2026-11-12, mise 2026.11.5, a scratch home on the owner's Mac) |
+| What `packages apply --manager brew-cask` exits with when an installed cask is declared absent | 1, with "brew-cask does not support declarative package removal (cannot remove warp)". `setup.sh` reads the states, finds nothing missing and carries on to "All done" (P2 plan's VM proof, row 5, mise 2026.11.6) |
+| `mise prune` deletes the tools of a module that was switched off | Yes, so it honours `ignored_config_paths` from `miserc.local.toml`. With `kubernetes` off, `sysup` removed that module's six tools and left its formula `helm` (P2 plan's VM proof, row 4, mise 2026.11.6). It also removes the `ruby` mise installs for itself to read a tap formula built from source |
+| A real install with a module ignored | Yes. Four modules off, and all twelve off, each ended "All done" from a fresh guest (P2 plan's VM proof, rows 1 and 2, mise 2026.11.6) |
+| What `mise bootstrap packages upgrade --yes` exits with when an installed package is declared absent | 0. Pinned for a `vscode:` key in `bin/lib/test-packages` (mise 2026.11.5), and `sysup` reported "packages: up to date" with an installed cask declared absent (P2 plan's VM proof, row 5, mise 2026.11.6) |
+| One anonymous install fits GitHub's 60 API calls an hour | Yes for one install, no for an install, three updates and two `sysup` runs from one address in the hour. Installing `brew:gh` alone made no rate-limited call, so `setup.sh` offers `gh auth login` before the package lists (P2 plan's VM proof, mise 2026.11.6) |
 
 ### Still not verified
 
 | Claim | What settles it |
 | --- | --- |
-| What `packages apply --manager brew-cask` exits with when an installed cask is declared absent | Measured for `vscode` only (see "Verified facts"). Row 5 of the P2 plan's VM proof for a real cask |
-| `mise prune` deletes the tools of a module that was switched off | Read from `bin/sysup`'s "mise prune" step and `mise prune --help`, not run. It also needs `mise prune` to honour `ignored_config_paths` from `miserc.local.toml`: mise's settings page says commands that act on every tracked config honour only the variable and "the global and system `miserc.toml` files". Row 4 of the P2 plan's VM proof |
-| A real install with a module ignored | Rows 1 and 2 of the P2 plan's VM proof |
-| What `mise bootstrap packages upgrade --yes` exits with when an installed package is declared absent | Task 6 of the P2 plan, in `bin/lib/test-packages`, as Task 1 measured `apply` |
 | The same behaviours on the 2026.11.5 floor in `setup/mise-floor.sh` | The guest ran 2026.11.6, the release mise's installer gave it. The owner decided on 2026-11-11 to leave the floor at 2026.11.5 and accept this gap. Decision 10 still applies: each promotion to `stable` is proven in the VM on the mise current that day |
 | A project's `.miserc.toml` is read when `mise bootstrap` runs from inside the checkout, without `--from` | Not measured. It matters only if a later run stops passing `--from` |
 | What an adopted home in mode `sync` does once the history watcher is declared | P3, in the VM, against a real private repository |
@@ -247,7 +248,7 @@ Also measured that day: with `HOME` and every `MISE_*_DIR` pointed at a scratch 
 
 - `docs/superpowers/plans/completed/2026-11-11-p0-probes-and-model-default.md` (done 2026-11-11): the probes in a scratch home, and the `claude-config save` model rule. Its results fill in this spec and decide the open points.
 - `docs/superpowers/plans/completed/2026-11-11-p1-install-and-update.md` (done 2026-11-12): the config-dir shape, mise to fetch and link followed by `setup.sh`, the `rotm` command, and an `installed` config environment for targets apps rewrite.
-- `docs/superpowers/plans/2026-11-12-p2-modules-and-opt-outs.md` (written and reviewed 2026-11-12; Tasks 1 to 3 shipped that day on a first design, then revised and reviewed again): twelve modules as always-loaded `conf.d/60-rotm-<name>.toml` files, a helper that derives mise's `ignored_config_paths` line from what is switched off, a switch per module in `dotfiles-settings`, and `--without` on the install line. The owner split P2 that day: the owner's layer is P2b, not written.
+- `docs/superpowers/plans/completed/2026-11-12-p2-modules-and-opt-outs.md` (done 2026-11-12): twelve modules as always-loaded `conf.d/60-rotm-<name>.toml` files, a helper that derives mise's `ignored_config_paths` line from what is switched off, a switch per module in `dotfiles-settings`, and `--without` on the install line. The owner split P2 that day: the owner's layer is P2b, not written.
 - P2b and P3 to P6 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
 
 ## Phase briefs
@@ -270,7 +271,7 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 - **Outcome.** A stranger can decline any group before or after installing.
 - **Delivers.** The base split into modules (apps, fonts, VS Code extensions, Claude Code plugins and skills, other agent tooling). A default list with everything on. A switch per module in `dotfiles-settings`. A documented way to skip one item.
 - **Known.** `30-packages.toml` declares the formulae, casks and extensions in one `[bootstrap.packages]` table, so splitting it is mechanical. The macOS groups already have switches (`macos.*` in `settings/registry.toml`). `claude-config restore` only adds, so a Claude opt-out means skipping the restore. Turning a module off does not uninstall packages: mise's docs point to `mise bootstrap packages prune`, which is not limited to one module, and `sysup` never runs it for that reason.
-- **Settled.** Probes 3 and 8: no shipped default list, and `unapply` removes one module's files cleanly. Measured on 2026-11-12 for the plan: modules add, and one package is cancelled with `state = "absent"` (see "Verified facts"). The plan first selected modules with the `env` list. After its Task 3 the owner switched it to always-loaded `conf.d` fragments turned off with `ignored_config_paths`, because the `env` list fails off (a clone after a plain `git pull`, a shell with `MISE_ENV` set). So the only stored list is what is switched off, and there is no deny list.
+- **Shipped.** `docs/superpowers/plans/completed/2026-11-12-p2-modules-and-opt-outs.md` (2026-11-12): twelve modules as always-loaded `conf.d/60-rotm-<name>.toml` fragments, switched off through `ignored_config_paths` by `bin/lib/rotm-modules`, with `--without` on the install line, a `modules.<name>` switch in `dotfiles-settings`, `sysup` and `misc.sh` skipping an off module's steps, and `state = "absent"` for one package. The `env` list of the first design was dropped because it fails off. Proven in the VM on `35dce30`.
 - **Done when.** With one module off, a dry run of the install lists none of that module's packages.
 
 ### P2b: The owner's layer
@@ -294,8 +295,8 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 
 - **Outcome.** One Mac, or one user across Macs, switches between named variants such as personal and work.
 - **Delivers.** `dotfiles-settings profile list|use|new`. A profile as a config environment, with the choice saved. Per-profile module lists and settings. A rule for which settings are machine-scoped and so ignore profiles.
-- **Known.** `-E work` selects `mise.work.toml` or `config.work.toml`, and `--save-env` writes the choice to `miserc.local.toml`. `[env_sets]` names a group of environments, so a profile can be "these modules plus these settings". A dotfile entry can differ by profile with `variants`. `-E` replaces the saved selection for that run and does not add to it, so a profile and the module list share one `env` list: P2 and P4 must agree on its shape, and P2 lands first.
-- **Settled by P0.** Probe 7: `--save-env` is remembered. Still waiting on P2's module list format.
+- **Known.** `-E work` selects `mise.work.toml` or `config.work.toml`, and `--save-env` writes the choice to `miserc.local.toml`. `[env_sets]` names a group of environments, so a profile can be "these modules plus these settings". A dotfile entry can differ by profile with `variants`. `-E` replaces the saved selection for that run and does not add to it, so a profile owns the `env` line of `miserc.local.toml` alone, beside `installed`: P2's modules never touch it and live in `ignored_config_paths`.
+- **Settled by P0.** Probe 7: `--save-env` is remembered. P2 shipped the module list as `modules-off.local` and `ignored_config_paths`.
 - **Done when.** Switching profile and applying changes exactly the entries that differ, and switching back restores them.
 
 ### P5: Menu bar app

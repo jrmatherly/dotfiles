@@ -843,13 +843,15 @@ git commit -m "Record the VM proof of modules and opt-outs"
 
 - Modify: the spec, `CLAUDE.md`, `.claude/rules/setup.md`
 
-- [ ] **Step 1: Update the spec**
+- [x] **Step 1: Update the spec**
 
 In "Opt-outs": the bullets were rewritten for the ignore list on 2026-11-12; check them against what shipped, and replace the one that offers `unapply`. In the P2 brief, replace "Settled" with one "Shipped" line naming this plan. In "Plans", mark this file done. In the P4 brief's "Known", note that modules never touch the `env` line of `miserc.local.toml`, so a profile owns it alone, beside `installed`. Move the rows Task 8 measured into "Verified facts".
 
-- [ ] **Step 2: Promote and move**
+- [x] **Step 2: Promote and move**
 
 Ask the owner before moving `stable`: Task 8 proved the install on `main`.
+
+**As built, 2026-11-12:** the spec, `.claude/rules/setup.md` and this move are in one commit. `CLAUDE.md` needed no edit: nothing it states became false. `stable` was not moved here; it waits for the owner's word.
 
 ```bash
 git mv docs/superpowers/plans/2026-11-12-p2-modules-and-opt-outs.md docs/superpowers/plans/completed/

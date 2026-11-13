@@ -12,7 +12,7 @@
 #
 # ---
 # The rows are the table in Task 8 of
-# docs/superpowers/plans/2026-11-12-p2-modules-and-opt-outs.md. Each command and
+# docs/superpowers/plans/completed/2026-11-12-p2-modules-and-opt-outs.md. Each command and
 # its output goes to p2-<date>/row-<n>.txt next to this script, so on the shared
 # folder the host sees them at ~/vm-proof/p2/. Commands run through `script`,
 # which keeps the terminal that setup.sh's prompts and sudo need.
