@@ -1,6 +1,7 @@
 """Sync of the user's folder through a private GitHub repository (on, off, now, status, apply), and the tool
-settings mise cannot hold: recorded in tools.toml in that folder and replayed on another Mac."""
-import json, os, re, shutil, subprocess, sys, tomllib
+settings mise cannot hold: recorded in tools.toml in that folder and replayed on another Mac. A profile
+(profile.py) has its own tools file there, laid over the shared one."""
+import json, os, re, subprocess, sys, tomllib
 from collections.abc import Callable
 from pathlib import Path
 
@@ -46,24 +47,53 @@ def _save(path: Path, change: Callable[[Tools], Tools]) -> None:
     edit_file(path, lambda text: render(change(_parse(text, path))))
 
 
+def _target_tools() -> Path:
+    from . import profile  # here, not at the top: profile.py imports this module
+    name = profile.target()
+    return profile.tools_path(name) if name else tools_path()
+
+
+def wanted_tools() -> Tools:
+    """The tool settings in effect: the shared file's, with the active profile's laid over them."""
+    from . import profile
+    name = profile.active()
+    return {**_load(tools_path()), **(_load(profile.tools_path(name)) if name else {})}
+
+
+def masked(s: Setting) -> bool:
+    """Whether a --shared write of s is hidden by the active profile's own value."""
+    from . import profile
+    name = profile.active()
+    return bool(profile.shared and name and s.id in _load(profile.tools_path(name)))
+
+
 def record(s: Setting, value: str) -> None:
     if s.scope == "machine":
         return
-    for path in (tools_path(), applied_path()):
-        _save(path, lambda t: {**t, s.id: value})
+    _save(_target_tools(), lambda t: {**t, s.id: value})
+    if not masked(s):  # tools.applied.toml is what this Mac's tools hold, one file whatever the profile
+        _save(applied_path(), lambda t: {**t, s.id: value})
 
 
 def forget(s: Setting) -> None:
     if s.scope == "machine":
         return
-    for path in (tools_path(), applied_path()):
-        if s.id in _load(path):
-            _save(path, lambda t: {k: v for k, v in t.items() if k != s.id})
+    drop = lambda t: {k: v for k, v in t.items() if k != s.id}
+    # The profile's value first, then the shared one, as a reset of an env setting does
+    path = next((p for p in (_target_tools(), tools_path()) if s.id in _load(p)), None)
+    if path:
+        _save(path, drop)
+    # Still applied while another layer sets it: the shared file under a profile's, or the profile's under --shared
+    want = wanted_tools().get(s.id)
+    if want is not None:
+        _save(applied_path(), lambda t: {**t, s.id: want})
+    elif s.id in _load(applied_path()):
+        _save(applied_path(), drop)
 
 
 def replay(settings: list[Setting], adapters: dict[str, Adapter]) -> list[str]:
     by_id = {s.id: s for s in settings}
-    wanted, applied = _load(tools_path()), _load(applied_path())
+    wanted, applied = wanted_tools(), _load(applied_path())
     lines, done = [], {}
     for id, value in sorted(wanted.items()):
         if id not in by_id:
@@ -92,6 +122,9 @@ def replay(settings: list[Setting], adapters: dict[str, Adapter]) -> list[str]:
 
 
 KEPT = ("config.override.toml", "modules-off.local", "tools.toml")
+# A profile's three files (profile.py)
+KEPT_PROFILE = re.compile(r"config\.rotm-p-[a-z0-9-]+\.override\.toml|modules-off\.rotm-p-[a-z0-9-]+\.local"
+                          r"|tools\.rotm-p-[a-z0-9-]+\.toml")
 # bin/claude-config's rule for env keys, plus PASSWORD and ACCESS_KEY
 SECRET = re.compile(r"(TOKEN|SECRET|PASSPHRASE|PASSWORD|API_KEY|ACCESS_KEY|CLIENT_KEY)$", re.I)
 LOGIN = ["auth", "login", "--hostname", "github.com", "--git-protocol", "https", "--web"]
@@ -145,26 +178,33 @@ def _toml(path: Path) -> dict:
 
 def _guard() -> None:
     folder = user_dir()
-    stray = sorted(p.name for p in folder.iterdir() if p.name not in KEPT) if folder.is_dir() else []
+    names = sorted(p.name for p in folder.iterdir()) if folder.is_dir() else []
+    stray = [n for n in names if n not in KEPT and not KEPT_PROFILE.fullmatch(n)]
     if stray:
         raise SettingsError(f"{folder} holds {', '.join(stray)}. Sync would keep it in the settings repository's "
                             "history for good, so move it out of that folder and run this again.")
-    override = folder / "config.override.toml"
-    env = _toml(override).get("env", {})
-    keys = [k for t in (env if isinstance(env, list) else [env]) if isinstance(t, dict) for k in t]
-    secrets = sorted(k for k in keys if SECRET.search(k))
-    if secrets:
-        raise SettingsError(f"{', '.join(secrets)} in {override} looks like a secret, and sync "
-                            "would keep it in the settings repository's history for good. Run `mise unset --override "
-                            f"{' '.join(secrets)}`, keep it in ~/.zsh.local instead, and run this again.")
     from . import registry
     machine = {s.key: s.id for s in registry.load() if s.kind == "env" and s.scope == "machine"}
-    # Left there by a version from before scope existed
-    left = sorted(k for k in keys if k in machine)
-    if left:
-        raise SettingsError(f"{', '.join(left)} in {override} describes this Mac, and sync would carry it to your next "
-                            "Mac. Run " + ", ".join(f"`rotm settings set {machine[k]} <value>`" for k in left)
-                            + ", which moves it to config.local.toml, and run this again.")
+    for name in ["config.override.toml", *(n for n in names if n.endswith(".override.toml") and n not in KEPT)]:
+        override, shared = folder / name, name in KEPT
+        # `mise unset --override` and `rotm settings set` on a single-Mac setting only reach the shared file
+        unset = "mise unset --override" if shared else f"mise unset --file {override}"
+        env = _toml(override).get("env", {})
+        keys = [k for t in (env if isinstance(env, list) else [env]) if isinstance(t, dict) for k in t]
+        secrets = sorted(k for k in keys if SECRET.search(k))
+        if secrets:
+            raise SettingsError(f"{', '.join(secrets)} in {override} looks like a secret, and sync "
+                                f"would keep it in the settings repository's history for good. Run `{unset} "
+                                f"{' '.join(secrets)}`, keep it in ~/.zsh.local instead, and run this again.")
+        # Left there by a version from before scope existed
+        left = sorted(k for k in keys if k in machine)
+        if left and shared:
+            raise SettingsError(f"{', '.join(left)} in {override} describes this Mac, and sync would carry it to your "
+                                "next Mac. Run " + ", ".join(f"`rotm settings set {machine[k]} <value>`" for k in left)
+                                + ", which moves it to config.local.toml, and run this again.")
+        if left:
+            raise SettingsError(f"{', '.join(left)} in {override} describes this Mac, and sync would carry it to your "
+                                f"next Mac. Run `{unset} {' '.join(left)}` and run this again.")
 
 
 def _stop_on_conflict() -> None:
@@ -251,6 +291,8 @@ def now() -> list[str]:
     _mise("dot", "sync")
     _mise("dot", "pull")
     _stop_on_conflict()
+    # A profile another Mac made arrives in the folder with no link in the config dir: mise would not load it
+    _helper("lib/rotm-user-layer", "ensure")
     return [*apply(), "Saved and synced: this Mac and your settings repository hold the same settings."]
 
 
@@ -277,28 +319,38 @@ def off() -> list[str]:
             "Run `rotm settings sync on` to connect again."]
 
 
-def _changes(override: Path, modules_off: Path) -> tuple:
-    """What apply cannot act on itself: (what rotm install acts on, what set-defaults writes)."""
-    o = _toml(override)
+def _merge(under, over):
+    if isinstance(under, dict) and isinstance(over, dict):
+        return {k: _merge(under.get(k), over[k]) if k in over else under[k] for k in under.keys() | over.keys()}
+    return under if over is None else over
+
+
+def _effective() -> dict:
+    """What apply cannot act on itself, from the files in effect: the active profile's override file laid over the
+    shared one, and the module list rotm-modules uses. off, packages and disable_tools are what rotm install acts
+    on, macos what set-defaults writes."""
+    from . import profile
+    name, cfg = profile.active(), mise.config_dir()
+    o = _merge(_toml(cfg / "config.override.toml"), _toml(profile.override_path(name)) if name else {})
     boot = o.get("bootstrap", {})
-    off = modules_off.read_text().split() if modules_off.exists() else []
-    return ((off, boot.get("packages"), o.get("settings", {}).get("disable_tools")),
-            boot.get("settings", {}).get("macos", {}).get("defaults"))
+    off = cfg / profile.modules_off_name(name) if name else None
+    if not (off and off.exists()):
+        off = cfg / "modules-off.local"
+    return {"off": off.read_text().split() if off.exists() else [], "packages": boot.get("packages"),
+            "disable_tools": o.get("settings", {}).get("disable_tools"),
+            "macos": boot.get("settings", {}).get("macos", {}).get("defaults")}
 
 
-def _snapshot() -> tuple[tuple[Path, ...], tuple[Path, ...]]:
-    """The two files apply compares, and its copies of them from the last apply."""
-    live = (mise.config_dir() / "config.override.toml", mise.config_dir() / "modules-off.local")
-    return live, tuple(applied_path().parent / f"{p.name}.applied" for p in live)
+def _effective_path() -> Path:
+    return applied_path().parent / "effective.applied.json"
 
 
-def _remember() -> None:
-    for src, copy in zip(*_snapshot()):
-        copy.parent.mkdir(parents=True, exist_ok=True)
-        if src.exists():
-            shutil.copyfile(src, copy)
-        else:
-            copy.unlink(missing_ok=True)
+def _remember(effective: dict | None = None) -> None:
+    effective, path = effective or _effective(), _effective_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(effective, sort_keys=True) + "\n")
+    for old in ("config.override.toml.applied", "modules-off.local.applied"):  # what apply kept before profiles
+        (path.parent / old).unlink(missing_ok=True)
 
 
 def apply() -> list[str]:
@@ -306,12 +358,16 @@ def apply() -> list[str]:
     from .adapters import ADAPTERS  # here, not at the top: the adapters import this module
     _helper("lib/rotm-modules", "sync")
     lines = replay(registry.load(), ADAPTERS)
-    live, copies = _snapshot()
-    (install, macos), (install_was, macos_was) = _changes(*live), _changes(*copies)
+    now_, was = _effective(), {"off": [], "packages": None, "disable_tools": None, "macos": None}
+    try:
+        was = json.loads(_effective_path().read_text())
+    except (OSError, ValueError):
+        pass
+    install = ("off", "packages", "disable_tools")
     # setup.sh sets it when it has just installed with these files, where the line would be false
-    if install != install_was and not os.environ.get("ROTM_JUST_INSTALLED"):
+    if any(now_[k] != was.get(k) for k in install) and not os.environ.get("ROTM_JUST_INSTALLED"):
         lines.append(INSTALL)
-    if macos != macos_was:
+    if now_["macos"] != was.get("macos"):
         lines.append(DEFAULTS)
-    _remember()
+    _remember(now_)
     return lines

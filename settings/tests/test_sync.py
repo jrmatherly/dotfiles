@@ -25,7 +25,7 @@ exit 0
     (stubs / path).chmod(0o755)
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from dotfiles_settings import sync
+from dotfiles_settings import profile, sync
 from dotfiles_settings.model import Setting, SettingsError, Source, Value
 
 
@@ -368,7 +368,7 @@ def test_now_saves_syncs_pulls_then_applies():
     fresh()
     lines = sync.now()
     assert calls() == ["mise dot origin", "mise dot conflicts", "mise dot save", "mise dot sync", "mise dot pull",
-                       "mise dot conflicts", "rotm-modules sync", "replay"], calls()
+                       "mise dot conflicts", "rotm-user-layer ensure", "rotm-modules sync", "replay"], calls()
     assert lines, lines
 
 
@@ -445,6 +445,88 @@ def test_status():
     answer("mise dot conflicts", CONFLICT)
     text = "\n".join(sync.status())
     assert URL in text and "unsaved changes" in text and CONFLICT.strip() in text and "Tracking" not in text, text
+
+
+def use(name):
+    """The saved env line, as profile.use leaves it."""
+    (conf / "miserc.local.toml").write_text(f'env = ["rotm-installed", "rotm-p-{name}"]\n' if name else "")
+
+
+def test_a_profile_records_and_replays_its_own_tool_settings():
+    fresh(); clean()
+    s, extra = setting("claude.model"), setting("jstack.role")
+    work = profile.tools_path("work")
+    sync.record(s, "opus")
+    use("work")
+    sync.record(s, "haiku")
+    sync.record(extra, "fable")
+    assert tools(sync.tools_path()) == {"claude.model": "opus"}, "a profile's record changed tools.toml"
+    assert tools(work) == {"claude.model": "haiku", "jstack.role": "fable"}
+    fake = Fake({"claude.model": "opus"})
+    sync.replay([s, extra], {"fake": fake})
+    assert fake.values == {"claude.model": "haiku", "jstack.role": "fable"}, fake.values
+    # leaving the profile: the shared value returns, and what only the profile set is reset
+    use(None)
+    lines = sync.replay([s, extra], {"fake": fake})
+    assert fake.values == {"claude.model": "opus"} and any("Reset jstack.role" in l for l in lines), (fake.values, lines)
+    # --shared writes tools.toml while the profile keeps its value
+    use("work")
+    profile.shared = True
+    try:
+        assert sync.masked(s) and not sync.masked(setting("other.id"))
+        sync.record(s, "sonnet")
+    finally:
+        profile.shared = False
+    assert tools(sync.tools_path()) == {"claude.model": "sonnet"} and tools(work)["claude.model"] == "haiku"
+    # forget takes the profile's value and keeps the id applied, since the shared file still sets it
+    sync.forget(s)
+    assert "claude.model" not in tools(work) and "claude.model" in tools(sync.applied_path())
+    assert sync.wanted_tools() == {"claude.model": "sonnet", "jstack.role": "fable"}
+    clean()
+
+
+def test_the_guards_cover_a_profiles_files():
+    folder = sync.user_dir()
+    fresh()
+    for name in ("config.rotm-p-work.override.toml", "modules-off.rotm-p-work.local", "tools.rotm-p-work.toml"):
+        (folder / name).write_text("")
+    sync.now()
+    assert "mise dot save" in calls()
+    fresh()
+    (folder / "tools.rotm-p-work.toml").write_text("")
+    (folder / "notes.txt").write_text("x")
+    assert "notes.txt" in raises(sync.now) and "tools.rotm-p-work.toml" not in raises(sync.now)
+    for body, key in (('[env]\nGITHUB_TOKEN = "x"\n', "GITHUB_TOKEN"),
+                      ('[env]\nDOTFILES_MACOS_COMPUTER_NAME = "Studio"\n', "DOTFILES_MACOS_COMPUTER_NAME")):
+        fresh()
+        bad = folder / "config.rotm-p-work.override.toml"
+        bad.write_text(body)
+        message = raises(sync.now)
+        assert f"{key} in {bad}" in message and f"mise unset --file {bad} {key}" in message, message
+        assert "unset --override" not in message and "mise dot save" not in calls(), message
+
+
+def test_apply_compares_the_files_in_effect():
+    fresh()
+    sync.apply()
+    (conf / "modules-off.rotm-p-work.local").write_text("fonts\n")
+    (conf / "config.rotm-p-work.override.toml").write_text(
+        '[bootstrap.settings.macos.defaults."com.apple.dock"]\nautohide = true\n')
+    assert not sync.apply(), "a profile that is not in use changed what apply reports"
+    use("work")
+    lines = sync.apply()
+    assert sync.INSTALL in lines and sync.DEFAULTS in lines and len(lines) == 2, lines
+    assert not sync.apply()
+    use(None)
+    lines = sync.apply()
+    assert sync.INSTALL in lines and sync.DEFAULTS in lines, lines
+    # the profile's table is laid over the shared one, key by key
+    (conf / "config.override.toml").write_text(
+        '[bootstrap.settings.macos.defaults."com.apple.dock"]\ntilesize = 64\nautohide = false\n')
+    use("work")
+    assert sync._effective()["macos"] == {"com.apple.dock": {"tilesize": 64, "autohide": True}}
+    assert not (tmp / "state/rotm/config.override.toml.applied").exists()
+    use(None)
 
 
 def test_no_call_tracks_and_every_connect_carries_yes():

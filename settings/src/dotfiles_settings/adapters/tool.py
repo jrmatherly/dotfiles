@@ -311,15 +311,22 @@ class ToolAdapter:
         name, (_, writer, _) = _tool(s)
         if writer is None:
             raise SettingsError(f"{s.id} is read-only")
-        writer(name, s, value)
+        if not sync.masked(s):  # under --shared the active profile's own value stays the tool's
+            writer(name, s, value)
         sync.record(s, value)
 
     def reset(self, s: Setting) -> None:
-        name, (_, writer, resetter) = _tool(s)
-        if resetter:
-            resetter(name, s)
-        elif writer:
-            writer(name, s, self.read(s).seed or "")
-        else:
+        name, (reader, writer, resetter) = _tool(s)
+        if not (writer or resetter):
             raise SettingsError(f"{s.id} is read-only")
         sync.forget(s)
+        # What is still in effect once this value is gone: the shared file's under a profile's, or the profile's
+        # under a --shared reset
+        want = sync.wanted_tools().get(s.id) if s.scope != "machine" else None
+        if want is not None and writer:
+            if reader(name, s).value != want:
+                writer(name, s, want)
+        elif resetter:
+            resetter(name, s)
+        else:
+            writer(name, s, self.read(s).seed or "")

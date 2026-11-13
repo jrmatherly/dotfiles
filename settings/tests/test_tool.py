@@ -13,10 +13,11 @@ rule, tracked = tmp / "claude/rules/jstack-models.md", tmp / "tracked.md"
 rule.parent.mkdir(); rule.symlink_to(tracked)
 os.environ.update(DOTFILES=str(repo), HINDSIGHT_CONFIG=str(cfg), CLAUDE_CONFIG_DIR=str(live.parent),
                   CLAUDE_CONFIG_SAVE_DIR=str(tracked_settings.parent), ROTM_USER_DIR=str(tmp / "rotm"),
-                  XDG_STATE_HOME=str(tmp / "state"))
+                  XDG_STATE_HOME=str(tmp / "state"), MISE_CONFIG_DIR=str(tmp / "mise"))
+(tmp / "mise").mkdir()  # no saved profile, whatever this Mac's own mise config says
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from dotfiles_settings import cli, registry, sync
+from dotfiles_settings import cli, profile, registry, sync
 from dotfiles_settings.adapters import ADAPTERS, tool
 from dotfiles_settings.model import InvalidValue, Setting, SettingsError, Source, Value
 
@@ -199,6 +200,33 @@ def test_claude_model_write_changes_only_the_live_model():
     assert stat.S_IMODE(live.stat().st_mode) == 0o600
     A.reset(by_id("claude.model"))
     assert json.loads(live.read_text())["model"] == "opus"
+
+
+def test_claude_model_under_a_profile():
+    s, model = by_id("claude.model"), lambda: json.loads(live.read_text())["model"]
+    live.write_text(LIVE); tracked_settings.write_text('{"model": "opus"}')
+    A.write(s, "sonnet")
+    profile.miserc().write_text('env = ["rotm-p-work"]\n')
+    try:
+        A.write(s, "haiku")
+        assert model() == "haiku" and sync._load(sync.tools_path())[s.id] == "sonnet"
+        assert sync._load(profile.tools_path("work"))[s.id] == "haiku"
+        # --shared: tools.toml takes the new value and the tool keeps the profile's
+        profile.shared = True
+        A.write(s, "fable")
+        profile.shared = False
+        assert model() == "haiku" and sync._load(sync.tools_path())[s.id] == "fable"
+        # a reset in the profile leaves the tool at the shared value, not at its seed
+        A.reset(s)
+        assert model() == "fable" and s.id not in sync._load(profile.tools_path("work"))
+        assert sync._load(sync.applied_path())[s.id] == "fable"
+        # and a second reset, of the shared value, returns it to the seed
+        A.reset(s)
+        assert model() == "opus" and s.id not in sync._load(sync.tools_path())
+        assert s.id not in sync._load(sync.applied_path())
+    finally:
+        profile.shared = False
+        profile.miserc().unlink()
 
 
 def test_claude_model_reset_without_a_tracked_value_removes_the_key():
