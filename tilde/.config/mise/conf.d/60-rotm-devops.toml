@@ -31,6 +31,7 @@
 # version goes through mise's rust backend, which reuses this rustup.
 "brew:rustup" = "latest" # Rust toolchain installer; Hindsight's daemon start needs cargo on macOS
 "brew:cargo-audit" = "latest" # Audits Cargo.lock for advisories; a bottled binary, so it needs no toolchain to install
+"brew:shellcheck" = "latest" # Shell script linter; `pnpm check` and the commit hook stop without it
 # The core formula: Supabase's docs install from supabase/tap, which would
 # need a sixth tap. Telemetry is off via DO_NOT_TRACK in zsh/env.zsh, and
 # persistently via `supabase telemetry disable` in setup/misc.sh.

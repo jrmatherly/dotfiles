@@ -98,7 +98,7 @@ assert "brew:mise" not in every_package, "mise is installed by its own installer
 
 # The union is what the two files held before the split: nothing lost, nothing added
 count = lambda m: sum(k.startswith(m + ":") for k in every_package)
-assert (count("brew"), count("brew-cask"), count("vscode")) == (143, 33, 184), "counts changed: update this line with the entry you added or removed"
+assert (count("brew"), count("brew-cask"), count("vscode")) == (144, 33, 184), "counts changed: update this line with the entry you added or removed"
 assert len(all_tools) == 27, f"{len(all_tools)} tools: update this line with the tool you added or removed"
 
 # The base keeps what setup, sysup and the shell run without a guard, and what mise itself needs (ruby reads the tap cask)

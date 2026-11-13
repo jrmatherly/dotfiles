@@ -184,7 +184,7 @@ if ! tracked mise bootstrap packages status --json > "$tmp/all.json" 2> "$tmp/al
   fail "mise: status of the tracked fragments"
 fi
 all=$(jq '[.brew.packages[], ."brew-cask".packages[]] | length' "$tmp/all.json")
-[ "$all" = 170 ] || fail "every module on declares $all formulae and casks outside the taps, not 170"
+[ "$all" = 171 ] || fail "every module on declares $all formulae and casks outside the taps, not 171"
 tracked "$m" set security off > /dev/null
 tracked mise bootstrap packages status --json > "$tmp/s.json" 2> /dev/null || fail "mise: status with security off"
 for p in nmap hydra ghidra; do

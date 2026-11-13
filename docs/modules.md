@@ -57,4 +57,4 @@ An absent package that is already installed is left in place, and neither setup 
 
 ## Working on the repo
 
-`pnpm check` and the commit hook run `pnpm` (`languages`) and `shellcheck`, which no module installs. They skip the `actionlint` (`devops`) and `rtk` (`agents`) checks when those are missing.
+`pnpm check` and the commit hook run `pnpm` (`languages`) and `shellcheck` (`devops`), and stop without them. They skip the `actionlint` (`devops`) and `rtk` (`agents`) checks when those are missing.
