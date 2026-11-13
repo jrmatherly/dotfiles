@@ -60,6 +60,7 @@ The one row in the Dotfiles section, `dotfiles.links`, is the `dotfile` kind and
 | `set <id> <value>` | Nothing on stdout, the note on stderr | 0, 2 for an unknown id or an invalid value, 3 for a read-only setting |
 | `reset <id>` | Nothing on stdout, the note on stderr | 0, 2 for an unknown id, 3 for a read-only setting |
 | `apply <kind>` | The adapter's lines, or `<kind>: nothing to apply` | 0, 2 for an unknown kind |
+| `sync on [--repo NAME]`, `sync off`, `sync now`, `sync status`, `sync apply` | What happened and what to run next, described in [Sync](#sync) | 0, 1 when a step stops it, 2 for an unknown action |
 | `tui` | Runs the terminal UI | 0 |
 | `serve [--no-open]` | Prints the URL and serves the UI until you stop it | 0 |
 
@@ -96,6 +97,22 @@ $ dotfiles-settings get updates.slow_step_seconds --json
   "access": "rw"
 }
 ```
+
+## Sync
+
+`sync` keeps your folder, `~/.config/rotm`, in a private GitHub repository in your own account, so your next Mac loads your settings and opt-outs instead of asking for them again. The folder holds `config.override.toml` (the env settings, macOS preferences and single-package and single-tool opt-outs), `modules-off.local` (the module switches) and `tools.toml` (the agent-tool settings mise cannot hold). mise's history (`mise dot`) saves and shares it. Sync is manual: nothing runs until you run one of these.
+
+| Action | What it does | What it never does |
+| --- | --- | --- |
+| `on [--repo NAME]` | Checks `gh auth status` and, on a terminal, runs `gh auth login --hostname github.com --git-protocol https --web`. Then it looks up `<login>/<NAME>` (default `rotm-settings`). A settings repository is restored with `rotm-user-layer restore` and applied. A missing one is created with `gh repo create NAME --private`; a missing or empty one gets your folder: the folder and its links, the two checks below, the track entry in `config.local.toml`, `mise dot save`, `mise dot origin set <url> --sync manual --yes` and `mise dot sync` | Push to a repository that holds anything but settings (it stops and names `--repo`), write any Git credential configuration, run `gh auth setup-git` or `mise dot track` |
+| `now` | `mise dot save`, `mise dot sync`, `mise dot pull`, then `apply` | Run when sync is not connected (it names `sync on`) |
+| `status` | The repository and mode, the unsaved and pending lines of `mise dot status`, and any conflict, or "not connected". Exit 0 either way | Change anything |
+| `apply` | `rotm-modules sync`, then the recorded tool settings (`tools.toml`). It ends with a line when the module switches, `[bootstrap.packages]` or `disable_tools` changed since the last apply ("Run `rotm install`") and one when `[bootstrap.macos.defaults]` changed ("Run `set-defaults`") | Use the network, install or remove a package, or write a macOS preference |
+| `off` | `mise dot origin --remove` | Delete the folder, its links, the local history or the repository |
+
+`on` and `now` stop before the first save, with exit 1, when the folder holds any file but those three, or when a key of `[env]` in its override file ends in `TOKEN`, `SECRET`, `PASSPHRASE`, `API_KEY` or `CLIENT_KEY` (`bin/claude-config`'s rule). The repository keeps every saved file in its history for good, so the message names the file or key: move the file out, or run `mise unset --override <key>` and keep the secret in `~/.zsh.local`.
+
+When this Mac and the repository changed the same file, mise pauses sync and overwrites neither. `on` and `now` exit 1 with `mise dot conflicts`'s listing and apply nothing. Decide each file with `mise dot pull --take-remote <file>` (the saved copy) or `mise dot pull --keep-local <file>` (this Mac's), then run `sync now`.
 
 ## Values that are refused
 

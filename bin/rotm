@@ -14,6 +14,10 @@
 #
 # `rotm settings {{list}}`
 #
+# - Save your settings to a private GitHub repository, or load them onto a new Mac:
+#
+# `rotm settings sync {{on}}`
+#
 # - Print this help:
 #
 # `rotm help`

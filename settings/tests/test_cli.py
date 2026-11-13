@@ -138,4 +138,9 @@ for fake_mise, needle in ((fake("2026.11.4"), "found 2026.11.4"), (str(tmp / "ab
     for argv in (("list",), ("get", "t.flag"), ("set", "t.flag", "on"), ("tui",), ("serve", "--no-open")):
         code, out, err = run(*argv)
         assert (code, out) == (1, "") and needle in err and err.count("\n") == 1, (argv, err)
+
+assert run("sync")[0] == 2
+os.environ["DOTFILES_SETTINGS_MISE"] = fake("2026.11.5 no setup repository is connected")
+code, out, _ = run("sync", "status")
+assert code == 0 and "not connected" in out, (code, out)
 print("ok")

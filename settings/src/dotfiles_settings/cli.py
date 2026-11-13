@@ -1,8 +1,8 @@
-"""The dotfiles-settings command: list, get, set, reset, apply, tui and serve. Exit codes 0 ok, 1 failure,
+"""The dotfiles-settings command: list, get, set, reset, apply, sync, tui and serve. Exit codes 0 ok, 1 failure,
 2 unknown id or invalid value, 3 read-only."""
 import argparse, importlib, json, os, re, sys
 
-from . import mise, registry
+from . import mise, registry, sync
 from .adapters import ADAPTERS
 from .model import InvalidValue, Setting, SettingsError, Value, note_for
 
@@ -59,6 +59,9 @@ def parser() -> argparse.ArgumentParser:
     c.add_argument("id")
     c = sub.add_parser("apply", help="apply the settings of one kind")
     c.add_argument("kind")
+    c = sub.add_parser("sync", help="keep your settings in a private GitHub repository and load them on another Mac")
+    c.add_argument("action", choices=("on", "off", "now", "status", "apply"))
+    c.add_argument("--repo", default="rotm-settings", help="the repository's name in your account (sync on)")
     sub.add_parser("tui", help="open the terminal UI")
     c = sub.add_parser("serve", help="open the UI in a browser tab")
     c.add_argument("--no-open", action="store_true")
@@ -86,6 +89,10 @@ def run(args: argparse.Namespace) -> None:
         return
     if args.command == "serve":
         ui("serve").run(not args.no_open)
+        return
+    if args.command == "sync":
+        lines = sync.on(args.repo) if args.action == "on" else getattr(sync, args.action)()
+        print("\n".join(lines) if lines else "Nothing to apply: your saved settings are already in effect here.")
         return
     settings = registry.load()
     if args.command == "list":
