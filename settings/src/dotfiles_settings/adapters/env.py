@@ -1,9 +1,10 @@
 """Env settings: read from mise's config.override.toml, written through `mise set --override`.
-A machine-scoped setting goes to config.local.toml instead, which mise never syncs."""
+With a profile active they are read from its override file first and written to it (`mise set --file`).
+A machine-scoped setting goes to config.local.toml instead, which mise never syncs and no profile changes."""
 import os, subprocess, tomllib
 from pathlib import Path
 
-from .. import mise, registry
+from .. import mise, profile, registry
 from ..model import InvalidValue, Setting, SettingsError, Source, Value
 
 # mise parses {{ {% {# as Tera and expands $VAR, so the stored value would not be the typed one
@@ -21,6 +22,12 @@ def local_path() -> Path:
 
 def read_override() -> dict[str, str]:
     return read_env(override_path())
+
+
+def read_profile() -> dict[str, str]:
+    """The active profile's values, which mise ranks above the shared override file's."""
+    name = profile.active()
+    return read_env(profile.override_path(name)) if name else {}
 
 
 def read_env(path: Path) -> dict[str, str]:
@@ -68,14 +75,20 @@ def file_seed(key: str) -> str | None:
 
 
 class EnvAdapter:
-    write_note = "Open a new shell to pick this up."
-
     def __init__(self):
         self._seed: dict[str, str] | None = None
 
+    def write_note(self, s: Setting) -> str:
+        note = "Open a new shell to pick this up."
+        if profile.shared and s.scope != "machine" and s.key in read_profile():
+            note += (f" The profile {profile.active()} keeps its own value, which stays in effect there: "
+                     f"`rotm settings reset {s.id}` removes it.")
+        return note
+
     def read(self, s: Setting) -> Value:
         # The override file outranks config.local.toml in mise, so a value left there from before scope existed wins
-        override = {**read_env(local_path()), **read_override()} if s.scope == "machine" else read_override()
+        override = ({**read_env(local_path()), **read_override()} if s.scope == "machine"
+                    else {**read_override(), **read_profile()})
         if self._seed is None:  # one shell start serves every row
             self._seed = seed_env({e.key for e in registry.load() if e.kind == "env"})
         found = self._seed.get(s.key)
@@ -98,6 +111,11 @@ class EnvAdapter:
             mise.run_mise(["set", "--file", str(local_path()), f"{s.key}={value}"])
             self.reset_override(s)
             stored = read_env(local_path())
+        elif name := profile.target():
+            # --file, not --override --env: mise's unset has no per-environment form, so both name the file
+            path = profile.settings_file(name)
+            mise.run_mise(["set", "--file", str(path), f"{s.key}={value}"])
+            stored = read_env(path)
         else:
             mise.run_mise(["set", "--override", f"{s.key}={value}"])
             stored = read_override()
@@ -107,6 +125,10 @@ class EnvAdapter:
     def reset(self, s: Setting) -> None:
         if s.scope == "machine" and s.key in read_env(local_path()):
             mise.run_mise(["unset", "--file", str(local_path()), s.key])
+        name = profile.target()
+        if s.scope != "machine" and name and s.key in read_env(profile.override_path(name)):
+            mise.run_mise(["unset", "--file", str(profile.override_path(name)), s.key])
+            return
         self.reset_override(s)
 
     def reset_override(self, s: Setting) -> None:
@@ -114,4 +136,6 @@ class EnvAdapter:
             mise.run_mise(["unset", "--override", s.key])
 
     def watch_paths(self) -> list[Path]:
-        return [override_path(), local_path(), vscode_env_path()]
+        name = profile.active()
+        return [override_path(), local_path(), vscode_env_path(), profile.miserc(),
+                *([profile.override_path(name)] if name else [])]

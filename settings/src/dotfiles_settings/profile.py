@@ -47,6 +47,16 @@ def override_path(name: str) -> Path:
     return mise.config_dir() / f"config.{PREFIX}{name}.override.toml"
 
 
+def settings_file(name: str) -> Path:
+    """A profile's override file for a write. mise would create a missing one in the config dir, which on an
+    installed copy is the checkout, so a profile whose file is not on this Mac is refused."""
+    path = override_path(name)
+    if not (path.exists() or path.is_symlink()):
+        raise SettingsError(f"the profile {name} has no settings file on this Mac. Run `rotm settings sync now` to "
+                            f"fetch it, or `rotm settings profile use {DEFAULT}` to leave it")
+    return path
+
+
 def modules_off_name(name: str) -> str:
     return f"modules-off.{PREFIX}{name}.local"
 

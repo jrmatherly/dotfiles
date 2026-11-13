@@ -1,10 +1,10 @@
 """macOS preferences declared in mise's conf.d/20-macos.toml: read from `mise bootstrap macos defaults status`,
-written by a one-line edit of the tracked fragment (on an installed copy, of the user's override file)
-plus one `defaults write`."""
+written by a one-line edit of the tracked fragment (on an installed copy, of the user's override file; with a
+profile active, of that profile's override file) plus one `defaults write`."""
 import copy, json, re, subprocess, sys, tomllib
 from pathlib import Path
 
-from .. import mise
+from .. import mise, profile
 from ..model import InvalidValue, Setting, SettingsError, Source, Value
 from .env import override_path
 from .tool import edit_file
@@ -193,17 +193,31 @@ def read_text(path: Path | None = None) -> str:
         raise SettingsError(f"{path}: {e}") from None
 
 
-def target(domain: str, key: str) -> Path:
-    """The file a change is written to: the override file on an installed copy or when it already declares the key
-    (a clone that received it by sync), the tracked fragment otherwise."""
+def shared_target(domain: str, key: str) -> Path:
+    """The file a change is written to with no profile: the override file on an installed copy or when it already
+    declares the key (a clone that received it by sync), the tracked fragment otherwise."""
     if mise.installed(fragment_path()) or declared(read_text(override_path()), domain, key) is not MISSING:
         return override_path()
     return fragment_path()
 
 
+def target(domain: str, key: str) -> Path:
+    """The file a change is written to: the profile's override file when one is the target of writes."""
+    name = profile.target()
+    return profile.settings_file(name) if name else shared_target(domain, key)
+
+
+def masked(domain: str, key: str) -> str | None:
+    """The active profile, when a --shared write is hidden by that profile's own value for the key."""
+    name = profile.active()
+    if profile.shared and name and declared(read_text(profile.override_path(name)), domain, key) is not MISSING:
+        return name
+    return None
+
+
 def put(path: Path, text: str) -> None:
-    """Write text to the fragment as it is, or to the override file through its link, atomically and only on a change."""
-    if path != override_path():
+    """Write text to the fragment as it is, or to an override file through its link, atomically and only on a change."""
+    if path == fragment_path():
         path.write_text(text)
         return
     real = path.resolve()
@@ -227,6 +241,11 @@ def status_entries() -> list[dict]:
 
 class MacosDefaultAdapter:
     def write_note(self, s: Setting) -> str:
+        if name := masked(*split_key(s.key)):
+            return (f"Saved in {override_path()}, the shared settings. The profile {name} keeps its own value, which "
+                    f"stays in effect there: `rotm settings reset {s.id}` removes it.")
+        if name := profile.target():
+            return f"Saved in {profile.override_path(name)}, the profile {name}'s settings, and wrote that one preference."
         if target(*split_key(s.key)) == fragment_path():
             return ("Edited tilde/.config/mise/conf.d/20-macos.toml, a tracked file, and wrote that one preference. "
                     "Commit the file to keep the change.")
@@ -239,7 +258,9 @@ class MacosDefaultAdapter:
         if entry is None:
             return Value(s.id, s.default or None, Source.DEFAULT if s.default else Source.UNSET, None, False)
         value, drift = render(s, entry["value"]), entry.get("state") != "set"
-        if declared(read_text(override_path()), domain, key) is not MISSING:
+        name = profile.active()
+        if any(declared(read_text(p), domain, key) is not MISSING
+               for p in ([profile.override_path(name)] if name else []) + [override_path()]):
             seed = declared(read_text(), domain, key)
             return Value(s.id, value, Source.OVERRIDE, None if seed is MISSING else render(s, seed), drift)
         head = head_text()
@@ -258,6 +279,8 @@ class MacosDefaultAdapter:
         path = target(domain, key)
         text = read_text(path)
         put(path, set_key(text, domain, key, literal))
+        if masked(domain, key):  # the profile's value stays in effect, so there is nothing to read back or write
+            return
         try:
             taken = self.read(s).value == render(s, parse_literal(literal))
         except SettingsError:
@@ -275,9 +298,18 @@ class MacosDefaultAdapter:
 
     def reset(self, s: Setting) -> None:
         domain, key = split_key(s.key)
-        if target(domain, key) != fragment_path():
-            put(override_path(), remove_key(read_text(override_path()), domain, key))
-            old = declared(read_text(), domain, key)
+        # The file that holds the value: the profile's when it declares the key, else as with no profile
+        name = profile.target()
+        mine = profile.override_path(name) if name else None
+        path = mine if mine and declared(read_text(mine), domain, key) is not MISSING else shared_target(domain, key)
+        if path != fragment_path():
+            put(path, remove_key(read_text(path), domain, key))
+            if masked(domain, key):
+                return
+            # The value the next layer down holds: the shared override file's under a profile's, else the fragment's
+            old = declared(read_text(override_path()), domain, key) if path == mine else MISSING
+            if old is MISSING:
+                old = declared(read_text(), domain, key)
             if old is MISSING:
                 print(f'mise never deletes a preference. Run: defaults delete {domain} "{key}"', file=sys.stderr)
                 return

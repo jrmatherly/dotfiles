@@ -12,7 +12,7 @@ os.environ.update(HOME=str(home), MISE_CONFIG_DIR=str(conf))
 os.environ.pop("DOTFILES_SETTINGS_MISE", None)
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from dotfiles_settings import cli, mise, registry
+from dotfiles_settings import cli, mise, profile, registry
 from dotfiles_settings.adapters import ADAPTERS, macos_default
 from dotfiles_settings.adapters.macos_default import (MacosDefaultAdapter, fragment_path, remove_key, set_key, split_key,
                                                       to_literal)
@@ -300,4 +300,52 @@ try:
     raise AssertionError("no error")
 except SettingsError as e:
     assert str(user) in str(e) and "\n" not in str(e), str(e)
+
+# A profile on an installed copy: write, read and reset use its override file, linked like the shared one
+DOCK = '[bootstrap.settings.macos.defaults."com.apple.dock"]\ntilesize = {}\n'
+user.mkdir()
+override.write_text("")
+work = profile.override_path("work")
+(user / work.name).touch()
+work.symlink_to(user / work.name)
+profile.miserc().write_text('env = ["rotm-installed", "rotm-p-work"]\n')
+status([{**entry, "value": 44, "current": "44"}])
+adapter.write(dock, "44")
+assert tomllib.loads(work.read_text()) == tomllib.loads(DOCK.format(44)) and work.is_symlink(), work.read_text()
+assert override.read_text() == "" and fragment_path().read_text() == FRAGMENT
+assert written == [("com.apple.dock", "tilesize", "-int", "44")]
+assert adapter.read(dock).source is Source.OVERRIDE and "the profile work's settings" in adapter.write_note(dock)
+# reset removes it from the profile only and writes the shared file's value, not the fragment's
+override.write_text(DOCK.format(64))
+status([entry])
+adapter.reset(dock)
+assert "tilesize" not in work.read_text() and override.read_text() == DOCK.format(64)
+assert written == [("com.apple.dock", "tilesize", "-int", "64")], written
+# --shared on a key the profile sets: the shared file changes and nothing is written to the Mac
+work.write_text(DOCK.format(44))
+profile.shared = True
+status([{**entry, "value": 44, "current": "44"}])
+adapter.write(dock, "50")
+assert override.read_text() == DOCK.format(50) and work.read_text() == DOCK.format(44) and written == []
+note = adapter.write_note(dock)
+assert "The profile work keeps its own value" in note and f"rotm settings reset {dock.id}" in note, note
+profile.shared = False
+# a clone with a profile active writes the profile's file too, not the tracked fragment
+os.environ["MISE_DATA_DIR"] = str(tmp / "nodata")
+work.write_text("")
+override.write_text("")
+status([{**entry, "value": 44, "current": "44"}])
+adapter.write(dock, "44")
+assert fragment_path().read_text() == FRAGMENT and "tilesize = 44" in work.read_text()
+# a saved profile with no file refuses, and the folder behind the link gone is the same one-line error
+profile.miserc().write_text('env = ["rotm-p-gone"]\n')
+raises(SettingsError, lambda: adapter.write(dock, "44"), contains="the profile gone has no settings file")
+profile.miserc().write_text('env = ["rotm-p-work"]\n')
+shutil.rmtree(user)
+try:
+    adapter.write(dock, "44")
+    raise AssertionError("no error")
+except SettingsError as e:
+    assert str(user) in str(e) and "\n" not in str(e), str(e)
+profile.miserc().unlink()
 print("ok")

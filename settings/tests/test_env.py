@@ -13,9 +13,9 @@ os.environ.pop("DOTFILES_SETTINGS_MISE", None)
 os.chdir(cwd)
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from dotfiles_settings import mise
+from dotfiles_settings import mise, profile
 from dotfiles_settings.adapters import ADAPTERS, env
-from dotfiles_settings.model import InvalidValue, Setting, SettingsError, Source, Value
+from dotfiles_settings.model import InvalidValue, Setting, SettingsError, Source, Value, note_for
 
 seed_env_real = env.seed_env
 assert isinstance(ADAPTERS["env"], env.EnvAdapter)
@@ -89,7 +89,7 @@ if shutil.which("mise"):
     env.vscode_env_path().write_text("VSCODE_FONT_PRESET='quoted'\n")
     assert env.file_seed("VSCODE_FONT_PRESET") == "quoted"
     assert env.file_seed("T_VAL") is None
-    assert a.watch_paths() == [env.override_path(), env.local_path(), env.vscode_env_path()]
+    assert a.watch_paths() == [env.override_path(), env.local_path(), env.vscode_env_path(), profile.miserc()]
 
     # a machine setting lives in config.local.toml, which never syncs
     M = S("DOTFILES_MACOS_COMPUTER_NAME", scope="machine")
@@ -135,6 +135,55 @@ if shutil.which("mise"):
     assert env.read_override() == {} and not env.override_path().exists()
     a.reset(S("T_VAL"))
     assert not env.override_path().exists()
+
+    # a profile: its override file is a link into the user's folder, as rotm-user-layer ensure leaves it
+    K, rc, work = S("T_PROF"), profile.miserc(), profile.override_path("work")
+    (tmp / "rotm").mkdir()
+    (tmp / "rotm" / work.name).touch()
+    work.symlink_to(tmp / "rotm" / work.name)
+    rc.write_text('env = ["rotm-p-work"]\n')
+    real, calls = mise.run_mise, []
+    mise.run_mise = lambda args, stdin=None: calls.append(args) or real(args, stdin)
+    assert a.watch_paths()[-2:] == [rc, work]
+    # a key the profile does not set comes from the shared file
+    real(["set", "--override", "T_PROF=shared"])
+    assert a.read(K).value == "shared"
+    # a write goes to the profile's file, through its link, and is what mise then exports
+    a.write(K, "x")
+    assert calls == [["set", "--file", str(work), "T_PROF=x"]], calls
+    assert a.read(K) == Value(K.id, "x", Source.OVERRIDE, None, False) and env.read_override() == {"T_PROF": "shared"}
+    assert work.is_symlink() and json.loads(real(["env", "--json"]))["T_PROF"] == "x"
+    assert note_for(a, K) == "Open a new shell to pick this up."
+    # --shared writes the shared file, and the note says the profile still wins
+    profile.shared = True
+    calls.clear()
+    a.write(K, "y")
+    assert calls == [["set", "--override", "T_PROF=y"]], calls
+    assert env.read_override() == {"T_PROF": "y"} and env.read_env(work) == {"T_PROF": "x"} and a.read(K).value == "x"
+    assert "The profile work keeps its own value" in note_for(a, K) and "rotm settings reset t_prof" in note_for(a, K)
+    profile.shared = False
+    # reset removes the profile's value first, then the shared one
+    calls.clear()
+    a.reset(K)
+    assert calls == [["unset", "--file", str(work), "T_PROF"]] and env.read_override() == {"T_PROF": "y"}, calls
+    assert a.read(K).value == "y" and work.is_symlink()
+    calls.clear()
+    a.reset(K)
+    assert calls == [["unset", "--override", "T_PROF"]] and a.read(K).source is Source.UNSET, calls
+    # a machine setting ignores the profile
+    calls.clear()
+    a.write(M, "Studio")
+    assert calls == [["set", "--file", local, "DOTFILES_MACOS_COMPUTER_NAME=Studio"]] and env.read_env(work) == {}, calls
+    a.reset(M)
+    # a saved profile whose file is not on this Mac: reads fall back, a write refuses
+    rc.write_text('env = ["rotm-p-gone"]\n')
+    real(["set", "--override", "T_PROF=shared"])
+    assert a.read(K).value == "shared"
+    raises(lambda: a.write(K, "z"), SettingsError, "the profile gone has no settings file on this Mac")
+    assert not profile.override_path("gone").exists() and env.read_override() == {"T_PROF": "shared"}
+    mise.run_mise = real
+    rc.unlink()
+    a.reset(K)
 else:
     print("skipped: mise not found")
 
