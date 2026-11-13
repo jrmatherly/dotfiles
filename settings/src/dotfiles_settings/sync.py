@@ -186,6 +186,12 @@ def on(repo: str) -> list[str]:
     # A failed lookup is taken as no repository: gh repo create then fails with gh's reason if one exists
     lookup = _gh("repo", "view", name, "--json", "isEmpty", "--jq", ".isEmpty")
     empty = lookup.stdout.strip() == "true"
+    if lookup.returncode == 0:
+        # One we did not create may be public, and connecting it would publish the folder's whole history
+        if _gh("repo", "view", name, "--json", "visibility", "--jq", ".visibility").stdout.strip() != "PRIVATE":
+            raise SettingsError(f"{name} is not a private repository, and your settings would be public in it. "
+                                f"Run `gh repo edit {name} --visibility private "
+                                "--accept-visibility-change-consequences`, or pass `--repo <another name>`.")
     if lookup.returncode == 0 and not empty:
         if _gh("api", f"repos/{name}/contents/.mise-history/format.toml").returncode != 0:
             raise SettingsError(f"{name} is not a settings repository. Pass `--repo <another name>`.")

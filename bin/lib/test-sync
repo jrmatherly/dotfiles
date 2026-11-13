@@ -86,6 +86,7 @@ case "\$*" in
     [ -d "\$bare" ] || { echo "GraphQL: Could not resolve to a Repository" >&2; exit 1; }
     if [ -z "\$(git -C "\$bare" for-each-ref)" ]; then echo true; else echo false; fi
     ;;
+  "repo view octo/rotm-settings --json visibility --jq .visibility") echo PRIVATE ;;
   "repo create rotm-settings --private") git init -q --bare "\$bare" ;;
   "api repos/octo/rotm-settings/contents/.mise-history/format.toml") has .mise-history/format.toml ;;
   *) echo "stub gh: unexpected: \$*" >&2; exit 1 ;;

@@ -205,6 +205,7 @@ def fresh(repo="rotm-settings"):
         d.mkdir(parents=True)
     answer("gh api user --jq .login", "octo\n")
     answer(f"gh repo view octo/{repo} --json isEmpty --jq .isEmpty", err="GraphQL: Could not resolve", code=1)
+    answer(f"gh repo view octo/{repo} --json visibility --jq .visibility", "PRIVATE\n")
     answer("mise dot origin", CONNECTED)
     answer("mise dot conflicts", err="mise no sharing conflicts\n")
 
@@ -269,6 +270,15 @@ def test_on_restores_a_settings_repository():
     # rotm-user-layer restore checks for a conflict itself, before anything is applied
     assert got[got.index(touching[0]) + 1:] == ["rotm-modules sync", "replay"], got
     assert "gh repo create rotm-settings --private" not in got
+
+
+def test_on_refuses_a_repository_that_is_not_private():
+    for empty in ("true\n", "false\n"):
+        fresh()
+        answer("gh repo view octo/rotm-settings --json isEmpty --jq .isEmpty", empty)
+        answer("gh repo view octo/rotm-settings --json visibility --jq .visibility", "PUBLIC\n")
+        assert "not a private repository" in raises(sync.on, "rotm-settings")
+        assert not [c for c in calls() if c.startswith(("mise", "rotm-user-layer"))], calls()
 
 
 def test_on_refuses_a_repository_that_holds_something_else():
