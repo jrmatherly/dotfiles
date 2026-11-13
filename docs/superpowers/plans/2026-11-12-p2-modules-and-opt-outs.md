@@ -792,7 +792,7 @@ One function per row, each writing `row-<n>.txt` to the shared folder.
 
 **As built, 2026-11-12:** one `case` branch per row, as `p1-evidence.sh` has, not one function. Rows 1, 3, 4 and 5 are one guest in that order; rows 2 and 6 each need a fresh one with mise installed. Row 2 proves LFS with a scratch repository cloned locally (`filter.lfs.required` is what fails without `git-lfs`), and clones a public one only when `P2_LFS_REPO` names it: no URL was guessed. Row 5 appends the `[bootstrap.packages]` table to `config.local.toml`, and asks for a hand edit when the file already has one. On the host the script was linted, seen to refuse to run, and its read-only status commands were run. No row has run.
 
-- [ ] **Step 2: The owner runs the rows in a disposable guest**
+- [x] **Step 2: The owner runs the rows in a disposable guest**
 
 | # | Do | Pass when |
 | --- | --- | --- |
@@ -803,11 +803,32 @@ One function per row, each writing `row-<n>.txt` to the shared folder.
 | 5 | With `apps` on and Warp installed, add `"brew-cask:warp" = { state = "absent" }` to `~/.config/mise/config.local.toml`, then `rotm update -y`, then `sysup` | Warp is still in `/Applications`. Neither run lists it as a problem or a notice. Record the exit status and text of `mise bootstrap packages apply --yes --manager brew-cask` |
 | 6 | A fresh guest. The plain install line | The same package and tool counts as P1's row 3 and row 5: nothing missing for `brew`, `brew-cask`, `vscode`, and `mise ls --missing` is empty. `miserc.local.toml` holds no `ignored_config_paths` line |
 
-- [ ] **Step 3: Record and fix**
+- [x] **Step 3: Record and fix**
 
 Add `#### Results` here: the date, the guest build, the mise version, the commit proven, one line per row. A failure is fixed on `main` and its row rerun from a fresh guest. A package that row 2 shows the base needs moves into the base, with its line in the Task 4 assertion. If row 4 shows `mise prune` leaves an off module's tools alone, which is what happens if it does not honour `miserc.local.toml`, correct the Global Constraint, the adapter's note and `docs/modules.md`.
 
-- [ ] **Step 4: Commit**
+#### Results
+
+Run on 2026-11-12 in the disposable UTM guest `macOS` (account `j`), macOS 27.2.1 (26B131), mise 2026.11.6, with the install line following `main`. Rows 1, 3, 4 and 5 shared one guest; rows 2 and 6 and the second run of row 1 each had a fresh one. The raw output is in `~/vm-proof/p2/p2-20261112/row-<n>.txt` on the host, where a rerun is appended to its row's file.
+
+| # | Result |
+| --- | --- |
+| 1 | Failed on `ed1e141`, then passed from a fresh guest on `35dce30`. The first run exited 1 at the extensions: the `visual-studio-code` cask is in the base and every `vscode:` key is in the module, so with `vscode` off and `code` installed mise answered `--manager vscode` with "no packages requested", which `setup.sh` treats as fatal. Fixed in `f6d170e`. The second run printed "The vscode module is off: extensions are skipped" and "All done", exit 0. No `nmap`, `awscli` or `helm` is declared, the managers are `brew` and `brew-cask`, `modules-off.local` holds the four names, `miserc.local.toml` holds `env = ["installed"]` and four `ignored_config_paths` entries, `mise doctor` lists the four files, and `MISE_ENV=dev mise ls bun` lists `bun`. |
+| 2 | Pass on the second fresh guest, on `d696b77` (the hash was not recorded; the run shows that commit's login step and came before the next push). The first run exited 2 with two problems, both GitHub's anonymous rate limit on the `jrmatherly/homebrew-tap` lookups, because it started in the hour the first guest had used up. The second ended "All done", exit 0, with no rate-limit line. A new shell printed `prompt-ok`, a commit in a scratch repository worked, a local LFS clone printed `lfs-ok`, `rotm settings list` showed twelve modules off and `help rotm` rendered. At the signing question SSH was chosen, and the guard said "1Password's op-ssh-sign is not installed, so commit signing is left off": no `gpg.ssh.program` was set. A clone of a public LFS repository was not run. |
+| 3 | Pass. `rotm settings set modules.security on` left three names and three ignored paths. `rotm update -y` fast-forwarded `ed1e141..f6d170e`, which finished the install row 1 had stopped in, and ended "All done". mise reports `nmap installed`, and the copy has no changed tracked file. |
+| 4 | Pass, on `505c591`. With `kubernetes` on, the update installed `helm`, `flux2` and `talosctl`. With it off again, `sysup` reported "packages status: all installed", "19 packages no config declares … (modules off: vscode, cloud, kubernetes)", and "mise prune: 7 versions removed, 882MB freed": `kubelogin`, `flux2`, `flate`, `lazydocker`, `mirrord` and `talosctl`, which are the module's tools, and `ruby` 4.0.9, which no config declares (mise installs it for itself to read a tap formula built from source, and a `sysup` on the owner's Mac on 2026-11-10 removed it the same way). `helm` stayed in `/opt/homebrew/bin`. So `mise prune` honours `ignored_config_paths`, and the Global Constraint, the adapter's note and `docs/modules.md` stand. |
+| 5 | Pass on the second run, with `gh` signed in. With Warp installed and `"brew-cask:warp" = { state = "absent" }` in `config.local.toml`, the status is `unexpectedly_installed`, and `mise bootstrap packages apply --yes --manager brew-cask` exits 1 with "brew-cask does not support declarative package removal (cannot remove warp)". `rotm update -y` printed "Nothing is missing: mise stopped at casks that are installed and declared absent, and they stay as they are" and "All done", exit 0. `sysup` reported "packages: up to date" and "packages status: all installed", with the same 19 undeclared packages as row 4 and no line about Warp, which stayed in `/Applications`. The first run's `sysup` failed its two package steps on the anonymous rate limit. |
+| 6 | Pass, on `ee5e82c`. "All done", exit 0. 143 formulae, 33 casks and 184 extensions installed and nothing in another state, the counts `bin/lib/test-packages` pins. `mise ls --missing` is empty, `miserc.local.toml` holds only `env = ["installed"]`, and there is no `modules-off.local`. The font menu was answered with a stray quote, which failed the VS Code settings render with a warning; fixed in `35dce30`. |
+
+What the proof changed, beyond the fix for row 1:
+
+- `d696b77`: `setup.sh` installs `gh` alone and offers `gh auth login` before the package lists, where the bootstrap task used to offer it after they had spent the anonymous limit. One anonymous install fits in the 60 calls an hour, but an install, three updates and two `sysup` runs from one address did not. Installing `brew:gh` alone made no rate-limited call (rows 1, 2 and 6 after the change).
+- `35dce30`: the font menu keeps the saved preset when the answer is not one.
+- `505c591` and `ee5e82c`: the evidence script finds formulae from a terminal opened before the install, and prints the proven commit without git's pager (rows 1 to 5 of the first runs recorded "hunk: command not found" in its place).
+
+Left open: the `sysup` "Rust" step printed "unrecognized output" once (row 4) and "up to date" four minutes later, and `mise prune` removes the `ruby` mise installs for itself, so it is downloaded again when next needed. Neither comes from the modules.
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/superpowers
