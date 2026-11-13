@@ -12,6 +12,37 @@
 
 **Reviewed 2026-11-12,** before any task started, by the author against the code and by an independent reviewer on another model. Eighteen findings were raised and each was checked against the code or measured: sixteen changed a task, one was replaced by a simpler fix found while checking it (no Git credential configuration at all), and one needed only a measurement; "Measured while writing this plan" holds the measurements they needed. The probe scripts are in `docs/superpowers/specs/2026-11-11-installable-probe/p3/`.
 
+**Executed 2026-11-12 to 13.** Tasks 1 to 8 are on `main`, one commit each, and one more commit came from a security review after Task 6:
+
+| Task | Commit |
+| --- | --- |
+| 1 | `c95bc7b` Keep a user's settings in a folder of their own |
+| 2 | `836d591` Keep a Mac's own name and paths out of synced settings |
+| 3 | `19ca01b` Let an installed copy change a macOS preference |
+| 4 | `79e797f` Seed the jstack roles file on an installed copy |
+| 5 | `df4b426` Record and replay the tool settings mise cannot hold |
+| 6 | `ca25e70` Add rotm settings sync |
+| 7 | `30781b3` Check a two-Mac settings exchange in scratch homes |
+| Not in this plan | `d249bea` Refuse to sync settings into a repository that is not private |
+| 8 | `0d378f5` Offer a user's saved settings before a first install |
+
+Task 9's docs are the commit after these. Its Step 6, the proof in the VM against a real private GitHub repository, is not run and waits for the owner.
+
+Where the shipped code differs from the task text below, the code is right:
+
+- **mise answers on stderr.** `mise dot conflicts` prints "no sharing conflicts" on stderr and a conflict listing on stdout, and exits 0 both ways. `sync.py` reads both streams of such a call (`_text`), and `rotm-user-layer restore` captures the call with `2>&1`.
+- **The conflict check in `now` runs before `apply`.** Task 6 puts it last. Shipped, `now` runs save, sync, pull, the conflict check, then `apply`, so a paused sync applies nothing. `mise dot pull` exits 1 while sync is paused, so a failed mise call also runs the conflict check and shows the listing instead of mise's error.
+- **The repository lookup is `gh repo view`.** `sync on` reads `isEmpty` with `gh repo view <login>/<name> --json isEmpty`, and a failed lookup counts as no repository. The contents call for `.mise-history/format.toml` runs only for a repository that is not empty. `--repo` takes a bare name and anything else is refused.
+- **A repository that is not private is refused (`d249bea`).** `sync on` reads `visibility` with `gh repo view` and stops unless it is `PRIVATE`, naming the `gh repo edit` command. Setup's lookup in Task 8 makes the same check.
+- **`mise.installed(path)`.** Task 3 has the macOS adapter decide by whether the fragment is inside mise's checkout. That test is now a function in `mise.py`, which `refuse_installed` also uses.
+- **The jstack note tests `is_symlink()`.** Task 4 has the note depend on whether the roles file resolves into a clone. Shipped, the "commit it" note is returned when `jstack-models.md` is a link, and the "your own copy" note when it is a regular file.
+- **`ROTM_JUST_INSTALLED`.** `setup.sh` sets it for its `sync apply` call at the end of a first install, and `apply` then leaves out the "Run `rotm install`" line, which would be false after that run. The `set-defaults` line stays.
+- **`apply` also watches `disable_tools`.** The "Run `rotm install`" line follows a change to `modules-off.local`, `[bootstrap.packages]` or `[settings] disable_tools`.
+- **`ensure` refuses one more case.** A config-dir link that points somewhere other than the folder stops it with exit 1.
+- **An install made before Task 4 needs two applies.** The first apply removes the old link to `jstack-models.md` and the second seeds the copy. This is the behaviour in "Measured while writing this plan", accepted there, and no workaround shipped.
+
+Measured while writing `docs/settings-sync.md` on 2026-11-13, and recorded in the spec's "Verified facts". When a restore meets a folder that already holds a different file, `mise bootstrap --adopt` exits 1 with the origin connected in mise's automatic mode. `rotm-user-layer restore` now carries on past an adopt that holds a conflict, so manual mode, the track entry and the links are written before it exits 1. mise refuses `--keep-local` there, and a save makes the local history unrelated to the origin's. So `sync now` checks for a conflict before it saves, and `sync.py`'s message keeps this Mac's copy by setting it aside around `--take-remote`.
+
 ## Global Constraints
 
 - macOS only (decision 4). mise floor: 2026.11.5 (`setup/mise-floor.sh`). Every measurement below ran on 2026.11.5.
@@ -100,7 +131,7 @@ Not measured, and settled by the task named: a real private GitHub repository, w
   - `rotm-user-layer track` appends the two lines `[dotfiles."<folder, tildified>"]` and `mode = "track"` to `config.local.toml` in the config dir unless that header line is already there, creating the file when missing.
   - `rotm-user-layer restore <url>` runs, from `$HOME`: `mise bootstrap --adopt <url> --only final-hook --yes`, `mise dot origin set <url> --sync manual --yes`, `track`, `ensure`, then `mise dot conflicts`. It exits 1 and prints mise's listing when that output is anything but "no sharing conflicts", and exits with mise's status when a mise call fails.
 
-- [ ] **Step 1: Write the failing test** `bin/lib/test-user-layer`, a scratch `HOME` and `MISE_CONFIG_DIR`, with these cases and assertions:
+- [x] **Step 1: Write the failing test** `bin/lib/test-user-layer`, a scratch `HOME` and `MISE_CONFIG_DIR`, with these cases and assertions:
 
 ```bash
 # 1. nothing anywhere: ensure creates the folder 0700 and two links; the folder holds no files
@@ -118,12 +149,12 @@ Not measured, and settled by the task named: a real private GitHub repository, w
 # 12. restore with the stub's `dot conflicts` printing a path: exit 1 and the path is on stderr
 ```
 
-- [ ] **Step 2: Run it.** `bash bin/lib/test-user-layer`. Expected: fails, `rotm-user-layer` not found.
-- [ ] **Step 3: Write `bin/lib/rotm-user-layer`** with the standard header, `set -euo pipefail`, and the four commands above. `restore` is exercised against real mise in Task 7.
-- [ ] **Step 4: Make `rotm-modules` write through a link.** `replace` resolves its target first (one `readlink`, as `adapters/tool.py:edit_file` does with `resolve`) and renames the temp file onto that, so the link survives.
-- [ ] **Step 5: Call `"$DOTFILES_DIR/bin/lib/rotm-user-layer" ensure || exit $?` in `setup.sh`** directly before the module sync, in both modes, skipped under `--dry-run`. Call it in `sysup` before its module sync, reported as a `fail` status line when it exits 1.
-- [ ] **Step 6: Add `job quiet bash bin/lib/test-user-layer` to `bin/lib/check`**, run `pnpm check`. Expected: passes, including `test-modules`, `test-bootstrap` and `test-sysup` unchanged.
-- [ ] **Step 7: Docs and commit.** `setup/README.md` gains the step, `docs/local-customizations.md` names the folder. Commit: "Keep a user's settings in a folder of their own".
+- [x] **Step 2: Run it.** `bash bin/lib/test-user-layer`. Expected: fails, `rotm-user-layer` not found.
+- [x] **Step 3: Write `bin/lib/rotm-user-layer`** with the standard header, `set -euo pipefail`, and the four commands above. `restore` is exercised against real mise in Task 7.
+- [x] **Step 4: Make `rotm-modules` write through a link.** `replace` resolves its target first (one `readlink`, as `adapters/tool.py:edit_file` does with `resolve`) and renames the temp file onto that, so the link survives.
+- [x] **Step 5: Call `"$DOTFILES_DIR/bin/lib/rotm-user-layer" ensure || exit $?` in `setup.sh`** directly before the module sync, in both modes, skipped under `--dry-run`. Call it in `sysup` before its module sync, reported as a `fail` status line when it exits 1.
+- [x] **Step 6: Add `job quiet bash bin/lib/test-user-layer` to `bin/lib/check`**, run `pnpm check`. Expected: passes, including `test-modules`, `test-bootstrap` and `test-sysup` unchanged.
+- [x] **Step 7: Docs and commit.** `setup/README.md` gains the step, `docs/local-customizations.md` names the folder. Commit: "Keep a user's settings in a folder of their own".
 
 ### Task 2: Settings that describe one Mac stay on it
 
@@ -134,11 +165,11 @@ Not measured, and settled by the task named: a real private GitHub repository, w
 **Interfaces:**
 - Produces: `Setting.scope: str = "user"`, the other accepted value is `"machine"`. `registry.parse` rejects anything else. Tasks 5 and 6 skip `scope == "machine"` settings.
 
-- [ ] **Step 1: Failing tests.** In `test_registry.py`: `macos.computer_name`, `macos.local_hostname` and `hindsight.paths` load with `scope == "machine"`, every other setting with `"user"`, and a fixture entry with `scope = "everyone"` raises. In `test_env.py`, against the stub mise: writing `macos.computer_name` calls `set --file <config_dir>/config.local.toml DOTFILES_MACOS_COMPUTER_NAME=<value>` and never `--override`; reading it returns `Source.OVERRIDE` from that file; `reset` calls `unset --file <same path>`; a value left in the override file from before this change is read, and the next write removes it there with `unset --override`; `watch_paths()` includes `config.local.toml`. In `test-override-env`: a key under `[env]` in `config.local.toml` is exported by a shell that never reaches a prompt, and the cache is rebuilt when that file is newer than it.
-- [ ] **Step 2: Run them.** Expected: fail on the unknown field and the missing export.
-- [ ] **Step 3: Implement.** `scope` in `Setting` and in `OPTIONAL`. In `EnvAdapter`, `local_path() -> Path` is `mise.config_dir() / "config.local.toml"`, and `read`, `write` and `reset` pick the file by `s.scope`. `zsh/override-env.zsh` collects the `[env]` keys of both files and compares the cache with both.
-- [ ] **Step 4: Mark the three settings** in `settings/registry.toml` with `scope = "machine"`.
-- [ ] **Step 5: Run the tests and `pnpm check`,** then commit: "Keep a Mac's own name and paths out of synced settings". `settings/README.md` documents the field in the same commit.
+- [x] **Step 1: Failing tests.** In `test_registry.py`: `macos.computer_name`, `macos.local_hostname` and `hindsight.paths` load with `scope == "machine"`, every other setting with `"user"`, and a fixture entry with `scope = "everyone"` raises. In `test_env.py`, against the stub mise: writing `macos.computer_name` calls `set --file <config_dir>/config.local.toml DOTFILES_MACOS_COMPUTER_NAME=<value>` and never `--override`; reading it returns `Source.OVERRIDE` from that file; `reset` calls `unset --file <same path>`; a value left in the override file from before this change is read, and the next write removes it there with `unset --override`; `watch_paths()` includes `config.local.toml`. In `test-override-env`: a key under `[env]` in `config.local.toml` is exported by a shell that never reaches a prompt, and the cache is rebuilt when that file is newer than it.
+- [x] **Step 2: Run them.** Expected: fail on the unknown field and the missing export.
+- [x] **Step 3: Implement.** `scope` in `Setting` and in `OPTIONAL`. In `EnvAdapter`, `local_path() -> Path` is `mise.config_dir() / "config.local.toml"`, and `read`, `write` and `reset` pick the file by `s.scope`. `zsh/override-env.zsh` collects the `[env]` keys of both files and compares the cache with both.
+- [x] **Step 4: Mark the three settings** in `settings/registry.toml` with `scope = "machine"`.
+- [x] **Step 5: Run the tests and `pnpm check`,** then commit: "Keep a Mac's own name and paths out of synced settings". `settings/README.md` documents the field in the same commit.
 
 ### Task 3: macOS preferences on an installed copy
 
@@ -150,22 +181,22 @@ Not measured, and settled by the task named: a real private GitHub repository, w
 - Consumes: `env.override_path()`.
 - Produces: no new names. `MacosDefaultAdapter.write`, `reset` and `read` change behaviour only when `fragment_path()` is inside mise's checkout.
 
-- [ ] **Step 1: Replace the two `raises(..., "installed copy")` assertions** with: on an installed copy, `write(dock, "44")` leaves `20-macos.toml` byte-identical and puts `tilesize = 44` under `[bootstrap.macos.defaults."com.apple.dock"]` in the override file; a second key of the same domain joins that table; `[env]` already in the override file is kept; `read` then reports `Source.OVERRIDE` with the fragment's value as `seed`; `reset` removes the key from the override file and leaves the fragment alone; the clone-mode assertions above the block still pass unchanged.
-- [ ] **Step 2: Run.** `python3 settings/tests/test_macos_default.py`. Expected: fails with the "installed copy" `SettingsError`.
-- [ ] **Step 3: Implement.** `set_key`, `remove_key` and `declared` already edit and read a `[bootstrap.macos.defaults.<domain>]` table in any TOML text, so `write` and `reset` choose the target file (the fragment in a clone, the override file on an installed copy) and reuse them. `read` decides `OVERRIDE` from the override file first. The one-key `defaults write` and the restart stay as they are. `write_note` becomes a method that names the file that was edited.
-- [ ] **Step 4: Run the test and `pnpm check`,** then commit: "Let an installed copy change a macOS preference". `settings/README.md` and `docs/installation.md` lose the sentence that says it cannot.
+- [x] **Step 1: Replace the two `raises(..., "installed copy")` assertions** with: on an installed copy, `write(dock, "44")` leaves `20-macos.toml` byte-identical and puts `tilesize = 44` under `[bootstrap.macos.defaults."com.apple.dock"]` in the override file; a second key of the same domain joins that table; `[env]` already in the override file is kept; `read` then reports `Source.OVERRIDE` with the fragment's value as `seed`; `reset` removes the key from the override file and leaves the fragment alone; the clone-mode assertions above the block still pass unchanged.
+- [x] **Step 2: Run.** `python3 settings/tests/test_macos_default.py`. Expected: fails with the "installed copy" `SettingsError`.
+- [x] **Step 3: Implement.** `set_key`, `remove_key` and `declared` already edit and read a `[bootstrap.macos.defaults.<domain>]` table in any TOML text, so `write` and `reset` choose the target file (the fragment in a clone, the override file on an installed copy) and reuse them. `read` decides `OVERRIDE` from the override file first. The one-key `defaults write` and the restart stay as they are. `write_note` becomes a method that names the file that was edited.
+- [x] **Step 4: Run the test and `pnpm check`,** then commit: "Let an installed copy change a macOS preference". `settings/README.md` and `docs/installation.md` lose the sentence that says it cannot.
 
 ### Task 4: jstack roles on an installed copy
 
 **Files:**
 - Modify: `tilde/.config/mise/config.rotm-installed.toml`, `bin/lib/test-dotfiles`, `settings/src/dotfiles_settings/adapters/tool.py` (`JSTACK_NOTE`), `settings/tests/test_tool.py`
 
-- [ ] **Step 1: Measure first, in a scratch home.** With `40-dotfiles.toml`'s `"~/.claude/rules"` `symlink-each` entry and the `rotm-installed` environment selected, does a redeclared `"~/.claude/rules"` with `exclude = [".DS_Store", "jstack-models.md"]` plus `"~/.claude/rules/jstack-models.md" = { source = "~/dotfiles/tilde/.claude/rules/jstack-models.md", mode = "copy", create_if_missing = true }` leave every other rule a link and that one a real file, on a first apply, on a second, and when the path is already a link from an install made before this task? Record the answer in this plan's table and in the spec's "Verified facts". If mise refuses the pair, stop and report: the fallback is the owner's call.
-- [ ] **Step 2: Failing assertions in `bin/lib/test-dotfiles`.** In its installed-environment section: after apply, `~/.claude/rules/jstack-models.md` is a regular file with the tracked file's content, `~/.claude/rules/verify-first.md` is a link, and an edit to the regular file survives a second apply. Its two shape checks on `config.rotm-installed.toml` (lines 40 to 49) reject the new entries as written: the first accepts a key only when it redeclares a fragment key or sits under a `{ permissions` folder, the second only `create_if_missing`, `merge` or permissions-only entries. Both gain one allowed case, a redeclared `symlink-each` entry that only adds `exclude` and a seeded copy of a file that entry excludes, and nothing wider.
-- [ ] **Step 3: Add the two entries** to `config.rotm-installed.toml`, with a one-line why.
-- [ ] **Step 4: Make `JSTACK_NOTE` say what happened.** `ToolAdapter.write_note` returns the "Commit it to keep the change" text only when the roles file resolves into a clone; on an installed copy it says the role is saved in the user's own copy. A `test_tool.py` case pins both.
-- [ ] **Step 5: Run `bash bin/lib/test-dotfiles` and `python3 settings/tests/test_tool.py`.** `edit_file` needs no change: it refuses only a path inside the checkout, and the file no longer is one.
-- [ ] **Step 6: `pnpm check`, commit:** "Seed the jstack roles file on an installed copy".
+- [x] **Step 1: Measure first, in a scratch home.** With `40-dotfiles.toml`'s `"~/.claude/rules"` `symlink-each` entry and the `rotm-installed` environment selected, does a redeclared `"~/.claude/rules"` with `exclude = [".DS_Store", "jstack-models.md"]` plus `"~/.claude/rules/jstack-models.md" = { source = "~/dotfiles/tilde/.claude/rules/jstack-models.md", mode = "copy", create_if_missing = true }` leave every other rule a link and that one a real file, on a first apply, on a second, and when the path is already a link from an install made before this task? Record the answer in this plan's table and in the spec's "Verified facts". If mise refuses the pair, stop and report: the fallback is the owner's call.
+- [x] **Step 2: Failing assertions in `bin/lib/test-dotfiles`.** In its installed-environment section: after apply, `~/.claude/rules/jstack-models.md` is a regular file with the tracked file's content, `~/.claude/rules/verify-first.md` is a link, and an edit to the regular file survives a second apply. Its two shape checks on `config.rotm-installed.toml` (lines 40 to 49) reject the new entries as written: the first accepts a key only when it redeclares a fragment key or sits under a `{ permissions` folder, the second only `create_if_missing`, `merge` or permissions-only entries. Both gain one allowed case, a redeclared `symlink-each` entry that only adds `exclude` and a seeded copy of a file that entry excludes, and nothing wider.
+- [x] **Step 3: Add the two entries** to `config.rotm-installed.toml`, with a one-line why.
+- [x] **Step 4: Make `JSTACK_NOTE` say what happened.** `ToolAdapter.write_note` returns the "Commit it to keep the change" text only when the roles file resolves into a clone; on an installed copy it says the role is saved in the user's own copy. A `test_tool.py` case pins both.
+- [x] **Step 5: Run `bash bin/lib/test-dotfiles` and `python3 settings/tests/test_tool.py`.** `edit_file` needs no change: it refuses only a path inside the checkout, and the file no longer is one.
+- [x] **Step 6: `pnpm check`, commit:** "Seed the jstack roles file on an installed copy".
 
 ### Task 5: Carry the settings mise cannot hold
 
@@ -182,7 +213,7 @@ Not measured, and settled by the task named: a real private GitHub repository, w
   - `replay(settings, adapters) -> list[str]`: for each id in `tools.toml` whose live value differs, calls that adapter's `write`; for each id in the applied file that `tools.toml` no longer has, calls that adapter's `reset`; then writes the applied file as a copy of `tools.toml` minus the ids that failed. Returns one line per change. An id the registry no longer has is skipped and named in a returned line. A write or reset that raises `SettingsError` becomes a returned line, the rest continue, and `tools.toml` itself is never rewritten by `replay`.
 - Changes: after a successful write, `ToolAdapter.write` calls `sync.record(s, value)`, and `ToolAdapter.reset` calls `sync.forget(s)`. The terminal and browser UIs already write through the adapter, so they are covered.
 
-- [ ] **Step 1: Failing test** `test_sync.py`, with fake adapters in a temp `ROTM_USER_DIR` and `XDG_STATE_HOME`:
+- [x] **Step 1: Failing test** `test_sync.py`, with fake adapters in a temp `ROTM_USER_DIR` and `XDG_STATE_HOME`:
 
 ```python
 # record then record another id: tools.toml holds both, sorted; recording the same value again leaves the bytes identical
@@ -196,10 +227,10 @@ Not measured, and settled by the task named: a real private GitHub repository, w
 #         tools.toml is byte-identical afterwards, and the failed id is absent from the applied file so the next replay tries it again
 ```
 
-- [ ] **Step 1b: Failing test in `test_tool.py`:** `ToolAdapter.write` on `claude.model` and on a jstack role leaves the id and value in `tools.toml`; `reset` removes it; a write that raises leaves the file unchanged; `hindsight.paths` never appears.
-- [ ] **Step 2: Run.** Expected: `ModuleNotFoundError: dotfiles_settings.sync`.
-- [ ] **Step 3: Implement** the functions and the two adapter calls. Values are written with `json.dumps`, which is valid TOML for a basic string.
-- [ ] **Step 4: Add the test to `settings_tests`,** run `pnpm check`, commit: "Record and replay the tool settings mise cannot hold".
+- [x] **Step 1b: Failing test in `test_tool.py`:** `ToolAdapter.write` on `claude.model` and on a jstack role leaves the id and value in `tools.toml`; `reset` removes it; a write that raises leaves the file unchanged; `hindsight.paths` never appears.
+- [x] **Step 2: Run.** Expected: `ModuleNotFoundError: dotfiles_settings.sync`.
+- [x] **Step 3: Implement** the functions and the two adapter calls. Values are written with `json.dumps`, which is valid TOML for a basic string.
+- [x] **Step 4: Add the test to `settings_tests`,** run `pnpm check`, commit: "Record and replay the tool settings mise cannot hold".
 
 ### Task 6: `rotm settings sync`
 
@@ -224,7 +255,7 @@ What each command does, in order. A failing step stops the command.
 - `status`: the origin and mode from `mise dot origin`, the unsaved and pending lines of `mise dot status`, any conflicts, and "not connected" when there is no origin. Exit 0 either way.
 - `off`: `mise dot origin --remove`. The folder, the links and the local history stay.
 
-- [ ] **Step 1: Failing tests** in `test_sync.py`, with stub `mise`, `gh` and `rotm-user-layer` scripts that log their arguments and take their answers from fixture files:
+- [x] **Step 1: Failing tests** in `test_sync.py`, with stub `mise`, `gh` and `rotm-user-layer` scripts that log their arguments and take their answers from fixture files:
 
 ```python
 # on, no repo: the logged calls are, in order, gh auth status, gh api user, the repository lookup, gh repo create rotm-settings --private,
@@ -251,10 +282,10 @@ What each command does, in order. A failing step stops the command.
 
 In `test_cli.py`: `sync` with no action exits 2, `sync status` prints "not connected" and exits 0 against a stub with no origin.
 
-- [ ] **Step 2: Run.** Expected: the new tests fail on `sync.on` not defined.
-- [ ] **Step 3: Implement** `on`, `off`, `now`, `apply`, `status` and the two guards in `sync.py`, and the `sync` subparser with its `action` choices and `--repo` in `cli.py`.
-- [ ] **Step 4: `rotm help` and docs.** `bin/rotm`'s header gains one example line, `rotm settings sync {{on}}`. `settings/README.md` documents the five actions. Check `help rotm` renders.
-- [ ] **Step 5: `pnpm check`, commit:** "Add rotm settings sync".
+- [x] **Step 2: Run.** Expected: the new tests fail on `sync.on` not defined.
+- [x] **Step 3: Implement** `on`, `off`, `now`, `apply`, `status` and the two guards in `sync.py`, and the `sync` subparser with its `action` choices and `--repo` in `cli.py`.
+- [x] **Step 4: `rotm help` and docs.** `bin/rotm`'s header gains one example line, `rotm settings sync {{on}}`. `settings/README.md` documents the five actions. Check `help rotm` renders.
+- [x] **Step 5: `pnpm check`, commit:** "Add rotm settings sync".
 
 ### Task 7: Prove the exchange with real mise
 
@@ -266,7 +297,7 @@ This is the spec's "Done when", run by the gate: scratch homes shaped like insta
 
 How the test reaches a local origin and runs offline, since `sync.py` builds a `https://github.com/…` URL and `bin/dotfiles-settings` starts `uv`: the scratch Git config (`GIT_CONFIG_GLOBAL`) holds `url.<bare repo path>.insteadOf https://github.com/octo/rotm-settings.git`; `gh` is a stub that answers `auth status`, `api user` and the lookup from the bare repository's real contents; and the CLI runs as `python3 -m dotfiles_settings` with `PYTHONPATH=settings/src` under the same Python `bin/lib/check` picks, never through `uv`.
 
-- [ ] **Step 1: Write the test** with these assertions, each a `check_true`:
+- [x] **Step 1: Write the test** with these assertions, each a `check_true`:
 
 ```bash
 # A: `sync on` exits 0; the origin holds home/.config/rotm/config.override.toml and modules-off.local
@@ -285,9 +316,9 @@ How the test reaches a local origin and runs offline, since `sync.py` builds a `
 # GITHUB_TOKEN set with `mise set --override` on A: `sync now` exits 1 and the origin's history has no line containing it
 ```
 
-- [ ] **Step 2: Run it.** Expected: passes. If a step fails because mise behaves differently from the table above, stop and record what it did before changing the design.
-- [ ] **Step 3: The header says** it takes the mise shims off `PATH` while `HOME` is faked, as `bin/CLAUDE.md` requires of such a self-check.
-- [ ] **Step 4: Add `job quiet bash bin/lib/test-sync`,** run `pnpm check` three times (it now runs beside every other self-check), commit: "Check a two-Mac settings exchange in scratch homes".
+- [x] **Step 2: Run it.** Expected: passes. If a step fails because mise behaves differently from the table above, stop and record what it did before changing the design.
+- [x] **Step 3: The header says** it takes the mise shims off `PATH` while `HOME` is faked, as `bin/CLAUDE.md` requires of such a self-check.
+- [x] **Step 4: Add `job quiet bash bin/lib/test-sync`,** run `pnpm check` three times (it now runs beside every other self-check), commit: "Check a two-Mac settings exchange in scratch homes".
 
 ### Task 8: Load saved settings during a first install
 
@@ -297,7 +328,7 @@ How the test reaches a local origin and runs offline, since `sync.py` builds a `
 **Interfaces:**
 - Consumes: `rotm-user-layer restore` (Task 1), `dotfiles-settings sync apply` (Task 6), `gh`. `bin/dotfiles-settings` needs `uv`, which the package lists install after this point, so the restore here is the bash helper and the tool settings wait for the end of the run.
 
-- [ ] **Step 1: Failing assertions in `test-bootstrap`,** with the stubbed `gh` and a stubbed `rotm-user-layer`:
+- [x] **Step 1: Failing assertions in `test-bootstrap`,** with the stubbed `gh` and a stubbed `rotm-user-layer`:
 
 ```bash
 # signed in, the settings-repository lookup for <login>/rotm-settings succeeds, no origin connected, a terminal answers yes:
@@ -316,14 +347,14 @@ How the test reaches a local origin and runs offline, since `sync.py` builds a `
 # --dry-run: no prompt and no restore
 ```
 
-- [ ] **Step 2: Run.** Expected: the first assertion fails.
-- [ ] **Step 3: Implement** `load_saved_settings` in `setup.sh` on those rules, called right after `github_login`. A closed stdin means skip, as `.claude/rules/setup.md` requires. Four things the order forces:
+- [x] **Step 2: Run.** Expected: the first assertion fails.
+- [x] **Step 3: Implement** `load_saved_settings` in `setup.sh` on those rules, called right after `github_login`. A closed stdin means skip, as `.claude/rules/setup.md` requires. Four things the order forces:
   - `--without` was already written into the folder by the module sync near line 247. Before the restore that file is moved aside, and after it `"$modules" sync --without "$without"` runs again, so the restore meets no differing file and the flag still wins.
   - Without `--without`, `"$modules" sync` runs again after the restore, so a module switched off on another Mac is off before the package lists.
   - `skip_codegraph` was read from the process environment at the top of the script. After a restore it is read again from mise (`mise env --json` from `$HOME`, `/usr/bin/jq`), and the block that exports `DOTFILES_SKIP_CODEGRAPH` and `MISE_DISABLE_TOOLS` runs again when it turned true.
   - The `sync apply` call sits after the bootstrap task and `setup/dotfiles-extras.sh`, so it follows `claude-config restore` and the user's model choice is the last write. A failure there is a warning.
-- [ ] **Step 4: Narrow the rule in `.claude/rules/setup.md`.** It says `setup.sh` never calls `--adopt`, because a bare adopt of a config repository clones it into `~/.config/mise`. The new sentence: the one exception is `rotm-user-layer restore`, which adopts a history origin with `--only final-hook` and applies nothing.
-- [ ] **Step 5: `pnpm check`, commit:** "Offer a user's saved settings before a first install".
+- [x] **Step 4: Narrow the rule in `.claude/rules/setup.md`.** It says `setup.sh` never calls `--adopt`, because a bare adopt of a config repository clones it into `~/.config/mise`. The new sentence: the one exception is `rotm-user-layer restore`, which adopts a history origin with `--only final-hook` and applies nothing.
+- [x] **Step 5: `pnpm check`, commit:** "Offer a user's saved settings before a first install".
 
 ### Task 9: Docs, the spec and the real proof
 
@@ -331,10 +362,11 @@ How the test reaches a local origin and runs offline, since `sync.py` builds a `
 - Create: `docs/settings-sync.md`
 - Modify: `README.md` (the docs table), `docs/modules.md`, `docs/forking.md`, the spec, this plan (moved to `plans/completed/` at the end)
 
-- [ ] **Step 1: Move both single-item opt-outs in `docs/modules.md`** (the `state = "absent"` package and `[settings] disable_tools`) from `config.local.toml` to `~/.config/rotm/config.override.toml`, and say that one left in `config.local.toml` still works and stays on that Mac.
-- [ ] **Step 2: Write `docs/settings-sync.md`:** what is saved (the three files, by name), what never is (the machine-scoped settings, every `*.local.toml`, `~/.zsh.local`, `~/.gitconfig.local`, `~/.ssh`, and a tool's file changed by another program), the four actions a user runs, a second Mac, what `rotm install` and `set-defaults` still have to do after a sync, a conflict, and the warning from mise's docs that a private repository keeps every saved version.
-- [ ] **Step 3: Update the spec.** The P3 brief gains a "Shipped" line. Task 4's measurement joins "Verified facts". "Sync and sign-in" is corrected where it says `dotfiles-settings` "tracks the user layer" with mise's own command and where it names `gh auth setup-git`.
-- [ ] **Step 4: Run the `docs-auditor` agent** on the changed pages and fix what it confirms.
-- [ ] **Step 5: Commit:** "Document settings sync".
+- [x] **Step 1: Move both single-item opt-outs in `docs/modules.md`** (the `state = "absent"` package and `[settings] disable_tools`) from `config.local.toml` to `~/.config/rotm/config.override.toml`, and say that one left in `config.local.toml` still works and stays on that Mac.
+- [x] **Step 2: Write `docs/settings-sync.md`:** what is saved (the three files, by name), what never is (the machine-scoped settings, every `*.local.toml`, `~/.zsh.local`, `~/.gitconfig.local`, `~/.ssh`, and a tool's file changed by another program), the four actions a user runs, a second Mac, what `rotm install` and `set-defaults` still have to do after a sync, a conflict, and the warning from mise's docs that a private repository keeps every saved version.
+- [x] **Step 3: Update the spec.** The P3 brief gains a "Shipped" line. Task 4's measurement joins "Verified facts". "Sync and sign-in" is corrected where it says `dotfiles-settings` "tracks the user layer" with mise's own command and where it names `gh auth setup-git`.
+- [x] **Step 4: Run the `docs-auditor` agent** on the changed pages and fix what it confirms. Run 2026-11-13: the user pages matched the code, and its one confirmed mismatch, a word in `.claude/rules/zsh.md`, is fixed. It could not check the statements about mise's own behaviour, which rest on the scratch-home measurements.
+- [x] **Step 5: Commit:** "Document settings sync".
 - [ ] **Step 6: The real proof, when the owner schedules it.** In the UTM guest, "Run without saving changes", two sessions against a real private repository in a GitHub account the owner chooses: install, change one setting of each kind (an env setting, a module, a macOS preference, a jstack role), `rotm settings sync on`; then a fresh guest, install, accept the prompt. Compare `rotm settings list --json` between the two, run `set-defaults` on the second and compare `defaults read` for the changed preference, since `list` reports a declared value whether or not it was written. The first `sync on` also settles whether mise's own credential helper is enough against GitHub; if it is not, the fallback in the measured table goes into `sync.py` and `rotm-user-layer`. Results go under `~/vm-proof/p3/`. Decision 15 means this does not block the plan from closing on the self-checks; it does block a promotion of `stable`.
-- [ ] **Step 7: Move this plan** to `docs/superpowers/plans/completed/` and update the spec's "Plans" list.
+  - Not run as of 2026-11-13: it waits for the owner to schedule it.
+- [x] **Step 7: Move this plan** to `docs/superpowers/plans/completed/` and update the spec's "Plans" list.

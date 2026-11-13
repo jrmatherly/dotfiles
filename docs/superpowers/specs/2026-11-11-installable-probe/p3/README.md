@@ -1,6 +1,6 @@
 # P3 sync probes
 
-Evidence for the P3 plan (`docs/superpowers/plans/2026-11-12-p3-sign-in-and-sync.md`), run on 2026-11-12 with mise 2026.11.5 in scratch homes on the owner's Mac. Not part of the product. Each script builds its own scratch folder, points `HOME` and every `MISE_*_DIR` at it, runs every mise call from the scratch home and removes the folder on exit (`KEEP=1` keeps it).
+Evidence for the P3 plan (`docs/superpowers/plans/completed/2026-11-12-p3-sign-in-and-sync.md`), run on 2026-11-12 with mise 2026.11.5 in scratch homes on the owner's Mac. Not part of the product. Each script builds its own scratch folder, points `HOME` and every `MISE_*_DIR` at it, runs every mise call from the scratch home and removes the folder on exit (`KEEP=1` keeps it).
 
 | Script | Question |
 | --- | --- |

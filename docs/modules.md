@@ -38,20 +38,22 @@ What off does:
 
 Until you prune, `sysup` keeps mentioning the packages no config declares, and its notice names the modules that are off. A module switched back on is installed by the next `rotm update` or `setup.sh`.
 
-The choice is stored in two git-ignored files in mise's config dir, `modules-off.local` and the `ignored_config_paths` line of `miserc.local.toml`, so no tracked file changes and an installed copy still updates. A shell with `MISE_IGNORED_CONFIG_PATHS` set uses that list instead, and an off module loads there.
+The choice is stored in `~/.config/rotm/modules-off.local`, a file of your own that mise's config dir links to, and in the `ignored_config_paths` line of the git-ignored `miserc.local.toml` in that config dir. No tracked file changes, so an installed copy still updates. [Settings sync](settings-sync.md) carries `modules-off.local` to your next Mac. A shell with `MISE_IGNORED_CONFIG_PATHS` set uses that list instead, and an off module loads there.
 
 ## Skipping one package or tool
 
-To skip a single package from a module that stays on, declare it absent in `~/.config/mise/config.local.toml`, and turn a mise tool off with `disable_tools`:
+To skip a single package from a module that stays on, declare it absent in `~/.config/rotm/config.override.toml`, and turn a mise tool off with `disable_tools`:
 
 ```toml
-# ~/.config/mise/config.local.toml
+# ~/.config/rotm/config.override.toml
 [bootstrap.packages]
 "brew-cask:warp" = { state = "absent" }
 
 [settings]
 disable_tools = ["npm:serverless"]
 ```
+
+`rotm settings` keeps its own changes in the same file, under `[env]` and `[bootstrap.macos.defaults]`, and leaves these tables alone. [Settings sync](settings-sync.md) saves the file, so both opt-outs reach your next Mac. An opt-out left in `~/.config/mise/config.local.toml` still works and stays on that Mac, because mise never syncs a `*.local.toml` file.
 
 An absent package that is already installed is left in place, and neither setup nor `sysup` reports it as a problem. This works for a `vscode:` key too: mise reports the extension as absent and never installs or removes it. With such an extension installed, `mise bootstrap packages apply --manager vscode` exits 1, which setup treats as no problem, while a plain `apply` and `upgrade` exit 0.
 
