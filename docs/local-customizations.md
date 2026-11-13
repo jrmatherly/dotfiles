@@ -6,7 +6,7 @@ The dotfiles can be extended to suit additional local requirements by using the 
 
 If this file exists, it's sourced near the end of `~/.zshrc` (after `zsh/init.zsh`), so its content can add to or override the existing aliases, settings, PATH, etc.
 
-An `export` here is a starting value. A setting changed with [`dotfiles-settings`](../settings/README.md) beats an export of the same variable in every new shell, and `dotfiles-settings reset <id>` hands the variable back to the export. The changes are stored in `tilde/.config/mise/config.override.toml` inside the clone (`~/.config/mise` is a link to that folder), which git ignores.
+An `export` here is a starting value. A setting changed with [`dotfiles-settings`](../settings/README.md) beats an export of the same variable in every new shell, and `dotfiles-settings reset <id>` hands the variable back to the export. The changes are stored in `~/.config/rotm/config.override.toml`, a folder of your own outside the clone, and `config.override.toml` in the mise config dir is a link to it. The modules you switched off are in `~/.config/rotm/modules-off.local`, linked the same way. `setup.sh` and `sysup` move a real file found in the config dir into the folder and make the link.
 
 ## `~/.ssh/config.local`
 

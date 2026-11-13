@@ -40,6 +40,7 @@ cp "$repo/setup.sh" "$fix/setup.sh"
 cp "$repo/setup/mise-floor.sh" "$fix/setup/mise-floor.sh"
 cp "$repo/bin/lib/rotm-mode" "$fix/bin/lib/rotm-mode"
 cp "$repo/bin/lib/rotm-modules" "$fix/bin/lib/rotm-modules"
+cp "$repo/bin/lib/rotm-user-layer" "$fix/bin/lib/rotm-user-layer"
 # Folders an installed copy keeps real: one linked into the copy, one already real, one linked elsewhere
 printf '[dotfiles]\n"~/.config/gh" = { permissions = "0700" }\n"~/.config/keep" = { permissions = "0700" }\n"~/.config/elsewhere" = { permissions = "0700" }\n' > "$fix/tilde/.config/mise/config.rotm-installed.toml"
 # The real extras script must not run here, and setup.sh finds it beside itself

@@ -1,0 +1,157 @@
+#!/bin/bash
+#
+# Self-check for rotm-user-layer: the user's folder, its links from the mise config dir, the track entry and the restore.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-user-layer`
+#
+# ---
+# Never touches the real home or mise config: HOME, MISE_CONFIG_DIR and
+# ROTM_USER_DIR are under a temp dir, and mise is a stub that logs its
+# arguments. Installs nothing.
+#
+# License: MIT
+
+set -euo pipefail
+
+cd "$(dirname "$0")/../.."
+
+# Print the failed assertion and stop
+fail() {
+  echo "FAIL: $1" >&2
+  exit 1
+}
+
+repo=$PWD
+tmp=$(cd "$(mktemp -d)" && pwd -P)
+trap 'rm -rf "$tmp"' EXIT
+export HOME="$tmp/home"
+cfg="$HOME/.config/mise"
+user="$HOME/.config/rotm"
+export MISE_CONFIG_DIR="$cfg"
+unset ROTM_USER_DIR MISE_ENV MISE_IGNORED_CONFIG_PATHS
+reset() {
+  rm -rf "$HOME"
+  mkdir -p "$cfg"
+}
+u="$repo/bin/lib/rotm-user-layer"
+m="$repo/bin/lib/rotm-modules"
+linked() { [ -L "$cfg/$1" ] && [ "$(readlink "$cfg/$1")" = "$user/$1" ]; }
+snapshot() { (cd "$HOME" && ls -lR . && find . -type f -exec cksum {} +); }
+
+# 1. Nothing anywhere
+reset
+"$u" ensure || fail "ensure on an empty config dir"
+[ "$(stat -f %Lp "$user")" = 700 ] || fail "the folder is not 0700"
+linked config.override.toml || fail "no link for config.override.toml"
+linked modules-off.local || fail "no link for modules-off.local"
+[ -z "$(ls -A "$user")" ] || fail "ensure wrote a file into the folder"
+
+# 2. A real file in the config dir moves into the folder
+reset
+printf '[env]\nA = "1"\n' > "$cfg/config.override.toml"
+"$u" ensure || fail "ensure with a real config.override.toml"
+[ "$(cat "$user/config.override.toml")" = "$(printf '[env]\nA = "1"')" ] || fail "the file's bytes did not move into the folder"
+linked config.override.toml || fail "the moved file is not linked"
+
+# 3. Again: nothing changes
+before=$(snapshot)
+"$u" ensure || fail "a second ensure"
+[ "$(snapshot)" = "$before" ] || fail "a second ensure changed something"
+
+# 4. A restored Mac: only the link is made
+reset
+mkdir -p "$user"
+echo fonts > "$user/modules-off.local"
+"$u" ensure || fail "ensure with the folder's file only"
+linked modules-off.local || fail "the folder's file is not linked"
+[ "$(cat "$user/modules-off.local")" = fonts ] || fail "the folder's file changed"
+
+# 5. Both real and identical
+reset
+mkdir -p "$user"
+echo x > "$user/config.override.toml"
+echo x > "$cfg/config.override.toml"
+"$u" ensure || fail "ensure with identical copies"
+linked config.override.toml || fail "the identical config-dir copy is not a link"
+[ "$(cat "$user/config.override.toml")" = x ] || fail "the folder's copy changed"
+
+# 6. Both real and different: refused, nothing changes
+reset
+mkdir -p "$user"
+echo mine > "$user/config.override.toml"
+echo theirs > "$cfg/config.override.toml"
+before=$(snapshot)
+rc=0
+"$u" ensure 2> "$tmp/err" || rc=$?
+[ "$rc" = 1 ] || fail "ensure with different copies exited $rc"
+grep -qF "$cfg/config.override.toml" "$tmp/err" || fail "the refusal does not name the config-dir file"
+grep -qF "$user/config.override.toml" "$tmp/err" || fail "the refusal does not name the folder's file"
+[ "$(snapshot)" = "$before" ] || fail "a refused ensure changed something"
+
+# 7. rotm-modules writes through the link
+reset
+"$u" ensure
+"$m" set fonts off > /dev/null
+linked modules-off.local || fail "rotm-modules replaced the link"
+[ "$(cat "$user/modules-off.local")" = fonts ] || fail "the folder's modules-off.local does not list fonts"
+
+# 8. dir
+[ "$("$u" dir)" = "$user" ] || fail "dir without ROTM_USER_DIR"
+[ "$(ROTM_USER_DIR=/x/y "$u" dir)" = /x/y ] || fail "dir with ROTM_USER_DIR"
+
+# 9. track with no config.local.toml, twice
+reset
+entry=$(printf '[dotfiles."~/.config/rotm"]\nmode = "track"')
+"$u" track
+[ "$(cat "$cfg/config.local.toml")" = "$entry" ] || fail "track on no file: $(cat "$cfg/config.local.toml")"
+"$u" track
+[ "$(cat "$cfg/config.local.toml")" = "$entry" ] || fail "a second track changed the file"
+
+# 10. track keeps what is there
+reset
+printf '# mine\n[dotfiles]\n"~/.x" = "~/dotfiles/x"\n\n[history.origin]\nurl = "u"' > "$cfg/config.local.toml"
+was=$(cat "$cfg/config.local.toml")
+"$u" track
+"$u" track
+[ "$(cat "$cfg/config.local.toml")" = "$was
+$entry" ] || fail "track did not keep the file and append the entry once"
+
+# The stub mise: logs each call, and prints the conflicts listing $STATE/conflicts holds
+STATE="$tmp/state"
+mkdir -p "$tmp/bin" "$STATE"
+cat > "$tmp/bin/mise" << 'EOF'
+#!/bin/bash
+echo "$*" >> "$STATE/mise.log"
+if [ "$1 $2" = "dot conflicts" ]; then
+  if [ -s "$STATE/conflicts" ]; then cat "$STATE/conflicts"; else echo "mise no sharing conflicts" >&2; fi
+fi
+EOF
+chmod +x "$tmp/bin/mise"
+export STATE
+url=https://github.com/someone/rotm-settings.git
+
+# 11. restore
+reset
+rc=0
+PATH="$tmp/bin:/usr/bin:/bin" "$u" restore "$url" > /dev/null 2> "$tmp/err" || rc=$?
+[ "$rc" = 0 ] || fail "restore exited $rc: $(cat "$tmp/err")"
+grep -qxF "bootstrap --adopt $url --only final-hook --yes" "$STATE/mise.log" || fail "the adopt lacks --only final-hook --yes"
+grep -qxF "dot origin set $url --sync manual --yes" "$STATE/mise.log" || fail "the origin set lacks --sync manual --yes"
+if grep -qx "bootstrap --adopt $url" "$STATE/mise.log"; then fail "a bare --adopt was run"; fi
+if grep -q '^dot track' "$STATE/mise.log"; then fail "restore ran mise dot track"; fi
+grep -qxF '[dotfiles."~/.config/rotm"]' "$cfg/config.local.toml" || fail "restore did not write the track entry"
+linked config.override.toml || fail "restore did not link the folder"
+[ ! -e "$HOME/.gitconfig" ] || fail "restore created ~/.gitconfig"
+[ ! -e "$HOME/.gitconfig.local" ] || fail "restore created ~/.gitconfig.local"
+
+# 12. restore with a conflict
+reset
+echo "conflict: config.override.toml" > "$STATE/conflicts"
+rc=0
+PATH="$tmp/bin:/usr/bin:/bin" "$u" restore "$url" > /dev/null 2> "$tmp/err" || rc=$?
+[ "$rc" = 1 ] || fail "restore with a conflict exited $rc"
+grep -qF "conflict: config.override.toml" "$tmp/err" || fail "the conflicting path is not on stderr"
+
+echo ok

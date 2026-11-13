@@ -20,6 +20,7 @@ installed=false
 [ "$("$(dirname "$0")/lib/rotm-mode" "$DOTFILES")" != installed ] || installed=true
 # By path, as rotm-mode is, and resolved before the cd below
 modules="$(cd "$(dirname "$0")/lib" && pwd -P)/rotm-modules"
+user_layer="$(dirname "$modules")/rotm-user-layer"
 mkdir -p "$DOTFILES/logs"
 log="$DOTFILES/logs/sysup-$(date +%Y%m%d-%H%M%S).log"
 changed=() notices=() failed=() actions=()
@@ -230,6 +231,11 @@ elif capture dotfiles; then
 else
   status fail dotfiles "couldn't pull, carried on; run: dotfiles"
   show
+fi
+
+# The user's settings folder and its links, before the module list is written through them
+if ! layer_out=$("$user_layer" ensure 2>&1); then
+  status fail "settings folder" "$(tail -1 <<< "$layer_out")"
 fi
 
 # The list of modules mise skips, after the pull so the helper knows a module that arrived in it

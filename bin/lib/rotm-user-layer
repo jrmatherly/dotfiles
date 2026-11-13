@@ -1,0 +1,103 @@
+#!/bin/bash
+#
+# Keep a user's returnofthemac settings in a folder of their own, linked from the mise config dir.
+#
+# - Print the folder:
+#
+# `rotm-user-layer dir`
+#
+# - Move the user's files into the folder and link them from the config dir:
+#
+# `rotm-user-layer ensure`
+#
+# - Have mise's history track the folder:
+#
+# `rotm-user-layer track`
+#
+# - Restore the folder from a settings repository and connect it for manual sync:
+#
+# `rotm-user-layer restore {{url}}`
+#
+# ---
+# The folder is ~/.config/rotm (ROTM_USER_DIR overrides it). mise's sync leaves
+# out anything under its own data dir, where an installed copy's config dir
+# resolves, so the user's files live here and the config dir links to them.
+# ensure exits 1, changing nothing, when the config dir and the folder hold
+# different copies of one file. track appends its entry to config.local.toml
+# because `mise dot track` writes into config.toml, a tracked file. restore
+# passes --only final-hook, without which --adopt runs a full bootstrap.
+# Callers run this by path.
+#
+# License: MIT
+
+set -euo pipefail
+
+files=(config.override.toml modules-off.local)
+cfg="${MISE_CONFIG_DIR:-$HOME/.config/mise}"
+folder="${ROTM_USER_DIR:-$HOME/.config/rotm}"
+
+die() {
+  echo "rotm-user-layer: $2" >&2
+  exit "$1"
+}
+
+ensure() {
+  [ -d "$cfg" ] || die 1 "no mise config dir at $cfg"
+  local f here there
+  # Every refusal before any change
+  for f in "${files[@]}"; do
+    here="$cfg/$f" there="$folder/$f"
+    if [ -L "$here" ]; then
+      [ "$(readlink "$here")" = "$there" ] || die 1 "$here is a link to $(readlink "$here"), not to $there; move it aside and rerun"
+    elif [ -e "$here" ] && [ -e "$there" ] && ! cmp -s "$here" "$there"; then
+      die 1 "$here and $there differ; keep the one you want, remove the other and rerun"
+    fi
+  done
+  mkdir -p "$folder"
+  chmod 700 "$folder"
+  for f in "${files[@]}"; do
+    here="$cfg/$f" there="$folder/$f"
+    [ ! -L "$here" ] || continue
+    if [ -e "$here" ]; then
+      if [ -e "$there" ]; then rm "$here"; else mv "$here" "$there"; fi
+    fi
+    ln -s "$there" "$here"
+  done
+}
+
+track() {
+  local shown=$folder file="$cfg/config.local.toml" header
+  case $folder in "$HOME"/*) shown="~/${folder#"$HOME"/}" ;; esac
+  header="[dotfiles.\"$shown\"]"
+  if [ -f "$file" ] && grep -qxF -- "$header" "$file"; then return 0; fi
+  # A file that does not end in a newline would join the header to its last line
+  if [ -s "$file" ] && [ -n "$(tail -c 1 "$file")" ]; then echo >> "$file"; fi
+  printf '%s\nmode = "track"\n' "$header" >> "$file"
+}
+
+restore() {
+  [ -n "${1:-}" ] || die 2 "restore takes the settings repository's URL"
+  cd "$HOME"
+  mise bootstrap --adopt "$1" --only final-hook --yes
+  mise dot origin set "$1" --sync manual --yes
+  track
+  ensure
+  local out
+  # mise prints this on stderr, prefixed with its name
+  out=$(mise dot conflicts 2>&1)
+  case $out in
+    *"no sharing conflicts"*) ;;
+    *)
+      echo "$out" >&2
+      die 1 "the restored settings conflict with this Mac's; nothing was overwritten"
+      ;;
+  esac
+}
+
+case "${1:-}" in
+  dir) echo "$folder" ;;
+  ensure) ensure ;;
+  track) track ;;
+  restore) restore "${2:-}" ;;
+  *) die 2 "usage: rotm-user-layer dir | ensure | track | restore <url>" ;;
+esac

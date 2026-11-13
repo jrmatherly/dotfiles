@@ -57,13 +57,18 @@ need_known() {
 
 is_off() { [ -f "$off_file" ] && grep -qxF -- "$1" "$off_file"; }
 
-# Replace a file in the config dir with stdin, through a temp file so a failed run leaves the old one
+# Replace a file in the config dir with stdin, through a temp file so a failed run leaves the old one.
+# A link (rotm-user-layer's) is written through, so it survives
 replace() {
   [ -d "$dir" ] || die 1 "no mise config dir at $dir"
-  local t
-  t=$(mktemp "$dir/.rotm-modules.XXXXXX")
+  local t target=$1
+  if [ -L "$1" ]; then
+    target=$(readlink "$1")
+    case $target in /*) ;; *) target="$(dirname "$1")/$target" ;; esac
+  fi
+  t=$(mktemp "$(dirname "$target")/.rotm-modules.XXXXXX")
   cat > "$t"
-  mv "$t" "$1"
+  mv "$t" "$target"
 }
 
 # Rewrite the off list: the modules already off, plus or minus one, in list order

@@ -244,6 +244,8 @@ fi
 if [ -n "$dry_run_flag" ]; then
   echo "dry run: the module list is not written"
 else
+  # The user's settings live in their own folder, linked from the config dir
+  "$DOTFILES_DIR/bin/lib/rotm-user-layer" ensure || exit $?
   "$modules" sync ${without:+--without "$without"} || exit $?
 fi
 
