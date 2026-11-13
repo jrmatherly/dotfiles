@@ -99,8 +99,12 @@ if [ "$choose" = true ]; then
     preset=$current
   elif [[ $pick =~ ^[0-9]+$ ]] && [ "$pick" -ge 1 ] && [ "$pick" -le ${#names[@]} ]; then
     preset=${names[$((pick - 1))]}
-  else
+  elif [[ " ${names[*]} " == *" $pick "* ]]; then
     preset=$pick
+  else
+    # A stray key typed during a long setup run lands here
+    echo "'$pick' is not a preset: keeping $current"
+    preset=$current
   fi
 fi
 # An environment preset is used but not saved, so the saved file only holds --preset or --choose.

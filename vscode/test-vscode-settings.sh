@@ -105,6 +105,14 @@ before=$(shasum -a 256 "$DOTFILES_DIR/vscode/User/settings.json" "$DOTFILES_DIR/
 check "installed copy: renders into Code/User" "grep -q 'ProFont IIx Nerd Font Mono' '$work/home/Library/Application Support/Code/User/settings.json'"
 check "installed copy: writes nothing under the checkout's vscode/User" "[ \"\$(shasum -a 256 '$DOTFILES_DIR/vscode/User/settings.json' '$DOTFILES_DIR/vscode/User/.settings.rendered' 2>&1)\" = \"$before\" ]"
 
+# A stray key before Enter at the menu (row 6 of the P2 VM proof got a quote)
+before=$(cat "$VSCODE_SETTINGS_ENV")
+status=0
+printf "'\n" | "$DOTFILES_DIR/bin/vscode-settings" --choose --force > "$work/out" 2>&1 || status=$?
+check "menu: an answer that is no preset still renders" "[ $status -eq 0 ]"
+check "menu: … says so" "grep -q 'is not a preset' '$work/out'"
+check "menu: … and keeps the saved preset" "[ \"\$(cat '$VSCODE_SETTINGS_ENV')\" = '$before' ]"
+
 [ "$fails" -eq 0 ] || {
   echo "$fails failed" >&2
   exit 1
