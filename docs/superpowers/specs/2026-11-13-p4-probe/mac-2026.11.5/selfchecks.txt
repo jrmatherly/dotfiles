@@ -1,0 +1,48 @@
+32311ab (grafted, HEAD -> main, origin/main, origin/HEAD) Fix what two reviews of settings sync found
+== what zsh/override-env.zsh exports from the dotenv probe's values
+D_PLAIN=[bar]
+D_SPACE=[a b]
+D_HASH=[a #b]
+D_QUOTE=[say "hi"]
+D_SINGLE=[it's]
+D_PATH=[/Users/x/My Folder]
+D_EQ=[a=b]
+D_EMPTY=[]
+== test-override-env
+exit 0
+override-env: all checks passed
+== test-modules
+exit 0
+ok
+== test-user-layer
+exit 0
+ok
+== test-dotfiles
+exit 0
+ok
+== test-packages
+exit 0
+== test-bootstrap
+exit 0
+ok: claude on and not installed: the installer is fetched
+ok: claude off: the installer is not fetched
+ok: the tracked bootstrap config dry-runs
+ok: static checks
+== test-sysup
+exit 0
+ok: terminal: the log link is an OSC 8 hyperlink
+ok: terminal: action banner colored
+ok: terminal: log has no color codes
+ok: no run called brew or code
+== test-rotm
+exit 0
+ok   a detached copy stops the update
+ok   update in a dev clone refuses
+ok   an unknown command exits 2
+ok   no argument prints usage
+== test-sync
+exit 0
+ok: A: sync now with a token exits 1
+ok: A: the refusal names the token
+ok: the token is not in the origin's history
+ok

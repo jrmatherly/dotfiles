@@ -1,0 +1,18 @@
+== raw mise env --dotenv
+D_EMPTY=
+D_EQ=a=b
+D_HASH=a #b
+D_PATH=/Users/x/My Folder
+D_PLAIN=bar
+D_QUOTE=say "hi"
+D_SINGLE=it's
+D_SPACE=a b
+== mise env --json
+  "D_EMPTY": "",
+  "D_EQ": "a=b",
+  "D_HASH": "a #b",
+  "D_PATH": "/Users/x/My Folder",
+  "D_PLAIN": "bar",
+  "D_QUOTE": "say \"hi\"",
+  "D_SINGLE": "it's",
+  "D_SPACE": "a b",

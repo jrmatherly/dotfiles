@@ -1,0 +1,61 @@
+== 1. set --override --env with no file yet: where does it land
+exit 0
+lrwxr-xr-x@ 1 jason  staff  119 Nov 13 14:52 config.override.toml -> S/profiles/home/.config/rotm/config.override.toml
+-rw-r--r--@ 1 jason  staff   30 Nov 13 14:52 config.rotm-p-work.override.toml
+== 2. with the file pre-made in the user's folder and linked
+exit 0
+S/profiles/home/.config/rotm/config.rotm-p-work.override.toml
+[env]
+P_ALL = "work-override"
+checkout status:
+== 3. profile override beats shared override; unset keys fall through
+P_ALL=work-override P_SHARED=shared-override 
+~/.config/mise/conf.d/10-base.toml               (none)
+~/.config/mise/config.rotm-installed.toml        (none)
+~/.config/mise/config.override.toml              (none)  override
+~/.config/mise/config.rotm-p-work.override.toml  (none)  override
+== 4. other sections in the profile override
+brew  p4-probe     absent
+com.apple.dock  tilesize  32  38  differs
+["npm:prettier"]
+macos tables kept after set: 1
+unset exit 0
+1
+== 5. switch away, then back
+P_ALL=shared-override P_SHARED=shared-override 
+com.apple.dock  tilesize  64  38  differs
+brew  p4-probe     missing
+P_ALL=work-override 
+== 6. project .miserc.toml adds an env; MISE_ENV replaces
+P_ALL=work-override 
+P_ALL=shared-override 
+P_ALL=work-override 
+== 7. mise writes the env line: -E a,b bootstrap --save-env --only final-hook
+mise saved env = ["rotm-installed", "rotm-p-work"] to ~/.config/mise/miserc.local.toml
+exit 0
+env = ["rotm-installed", "rotm-p-work"]
+ignored_config_paths = ["conf.d/60-rotm-fonts.toml"]
+marker applied (0 = nothing applied): 0
+   and back to no profile: -E rotm-installed
+mise saved env = ["rotm-installed"] to ~/.config/mise/miserc.local.toml
+env = ["rotm-installed"]
+ignored_config_paths = ["conf.d/60-rotm-fonts.toml"]
+   on a clone there is no rotm-installed: can the line be emptied? (--save-env with no -E)
+mise ERROR Version: 2026.11.5 macos-arm64 (2026-11-09)
+mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+exit 0
+env = ["rotm-installed"]
+ignored_config_paths = ["conf.d/60-rotm-fonts.toml"]
+== 8. sync: both override files reach the origin; a second home gets them
+mise history: saved checkpoint 1: initial checkpoint (2 files)
+mise history: published 8766212
+mise history: nothing new to publish
+home/.config/rotm/config.override.toml
+home/.config/rotm/config.rotm-p-work.override.toml
+~/.config/rotm/config.rotm-p-work.override.toml  create  home/.config/rotm/config.rotm-p-work.override.toml
+Wrote 2 file(s) from S/origin.git.
+adopt exit 0
+. .. config.override.toml config.rotm-p-work.override.toml 
+second checkout status:
+== 9. env_sets
+P_ALL=work 

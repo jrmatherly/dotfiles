@@ -1,0 +1,8 @@
+ProductName:		macOS
+ProductVersion:		27.2.1
+BuildVersion:		26B131
+2026.11.5 macos-arm64 (2026-11-09)
+mise WARN  mise version 2026.11.7 available
+mise WARN  To update, run mise self-update
+git version 2.56.0
+zsh 5.9.2 (aarch64-apple-darwin27.0.0)

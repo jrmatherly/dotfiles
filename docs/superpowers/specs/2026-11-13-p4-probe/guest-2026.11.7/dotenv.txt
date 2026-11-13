@@ -1,0 +1,30 @@
+== raw mise env --dotenv
+D_EMPTY=
+D_EQ=a=b
+D_HASH="a #b"
+D_PATH=/Users/x/My Folder
+D_PLAIN=bar
+D_QUOTE="say \"hi\""
+D_SINGLE=it's
+D_SPACE=a b
+== mise env --json
+  "D_EMPTY": "",
+  "D_EQ": "a=b",
+  "D_HASH": "a #b",
+  "D_PATH": "/Users/x/My Folder",
+  "D_PLAIN": "bar",
+  "D_QUOTE": "say \"hi\"",
+  "D_SINGLE": "it's",
+  "D_SPACE": "a b",
+== mise env -s zsh
+export D_EMPTY=''
+export D_EQ=a=b
+export D_HASH='a #b'
+export D_PATH='/Users/x/My Folder'
+export D_PLAIN=bar
+export D_QUOTE='say "hi"'
+export D_SINGLE='it'\''s'
+export D_SPACE='a b'
+== unset --file on an override file
+exit 0
+0
