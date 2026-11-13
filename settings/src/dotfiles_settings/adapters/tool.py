@@ -4,7 +4,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import NamedTuple
 
-from .. import mise
+from .. import mise, sync
 from ..model import InvalidValue, Setting, SettingsError, Source, Value
 
 Reader = Callable[[str, Setting], Value]
@@ -311,6 +311,7 @@ class ToolAdapter:
         if writer is None:
             raise SettingsError(f"{s.id} is read-only")
         writer(name, s, value)
+        sync.record(s, value)
 
     def reset(self, s: Setting) -> None:
         name, (_, _, resetter) = _tool(s)
@@ -318,3 +319,4 @@ class ToolAdapter:
             resetter(name, s)
         else:
             self.write(s, self.read(s).seed or "")
+        sync.forget(s)

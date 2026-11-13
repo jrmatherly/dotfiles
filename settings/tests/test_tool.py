@@ -1,5 +1,5 @@
 """Checks the tool adapter (Hindsight, Claude Code, jstack, plugin stack) against scratch files. Run: python3 test_tool.py"""
-import atexit, contextlib, http.server, json, os, shutil, stat, subprocess, sys, tempfile, threading
+import atexit, contextlib, http.server, json, os, shutil, stat, subprocess, sys, tempfile, threading, tomllib
 from pathlib import Path
 
 tmp = Path(tempfile.mkdtemp()).resolve()
@@ -12,10 +12,11 @@ live.parent.mkdir(); tracked_settings.parent.mkdir()
 rule, tracked = tmp / "claude/rules/jstack-models.md", tmp / "tracked.md"
 rule.parent.mkdir(); rule.symlink_to(tracked)
 os.environ.update(DOTFILES=str(repo), HINDSIGHT_CONFIG=str(cfg), CLAUDE_CONFIG_DIR=str(live.parent),
-                  CLAUDE_CONFIG_SAVE_DIR=str(tracked_settings.parent))
+                  CLAUDE_CONFIG_SAVE_DIR=str(tracked_settings.parent), ROTM_USER_DIR=str(tmp / "rotm"),
+                  XDG_STATE_HOME=str(tmp / "state"))
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from dotfiles_settings import cli, registry
+from dotfiles_settings import cli, registry, sync
 from dotfiles_settings.adapters import ADAPTERS, tool
 from dotfiles_settings.model import InvalidValue, Setting, SettingsError, Source, Value
 
@@ -294,6 +295,30 @@ def test_write_note_only_for_jstack_roles():
         assert "your own copy" in note and str(rule) in note and "Commit" not in note, note
     finally:
         rule.unlink(); rule.symlink_to(tracked)
+
+
+def recorded():
+    return tomllib.loads(sync.tools_path().read_text())["tools"] if sync.tools_path().exists() else {}
+
+
+def test_writes_through_the_adapter_are_recorded():
+    sync.tools_path().unlink(missing_ok=True)   # earlier tests' writes were recorded too
+    live.write_text(LIVE); tracked_settings.write_text('{"model": "opus"}'); tracked.write_text(RULE)
+    A.write(by_id("claude.model"), "sonnet")
+    A.write(by_id("jstack.bug_fix"), "sonnet high")
+    assert recorded() == {"claude.model": "sonnet", "jstack.bug_fix": "sonnet high"}
+    before = sync.tools_path().read_bytes()
+    assert raises_type(lambda: A.write(by_id("jstack.bug_fix"), "nonsense"), InvalidValue)
+    tracked.unlink()
+    assert raises(lambda: A.write(by_id("jstack.bug_fix"), "opus max"), "setup-jstack")
+    assert sync.tools_path().read_bytes() == before
+    tracked.write_text(RULE)
+    A.reset(by_id("claude.model")); A.reset(by_id("jstack.bug_fix"))
+    assert recorded() == {}
+    cfg.write_text('{"optInPaths": ["~/dev"]}')
+    A.write(by_id("hindsight.paths"), "~/dev\n/opt/src")
+    A.reset(by_id("hindsight.paths"))
+    assert "hindsight.paths" not in sync.tools_path().read_text()
 
 
 SCAN = ("keep a@m  path: x.py\noff b@m  no signal\n"
