@@ -31,7 +31,13 @@
 # that form matches however mise reached the config dir (through the
 # ~/.config/mise link or by its real path). Callers run this by path, never
 # through PATH, so a test fixture uses its own copy. Exits 2 for a name that
-# is not a module.
+# is not a module. With a profile active (the last rotm-p-<name> in the env
+# list of miserc.local.toml), that profile's own list,
+# modules-off.rotm-p-<name>.local, is the one in effect: mise reads the skipped
+# files from miserc only, so a module switch cannot fall through from the
+# shared list. ROTM_SHARED=1 makes set and sync --without change the shared
+# list instead. A profile whose list is not on this Mac reads the shared one
+# and refuses a change.
 #
 # License: MIT
 
@@ -39,8 +45,16 @@ set -euo pipefail
 
 modules=(fonts apps vscode claude agents cloud kubernetes devops security network languages media)
 dir="${MISE_CONFIG_DIR:-$HOME/.config/mise}"
-off_file="$dir/modules-off.local"
+shared_off="$dir/modules-off.local"
 rc_file="$dir/miserc.local.toml"
+profile=''
+if [ -f "$rc_file" ]; then
+  profile=$(grep -E '^[[:space:]]*env[[:space:]]*=' "$rc_file" | head -1 | grep -oE '"rotm-p-[a-z0-9-]+"' | tail -1 | tr -d '"') || true
+fi
+profile_off=${profile:+$dir/modules-off.$profile.local}
+# The list in effect
+off_file=$shared_off
+if [ -n "$profile" ] && [ -e "$profile_off" ]; then off_file=$profile_off; fi
 
 die() {
   echo "rotm-modules: $2" >&2
@@ -73,7 +87,12 @@ replace() {
 
 # Rewrite the off list: the modules already off, plus or minus one, in list order
 write_off() {
-  local m
+  local m off_file=$off_file
+  if [ -n "${ROTM_SHARED:-}" ]; then
+    off_file=$shared_off
+  elif [ -n "$profile" ] && [ "$off_file" != "$profile_off" ]; then
+    die 1 "the profile ${profile#rotm-p-} has no module list on this Mac ($profile_off). Run 'rotm settings sync now' to fetch it, or pass --shared to change the shared list"
+  fi
   for m in "${modules[@]}"; do
     if [ "$m" = "$1" ]; then
       [ "$2" = on ] || echo "$m"

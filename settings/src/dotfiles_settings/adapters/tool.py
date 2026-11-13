@@ -12,11 +12,12 @@ Writer = Callable[[str, Setting, str], None]
 Resetter = Callable[[str, Setting], None]
 
 
-def run(argv: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+def run(argv: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     if not os.environ.get("DOTFILES"):
         raise SettingsError("DOTFILES is not set")
     script = Path(os.environ["DOTFILES"]) / "bin" / argv[0]
-    return subprocess.run([str(script), *argv[1:]], capture_output=True, text=True, cwd=cwd)
+    return subprocess.run([str(script), *argv[1:]], capture_output=True, text=True, cwd=cwd,
+                          env={**os.environ, **env} if env else None)
 
 
 def edit_file(path: Path, change: Callable[[str], str]) -> None:

@@ -86,6 +86,34 @@ echo typo >> "$cfg/modules-off.local"
 "$m" sync 2> "$tmp/err" || fail "a stray name in modules-off.local failed sync"
 grep -q 'typo' "$tmp/err" || fail "a stray name was not reported"
 
+# A profile has its own off list, and the line follows the list in effect
+reset
+printf 'env = ["rotm-p-work"]\n' > "$cfg/miserc.local.toml"
+echo cloud > "$cfg/modules-off.local"
+echo fonts > "$cfg/modules-off.rotm-p-work.local"
+[ "$("$m" off)" = fonts ] || fail "a profile's off list is not the one in effect"
+"$m" set media off > /dev/null
+[ "$(tr '\n' ' ' < "$cfg/modules-off.rotm-p-work.local")" = "fonts media " ] || fail "set did not change the profile's list"
+[ "$(cat "$cfg/modules-off.local")" = cloud ] || fail "set in a profile changed the shared list"
+[ "$(line)" = 'ignored_config_paths = ["conf.d/60-rotm-fonts.toml", "conf.d/60-rotm-media.toml"]' ] || fail "the line is not the profile's list: $(line)"
+ROTM_SHARED=1 "$m" set network off > /dev/null
+[ "$(tr '\n' ' ' < "$cfg/modules-off.local")" = "cloud network " ] || fail "ROTM_SHARED did not change the shared list"
+[ "$(tr '\n' ' ' < "$cfg/modules-off.rotm-p-work.local")" = "fonts media " ] || fail "ROTM_SHARED changed the profile's list"
+[ "$(line)" = 'ignored_config_paths = ["conf.d/60-rotm-fonts.toml", "conf.d/60-rotm-media.toml"]' ] || fail "a shared change rewrote the profile's line"
+sed -i '' 's/^env = .*/env = []/' "$cfg/miserc.local.toml"
+"$m" sync > /dev/null
+[ "$(line)" = 'ignored_config_paths = ["conf.d/60-rotm-cloud.toml", "conf.d/60-rotm-network.toml"]' ] || fail "leaving the profile did not restore the shared list's line"
+# A saved profile whose list is not on this Mac: reads use the shared list, a change is refused
+sed -i '' 's/^env = .*/env = ["rotm-installed", "rotm-p-gone"]/' "$cfg/miserc.local.toml"
+[ "$("$m" off | tr '\n' ' ')" = "cloud network " ] || fail "a profile with no list does not read the shared one"
+before=$(cat "$cfg"/*)
+rc=0
+"$m" set media off 2> "$tmp/err" || rc=$?
+[ "$rc" = 1 ] && grep -qF 'modules-off.rotm-p-gone.local' "$tmp/err" || fail "set in a profile with no list exited $rc, or did not name the file"
+[ "$(cat "$cfg"/*)" = "$before" ] || fail "a refused set changed a file"
+ROTM_SHARED=1 "$m" set media off > /dev/null
+[ "$(tr '\n' ' ' < "$cfg/modules-off.local")" = "cloud network media " ] || fail "ROTM_SHARED with no profile list did not change the shared list"
+
 # A list on several lines, the variable that replaces the saved list, and no config dir
 reset
 printf 'ignored_config_paths = [\n  "/opt/mine.toml",\n]\n' > "$cfg/miserc.local.toml"

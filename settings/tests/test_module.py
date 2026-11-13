@@ -12,7 +12,7 @@ helper = dotfiles / "bin/lib/rotm-modules"
 helper.parent.mkdir(parents=True)
 off, log = tmp / "off", tmp / "calls"
 helper.write_text(f"""#!/bin/bash
-echo "$*" >> {log}
+echo "$*${{ROTM_SHARED:+ shared}}" >> {log}
 [ -z "${{STUB_FAIL:-}}" ] || {{ echo "rotm-modules: $STUB_FAIL" >&2; exit 2; }}
 touch {off}
 case $1 in
@@ -55,6 +55,15 @@ assert calls()[-1] == ["set", "security", "on"]
 A.write(s, "")
 A.reset(s)
 assert calls()[-1] == ["set", "security", "on"] and A.read(s).value == "on"
+
+# --shared reaches the helper, which then changes the shared list while a profile is active
+from dotfiles_settings import profile
+profile.shared = True
+A.write(s, "")
+assert calls()[-1] == ["set", "security", "off", "shared"]
+profile.shared = False
+A.write(s, "on")
+assert calls()[-1] == ["set", "security", "on"]
 
 note = note_for(A, s)
 for words in ("no package is uninstalled", "mise bootstrap packages prune --dry-run", "sysup removes its mise tools"):

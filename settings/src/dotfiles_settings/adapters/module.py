@@ -2,7 +2,7 @@
 Both files are git-ignored, so an installed copy can keep them too."""
 from pathlib import Path
 
-from .. import mise
+from .. import mise, profile
 from ..model import InvalidValue, Setting, SettingsError, Source, Value
 from .tool import _check, run
 
@@ -17,7 +17,9 @@ class ModuleAdapter:
         return NOTE
 
     def watch_paths(self) -> list[Path]:
-        return [mise.config_dir() / "modules-off.local"]
+        name = profile.active()
+        return [mise.config_dir() / "modules-off.local", profile.miserc(),
+                *([mise.config_dir() / profile.modules_off_name(name)] if name else [])]
 
     def read(self, s: Setting) -> Value:
         try:
@@ -30,7 +32,8 @@ class ModuleAdapter:
     def write(self, s: Setting, value: str) -> None:
         if value not in (s.true_value, ""):
             raise InvalidValue(f"{s.id}: on or off, not {value!r}")
-        _check(run([HELPER, "set", s.key, "on" if value == s.true_value else "off"]))
+        _check(run([HELPER, "set", s.key, "on" if value == s.true_value else "off"],
+                   env={"ROTM_SHARED": "1"} if profile.shared else None))
 
     def reset(self, s: Setting) -> None:
         self.write(s, s.true_value)
