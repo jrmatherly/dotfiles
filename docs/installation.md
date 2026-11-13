@@ -32,7 +32,7 @@ Later:
 
 - `rotm update` fetches the newest `stable` and runs setup again. It stops before setup when it cannot fast-forward the copy, and lists the files that differ in it.
 - `rotm install` runs setup again without fetching.
-- `rotm settings` opens the settings (`rotm settings list` prints them).
+- `rotm settings` opens the settings (`rotm settings list` prints them). A macOS preference you change there is saved in your `config.override.toml`, not in the copy.
 
 The copy is not for editing: `rotm update` replaces its files. `~/.gitconfig`, `~/.zshrc`, `gh`'s `config.yml` and VS Code's keybindings, tasks and snippets are yours: they are written once and then left alone. With `MISE_DATA_DIR` set, the copy is at `$MISE_DATA_DIR/bootstrap-repo`, and the second path in the install line changes with it.
 

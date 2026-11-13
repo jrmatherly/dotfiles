@@ -241,13 +241,30 @@ for key, s in local.items():
     assert (f"${{{key}-1}}" in extras) == (key in on_by_default), key
 assert "${DOTFILES_MACOS_HIDPI:-}" in extras
 
-# An installed copy: the fragment sits inside mise's checkout, so no write or reset may edit it
+# An installed copy: the fragment sits inside mise's checkout, so write and reset edit the user's override file instead
 os.environ["MISE_DATA_DIR"] = str(tmp / "data")
 (tmp / "data").mkdir()
 (tmp / "data" / "bootstrap-repo").symlink_to(conf)
-before = fragment_path().read_text()
-raises(SettingsError, lambda: MacosDefaultAdapter().write(dock, "44"), "installed copy")
-macos_default.head_text = lambda: FRAGMENT.replace("tilesize = 38 # trailing why\n", "")
-raises(SettingsError, lambda: MacosDefaultAdapter().reset(dock), "installed copy")
-assert fragment_path().read_text() == before
+fragment_path().write_text(FRAGMENT)
+override = conf / "config.override.toml"
+override.write_text('[env]\nEDITOR = "vim"\n')
+status([{**entry, "value": 44, "current": "44"}])
+adapter.write(dock, "44")
+assert fragment_path().read_text() == FRAGMENT
+data = tomllib.loads(override.read_text())
+assert data["bootstrap"]["macos"]["defaults"]["com.apple.dock"] == {"tilesize": 44} and data["env"] == {"EDITOR": "vim"}
+assert written == [("com.apple.dock", "tilesize", "-int", "44")] and killed == ["Dock"]
+assert str(override) in adapter.write_note(dock) and "20-macos.toml" not in adapter.write_note(dock)
+status([{**entry, "key": "autohide", "value": False, "current": "false"}])
+adapter.write(hide, cli.normalize(hide, "off"))
+assert tomllib.loads(override.read_text())["bootstrap"]["macos"]["defaults"]["com.apple.dock"] == {"tilesize": 44, "autohide": False}
+status([{**entry, "value": 44, "current": "44"}])
+v = adapter.read(dock)
+assert (v.value, v.source, v.seed) == ("44", Source.OVERRIDE, "38")
+status([entry])
+adapter.reset(dock)
+assert fragment_path().read_text() == FRAGMENT
+data = tomllib.loads(override.read_text())
+assert data["bootstrap"]["macos"]["defaults"]["com.apple.dock"] == {"autohide": False} and data["env"] == {"EDITOR": "vim"}
+assert written == [("com.apple.dock", "tilesize", "-int", "38")]
 print("ok")

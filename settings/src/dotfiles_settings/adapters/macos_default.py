@@ -1,10 +1,12 @@
 """macOS preferences declared in mise's conf.d/20-macos.toml: read from `mise bootstrap macos defaults status`,
-written by a one-line edit of the tracked fragment plus one `defaults write`."""
+written by a one-line edit of the tracked fragment (on an installed copy, of the user's override file)
+plus one `defaults write`."""
 import copy, json, re, subprocess, sys, tomllib
 from pathlib import Path
 
 from .. import mise
 from ..model import InvalidValue, Setting, SettingsError, Source, Value
+from .env import override_path
 
 FLAGS = {"bool": "-bool", "int": "-int", "string": "-string", "enum": "-string", "path": "-string"}
 RESTART = {"com.apple.dock": "Dock", "com.apple.finder": "Finder"}
@@ -169,11 +171,20 @@ def killall(app: str) -> None:
         pass
 
 
-def read_fragment() -> str:
+def read_text(path: Path | None = None) -> str:
+    """The fragment by default. A missing override file reads as empty."""
+    path = path or fragment_path()
     try:
-        return fragment_path().read_text()
+        return path.read_text()
     except OSError as e:
-        raise SettingsError(f"{fragment_path()}: {e}") from None
+        if isinstance(e, FileNotFoundError) and path != fragment_path():
+            return ""
+        raise SettingsError(f"{path}: {e}") from None
+
+
+def target() -> Path:
+    """The file a change is written to: the tracked fragment in a clone, the override file on an installed copy."""
+    return override_path() if mise.installed(fragment_path()) else fragment_path()
 
 
 def status_entries() -> list[dict]:
@@ -186,8 +197,11 @@ def status_entries() -> list[dict]:
 
 
 class MacosDefaultAdapter:
-    write_note = ("Edited tilde/.config/mise/conf.d/20-macos.toml, a tracked file, and wrote that one preference. "
-                  "Commit the file to keep the change.")
+    def write_note(self, s: Setting) -> str:
+        if target() == fragment_path():
+            return ("Edited tilde/.config/mise/conf.d/20-macos.toml, a tracked file, and wrote that one preference. "
+                    "Commit the file to keep the change.")
+        return f"Saved in {override_path()}, your own settings file, and wrote that one preference."
 
     def read(self, s: Setting) -> Value:
         domain, key = split_key(s.key)
@@ -196,6 +210,9 @@ class MacosDefaultAdapter:
         if entry is None:
             return Value(s.id, s.default or None, Source.DEFAULT if s.default else Source.UNSET, None, False)
         value, drift = render(s, entry["value"]), entry.get("state") != "set"
+        if declared(read_text(override_path()), domain, key) is not MISSING:
+            seed = declared(read_text(), domain, key)
+            return Value(s.id, value, Source.OVERRIDE, None if seed is MISSING else render(s, seed), drift)
         head = head_text()
         if head is None:
             return Value(s.id, value, Source.SEED, None, drift)
@@ -209,18 +226,18 @@ class MacosDefaultAdapter:
         # One key only: `defaults apply` would undo every hand change and write the config.local.toml opt-ins
         domain, key = split_key(s.key)
         literal = to_literal(s, value)
-        mise.refuse_installed(fragment_path())
-        text = read_fragment()
-        fragment_path().write_text(set_key(text, domain, key, literal))
+        path = target()
+        text = read_text(path)
+        path.write_text(set_key(text, domain, key, literal))
         try:
             taken = self.read(s).value == render(s, parse_literal(literal))
         except SettingsError:
-            fragment_path().write_text(text)
+            path.write_text(text)
             raise
         if not taken:
-            fragment_path().write_text(text)
+            path.write_text(text)
             raise SettingsError(f"another config file (config.local.toml) declares {domain} {key} "
-                                "and outranks 20-macos.toml, so change it there")
+                                f"and outranks {path.name}, so change it there")
         defaults_write(domain, key, FLAGS[s.type], literal if s.type in ("bool", "int") else value)
         if self.read(s).drift:
             raise SettingsError(f"{domain} {key} did not take the value")
@@ -229,6 +246,18 @@ class MacosDefaultAdapter:
 
     def reset(self, s: Setting) -> None:
         domain, key = split_key(s.key)
+        if target() != fragment_path():
+            override_path().write_text(remove_key(read_text(override_path()), domain, key))
+            old = declared(read_text(), domain, key)
+            if old is MISSING:
+                print(f'mise never deletes a preference. Run: defaults delete {domain} "{key}"', file=sys.stderr)
+                return
+            value = render(s, old)
+            literal = to_literal(s, value)
+            defaults_write(domain, key, FLAGS[s.type], literal if s.type in ("bool", "int") else value)
+            if domain in RESTART:
+                killall(RESTART[domain])
+            return
         head = head_text()
         if head is None:
             raise SettingsError("20-macos.toml is not in git HEAD, so there is no committed value to return to")
@@ -236,6 +265,5 @@ class MacosDefaultAdapter:
         if old is not MISSING:
             self.write(s, render(s, old))
             return
-        mise.refuse_installed(fragment_path())
-        fragment_path().write_text(remove_key(read_fragment(), domain, key))
+        fragment_path().write_text(remove_key(read_text(), domain, key))
         print(f'mise never deletes a preference. Run: defaults delete {domain} "{key}"', file=sys.stderr)
