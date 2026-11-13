@@ -1,4 +1,5 @@
-"""Env settings: read from mise's config.override.toml, written through `mise set --override`."""
+"""Env settings: read from mise's config.override.toml, written through `mise set --override`.
+A machine-scoped setting goes to config.local.toml instead, which mise never syncs."""
 import os, subprocess, tomllib
 from pathlib import Path
 
@@ -14,8 +15,15 @@ def override_path() -> Path:
     return mise.config_dir() / "config.override.toml"
 
 
+def local_path() -> Path:
+    return mise.config_dir() / "config.local.toml"
+
+
 def read_override() -> dict[str, str]:
-    path = override_path()
+    return read_env(override_path())
+
+
+def read_env(path: Path) -> dict[str, str]:
     try:
         data = tomllib.loads(path.read_text())
     except FileNotFoundError:
@@ -66,7 +74,8 @@ class EnvAdapter:
         self._seed: dict[str, str] | None = None
 
     def read(self, s: Setting) -> Value:
-        override = read_override()
+        # The override file outranks config.local.toml in mise, so a value left there from before scope existed wins
+        override = {**read_env(local_path()), **read_override()} if s.scope == "machine" else read_override()
         if self._seed is None:  # one shell start serves every row
             self._seed = seed_env({e.key for e in registry.load() if e.kind == "env"})
         found = self._seed.get(s.key)
@@ -85,13 +94,24 @@ class EnvAdapter:
         for needle, name in REFUSED:
             if needle in value:
                 raise InvalidValue(f"{s.id}: a value cannot contain {name}")
-        mise.run_mise(["set", "--override", f"{s.key}={value}"])
-        if read_override().get(s.key) != value:
+        if s.scope == "machine":
+            mise.run_mise(["set", "--file", str(local_path()), f"{s.key}={value}"])
+            self.reset_override(s)
+            stored = read_env(local_path())
+        else:
+            mise.run_mise(["set", "--override", f"{s.key}={value}"])
+            stored = read_override()
+        if stored.get(s.key) != value:
             raise SettingsError(f"{s.key} was changed by another writer, try again")
 
     def reset(self, s: Setting) -> None:
+        if s.scope == "machine" and s.key in read_env(local_path()):
+            mise.run_mise(["unset", "--file", str(local_path()), s.key])
+        self.reset_override(s)
+
+    def reset_override(self, s: Setting) -> None:
         if s.key in read_override():
             mise.run_mise(["unset", "--override", s.key])
 
     def watch_paths(self) -> list[Path]:
-        return [override_path(), vscode_env_path()]
+        return [override_path(), local_path(), vscode_env_path()]

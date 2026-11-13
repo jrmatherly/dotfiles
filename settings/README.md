@@ -32,7 +32,7 @@ Each value has one of four sources:
 
 The seed is what a new interactive zsh exports from `zsh/env.zsh`, `tilde/.zshenv` and `~/.zsh.local`. A variable you exported by hand in one terminal is not a seed. To read the seeds, the package starts one `zsh -ic` with the override cache turned off (`DOTFILES_NO_OVERRIDE_ENV=1`) and the registry's variables removed from its environment. That zsh runs in its own session, because an interactive zsh on the terminal UI's terminal made every later keypress fail to read.
 
-`set` writes `config.override.toml` in mise's config dir, `tilde/.config/mise/` inside the clone (`~/.config/mise` is a link to it). Git ignores the file. An override beats the seed, and `reset` removes the override, which hands the variable back to the seed. A change reaches each shell opened afterwards, through `zsh/override-env.zsh`. Shells that are already open keep the old value, and `set` and `reset` print `Open a new shell to pick this up.` to stderr to say so.
+`set` writes `config.override.toml` in mise's config dir, `tilde/.config/mise/` inside the clone (`~/.config/mise` is a link to it). A `machine`-scoped setting writes `config.local.toml` in the same dir instead. Git ignores both files. An override beats the seed, and `reset` removes the override, which hands the variable back to the seed. A change reaches each shell opened afterwards, through `zsh/override-env.zsh`. Shells that are already open keep the old value, and `set` and `reset` print `Open a new shell to pick this up.` to stderr to say so.
 
 The VS Code font preset (`apps.vscode_font_preset`) is the one setting whose seed can come from a file. When no shell exports `VSCODE_FONT_PRESET`, the seed is the preset saved in `~/.config/dotfiles/vscode.env` by `vscode-settings --choose`. An override beats that saved preset without replacing it. Run `vscode-settings` in a new shell afterwards to render `settings.json`.
 
@@ -138,7 +138,7 @@ Add one `[[setting]]` table to `registry.toml`. These eight fields are required:
 | `type` | `bool`, `string`, `int`, `enum` or `path` |
 | `access` | `rw` or `ro` |
 
-These four are optional:
+These five are optional:
 
 | Field | Default | Value |
 | --- | --- | --- |
@@ -146,8 +146,9 @@ These four are optional:
 | `choices` | `[]` | The allowed values. Required for an `enum` |
 | `default` | `""` | The fallback the consuming script applies itself. Nothing applies it for an `env` setting |
 | `widget` | `""` | `""`, `"lines"` or `"seats"`. The UI draws every setting by its `type` for now |
+| `scope` | `"user"` | `"user"` or `"machine"`. A `machine` setting describes one Mac and stays on it. For `env`, its value is kept in mise's `config.local.toml`, which mise never syncs, instead of the override file. A value the override file kept from before is read, and the next write moves it |
 
-The loader rejects a duplicate `id`, a missing or unknown field, a field of the wrong type, an unknown `kind`, `type` or `widget`, an `access` other than `rw` or `ro`, an `env` key that is not a variable name, a `bool` with no `true_value`, an `enum` with no `choices`, and a `default` outside `choices`.
+The loader rejects a duplicate `id`, a missing or unknown field, a field of the wrong type, an unknown `kind`, `type`, `widget` or `scope`, an `access` other than `rw` or `ro`, an `env` key that is not a variable name, a `bool` with no `true_value`, an `enum` with no `choices`, and a `default` outside `choices`.
 
 To add a kind, write a module in `src/dotfiles_settings/adapters/` with `read`, `write` and `reset`, then add it to `ADAPTERS` in `adapters/__init__.py` and to `KINDS` in `registry.py`. An adapter can also define:
 

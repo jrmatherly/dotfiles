@@ -833,6 +833,7 @@ kind = "env"
 key = "DOTFILES_MACOS_COMPUTER_NAME"
 type = "string"
 access = "rw"
+scope = "machine"
 
 [[setting]]
 id = "macos.local_hostname"
@@ -843,6 +844,7 @@ kind = "env"
 key = "DOTFILES_MACOS_LOCAL_HOSTNAME"
 type = "string"
 access = "rw"
+scope = "machine"
 
 [[setting]]
 id = "packages.formulae"
@@ -1086,6 +1088,7 @@ type = "string"
 widget = "lines"
 default = "~/dev"
 access = "rw"
+scope = "machine"
 
 [[setting]]
 id = "hindsight.daemon"

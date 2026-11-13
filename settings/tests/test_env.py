@@ -21,9 +21,9 @@ seed_env_real = env.seed_env
 assert isinstance(ADAPTERS["env"], env.EnvAdapter)
 
 
-def S(key, type="string", default="", true_value=""):
+def S(key, type="string", default="", true_value="", scope="user"):
     return Setting(id=key.lower(), section="T", label=key, help="", kind="env", key=key, type=type,
-                   access="rw", default=default, true_value=true_value)
+                   access="rw", default=default, true_value=true_value, scope=scope)
 
 
 def raises(fn, cls, needle):
@@ -89,7 +89,32 @@ if shutil.which("mise"):
     env.vscode_env_path().write_text("VSCODE_FONT_PRESET='quoted'\n")
     assert env.file_seed("VSCODE_FONT_PRESET") == "quoted"
     assert env.file_seed("T_VAL") is None
-    assert a.watch_paths() == [env.override_path(), env.vscode_env_path()]
+    assert a.watch_paths() == [env.override_path(), env.local_path(), env.vscode_env_path()]
+
+    # a machine setting lives in config.local.toml, which never syncs
+    M = S("DOTFILES_MACOS_COMPUTER_NAME", scope="machine")
+    local = str(mise.config_dir() / "config.local.toml")
+    assert env.local_path() == Path(local)
+    real, calls = mise.run_mise, []
+    mise.run_mise = lambda args, stdin=None: calls.append(args) or real(args, stdin)
+    a.write(M, "Studio")
+    assert calls == [["set", "--file", local, "DOTFILES_MACOS_COMPUTER_NAME=Studio"]], calls
+    assert a.read(M) == Value(M.id, "Studio", Source.OVERRIDE, None, False)
+    assert "DOTFILES_MACOS_COMPUTER_NAME" not in env.read_override()
+    calls.clear()
+    a.reset(M)
+    assert calls == [["unset", "--file", local, "DOTFILES_MACOS_COMPUTER_NAME"]], calls
+    assert a.read(M).source is Source.UNSET
+    # a value the override file kept from before scope existed is read, and the next write moves it
+    real(["set", "--override", "DOTFILES_MACOS_COMPUTER_NAME=old"])
+    assert a.read(M) == Value(M.id, "old", Source.OVERRIDE, None, False)
+    calls.clear()
+    a.write(M, "Studio")
+    assert calls == [["set", "--file", local, "DOTFILES_MACOS_COMPUTER_NAME=Studio"],
+                     ["unset", "--override", "DOTFILES_MACOS_COMPUTER_NAME"]], calls
+    assert "DOTFILES_MACOS_COMPUTER_NAME" not in env.read_override() and a.read(M).value == "Studio"
+    a.reset(M)
+    mise.run_mise = real
 
     # a second writer between our write and our re-read is reported
     real = mise.run_mise

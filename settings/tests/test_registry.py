@@ -53,6 +53,10 @@ assert by_id["macos.hidpi"].true_value == "1"
 assert by_id["apps.vscode_font_preset"].choices == ("iosevka", "warp", "warp-terminal", "fira")
 assert all(s.access == "ro" for s in settings if s.section == "Privacy")
 assert sum(s.section == "Privacy" for s in settings) == 22
+# settings that describe one Mac never sync
+machine = {"macos.computer_name", "macos.local_hostname", "hindsight.paths"}
+assert {s.id for s in settings if s.scope == "machine"} == machine
+assert all(s.scope == "user" for s in settings if s.id not in machine)
 
 # every read-only opt-out is still exported by zsh/env.zsh
 env_zsh = (Path(__file__).resolve().parents[2] / "zsh/env.zsh").read_text()
@@ -81,10 +85,12 @@ bad(table_without("label"), "a.b: missing field 'label'")
 bad(table_without("access"), "a.b: missing field 'access'")
 bad(table(extra=1), "a.b: unknown field 'extra'")
 bad(table(widget="grid"), "a.b: unknown widget 'grid'")
+bad(table(scope="everyone"), "a.b: scope must be user or machine")
 
-# a short entry: the four optional fields take their defaults
+# a short entry: the optional fields take their defaults
 short = load_text(table_without("true_value", "choices", "default"))[0]
-assert (short.true_value, short.choices, short.default, short.widget) == ("", (), "", "")
+assert (short.true_value, short.choices, short.default, short.widget, short.scope) == ("", (), "", "", "user")
+assert load_text(table(scope="machine"))[0].scope == "machine"
 assert load_text(table(widget="seats"))[0].widget == "seats"
 # a bool may be on by default: A3's switches set default equal to true_value (spec decisions 2 and 9)
 on = load_text(table(type="bool", true_value="1", default="1", section="macOS (this Mac)"))[0]

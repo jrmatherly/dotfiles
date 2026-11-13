@@ -125,4 +125,11 @@ out=$(nomise zsh -i -c 'print -r -- $K' < /dev/null 2>&1)
 m unset --override K SP > /dev/null
 [ "$(val K)" = seed ] && ! grep -q '^export ' "$cache" || fail "resetting every key left exports in the cache"
 
+# A machine setting lives in config.local.toml: its key is exported, and a newer file rebuilds the cache
+: > "$tmp/mise.log"
+m set --file "$tmp/cfg/config.local.toml" L=here > /dev/null
+[ "$(val L)" = here ] && [ "$(calls)" = 1 ] || fail "config.local.toml: its key is not exported, or the cache was not rebuilt once"
+m set --file "$tmp/cfg/config.local.toml" L=again > /dev/null
+[ "$(val L)" = again ] && [ "$(calls)" = 2 ] || fail "a newer config.local.toml does not rebuild the cache"
+
 echo "override-env: all checks passed"

@@ -33,6 +33,7 @@ class Setting:
     choices: tuple[str, ...] = ()
     default: str = ""
     widget: str = ""
+    scope: str = "user"
 
 
 @dataclass(frozen=True)

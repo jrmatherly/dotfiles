@@ -8,7 +8,7 @@ KINDS = ("env", "macos-default", "package", "dotfile", "tool", "module")
 TYPES = ("bool", "string", "int", "enum", "path")
 WIDGETS = ("", "lines", "seats")
 REQUIRED = ("id", "section", "label", "help", "kind", "key", "type", "access")
-OPTIONAL = {"true_value": "", "choices": [], "default": "", "widget": ""}
+OPTIONAL = {"true_value": "", "choices": [], "default": "", "widget": "", "scope": "user"}
 ID = re.compile(r"[a-z0-9_]+(\.[a-z0-9_]+)+")
 ENV_KEY = re.compile(r"[A-Z_][A-Z0-9_]*")
 
@@ -61,6 +61,8 @@ def parse(t: dict) -> Setting:
         raise SettingsError(f"{id}: access must be rw or ro")
     if f["widget"] not in WIDGETS:
         raise SettingsError(f"{id}: unknown widget {f['widget']!r}")
+    if f["scope"] not in ("user", "machine"):
+        raise SettingsError(f"{id}: scope must be user or machine")
     if f["kind"] == "env" and not ENV_KEY.fullmatch(f["key"]):
         raise SettingsError(f"{id}: env key must match [A-Z_][A-Z0-9_]*")
     if f["type"] == "bool" and not f["true_value"]:
