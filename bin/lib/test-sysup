@@ -59,7 +59,7 @@ stub gh '[ "$1 $2" = "auth token" ] && echo tok'
 # read, not $(cat << EOF): bash 3.2 cannot parse a case inside a command substitution
 IFS= read -r -d '' mise_stub << 'EOF' || true
 case $1 in
-  --version) if [ -e "$STATE/self-updated" ]; then echo "2026.11.6 macos-arm64"; else echo "2026.11.5 macos-arm64"; fi ;;
+  --version) if [ -e "$STATE/self-updated" ]; then echo "2026.11.9 macos-arm64"; else echo "2026.11.8 macos-arm64"; fi ;;
   self-update) echo "self-update $*" >> "$STATE/mise-calls.log"
     [ -e "$STATE/self-update-fails" ] && { echo "mise ERROR self-update failed"; exit 1; }
     [ ! -e "$STATE/mise-newer" ] || touch "$STATE/self-updated" ;;
@@ -261,7 +261,7 @@ check_true "changes: packages line counts" has '^↻ packages +2 packages upgrad
 check_true "changes: a formula's versions in a row" has '^    gh +2\.103\.1 → 2\.103\.2$'
 check_true "changes: a cask's versions in a row" has '^    codex +0\.164\.0 → 0\.165\.0$'
 check_true "changes: summary keeps the short packages line" has '^  ↻ packages +2 packages upgraded$'
-check_true "changes: mise upgraded itself" has '^↻ mise self-update +2026\.11\.5 → 2026\.11\.6$'
+check_true "changes: mise upgraded itself" has '^↻ mise self-update +2026\.11\.8 → 2026\.11\.9$'
 check_true "changes: mise line counts" has '^↻ mise +4 versions upgraded$'
 check_true "changes: one tool in two pinned versions keeps its short name" has '^    tsc     5\.8\.0 → 5\.8\.1$'
 check_true "changes: mise names each old → new pair, one row each" has '^    node    24\.1\.0 → 24\.1\.1$'

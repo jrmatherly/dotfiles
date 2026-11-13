@@ -133,7 +133,7 @@ sync() {
   if [ -n "$line" ] || [ -n "$entries" ]; then new="ignored_config_paths = [$entries]"; fi
 
   # mise's dotfiles history still reads an ignored file and refuses it as untrusted, which stops
-  # `mise dotfiles` and `mise bootstrap` (mise 2026.11.5 to 2026.11.7). Trusting one module file
+  # `mise dotfiles` and `mise bootstrap` (mise 2026.11.5 to 2026.11.8). Trusting one module file
   # records the home dir as a trusted config root, and that covers every module file.
   # test-modules fails when mise no longer needs this
   if [ -n "$trust" ] && command -v mise > /dev/null; then

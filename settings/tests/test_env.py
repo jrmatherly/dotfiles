@@ -139,8 +139,8 @@ else:
     print("skipped: mise not found")
 
 # version floor and a missing binary, through a fake mise script
-os.environ["DOTFILES_SETTINGS_MISE"] = fake("2026.11.4 macos-arm64 (2026-11-01)")
-raises(mise.check_version, SettingsError, "needs mise 2026.11.5 or newer, found 2026.11.4")
+os.environ["DOTFILES_SETTINGS_MISE"] = fake("2026.11.7 macos-arm64 (2026-11-11)")
+raises(mise.check_version, SettingsError, "needs mise 2026.11.8 or newer, found 2026.11.7")
 os.environ["DOTFILES_SETTINGS_MISE"] = fake("2026.12.0 macos-arm64")
 mise.check_version()
 os.environ["DOTFILES_SETTINGS_MISE"] = str(tmp / "absent")

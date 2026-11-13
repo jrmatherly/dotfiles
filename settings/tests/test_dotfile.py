@@ -14,7 +14,7 @@ echo "$*" >> "$STUB/log"
 case "$1 $2" in
   "dotfiles status") cat "$STUB/status.json" ;;
   "dotfiles apply") cat "$STUB/apply.err" >&2; exit "$(cat "$STUB/apply.code")" ;;
-  *) echo "2026.11.5 macos-arm64 (2026-11-08)" ;;
+  *) echo "2026.11.8 macos-arm64 (2026-11-13)" ;;
 esac
 """)
 (stub / "mise").chmod(0o755)
@@ -62,7 +62,7 @@ assert v.value.startswith("status failed: ") and v.drift is True, "a failed stat
 
 ERR = ("mise ERROR files: refusing to overwrite existing files (use --force):\n"
        "  ~/.zshrc\n  ~/.config/gh\n"
-       "mise ERROR Version: 2026.11.5 macos-arm64 (2026-11-08)\n"
+       "mise ERROR Version: 2026.11.8 macos-arm64 (2026-11-13)\n"
        "mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information\n")
 assert dotfile.conflicts(ERR) == ["~/.zshrc", "~/.config/gh"]
 assert dotfile.conflicts("mise ERROR files: sources do not exist:\n  x\n") == []
@@ -75,7 +75,7 @@ except SettingsError as e:
     assert "mise dotfiles add" in str(e) and "--force" not in str(e)
 
 set_apply(1, "mise ERROR files: sources do not exist:\n  [dotfiles].\"~/.zshrc\": ~/dotfiles/tilde/.zshrc\n"
-             "mise ERROR Version: 2026.11.5 macos-arm64 (2026-11-08)\n")
+             "mise ERROR Version: 2026.11.8 macos-arm64 (2026-11-13)\n")
 try:
     A.apply([S]); raise AssertionError("a missing source did not raise")
 except SettingsError as e:
@@ -83,7 +83,7 @@ except SettingsError as e:
 
 set_apply(1, "mise ERROR edits: cannot apply these entries, fix them manually:\n"
              "  \"~/.codex/config.toml\" (merge:defaults): failed to parse the TOML target: TOML parse error at line 1, column 9\n"
-             "mise ERROR Version: 2026.11.5 macos-arm64 (2026-11-08)\n")
+             "mise ERROR Version: 2026.11.8 macos-arm64 (2026-11-13)\n")
 try:
     A.apply([S]); raise AssertionError("an invalid merge target did not raise")
 except SettingsError as e:

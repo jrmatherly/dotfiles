@@ -66,7 +66,7 @@ The one row in the Dotfiles section, `dotfiles.links`, is the `dotfile` kind and
 
 In Claude Code, `set`, `reset` and `apply` ask first.
 
-Exit 1 is any other failure: mise missing or older than 2026.11.5, an override file that is not valid TOML, a failed mise call. Every failure prints one `dotfiles-settings: <message>` line to stderr, with no traceback. `--section` matches the section name in any case. The `env` kind has nothing to apply.
+Exit 1 is any other failure: mise missing or older than 2026.11.8, an override file that is not valid TOML, a failed mise call. Every failure prints one `dotfiles-settings: <message>` line to stderr, with no traceback. `--section` matches the section name in any case. The `env` kind has nothing to apply.
 
 A JSON object has these eleven keys:
 
@@ -199,6 +199,6 @@ Use your fork's URL if you have one. The wheel carries its own copy of `registry
 
 ## Requirements
 
-- mise 2026.11.5 or newer. Below that, or with no mise on PATH, every command exits 1 with one line that names the floor.
+- mise 2026.11.8 or newer. Below that, or with no mise on PATH, every command exits 1 with one line that names the floor.
 - Python 3.11 or newer.
 - uv. The first run of `bin/dotfiles-settings` creates `settings/.venv` and downloads Textual and textual-serve.

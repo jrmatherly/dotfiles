@@ -4,8 +4,9 @@ from pathlib import Path
 
 from .model import SettingsError
 
-FLOOR = (2026, 11, 5)
-MISSING = "dotfiles-settings needs mise 2026.11.5 or newer, and mise is not on PATH"
+FLOOR = (2026, 11, 8)
+NEEDS = f"dotfiles-settings needs mise {'.'.join(map(str, FLOOR))} or newer"
+MISSING = f"{NEEDS}, and mise is not on PATH"
 
 
 def run_mise(args: list[str], stdin: str | None = None) -> str:
@@ -44,4 +45,4 @@ def check_version() -> None:
     except ValueError:
         version = ()
     if version < FLOOR:
-        raise SettingsError(f"dotfiles-settings needs mise 2026.11.5 or newer, found {token or 'nothing'}")
+        raise SettingsError(f"{NEEDS}, found {token or 'nothing'}")

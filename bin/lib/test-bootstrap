@@ -72,7 +72,7 @@ stub() {
 }
 IFS= read -r -d '' mise_stub << 'EOF' || true
 case $1 in
-  --version) echo "${STUB_MISE_VERSION:-2026.11.5} macos-arm64 (2026-11-08)" ;;
+  --version) echo "${STUB_MISE_VERSION:-2026.11.8} macos-arm64 (2026-11-08)" ;;
   *) echo "mise $*" >> "$STATE/order.log"
     echo "pwd=$(pwd -P) args=$* disable=${MISE_DISABLE_TOOLS:-} dotfiles=${DOTFILES:-} skip=${DOTFILES_SKIP_CODEGRAPH:-} token=${MISE_GITHUB_TOKEN:-} telemetry=${CODEGRAPH_TELEMETRY:-} yes=${DOTFILES_YES:-}" >> "$STATE/mise.log"
     case "$*" in
@@ -292,7 +292,7 @@ prepare() { :; }
 
 STUB_MISE_VERSION=2026.10.1 run
 check_true "e: an old mise exits 1" [ "$rc" -eq 1 ]
-check_true "e: names the floor and the found version" has 'mise 2026\.11\.5 or newer is required, found 2026\.10\.1'
+check_true "e: names the floor and the found version" has 'mise 2026\.11\.8 or newer is required, found 2026\.10\.1'
 check_true "e: mise is not run" log_empty
 
 prepare() { touch "$STATE/bootstrap-fails"; }

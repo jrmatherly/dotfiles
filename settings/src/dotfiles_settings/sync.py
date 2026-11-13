@@ -97,7 +97,7 @@ SECRET = re.compile(r"(TOKEN|SECRET|PASSPHRASE|PASSWORD|API_KEY|ACCESS_KEY|CLIEN
 LOGIN = ["auth", "login", "--hostname", "github.com", "--git-protocol", "https", "--web"]
 NOT_CONNECTED = "no setup repository is connected"
 NO_CONFLICT = "no sharing conflicts"
-CONFLICT = "Conflict: "  # how mise 2026.11.5 lists a held conflict
+CONFLICT = "Conflict: "  # how mise 2026.11.8 lists a held conflict
 # Not --keep-local: on a Mac connected onto a different file it needs a save, and that save breaks the history
 DECIDE = ("Your saved settings and this Mac's differ in the files above, and neither was overwritten. "
           "To keep the saved copy of a file, run `mise dot pull --take-remote <file>`. To keep this Mac's, copy "
