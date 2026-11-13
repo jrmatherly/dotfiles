@@ -90,6 +90,30 @@ grep -qF "$cfg/config.override.toml" "$tmp/err" || fail "the refusal does not na
 grep -qF "$user/config.override.toml" "$tmp/err" || fail "the refusal does not name the folder's file"
 [ "$(snapshot)" = "$before" ] || fail "a refused ensure changed something"
 
+# 6b. A profile's files are linked by the same rules
+reset
+mkdir -p "$user"
+echo 'a = 1' > "$user/config.rotm-p-work.override.toml"
+echo fonts > "$user/modules-off.rotm-p-work.local"
+"$u" ensure || fail "ensure with a profile's files in the folder"
+linked config.rotm-p-work.override.toml || fail "the folder's profile override file is not linked"
+linked modules-off.rotm-p-work.local || fail "the folder's profile module list is not linked"
+reset
+echo 'a = 1' > "$cfg/config.rotm-p-work.override.toml"
+echo fonts > "$cfg/modules-off.rotm-p-work.local"
+"$u" ensure || fail "ensure with a profile's files in the config dir"
+linked config.rotm-p-work.override.toml && linked modules-off.rotm-p-work.local || fail "the config dir's profile files are not links"
+[ "$(cat "$user/config.rotm-p-work.override.toml")" = 'a = 1' ] && [ "$(cat "$user/modules-off.rotm-p-work.local")" = fonts ] \
+  || fail "the profile's files did not move into the folder"
+reset
+mkdir -p "$user"
+echo mine > "$user/config.rotm-p-work.override.toml"
+echo theirs > "$cfg/config.rotm-p-work.override.toml"
+before=$(snapshot)
+rc=0
+"$u" ensure 2> /dev/null || rc=$?
+[ "$rc" = 1 ] && [ "$(snapshot)" = "$before" ] || fail "different copies of a profile's file: exit $rc, or something changed"
+
 # 7. rotm-modules writes through the link
 reset
 "$u" ensure

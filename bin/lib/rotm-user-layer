@@ -23,7 +23,9 @@
 # out anything under its own data dir, where an installed copy's config dir
 # resolves, so the user's files live here and the config dir links to them.
 # ensure exits 1, changing nothing, when the config dir and the folder hold
-# different copies of one file. track appends its entry to config.local.toml
+# different copies of one file. It links a profile's files too
+# (config.rotm-p-<name>.override.toml, modules-off.rotm-p-<name>.local),
+# wherever it finds them. track appends its entry to config.local.toml
 # because `mise dot track` writes into config.toml, a tracked file. restore
 # passes --only final-hook, without which --adopt runs a full bootstrap.
 # Callers run this by path.
@@ -41,9 +43,20 @@ die() {
   exit "$1"
 }
 
+# The names of every profile's files in the folder or the config dir
+profile_files() {
+  local d p
+  for d in "$folder" "$cfg"; do
+    for p in "$d"/config.rotm-p-*.override.toml "$d"/modules-off.rotm-p-*.local; do
+      [ ! -e "$p" ] && [ ! -L "$p" ] || echo "${p##*/}"
+    done
+  done | sort -u
+}
+
 ensure() {
   [ -d "$cfg" ] || die 1 "no mise config dir at $cfg"
   local f here there
+  while IFS= read -r f; do files+=("$f"); done < <(profile_files)
   # Every refusal before any change
   for f in "${files[@]}"; do
     here="$cfg/$f" there="$folder/$f"
