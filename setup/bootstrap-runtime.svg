@@ -437,13 +437,13 @@ svg[data-preset="editorial"] { --flow-halo-peak: 0.07; --flow-glow-peak: 0.28; -
 @keyframes archify-relay-comet-3 { 
   0% { stroke-dashoffset: calc(var(--flow-len, 0px) + var(--flow-shift, 0px)); opacity: 0; animation-timing-function: cubic-bezier(0.45, 0.05, 0.35, 1); }
   2.164% { opacity: var(--flow-peak, 0.9); }
-  21.252% { stroke-dashoffset: var(--flow-shift, 0px); opacity: var(--flow-peak, 0.9); }
-  24.138%, 100% { stroke-dashoffset: var(--flow-shift, 0px); opacity: 0; }
+  21.703% { stroke-dashoffset: var(--flow-shift, 0px); opacity: var(--flow-peak, 0.9); }
+  24.589%, 100% { stroke-dashoffset: var(--flow-shift, 0px); opacity: 0; }
 }
 @keyframes archify-relay-wake-3 { 
-  0%, 6.376% { opacity: 0; }
-  21.252% { opacity: var(--flow-peak, 0.3); }
-  37.483%, 100% { stroke-dashoffset: 0px; opacity: 0; }
+  0%, 6.511% { opacity: 0; }
+  21.703% { opacity: var(--flow-peak, 0.3); }
+  37.933%, 100% { stroke-dashoffset: 0px; opacity: 0; }
 }
 @keyframes archify-relay-comet-4 { 
   0% { stroke-dashoffset: calc(var(--flow-len, 0px) + var(--flow-shift, 0px)); opacity: 0; animation-timing-function: cubic-bezier(0.45, 0.05, 0.35, 1); }
@@ -513,14 +513,14 @@ svg[data-preset="editorial"] { --flow-halo-peak: 0.07; --flow-glow-peak: 0.28; -
 }
 @keyframes archify-relay-comet-10 { 
   0% { stroke-dashoffset: calc(var(--flow-len, 0px) + var(--flow-shift, 0px)); opacity: 0; animation-timing-function: cubic-bezier(0.45, 0.05, 0.35, 1); }
-  2.164% { opacity: var(--flow-peak, 0.9); }
-  21.575% { stroke-dashoffset: var(--flow-shift, 0px); opacity: var(--flow-peak, 0.9); }
-  24.461%, 100% { stroke-dashoffset: var(--flow-shift, 0px); opacity: 0; }
+  1.752% { opacity: var(--flow-peak, 0.9); }
+  8.759% { stroke-dashoffset: var(--flow-shift, 0px); opacity: var(--flow-peak, 0.9); }
+  11.645%, 100% { stroke-dashoffset: var(--flow-shift, 0px); opacity: 0; }
 }
 @keyframes archify-relay-wake-10 { 
   0% { stroke-dashoffset: var(--flow-len, 0px); opacity: var(--flow-peak, 0.3); animation-timing-function: cubic-bezier(0.45, 0.05, 0.35, 1); }
-  21.575% { stroke-dashoffset: 0px; opacity: var(--flow-peak, 0.3); }
-  37.806%, 100% { stroke-dashoffset: 0px; opacity: 0; }
+  8.759% { stroke-dashoffset: 0px; opacity: var(--flow-peak, 0.3); }
+  24.99%, 100% { stroke-dashoffset: 0px; opacity: 0; }
 }
 @keyframes archify-relay-comet-11 { 
   0% { stroke-dashoffset: calc(var(--flow-len, 0px) + var(--flow-shift, 0px)); opacity: 0; animation-timing-function: cubic-bezier(0.45, 0.05, 0.35, 1); }
@@ -529,6 +529,28 @@ svg[data-preset="editorial"] { --flow-halo-peak: 0.07; --flow-glow-peak: 0.28; -
   10.46%, 100% { stroke-dashoffset: var(--flow-shift, 0px); opacity: 0; }
 }
 @keyframes archify-relay-wake-11 { 
+  0%, 2.272% { opacity: 0; }
+  7.574% { opacity: var(--flow-peak, 0.3); }
+  23.805%, 100% { stroke-dashoffset: 0px; opacity: 0; }
+}
+@keyframes archify-relay-comet-12 { 
+  0% { stroke-dashoffset: calc(var(--flow-len, 0px) + var(--flow-shift, 0px)); opacity: 0; animation-timing-function: cubic-bezier(0.45, 0.05, 0.35, 1); }
+  2.164% { opacity: var(--flow-peak, 0.9); }
+  26.855% { stroke-dashoffset: var(--flow-shift, 0px); opacity: var(--flow-peak, 0.9); }
+  29.74%, 100% { stroke-dashoffset: var(--flow-shift, 0px); opacity: 0; }
+}
+@keyframes archify-relay-wake-12 { 
+  0% { stroke-dashoffset: var(--flow-len, 0px); opacity: var(--flow-peak, 0.3); animation-timing-function: cubic-bezier(0.45, 0.05, 0.35, 1); }
+  26.855% { stroke-dashoffset: 0px; opacity: var(--flow-peak, 0.3); }
+  43.085%, 100% { stroke-dashoffset: 0px; opacity: 0; }
+}
+@keyframes archify-relay-comet-13 { 
+  0% { stroke-dashoffset: calc(var(--flow-len, 0px) + var(--flow-shift, 0px)); opacity: 0; animation-timing-function: cubic-bezier(0.45, 0.05, 0.35, 1); }
+  1.515% { opacity: var(--flow-peak, 0.9); }
+  7.574% { stroke-dashoffset: var(--flow-shift, 0px); opacity: var(--flow-peak, 0.9); }
+  10.46%, 100% { stroke-dashoffset: var(--flow-shift, 0px); opacity: 0; }
+}
+@keyframes archify-relay-wake-13 { 
   0% { stroke-dashoffset: var(--flow-len, 0px); opacity: var(--flow-peak, 0.3); animation-timing-function: cubic-bezier(0.45, 0.05, 0.35, 1); }
   7.574% { stroke-dashoffset: 0px; opacity: var(--flow-peak, 0.3); }
   23.805%, 100% { stroke-dashoffset: 0px; opacity: 0; }
@@ -541,59 +563,71 @@ svg[data-preset="editorial"] { --flow-halo-peak: 0.07; --flow-glow-peak: 0.28; -
 }
 @keyframes archify-relay-node-1 { 
   0%, 100% { filter: var(--ambient-node-base-filter, none); }
+  0% { filter: var(--ambient-node-base-filter, none); }
+  2.164%, 7.574% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
+  21.641% { filter: var(--ambient-node-base-filter, none); }
+}
+@keyframes archify-relay-node-2 { 
+  0%, 100% { filter: var(--ambient-node-base-filter, none); }
   7.574% { filter: var(--ambient-node-base-filter, none); }
   9.738%, 15.148% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
   29.215% { filter: var(--ambient-node-base-filter, none); }
 }
-@keyframes archify-relay-node-2 { 
+@keyframes archify-relay-node-3 { 
+  0%, 100% { filter: var(--ambient-node-base-filter, none); }
+  7.574% { filter: var(--ambient-node-base-filter, none); }
+  9.738%, 15.148% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
+  29.215% { filter: var(--ambient-node-base-filter, none); }
+}
+@keyframes archify-relay-node-4 { 
   0%, 100% { filter: var(--ambient-node-base-filter, none); }
   19.36% { filter: var(--ambient-node-base-filter, none); }
   21.524%, 26.934% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
   41% { filter: var(--ambient-node-base-filter, none); }
 }
-@keyframes archify-relay-node-3 { 
+@keyframes archify-relay-node-5 { 
   0%, 100% { filter: var(--ambient-node-base-filter, none); }
   16.952% { filter: var(--ambient-node-base-filter, none); }
   19.116%, 24.526% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
   38.592% { filter: var(--ambient-node-base-filter, none); }
 }
-@keyframes archify-relay-node-4 { 
+@keyframes archify-relay-node-6 { 
   0%, 100% { filter: var(--ambient-node-base-filter, none); }
-  30.63% { filter: var(--ambient-node-base-filter, none); }
-  32.794%, 38.204% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
-  52.27% { filter: var(--ambient-node-base-filter, none); }
+  31.081% { filter: var(--ambient-node-base-filter, none); }
+  33.245%, 38.655% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
+  52.721% { filter: var(--ambient-node-base-filter, none); }
 }
-@keyframes archify-relay-node-5 { 
+@keyframes archify-relay-node-7 { 
   0%, 100% { filter: var(--ambient-node-base-filter, none); }
   20.327% { filter: var(--ambient-node-base-filter, none); }
   22.491%, 27.901% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
   41.967% { filter: var(--ambient-node-base-filter, none); }
 }
-@keyframes archify-relay-node-6 { 
+@keyframes archify-relay-node-8 { 
   0%, 100% { filter: var(--ambient-node-base-filter, none); }
   30.889% { filter: var(--ambient-node-base-filter, none); }
   33.053%, 38.463% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
   52.53% { filter: var(--ambient-node-base-filter, none); }
 }
-@keyframes archify-relay-node-7 { 
+@keyframes archify-relay-node-9 { 
   0%, 100% { filter: var(--ambient-node-base-filter, none); }
   45.765% { filter: var(--ambient-node-base-filter, none); }
   47.929%, 53.339% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
   67.406% { filter: var(--ambient-node-base-filter, none); }
 }
-@keyframes archify-relay-node-8 { 
+@keyframes archify-relay-node-10 { 
   0%, 100% { filter: var(--ambient-node-base-filter, none); }
   34.372% { filter: var(--ambient-node-base-filter, none); }
   36.536%, 41.946% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
   56.012% { filter: var(--ambient-node-base-filter, none); }
 }
-@keyframes archify-relay-node-9 { 
+@keyframes archify-relay-node-11 { 
   0%, 100% { filter: var(--ambient-node-base-filter, none); }
   40.267% { filter: var(--ambient-node-base-filter, none); }
   42.431%, 47.841% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
   61.907% { filter: var(--ambient-node-base-filter, none); }
 }
-@keyframes archify-relay-node-10 { 
+@keyframes archify-relay-node-12 { 
   0%, 100% { filter: var(--ambient-node-base-filter, none); }
   43.749% { filter: var(--ambient-node-base-filter, none); }
   45.913%, 51.324% { filter: var(--ambient-node-base-filter,) drop-shadow(0 0 10px var(--arrow-emphasis)); }
@@ -1010,7 +1044,7 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
 
         <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="2" data-composition-frame-label="Internet · third-party code" x="230" y="10" width="980" height="114" rx="12" class="c-region" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="3" data-composition-frame-label="Machine-local" x="590" y="390" width="260" height="274" rx="12" class="c-region" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="3" data-composition-frame-label="Machine-local" x="230" y="390" width="620" height="274" rx="12" class="c-region" stroke-width="1"/>
 
         <!-- Connection paths (before components for correct z-order) -->
         <g data-graph-role="automatic-crossover" style="--step:0">
@@ -1026,20 +1060,20 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
           <path data-edge-from="setup" data-edge-to="miserun" data-edge-label="when mise is missing" data-edge-key="2" data-edge-id="get-mise" data-composition-points="355,220;355,104" data-composition-crossover="halo" data-composition-independent="true" d="M 355 220 L 355 104" class="a-dashed" data-animate="edge" style="--step: 2;" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:3">
-          <path data-graph-role="automatic-crossover-underlay" d="M 450 238 L 574 238 Q 582 238 582 230 L 582 80 Q 582 72 590 72 L 620 72" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="setup" data-edge-to="registries" data-edge-label="2 · gh login · packages · tools · extensions" data-edge-key="3" data-edge-id="step-packages" data-composition-points="450,238;582,238;582,72;620,72" data-composition-crossover="halo" data-composition-independent="true" d="M 450 238 L 574 238 Q 582 238 582 230 L 582 80 Q 582 72 590 72 L 620 72" class="a-dashed" data-animate="edge" style="--step: 3;" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 450 245 L 466 245 Q 474 245 474 237 L 474 80 Q 474 72 482 72 L 620 72" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="setup" data-edge-to="registries" data-edge-label="2 · gh login · packages · tools · extensions" data-edge-key="3" data-edge-id="step-packages" data-composition-points="450,245;474,245;474,72;620,72" data-composition-crossover="halo" data-composition-independent="true" d="M 450 245 L 466 245 Q 474 245 474 237 L 474 80 Q 474 72 482 72 L 620 72" class="a-dashed" data-animate="edge" style="--step: 3;" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:4">
-          <path data-graph-role="automatic-crossover-underlay" d="M 450 253.05 L 620 253.05" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="setup" data-edge-to="mise" data-edge-label="3 · mise bootstrap" data-edge-key="4" data-edge-id="step-mise" data-composition-points="450,253.05;620,253.05" data-composition-crossover="halo" data-composition-independent="true" d="M 450 253.05 L 620 253.05" class="a-emphasis" data-animate="edge" style="--step: 4;" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 450 260.05 L 620 260.05" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="setup" data-edge-to="mise" data-edge-label="3 · mise bootstrap" data-edge-key="4" data-edge-id="step-mise" data-composition-points="450,260.05;620,260.05" data-composition-crossover="halo" data-composition-independent="true" d="M 450 260.05 L 620 260.05" class="a-emphasis" data-animate="edge" style="--step: 4;" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:5">
           <path data-graph-role="automatic-crossover-underlay" d="M 820 259 L 902 259 Q 910 259 910 267 L 910 444 Q 910 452 918 452 L 1000 452" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
           <path data-edge-from="mise" data-edge-to="system" data-edge-label="files · login shell" data-edge-key="5" data-edge-id="grant-root" data-composition-points="820,259;910,259;910,452;1000,452" data-composition-crossover="halo" data-composition-independent="true" d="M 820 259 L 902 259 Q 910 259 910 267 L 910 444 Q 910 452 918 452 L 1000 452" class="a-security" data-animate="edge" style="--step: 5;" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:6">
-          <path data-graph-role="automatic-crossover-underlay" d="M 720 284 L 720 420" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="mise" data-edge-to="home" data-edge-label="dotfiles · ln -s" data-edge-key="6" data-edge-id="link-home" data-composition-points="720,284;720,420" data-composition-crossover="halo" data-composition-independent="true" d="M 720 284 L 720 420" class="a-emphasis" data-animate="edge" style="--step: 6;" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 729.1 284 L 729.1 420" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="mise" data-edge-to="home" data-edge-label="dotfiles · ln -s" data-edge-key="6" data-edge-id="link-home" data-composition-points="729.1,284;729.1,420" data-composition-crossover="halo" data-composition-independent="true" d="M 729.1 284 L 729.1 420" class="a-emphasis" data-animate="edge" style="--step: 6;" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:7">
           <path data-graph-role="automatic-crossover-underlay" d="M 820 243.95 L 902 243.95 Q 910 243.95 910 251.95 L 910 252.05 Q 910 260.05 918 260.05 L 1000 260.05" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
@@ -1054,12 +1088,20 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
           <path data-edge-from="misc" data-edge-to="anthropic" data-edge-label="install · restore" data-edge-key="9" data-edge-id="misc-anthropic" data-composition-points="1090,220;1090,104" data-composition-crossover="halo" data-composition-independent="true" d="M 1090 220 L 1090 104" class="a-dashed" data-animate="edge" style="--step: 9;" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:10">
-          <path data-graph-role="automatic-crossover-underlay" d="M 434 284 L 434 428 Q 434 436 442 436 L 620 436" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="setup" data-edge-to="home" data-edge-label="1 · link dotfiles · 4 · extras" data-edge-key="10" data-edge-id="step-extras" data-composition-points="434,284;434,436;620,436" data-composition-crossover="halo" data-composition-independent="true" d="M 434 284 L 434 428 Q 434 436 442 436 L 620 436" class="a-emphasis" data-animate="edge" style="--step: 10;" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 345.9 284 L 345.9 420" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="setup" data-edge-to="usersettings" data-edge-label="0 · move in · 5 · sync apply" data-edge-key="10" data-edge-id="step-settings" data-composition-points="345.9,284;345.9,420" data-composition-crossover="halo" data-composition-independent="true" d="M 345.9 284 L 345.9 420" class="a-emphasis" data-animate="edge" style="--step: 10;" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:11">
+          <path data-graph-role="automatic-crossover-underlay" d="M 194 500 L 194 476 Q 194 468 202 468 L 260 468" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="settingsrepo" data-edge-to="usersettings" data-edge-label="after gh login: load? [Y/n]" data-edge-key="11" data-edge-id="load-settings" data-composition-points="194,500;194,468;260,468" data-composition-crossover="halo" data-composition-independent="true" d="M 194 500 L 194 476 Q 194 468 202 468 L 260 468" class="a-dashed" data-animate="edge" style="--step: 11;" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        </g>
+        <g data-graph-role="automatic-crossover" style="--step:12">
+          <path data-graph-role="automatic-crossover-underlay" d="M 362 284 L 362 300 Q 362 308 370 308 L 588 308 Q 596 308 596 316 L 596 444 Q 596 452 604 452 L 620 452" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="setup" data-edge-to="home" data-edge-label="1 · link dotfiles · 4 · extras" data-edge-key="12" data-edge-id="step-extras" data-composition-points="362,284;362,308;596,308;596,452;620,452" data-composition-crossover="halo" data-composition-independent="true" d="M 362 284 L 362 300 Q 362 308 370 308 L 588 308 Q 596 308 596 316 L 596 444 Q 596 452 604 452 L 620 452" class="a-emphasis" data-animate="edge" style="--step: 12;" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        </g>
+        <g data-graph-role="automatic-crossover" style="--step:13">
           <path data-graph-role="automatic-crossover-underlay" d="M 720 484 L 720 580" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="home" data-edge-to="shell" data-edge-label="sourced at login" data-edge-key="11" data-edge-id="load-shell" data-composition-points="720,484;720,580" data-composition-crossover="halo" data-composition-independent="true" d="M 720 484 L 720 580" class="a-emphasis" data-animate="edge" style="--step: 11;" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-edge-from="home" data-edge-to="shell" data-edge-label="sourced at login" data-edge-key="13" data-edge-id="load-shell" data-composition-points="720,484;720,580" data-composition-crossover="halo" data-composition-independent="true" d="M 720 484 L 720 580" class="a-emphasis" data-animate="edge" style="--step: 12;" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
 
         <!-- Components -->
@@ -1078,7 +1120,7 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
         <g id="node-setup" data-node-id="setup" data-node-label="setup.sh" tabindex="0" role="button" aria-label="Focus setup.sh, wrapper · dotfiles · packages · tools · extras, Setup · runs as you" aria-pressed="false" data-node-kind="backend" data-node-sublabel="wrapper · dotfiles · packages · tools · extras" data-node-context="Setup · runs as you">
           <title>setup.sh · wrapper · dotfiles · packages · tools · extras · Setup · runs as you</title>
           <rect x="260" y="220" width="190" height="64" rx="8" class="c-mask"/>
-          <rect x="260" y="220" width="190" height="64" rx="8" class="c-backend" data-animate="node" style="--step: 1; --flow-node-name: archify-relay-node-1;" stroke-width="1.5"/>
+          <rect x="260" y="220" width="190" height="64" rx="8" class="c-backend" data-animate="node" style="--step: 1; --flow-node-name: archify-relay-node-2;" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(266 226) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
@@ -1089,7 +1131,7 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
         <g id="node-mise" data-node-id="mise" data-node-label="mise bootstrap" tabindex="0" role="button" aria-label="Focus mise bootstrap, files · dotfiles · shell · task, Setup · runs as you" aria-pressed="false" data-node-kind="backend" data-node-sublabel="files · dotfiles · shell · task" data-node-context="Setup · runs as you">
           <title>mise bootstrap · files · dotfiles · shell · task · Setup · runs as you</title>
           <rect x="620" y="220" width="200" height="64" rx="8" class="c-mask"/>
-          <rect x="620" y="220" width="200" height="64" rx="8" class="c-backend" data-animate="node" style="--step: 5; --flow-node-name: archify-relay-node-5;" stroke-width="1.5"/>
+          <rect x="620" y="220" width="200" height="64" rx="8" class="c-backend" data-animate="node" style="--step: 5; --flow-node-name: archify-relay-node-7;" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(626 226) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
@@ -1100,7 +1142,7 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
         <g id="node-misc" data-node-id="misc" data-node-label="setup/misc.sh" tabindex="0" role="button" aria-label="Focus setup/misc.sh, bootstrap task · no sudo, Setup · runs as you" aria-pressed="false" data-node-kind="backend" data-node-sublabel="bootstrap task · no sudo" data-node-context="Setup · runs as you">
           <title>setup/misc.sh · bootstrap task · no sudo · Setup · runs as you</title>
           <rect x="1000" y="220" width="180" height="64" rx="8" class="c-mask"/>
-          <rect x="1000" y="220" width="180" height="64" rx="8" class="c-backend" data-animate="node" style="--step: 8; --flow-node-name: archify-relay-node-8;" stroke-width="1.5"/>
+          <rect x="1000" y="220" width="180" height="64" rx="8" class="c-backend" data-animate="node" style="--step: 8; --flow-node-name: archify-relay-node-10;" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(1006 226) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
@@ -1111,7 +1153,7 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
         <g id="node-miserun" data-node-id="miserun" data-node-label="mise.run" tabindex="0" role="button" aria-label="Focus mise.run, mise's installer, Internet · third-party code" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="mise's installer" data-node-context="Internet · third-party code">
           <title>mise.run · mise's installer · Internet · third-party code</title>
           <rect x="260" y="40" width="190" height="64" rx="8" class="c-mask"/>
-          <rect x="260" y="40" width="190" height="64" rx="8" class="c-cloud" data-animate="node" style="--step: 3; --flow-node-name: archify-relay-node-3;" stroke-width="1.5"/>
+          <rect x="260" y="40" width="190" height="64" rx="8" class="c-cloud" data-animate="node" style="--step: 3; --flow-node-name: archify-relay-node-5;" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(266 46) scale(0.6875)">
             <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
           </g>
@@ -1122,7 +1164,7 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
         <g id="node-registries" data-node-id="registries" data-node-label="Package sources" tabindex="0" role="button" aria-label="Focus Package sources, bottles · casks · tools · extensions · PyPI, Internet · third-party code" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="bottles · casks · tools · extensions · PyPI" data-node-context="Internet · third-party code">
           <title>Package sources · bottles · casks · tools · extensions · PyPI · Internet · third-party code</title>
           <rect x="620" y="40" width="200" height="64" rx="8" class="c-mask"/>
-          <rect x="620" y="40" width="200" height="64" rx="8" class="c-cloud" data-animate="node" style="--step: 4; --flow-node-name: archify-relay-node-4;" stroke-width="1.5"/>
+          <rect x="620" y="40" width="200" height="64" rx="8" class="c-cloud" data-animate="node" style="--step: 4; --flow-node-name: archify-relay-node-6;" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(626 46) scale(0.6875)">
             <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
           </g>
@@ -1133,7 +1175,7 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
         <g id="node-anthropic" data-node-id="anthropic" data-node-label="Claude Code sources" tabindex="0" role="button" aria-label="Focus Claude Code sources, claude.ai · marketplaces, Internet · third-party code" aria-pressed="false" data-node-kind="external" data-node-sublabel="claude.ai · marketplaces" data-node-context="Internet · third-party code">
           <title>Claude Code sources · claude.ai · marketplaces · Internet · third-party code</title>
           <rect x="1000" y="40" width="180" height="64" rx="8" class="c-mask"/>
-          <rect x="1000" y="40" width="180" height="64" rx="8" class="c-external" data-animate="node" style="--step: 10; --flow-node-name: archify-relay-node-10;" stroke-width="1.5"/>
+          <rect x="1000" y="40" width="180" height="64" rx="8" class="c-external" data-animate="node" style="--step: 10; --flow-node-name: archify-relay-node-12;" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(1006 46) scale(0.6875)">
             <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
             <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
@@ -1145,7 +1187,7 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
         <g id="node-system" data-node-id="system" data-node-label="macOS system files" tabindex="0" role="button" aria-label="Focus macOS system files, /etc/pam.d · /etc/shells, root via sudo" aria-pressed="false" data-node-kind="security" data-node-sublabel="/etc/pam.d · /etc/shells" data-node-tag="root" data-node-context="root via sudo">
           <title>macOS system files · /etc/pam.d · /etc/shells · root via sudo · root</title>
           <rect x="1000" y="420" width="180" height="64" rx="8" class="c-mask"/>
-          <rect x="1000" y="420" width="180" height="64" rx="8" class="c-security" data-animate="node" style="--step: 6; --flow-node-name: archify-relay-node-7;" stroke-width="1.5"/>
+          <rect x="1000" y="420" width="180" height="64" rx="8" class="c-security" data-animate="node" style="--step: 6; --flow-node-name: archify-relay-node-9;" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(1006 426) scale(0.6875)">
             <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
             <path d="m5.8 8 1.5 1.5 3-3"/>
@@ -1158,7 +1200,7 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
         <g id="node-home" data-node-id="home" data-node-label="$HOME configs" tabindex="0" role="button" aria-label="Focus $HOME configs, symlinks into the repo, Machine-local" aria-pressed="false" data-node-kind="database" data-node-sublabel="symlinks into the repo" data-node-context="Machine-local">
           <title>$HOME configs · symlinks into the repo · Machine-local</title>
           <rect x="620" y="420" width="200" height="64" rx="8" class="c-mask"/>
-          <rect x="620" y="420" width="200" height="64" rx="8" class="c-database" data-animate="node" style="--step: 7; --flow-node-name: archify-relay-node-6;" stroke-width="1.5"/>
+          <rect x="620" y="420" width="200" height="64" rx="8" class="c-database" data-animate="node" style="--step: 7; --flow-node-name: archify-relay-node-8;" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(626 426) scale(0.6875)">
             <ellipse cx="8" cy="4" rx="5" ry="2"/>
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
@@ -1170,7 +1212,7 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
         <g id="node-shell" data-node-id="shell" data-node-label="zsh session" tabindex="0" role="button" aria-label="Focus zsh session, ~/.zshrc load order, Machine-local" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="~/.zshrc load order" data-node-context="Machine-local">
           <title>zsh session · ~/.zshrc load order · Machine-local</title>
           <rect x="620" y="580" width="200" height="64" rx="8" class="c-mask"/>
-          <rect x="620" y="580" width="200" height="64" rx="8" class="c-frontend" data-animate="node" style="--step: 12; --flow-node-name: archify-relay-node-9;" stroke-width="1.5"/>
+          <rect x="620" y="580" width="200" height="64" rx="8" class="c-frontend" data-animate="node" style="--step: 12; --flow-node-name: archify-relay-node-11;" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(626 586) scale(0.6875)">
             <rect x="2" y="3" width="12" height="10" rx="2"/>
             <path d="M2 6.5h12"/>
@@ -1184,13 +1226,37 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
         <g id="node-runlog" data-node-id="runlog" data-node-label="Setup run log" tabindex="0" role="button" aria-label="Focus Setup run log, private/setup-logs (git-ignored), Architecture component" aria-pressed="false" data-node-kind="database" data-node-sublabel="private/setup-logs (git-ignored)" data-node-context="Architecture component">
           <title>Setup run log · private/setup-logs (git-ignored) · Architecture component</title>
           <rect x="40" y="360" width="170" height="64" rx="8" class="c-mask"/>
-          <rect x="40" y="360" width="170" height="64" rx="8" class="c-database" data-animate="node" style="--step: 2; --flow-node-name: archify-relay-node-2;" stroke-width="1.5"/>
+          <rect x="40" y="360" width="170" height="64" rx="8" class="c-database" data-animate="node" style="--step: 2; --flow-node-name: archify-relay-node-4;" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(46 366) scale(0.6875)">
             <ellipse cx="8" cy="4" rx="5" ry="2"/>
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-node-label="" x="125" y="390" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Setup run log</text>
         <text x="125" y="406" class="t-muted" font-size="8.4" text-anchor="middle">private/setup-logs (git-ignored)</text>
+        </g>
+
+        <g id="node-usersettings" data-node-id="usersettings" data-node-label="Your settings" tabindex="0" role="button" aria-label="Focus Your settings, ~/.config/rotm · mode 0700, Machine-local" aria-pressed="false" data-node-kind="database" data-node-sublabel="~/.config/rotm · mode 0700" data-node-context="Machine-local">
+          <title>Your settings · ~/.config/rotm · mode 0700 · Machine-local</title>
+          <rect x="260" y="420" width="200" height="64" rx="8" class="c-mask"/>
+          <rect x="260" y="420" width="200" height="64" rx="8" class="c-database" data-animate="node" style="--step: 11; --flow-node-name: archify-relay-node-3;" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(266 426) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" x="360" y="450" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Your settings</text>
+        <text x="360" y="466" class="t-muted" font-size="9" text-anchor="middle">~/.config/rotm · mode 0700</text>
+        </g>
+
+        <g id="node-settingsrepo" data-node-id="settingsrepo" data-node-label="Your rotm-settings" tabindex="0" role="button" aria-label="Focus Your rotm-settings, private GitHub repo, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="private GitHub repo" data-node-context="Architecture component">
+          <title>Your rotm-settings · private GitHub repo · Architecture component</title>
+          <rect x="40" y="500" width="170" height="64" rx="8" class="c-mask"/>
+          <rect x="40" y="500" width="170" height="64" rx="8" class="c-external" data-animate="node" style="--step: 11; --flow-node-name: archify-relay-node-1;" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(46 506) scale(0.6875)">
+            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
+            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+          </g>
+          <text data-node-label="" x="125" y="530" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Your rotm-settings</text>
+        <text x="125" y="546" class="t-muted" font-size="9" text-anchor="middle">private GitHub repo</text>
         </g>
 
         <!-- Connection labels -->
@@ -1207,20 +1273,20 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
           <text x="355" y="210" class="t-edge-dashed" font-size="8" text-anchor="middle">when mise is missing</text>
         </g>
         <g data-edge-from="setup" data-edge-to="registries" data-edge-label="2 · gh login · packages · tools · extensions" data-edge-key="3" data-edge-id="step-packages">
-          <rect x="471.4" y="135" width="221.2" height="14" rx="3" class="c-mask"/>
-          <text x="582" y="145" class="t-edge-dashed" font-size="8" text-anchor="middle">2 · gh login · packages · tools · extensions</text>
+          <rect x="363.4" y="138.5" width="221.2" height="14" rx="3" class="c-mask"/>
+          <text x="474" y="148.5" class="t-edge-dashed" font-size="8" text-anchor="middle">2 · gh login · packages · tools · extensions</text>
         </g>
         <g data-edge-from="setup" data-edge-to="mise" data-edge-label="3 · mise bootstrap" data-edge-key="4" data-edge-id="step-mise">
-          <rect x="486.8" y="263.05" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
-          <text x="535" y="273.05" class="t-edge-emphasis" font-size="8" text-anchor="middle">3 · mise bootstrap</text>
+          <rect x="486.8" y="240.05" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
+          <text x="535" y="250.05" class="t-edge-emphasis" font-size="8" text-anchor="middle">3 · mise bootstrap</text>
         </g>
         <g data-edge-from="mise" data-edge-to="system" data-edge-label="files · login shell" data-edge-key="5" data-edge-id="grant-root">
           <rect x="859.4" y="335.5" width="101.2" height="14" rx="3" class="c-mask"/>
           <text x="910" y="345.5" class="t-edge-security" font-size="8" text-anchor="middle">files · login shell</text>
         </g>
         <g data-edge-from="mise" data-edge-to="home" data-edge-label="dotfiles · ln -s" data-edge-key="6" data-edge-id="link-home">
-          <rect x="627.2" y="345" width="86.8" height="14" rx="3" class="c-mask"/>
-          <text x="670.6" y="355" class="t-edge-emphasis" font-size="8" text-anchor="middle">dotfiles · ln -s</text>
+          <rect x="636.3000000000001" y="345" width="86.8" height="14" rx="3" class="c-mask"/>
+          <text x="679.7" y="355" class="t-edge-emphasis" font-size="8" text-anchor="middle">dotfiles · ln -s</text>
         </g>
         <g data-edge-from="mise" data-edge-to="misc" data-edge-label="task · after sudo -k" data-edge-key="7" data-edge-id="run-task">
           <rect x="857" y="232" width="106" height="14" rx="3" class="c-mask"/>
@@ -1234,19 +1300,27 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
           <rect x="1044.2" y="200" width="91.6" height="14" rx="3" class="c-mask"/>
           <text x="1090" y="210" class="t-edge-dashed" font-size="8" text-anchor="middle">install · restore</text>
         </g>
-        <g data-edge-from="setup" data-edge-to="home" data-edge-label="1 · link dotfiles · 4 · extras" data-edge-key="10" data-edge-id="step-extras">
-          <rect x="450" y="416" width="154" height="14" rx="3" class="c-mask"/>
-          <text x="527" y="426" class="t-edge-emphasis" font-size="8" text-anchor="middle">1 · link dotfiles · 4 · extras</text>
+        <g data-edge-from="setup" data-edge-to="usersettings" data-edge-label="0 · move in · 5 · sync apply" data-edge-key="10" data-edge-id="step-settings">
+          <rect x="351.9" y="345" width="144.4" height="14" rx="3" class="c-mask"/>
+          <text x="424.09999999999997" y="355" class="t-edge-emphasis" font-size="8" text-anchor="middle">0 · move in · 5 · sync apply</text>
         </g>
-        <g data-edge-from="home" data-edge-to="shell" data-edge-label="sourced at login" data-edge-key="11" data-edge-id="load-shell">
+        <g data-edge-from="settingsrepo" data-edge-to="usersettings" data-edge-label="after gh login: load? [Y/n]" data-edge-key="11" data-edge-id="load-settings">
+          <rect x="48.400000000000006" y="477" width="139.6" height="14" rx="3" class="c-mask"/>
+          <text x="118.2" y="487" class="t-edge-dashed" font-size="8" text-anchor="middle">after gh login: load? [Y/n]</text>
+        </g>
+        <g data-edge-from="setup" data-edge-to="home" data-edge-label="1 · link dotfiles · 4 · extras" data-edge-key="12" data-edge-id="step-extras">
+          <rect x="402" y="288" width="154" height="14" rx="3" class="c-mask"/>
+          <text x="479" y="298" class="t-edge-emphasis" font-size="8" text-anchor="middle">1 · link dotfiles · 4 · extras</text>
+        </g>
+        <g data-edge-from="home" data-edge-to="shell" data-edge-label="sourced at login" data-edge-key="13" data-edge-id="load-shell">
           <rect x="627.2" y="525" width="86.8" height="14" rx="3" class="c-mask"/>
           <text x="670.6" y="535" class="t-edge-emphasis" font-size="8" text-anchor="middle">sourced at login</text>
         </g>
 
         <!-- Boundary labels (foreground masks keep routes out of titles) -->
         <g data-graph-role="structural-frame-label" data-composition-frame-id="0" data-composition-frame-kind="region" data-composition-frame-label="Setup · runs as you">
-          <rect data-graph-role="structural-frame-label-mask" x="416" y="200" width="112.6" height="16" rx="3" class="c-mask"/>
-          <text data-boundary-label="" x="420" y="213" class="t-cloud" font-size="9" font-weight="600">Setup · runs as you</text>
+          <rect data-graph-role="structural-frame-label-mask" x="482" y="200" width="112.6" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="486" y="213" class="t-cloud" font-size="9" font-weight="600">Setup · runs as you</text>
         </g>
 
         <g data-graph-role="structural-frame-label" data-composition-frame-id="1" data-composition-frame-kind="security-group" data-composition-frame-label="root via sudo">
@@ -1260,8 +1334,8 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
         </g>
 
         <g data-graph-role="structural-frame-label" data-composition-frame-id="3" data-composition-frame-kind="region" data-composition-frame-label="Machine-local">
-          <rect data-graph-role="structural-frame-label-mask" x="594" y="400" width="80.2" height="16" rx="3" class="c-mask"/>
-          <text data-boundary-label="" x="598" y="413" class="t-cloud" font-size="9" font-weight="600">Machine-local</text>
+          <rect data-graph-role="structural-frame-label-mask" x="234" y="400" width="80.2" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="238" y="413" class="t-cloud" font-size="9" font-weight="600">Machine-local</text>
         </g>
 
         <!-- Legend -->

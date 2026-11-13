@@ -3,13 +3,13 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "Dotfiles Bootstrap Runtime",
-    "output": ".archify/architecture-dotfiles-runtime-20261112-203224/dotfiles-runtime.html",
+    "output": ".archify/architecture-dotfiles-runtime-20261113-005417/dotfiles-runtime.html",
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:jrmatherly/returnofthemac.git",
       "provider": "github",
       "link_mode": "local-only",
-      "revision": "0dcced7ac3d9474954fad78db9bcc12c82eed899"
+      "revision": "7474f6c85f6f3819f464e5641ca4c4d40d05599b"
     }
   },
   "components": [
@@ -39,21 +39,21 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 326,
-          "end_line": 349,
+          "line": 328,
+          "end_line": 355,
           "label": "mise dotfiles apply, before any package"
         },
         {
           "path": "setup.sh",
-          "line": 424,
-          "end_line": 486,
-          "label": "gh login, packages, bootstrap, tools, the task"
+          "line": 431,
+          "end_line": 536,
+          "label": "gh login, saved settings, packages, tools, task"
         },
         {
           "path": "setup.sh",
-          "line": 488,
-          "end_line": 539,
-          "label": "extensions, extras, failures listed last"
+          "line": 538,
+          "end_line": 595,
+          "label": "extensions, extras, sync apply, failures last"
         }
       ]
     },
@@ -117,8 +117,8 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 264,
-          "end_line": 271,
+          "line": 266,
+          "end_line": 274,
           "label": "curl -fsSL https://mise.run | sh"
         }
       ]
@@ -133,14 +133,14 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 362,
-          "end_line": 368,
+          "line": 372,
+          "end_line": 379,
           "label": "mise bootstrap packages apply"
         },
         {
           "path": "setup.sh",
-          "line": 468,
-          "end_line": 475,
+          "line": 520,
+          "end_line": 528,
           "label": "mise install"
         },
         {
@@ -215,8 +215,8 @@
         },
         {
           "path": "setup.sh",
-          "line": 407,
-          "end_line": 419,
+          "line": 410,
+          "end_line": 425,
           "label": "[credential] sections to ~/.gitconfig.local"
         }
       ]
@@ -256,6 +256,50 @@
           "label": "re-run under script(1)"
         }
       ]
+    },
+    {
+      "id": "usersettings",
+      "type": "database",
+      "label": "Your settings",
+      "sublabel": "~/.config/rotm · mode 0700",
+      "pos": [260, 420],
+      "size": [200, 64],
+      "sources": [
+        {
+          "path": "setup.sh",
+          "line": 242,
+          "end_line": 250,
+          "label": "rotm-user-layer ensure, before the module list"
+        },
+        {
+          "path": "setup.sh",
+          "line": 474,
+          "end_line": 489,
+          "label": "rotm-user-layer restore, then modules sync"
+        },
+        {
+          "path": "setup.sh",
+          "line": 562,
+          "end_line": 566,
+          "label": "dotfiles-settings sync apply"
+        }
+      ]
+    },
+    {
+      "id": "settingsrepo",
+      "type": "external",
+      "label": "Your rotm-settings",
+      "sublabel": "private GitHub repo",
+      "pos": [40, 500],
+      "size": [170, 64],
+      "sources": [
+        {
+          "path": "setup.sh",
+          "line": 455,
+          "end_line": 473,
+          "label": "offered when private and non-empty"
+        }
+      ]
     }
   ],
   "boundaries": [
@@ -277,7 +321,7 @@
     {
       "kind": "region",
       "label": "Machine-local",
-      "wraps": ["home", "shell"]
+      "wraps": ["home", "shell", "usersettings"]
     }
   ],
   "connections": [
@@ -352,6 +396,20 @@
       "variant": "dashed"
     },
     {
+      "id": "step-settings",
+      "from": "setup",
+      "to": "usersettings",
+      "label": "0 · move in · 5 · sync apply",
+      "variant": "emphasis"
+    },
+    {
+      "id": "load-settings",
+      "from": "settingsrepo",
+      "to": "usersettings",
+      "label": "after gh login: load? [Y/n]",
+      "variant": "dashed"
+    },
+    {
       "id": "step-extras",
       "from": "setup",
       "to": "home",
@@ -371,9 +429,10 @@
       "dot": "emerald",
       "title": "Primary path",
       "items": [
-        "./setup.sh: link dotfiles → GitHub login → packages → mise bootstrap → mise install → setup/misc.sh → extensions → dotfiles-extras.sh",
+        "./setup.sh: settings folder → link dotfiles → GitHub login → load saved settings? → packages → mise bootstrap → mise install → setup/misc.sh → extensions → dotfiles-extras.sh → sync apply",
         "mise bootstrap applies files, dotfiles and the login shell; setup.sh then runs mise install and the task (misc.sh) alone",
         "gh is installed alone and gh auth login offered before the packages, which spend GitHub's anonymous 60 API calls an hour; a run that cannot ask only warns",
+        "Saved settings come only from your own private rotm-settings repo, after the login and before the packages; when loaded, sync apply writes their tool settings last",
         "A failed package or tool only warns: the list prints last and setup exits 2",
         "-- --skip packages skips the package steps; --dash adds dash.sh",
         "Idempotent: re-running is how changes are applied",
