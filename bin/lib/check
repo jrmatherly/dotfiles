@@ -34,7 +34,7 @@ while IFS= read -r script; do
   shell_scripts+=("$script")
 done < <(
   # Match shell scripts by shebang
-  find bin -maxdepth 1 -type f \
+  find bin bin/lib -maxdepth 1 -type f \
     -exec grep -El '^#!(/bin/(ba)?sh|/usr/bin/env (ba)?sh)$' {} + \
     | grep -v '^bin/license$'
 )

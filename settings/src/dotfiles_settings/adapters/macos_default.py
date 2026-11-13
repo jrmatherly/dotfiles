@@ -7,6 +7,7 @@ from pathlib import Path
 from .. import mise
 from ..model import InvalidValue, Setting, SettingsError, Source, Value
 from .env import override_path
+from .tool import edit_file
 
 FLAGS = {"bool": "-bool", "int": "-int", "string": "-string", "enum": "-string", "path": "-string"}
 RESTART = {"com.apple.dock": "Dock", "com.apple.finder": "Finder"}
@@ -182,9 +183,27 @@ def read_text(path: Path | None = None) -> str:
         raise SettingsError(f"{path}: {e}") from None
 
 
-def target() -> Path:
-    """The file a change is written to: the tracked fragment in a clone, the override file on an installed copy."""
-    return override_path() if mise.installed(fragment_path()) else fragment_path()
+def target(domain: str, key: str) -> Path:
+    """The file a change is written to: the override file on an installed copy or when it already declares the key
+    (a clone that received it by sync), the tracked fragment otherwise."""
+    if mise.installed(fragment_path()) or declared(read_text(override_path()), domain, key) is not MISSING:
+        return override_path()
+    return fragment_path()
+
+
+def put(path: Path, text: str) -> None:
+    """Write text to the fragment as it is, or to the override file through its link, atomically and only on a change."""
+    if path != override_path():
+        path.write_text(text)
+        return
+    real = path.resolve()
+    if not real.parent.is_dir():
+        raise SettingsError(f"{path} links into {real.parent}, which does not exist. Run `sysup` to create it")
+    if not real.exists():
+        if not text:
+            return
+        real.touch()
+    edit_file(path, lambda _: text)
 
 
 def status_entries() -> list[dict]:
@@ -198,7 +217,7 @@ def status_entries() -> list[dict]:
 
 class MacosDefaultAdapter:
     def write_note(self, s: Setting) -> str:
-        if target() == fragment_path():
+        if target(*split_key(s.key)) == fragment_path():
             return ("Edited tilde/.config/mise/conf.d/20-macos.toml, a tracked file, and wrote that one preference. "
                     "Commit the file to keep the change.")
         return f"Saved in {override_path()}, your own settings file, and wrote that one preference."
@@ -226,16 +245,16 @@ class MacosDefaultAdapter:
         # One key only: `defaults apply` would undo every hand change and write the config.local.toml opt-ins
         domain, key = split_key(s.key)
         literal = to_literal(s, value)
-        path = target()
+        path = target(domain, key)
         text = read_text(path)
-        path.write_text(set_key(text, domain, key, literal))
+        put(path, set_key(text, domain, key, literal))
         try:
             taken = self.read(s).value == render(s, parse_literal(literal))
         except SettingsError:
-            path.write_text(text)
+            put(path, text)
             raise
         if not taken:
-            path.write_text(text)
+            put(path, text)
             raise SettingsError(f"another config file (config.local.toml) declares {domain} {key} "
                                 f"and outranks {path.name}, so change it there")
         defaults_write(domain, key, FLAGS[s.type], literal if s.type in ("bool", "int") else value)
@@ -246,8 +265,8 @@ class MacosDefaultAdapter:
 
     def reset(self, s: Setting) -> None:
         domain, key = split_key(s.key)
-        if target() != fragment_path():
-            override_path().write_text(remove_key(read_text(override_path()), domain, key))
+        if target(domain, key) != fragment_path():
+            put(override_path(), remove_key(read_text(override_path()), domain, key))
             old = declared(read_text(), domain, key)
             if old is MISSING:
                 print(f'mise never deletes a preference. Run: defaults delete {domain} "{key}"', file=sys.stderr)

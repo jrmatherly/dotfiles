@@ -125,6 +125,7 @@ cat > "$tmp/bin/mise" << 'EOF'
 #!/bin/bash
 echo "$*" >> "$STATE/mise.log"
 [ "$1 $2" != "bootstrap --adopt" ] || exit "$(cat "$STATE/adopt-exit" 2> /dev/null || echo 0)"
+[ "$1 $2 $3" != "dot origin set" ] || exit "$(cat "$STATE/origin-exit" 2> /dev/null || echo 0)"
 if [ "$1 $2" = "dot conflicts" ]; then
   if [ -s "$STATE/conflicts" ]; then cat "$STATE/conflicts"; else echo "mise no sharing conflicts" >&2; fi
 fi
@@ -149,11 +150,11 @@ linked config.override.toml || fail "restore did not link the folder"
 
 # 12. restore with a conflict
 reset
-echo "conflict: config.override.toml" > "$STATE/conflicts"
+echo "Conflict: ~/.config/rotm/config.override.toml" > "$STATE/conflicts"
 rc=0
 PATH="$tmp/bin:/usr/bin:/bin" "$u" restore "$url" > /dev/null 2> "$tmp/err" || rc=$?
 [ "$rc" = 1 ] || fail "restore with a conflict exited $rc"
-grep -qF "conflict: config.override.toml" "$tmp/err" || fail "the conflicting path is not on stderr"
+grep -qF "Conflict: ~/.config/rotm/config.override.toml" "$tmp/err" || fail "the conflicting path is not on stderr"
 
 # 13. restore after an adopt that held a conflict: connected for manual sync, tracked and linked all the same
 reset
@@ -168,7 +169,7 @@ dot origin set $url --sync manual --yes
 dot conflicts" ] || fail "restore after a held adopt ran: $(cat "$STATE/mise.log")"
 grep -qxF '[dotfiles."~/.config/rotm"]' "$cfg/config.local.toml" || fail "restore after a held adopt did not write the track entry"
 linked config.override.toml || fail "restore after a held adopt did not link the folder"
-grep -qF "conflict: config.override.toml" "$tmp/err" || fail "the held conflict is not on stderr"
+grep -qF "Conflict: ~/.config/rotm/config.override.toml" "$tmp/err" || fail "the held conflict is not on stderr"
 
 # 14. restore after an adopt that failed with no conflict: its exit code, and nothing more
 reset
@@ -179,5 +180,26 @@ PATH="$tmp/bin:/usr/bin:/bin" "$u" restore "$url" > /dev/null 2> "$tmp/err" || r
 [ "$rc" = 3 ] || fail "restore after a failed adopt exited $rc"
 if grep -q '^dot origin set' "$STATE/mise.log"; then fail "restore connected after a failed adopt"; fi
 [ ! -e "$cfg/config.local.toml" ] || fail "restore wrote the track entry after a failed adopt"
+
+# 15. the same when mise cannot say whether a conflict is held: an error is not a conflict
+reset
+rm -f "$STATE/mise.log"
+echo "mise ERROR no setup repository is connected" > "$STATE/conflicts"
+rc=0
+PATH="$tmp/bin:/usr/bin:/bin" "$u" restore "$url" > /dev/null 2> "$tmp/err" || rc=$?
+[ "$rc" = 3 ] || fail "restore after a failed adopt and an erroring conflicts check exited $rc"
+if grep -q '^dot origin set' "$STATE/mise.log"; then fail "restore connected when mise only reported an error"; fi
+
+# 16. the origin stays in automatic mode: the folder is still tracked and linked, and the command is named
+reset
+rm -f "$STATE/mise.log" "$STATE/conflicts" "$STATE/adopt-exit"
+echo 4 > "$STATE/origin-exit"
+rc=0
+PATH="$tmp/bin:/usr/bin:/bin" "$u" restore "$url" > /dev/null 2> "$tmp/err" || rc=$?
+rm -f "$STATE/origin-exit"
+[ "$rc" = 4 ] || fail "restore with a failed origin set exited $rc"
+grep -qxF '[dotfiles."~/.config/rotm"]' "$cfg/config.local.toml" || fail "a failed origin set left the folder untracked"
+linked config.override.toml || fail "a failed origin set left the folder unlinked"
+grep -qF -- "--sync manual" "$tmp/err" || fail "a failed origin set does not name the command that sets manual mode"
 
 echo ok

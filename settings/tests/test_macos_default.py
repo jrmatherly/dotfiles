@@ -211,6 +211,21 @@ with contextlib.redirect_stderr(io.StringIO()) as err:
 assert fragment_path().read_text() == FRAGMENT and written == []
 assert 'Run: defaults delete com.apple.dock "showhidden"' in err.getvalue()
 
+# A clone whose override file declares a preference (it arrived by sync from an installed copy) changes it there
+override = conf / "config.override.toml"
+fragment_path().write_text(FRAGMENT)
+override.write_text('[bootstrap.macos.defaults."com.apple.dock"]\ntilesize = 44\n')
+status([{**entry, "value": 50, "current": "50"}])
+adapter.write(dock, "50")
+assert fragment_path().read_text() == FRAGMENT
+assert tomllib.loads(override.read_text())["bootstrap"]["macos"]["defaults"]["com.apple.dock"] == {"tilesize": 50}
+assert written == [("com.apple.dock", "tilesize", "-int", "50")] and str(override) in adapter.write_note(dock)
+status([entry])
+adapter.reset(dock)
+assert fragment_path().read_text() == FRAGMENT and "tilesize" not in override.read_text()
+assert written == [("com.apple.dock", "tilesize", "-int", "38")]
+override.unlink()
+
 assert ADAPTERS["macos-default"].__class__ is MacosDefaultAdapter and "macos-default" in registry.KINDS
 
 # every macos-default registry entry is declared in the real fragment with a matching type
@@ -246,7 +261,9 @@ os.environ["MISE_DATA_DIR"] = str(tmp / "data")
 (tmp / "data").mkdir()
 (tmp / "data" / "bootstrap-repo").symlink_to(conf)
 fragment_path().write_text(FRAGMENT)
-override = conf / "config.override.toml"
+user = tmp / "rotm"
+user.mkdir()
+override.symlink_to(user / "config.override.toml")  # as rotm-user-layer links it
 override.write_text('[env]\nEDITOR = "vim"\n')
 status([{**entry, "value": 44, "current": "44"}])
 adapter.write(dock, "44")
@@ -267,4 +284,16 @@ assert fragment_path().read_text() == FRAGMENT
 data = tomllib.loads(override.read_text())
 assert data["bootstrap"]["macos"]["defaults"]["com.apple.dock"] == {"autohide": False} and data["env"] == {"EDITOR": "vim"}
 assert written == [("com.apple.dock", "tilesize", "-int", "38")]
+# a reset with nothing to remove writes no file
+(user / "config.override.toml").unlink()
+status([entry])
+adapter.reset(dock)
+assert not (user / "config.override.toml").exists() and override.is_symlink()
+# the folder behind the link is gone: a one-line error, no traceback
+shutil.rmtree(user)
+try:
+    adapter.write(dock, "44")
+    raise AssertionError("no error")
+except SettingsError as e:
+    assert str(user) in str(e) and "\n" not in str(e), str(e)
 print("ok")

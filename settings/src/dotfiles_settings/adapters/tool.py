@@ -314,9 +314,11 @@ class ToolAdapter:
         sync.record(s, value)
 
     def reset(self, s: Setting) -> None:
-        name, (_, _, resetter) = _tool(s)
+        name, (_, writer, resetter) = _tool(s)
         if resetter:
             resetter(name, s)
+        elif writer:
+            writer(name, s, self.read(s).seed or "")
         else:
-            self.write(s, self.read(s).seed or "")
+            raise SettingsError(f"{s.id} is read-only")
         sync.forget(s)

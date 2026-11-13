@@ -18,7 +18,7 @@ Sync saves one folder, `~/.config/rotm`, which holds three files:
 - Every `*.local.toml` file in mise's config dir, `config.local.toml` and `miserc.local.toml` among them. mise never syncs a file with that ending.
 - `~/.zsh.local`, `~/.gitconfig.local` and `~/.ssh`, the [per-Mac files](local-customizations.md).
 - A change that another program made to a tool's file. `tools.toml` records a setting when `rotm settings` sets or resets it. A role that `/jstack:setup-jstack` wrote, or an edit you made to `~/.claude/settings.json` by hand, stays on that Mac.
-- A macOS preference changed on a clone. There `rotm settings` edits the tracked `20-macos.toml`, and you commit the change.
+- A macOS preference changed on a clone. There `rotm settings` edits the tracked `20-macos.toml`, and you commit the change. A preference that your saved settings already hold, because you changed it on an installed copy, is the exception: it is changed and reset in `config.override.toml`, and sync saves it.
 
 ## The commands
 
@@ -80,9 +80,10 @@ When setup loaded your settings during the first install, that run installed wit
 `sync on` and `sync now` check the folder before every save. When a check fails, the command exits 1, names what it found and saves nothing.
 
 - **A file that is not one of the three.** mise would save it with the rest. Finder leaves a `.DS_Store` file when you open the folder, and that file is enough to stop the save. Move the file out of `~/.config/rotm`, or delete it, and run the command again.
-- **A setting named like a secret.** The check looks at the keys under `[env]` in `config.override.toml` and stops at one that ends in `TOKEN`, `SECRET`, `PASSPHRASE`, `API_KEY` or `CLIENT_KEY`. Run `mise unset --override <KEY>`, keep the value in `~/.zsh.local`, and run the command again.
+- **A setting named like a secret.** The check looks at the keys under `[env]` in `config.override.toml`, in every table when it is written as `[[env]]`, and stops at one that ends in `TOKEN`, `SECRET`, `PASSPHRASE`, `PASSWORD`, `API_KEY`, `ACCESS_KEY` or `CLIENT_KEY`, in any case. Run `mise unset --override <KEY>`, keep the value in `~/.zsh.local`, and run the command again.
+- **A setting that describes one Mac, left in `config.override.toml`.** A version from before these settings stayed on their Mac kept the computer name and the local hostname there. Run the `rotm settings set <id> <value>` the message names, which moves the value to `config.local.toml`, and run the command again.
 
-The second check reads the name, not the value, so a secret under another name passes it. mise has a check of its own that refuses to send a line that looks like a secret. By then mise has already saved the line in the history on this Mac, and its message says how to remove it. Keep secrets out of `rotm settings` and out of the folder.
+The secret check reads the name, not the value, so a secret under another name passes it. mise has a check of its own that refuses to send a line that looks like a secret. By then mise has already saved the line in the history on this Mac, and its message says how to remove it. Keep secrets out of `rotm settings` and out of the folder.
 
 The repository must be private. `sync on` creates it private. When a repository of that name already exists and is not private, `sync on` stops and prints the `gh repo edit` command that makes it private. Setup offers to load settings only from a private repository.
 

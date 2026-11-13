@@ -470,7 +470,7 @@ load_saved_settings() {
     return 0
   fi
   read -rp "Load your saved settings from $repo before installing? [Y/n] " answer || answer=n
-  case "$answer" in n | N) return 0 ;; esac
+  case "$answer" in n* | N*) return 0 ;; esac
   folder=$("$DOTFILES_DIR/bin/lib/rotm-user-layer" dir)
   # This run's --without wrote the list already: set aside, it would conflict with the saved one
   if [ -n "$without" ] && [ -e "$folder/modules-off.local" ]; then

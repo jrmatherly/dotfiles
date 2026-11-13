@@ -321,6 +321,19 @@ def test_writes_through_the_adapter_are_recorded():
     assert "hindsight.paths" not in sync.tools_path().read_text()
 
 
+def test_a_reset_without_a_resetter_records_nothing():
+    sync.tools_path().unlink(missing_ok=True)
+    cfg.write_text('{"optInPaths": ["~/dev"], "disabled": true}')
+    stub_run()
+    forget = sync.forget
+    sync.forget = lambda s: (_ for _ in ()).throw(SettingsError("forget broke"))
+    try:
+        assert raises(lambda: A.reset(by_id("hindsight.enabled")), "forget broke")
+    finally:
+        sync.forget = forget
+    assert "hindsight.enabled" not in recorded()
+
+
 SCAN = ("keep a@m  path: x.py\noff b@m  no signal\n"
         "estimated saving: 1,000 tokens (catalog figures, which run high)\n"
         "history: 3 plugin tool calls in this repo's sessions\napplied: current\n")

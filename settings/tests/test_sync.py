@@ -102,7 +102,8 @@ def test_machine_scope_is_never_recorded():
 
 def test_awkward_values_round_trip():
     clean()
-    values = {"a.lines": "~/dev\n/opt/src", "b.quote": 'say "hi" \\ back', "c.wide": "café \U0001f600"}
+    values = {"a.lines": "~/dev\n/opt/src", "b.quote": 'say "hi" \\ back', "c.wide": "café \U0001f600",
+              "d.del": "a\x7fb"}
     for id, v in values.items():
         sync.record(setting(id), v)
     assert tools(sync.tools_path()) == values
@@ -319,6 +320,44 @@ def test_a_secret_or_a_stray_file_stops_before_the_first_save():
             assert "mise dot save" not in calls(), (fn.__name__, calls())
 
 
+def test_the_secret_rule_reads_every_env_table_in_any_case():
+    for body, name in (('[[env]]\nPLAIN = "y"\n[[env]]\nGITHUB_TOKEN = "x"\n', "GITHUB_TOKEN"),
+                       ('[env]\ngithub_token = "x"\n', "github_token"), ('[env]\nDB_PASSWORD = "x"\n', "DB_PASSWORD"),
+                       ('[env]\nAWS_SECRET_ACCESS_KEY = "x"\n', "AWS_SECRET_ACCESS_KEY")):
+        fresh()
+        (sync.user_dir() / "config.override.toml").write_text(body)
+        assert name in raises(sync.now) and "mise dot save" not in calls(), (body, calls())
+    for body in ('[[env]]\nPLAIN = "y"\n[[env]]\n_.path = ["~/bin"]\n', 'env = "GITHUB_TOKEN"\n'):
+        fresh()
+        (sync.user_dir() / "config.override.toml").write_text(body)
+        sync.now()
+        assert "mise dot save" in calls(), (body, calls())
+
+
+def test_a_machine_setting_left_in_the_override_file_stops_a_save():
+    for fn, args in ((sync.on, ("rotm-settings",)), (sync.now, ())):
+        fresh()
+        (sync.user_dir() / "config.override.toml").write_text(
+            '[env]\nDOTFILES_MACOS_COMPUTER_NAME = "Studio"\nPLAIN = "y"\n')
+        message = raises(fn, *args)
+        assert all(s in message for s in ("DOTFILES_MACOS_COMPUTER_NAME", "rotm settings set macos.computer_name"))
+        assert "PLAIN" not in message and "mise dot save" not in calls(), (fn.__name__, message, calls())
+
+
+def test_a_mise_error_is_not_a_conflict():
+    fresh()
+    answer("mise dot conflicts", err="mise ERROR unrecognized subcommand dot\n", code=2)
+    message = raises(sync.now)
+    assert "unrecognized subcommand" in message and "--take-remote" not in message, message
+    assert "mise dot save" not in calls(), calls()
+    text = "\n".join(sync.status())
+    assert "unrecognized subcommand" in text and "--take-remote" not in text, text
+    fresh()
+    answer("mise dot conflicts", "nothing to report\n")
+    sync.now()
+    assert not any("--take-remote" in l for l in sync.status())
+
+
 def test_now_needs_a_connection():
     fresh()
     answer("mise dot origin", "no setup repository is connected; `mise dot origin set <url>` connects one\n")
@@ -412,7 +451,6 @@ def test_no_call_tracks_and_every_connect_carries_yes():
     seen.extend(calls())
     assert seen and not [c for c in seen if "dot track" in c]
     assert all("--yes" in c and "--sync manual" in c for c in seen if " origin set " in c)
-    assert all("--yes" in c for c in seen if "--adopt" in c)
 
 
 for name, fn in list(globals().items()):

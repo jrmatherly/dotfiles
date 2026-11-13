@@ -67,6 +67,7 @@ ensure() {
 
 track() {
   local shown=$folder file="$cfg/config.local.toml" header
+  # shellcheck disable=SC2088 # mise's key is the literal ~, expanded by mise
   case $folder in "$HOME"/*) shown="~/${folder#"$HOME"/}" ;; esac
   header="[dotfiles.\"$shown\"]"
   if [ -f "$file" ] && grep -qxF -- "$header" "$file"; then return 0; fi
@@ -76,21 +77,22 @@ track() {
 }
 
 conflicts() {
-  # mise prints this on stderr, prefixed with its name
-  out=$(mise dot conflicts 2>&1)
-  case $out in *"no sharing conflicts"*) return 1 ;; esac
+  # mise lists a held conflict as "Conflict: <path>" lines and exits 0; an error is not a conflict
+  out=$(mise dot conflicts 2>&1) || return 1
+  case $out in *"Conflict: "*) ;; *) return 1 ;; esac
 }
 
 restore() {
   [ -n "${1:-}" ] || die 2 "restore takes the settings repository's URL"
   cd "$HOME"
-  local rc=0 out
+  local rc=0 manual=0 out
   mise bootstrap --adopt "$1" --only final-hook --yes || rc=$?
   # An adopt that holds a conflict has still connected, in mise's automatic mode
   [ "$rc" = 0 ] || conflicts || exit "$rc"
-  mise dot origin set "$1" --sync manual --yes
+  mise dot origin set "$1" --sync manual --yes || manual=$?
   track
   ensure
+  [ "$manual" = 0 ] || die "$manual" "connected, but still in mise's automatic sync mode. Run: mise dot origin set $1 --sync manual --yes"
   if conflicts; then
     echo "$out" >&2
     die 1 "the restored settings conflict with this Mac's; nothing was overwritten"

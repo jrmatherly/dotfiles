@@ -40,9 +40,9 @@ def _save(path: Path, change: Callable[[Tools], Tools]) -> None:
     from .adapters.tool import edit_file  # here, not at the top: tool.py imports this module
     path.parent.mkdir(parents=True, exist_ok=True)
     path.touch()
-    # json.dumps of a str is a valid TOML basic string
-    render = lambda t: "[tools]\n" + "".join(f"{json.dumps(k)} = {json.dumps(v, ensure_ascii=False)}\n"
-                                             for k, v in sorted(t.items()))
+    # json.dumps of a str is a TOML basic string once DEL is escaped; ensure_ascii would write surrogates TOML refuses
+    basic = lambda v: json.dumps(v, ensure_ascii=False).replace("\x7f", "\\u007f")
+    render = lambda t: "[tools]\n" + "".join(f"{basic(k)} = {basic(v)}\n" for k, v in sorted(t.items()))
     edit_file(path, lambda text: render(change(_parse(text, path))))
 
 
@@ -92,10 +92,12 @@ def replay(settings: list[Setting], adapters: dict[str, Adapter]) -> list[str]:
 
 
 KEPT = ("config.override.toml", "modules-off.local", "tools.toml")
-SECRET = re.compile(r"(TOKEN|SECRET|PASSPHRASE|API_KEY|CLIENT_KEY)$")  # bin/claude-config's rule for env keys
+# bin/claude-config's rule for env keys, plus PASSWORD and ACCESS_KEY
+SECRET = re.compile(r"(TOKEN|SECRET|PASSPHRASE|PASSWORD|API_KEY|ACCESS_KEY|CLIENT_KEY)$", re.I)
 LOGIN = ["auth", "login", "--hostname", "github.com", "--git-protocol", "https", "--web"]
 NOT_CONNECTED = "no setup repository is connected"
 NO_CONFLICT = "no sharing conflicts"
+CONFLICT = "Conflict: "  # how mise 2026.11.5 lists a held conflict
 # Not --keep-local: on a Mac connected onto a different file it needs a save, and that save breaks the history
 DECIDE = ("Your saved settings and this Mac's differ in the files above, and neither was overwritten. "
           "To keep the saved copy of a file, run `mise dot pull --take-remote <file>`. To keep this Mac's, copy "
@@ -117,9 +119,13 @@ def _gh(*args: str) -> subprocess.CompletedProcess[str]:
     return _call(os.environ.get("DOTFILES_SETTINGS_GH", "gh"), *args)
 
 
+def _mise_call(*args: str) -> subprocess.CompletedProcess[str]:
+    return _call(os.environ.get("DOTFILES_SETTINGS_MISE", "mise"), *args)
+
+
 def _text(*args: str) -> str:
     """Both streams of a mise call whatever its exit code: mise prints some answers on stderr."""
-    r = _call(os.environ.get("DOTFILES_SETTINGS_MISE", "mise"), *args)
+    r = _mise_call(*args)
     return r.stdout + r.stderr
 
 
@@ -143,18 +149,31 @@ def _guard() -> None:
     if stray:
         raise SettingsError(f"{folder} holds {', '.join(stray)}. Sync would keep it in the settings repository's "
                             "history for good, so move it out of that folder and run this again.")
-    env = _toml(folder / "config.override.toml").get("env", {})
-    secrets = sorted(k for k in env if SECRET.search(k))
+    override = folder / "config.override.toml"
+    env = _toml(override).get("env", {})
+    keys = [k for t in (env if isinstance(env, list) else [env]) if isinstance(t, dict) for k in t]
+    secrets = sorted(k for k in keys if SECRET.search(k))
     if secrets:
-        raise SettingsError(f"{', '.join(secrets)} in {folder / 'config.override.toml'} looks like a secret, and sync "
+        raise SettingsError(f"{', '.join(secrets)} in {override} looks like a secret, and sync "
                             "would keep it in the settings repository's history for good. Run `mise unset --override "
                             f"{' '.join(secrets)}`, keep it in ~/.zsh.local instead, and run this again.")
+    from . import registry
+    machine = {s.key: s.id for s in registry.load() if s.kind == "env" and s.scope == "machine"}
+    # Left there by a version from before scope existed
+    left = sorted(k for k in keys if k in machine)
+    if left:
+        raise SettingsError(f"{', '.join(left)} in {override} describes this Mac, and sync would carry it to your next "
+                            "Mac. Run " + ", ".join(f"`rotm settings set {machine[k]} <value>`" for k in left)
+                            + ", which moves it to config.local.toml, and run this again.")
 
 
 def _stop_on_conflict() -> None:
-    out = _text("dot", "conflicts").strip()
-    if out and NO_CONFLICT not in out:
+    r = _mise_call("dot", "conflicts")
+    out = (r.stdout + r.stderr).strip()
+    if CONFLICT in out:
         raise SettingsError(f"{out}\n{DECIDE}")
+    if out and r.returncode != 0:
+        raise SettingsError(out)
 
 
 def _mise(*args: str) -> None:
@@ -245,8 +264,10 @@ def status() -> list[str]:
     lines = [f"Sync is on: {origin}", *waiting]
     if waiting:
         lines.append("Run `rotm settings sync now` to save and share them.")
-    if conflicts and NO_CONFLICT not in conflicts:
+    if CONFLICT in conflicts:
         lines += [conflicts, DECIDE]
+    elif conflicts and NO_CONFLICT not in conflicts:
+        lines.append(conflicts)
     return lines
 
 
