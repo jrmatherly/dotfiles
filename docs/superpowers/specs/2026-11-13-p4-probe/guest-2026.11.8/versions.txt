@@ -1,0 +1,6 @@
+ProductName:		macOS
+ProductVersion:		27.2.1
+BuildVersion:		26B131
+2026.11.8 macos-arm64 (2026-11-13)
+git version 2.54.0 (Apple Git-157)
+zsh 5.9 (arm64-apple-darwin26.0)

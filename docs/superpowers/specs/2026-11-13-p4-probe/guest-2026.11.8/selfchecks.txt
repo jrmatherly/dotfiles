@@ -1,0 +1,54 @@
+61d3baa Read override values from mise in shell form
+== what zsh/override-env.zsh exports from the dotenv probe's values
+D_PLAIN=[UNSET]
+D_SPACE=[a b]
+D_HASH=[a #b]
+D_QUOTE=[say "hi"]
+D_SINGLE=[it's]
+D_PATH=[/Users/x/My Folder]
+D_EQ=[a=b]
+D_EMPTY=[]
+== test-override-env
+exit 0
+override-env: all checks passed
+== test-modules
+exit 1
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+ModuleNotFoundError: No module named 'tomllib'
+== test-user-layer
+exit 0
+ok
+== test-dotfiles
+exit 0
+ok
+== test-packages
+exit 1
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+ModuleNotFoundError: No module named 'tomllib'
+FAIL: the package and tool lists in tilde/.config/mise
+== test-bootstrap
+exit 0
+ok: claude on and not installed: the installer is fetched
+ok: claude off: the installer is not fetched
+ok: the tracked bootstrap config dry-runs
+ok: static checks
+== test-sysup
+exit 0
+ok: terminal: the log link is an OSC 8 hyperlink
+ok: terminal: action banner colored
+ok: terminal: log has no color codes
+ok: no run called brew or code
+== test-rotm
+exit 0
+ok   a detached copy stops the update
+ok   update in a dev clone refuses
+ok   an unknown command exits 2
+ok   no argument prints usage
+== test-sync
+exit 1
+    from .model import SettingsError
+  File "S/repo/settings/src/dotfiles_settings/model.py", line 22, in <module>
+    @dataclass(frozen=True, kw_only=True)
+TypeError: dataclass() got an unexpected keyword argument 'kw_only'

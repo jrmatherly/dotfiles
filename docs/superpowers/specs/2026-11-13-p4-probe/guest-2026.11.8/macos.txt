@@ -1,0 +1,95 @@
+== 1. old spelling only
+com.apple.dock  tilesize  48     unset
+exit 0
+== 2. new spelling only
+com.apple.dock  tilesize  48     unset
+exit 0
+-- json
+{
+  "macos_defaults": {
+    "available": true,
+    "entries": [
+      {
+        "domain": "com.apple.dock",
+        "host": "any",
+        "path": null,
+        "key": "tilesize",
+        "value": 48,
+        "current": "",
+        "state": "unset"
+      }
+    ]
+  }
+}
+== 3. new in the fragment, old in the override file (a setting saved before the move): who wins
+com.apple.dock  tilesize  64     unset
+== 4. new in both: override wins?
+com.apple.dock  tilesize  64     unset
+== 5. old in the fragment, new in config.local.toml
+com.apple.dock  tilesize  20     unset
+== 6. the part name setup.sh skips, and the parts list
+mise bootstrap: tools
+mise all tools are installed
+exit 0
+parts as `--only` and `--skip` accept them, followed by any condition.
+
+1. `accounts`, then `plugins` (package manager plugins)
+2. `files` with `phase = "pre-packages"`, then built-in `packages`
+3. The remaining `files`, then `services`, `firewall`, and `compose`
+4. `repos`, then `dotfiles`
+5. `mise-shell-activate`, `macos-defaults`, and `macos-launchd-agents`
+6. `linux-systemd-units`, then `user` (the login shell)
+7. `tools`
+8. Plugin `packages`, then user `services` with `requires_tools = true`
+9. `task` (the `bootstrap` task, if defined), then `final-hook`
+
+Hooks run before and after packages, repos, dotfiles, macOS defaults, the
+--
+  -y, --yes                       Skip confirmation prompts
+      --skip-dirty                Skip configured repositories with local
+                                  changes instead of failing
+      --force-dotfiles            Overwrite existing files that conflict with
+                                  whole-file dotfile entries
+      --prune-dotfiles            Remove files that dotfile groups deployed but
+                                  no active entry deploys now
+
+                                  The same pruning as `mise dot apply --prune`,
+                                  run at the end of the dotfiles phase before
+                                  its post hook: files of a group that is no
+                                  longer selected or declared, and files a group
+                                  stopped deploying because of a new `exclude`
+                                  or a deleted source. Changed copies stay in
+--
+      --only <PART>               Run only these parts
+
+                                  Repeat the flag or separate parts with commas.
+                                  Cannot be combined with `--skip`.
+                                  [possible values: plugins, packages, accounts,
+                                  files, services, firewall, compose, repos,
+                                  dotfiles, mise-shell-activate, macos-defaults,
+                                  settings, macos-launchd-agents,
+                                  linux-systemd-units, user, tools, task,
+                                  final-hook]
+      --prompt-secrets            Prompt securely for missing bootstrap secret
+                                  inputs
+      --prompt-vars               Ask for `[vars]` entries that declare a
+                                  `prompt` and have no saved answer
+
+                                  mise saves each answer under
+--
+      --skip <PART>               Skip these parts
+
+                                  Repeat the flag or separate parts with commas.
+                                  Cannot be combined with `--only`.
+                                  [possible values: plugins, packages, accounts,
+                                  files, services, firewall, compose, repos,
+                                  dotfiles, mise-shell-activate, macos-defaults,
+                                  settings, macos-launchd-agents,
+                                  linux-systemd-units, user, tools, task,
+                                  final-hook]
+      --update                    Refresh package metadata and update
+                                  repositories before applying
+
+                                  Also fast-forwards a checkout that `--from` or
+== 7. a hook table beside the new spelling (50-bootstrap.toml keeps [bootstrap.macos.launchd]?)
+defaults  com.apple.dock tilesize     unset
