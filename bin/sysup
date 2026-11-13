@@ -472,7 +472,9 @@ if [ -n "$rustup_bin" ]; then
   elif grep -q ' unchanged - ' <<< "$out"; then
     status ok Rust "up to date"
   else
-    status notice Rust "unrecognized output, see the log"
+    # Quoted so the next occurrence names its cause: one in a VM run cleared before its log was read
+    rust_line=$(grep -v -e '^info: ' -e '^ *$' <<< "$out" | head -1 | sed 's/^ *//' | cut -c1-100) || rust_line=""
+    status notice Rust "unrecognized output: ${rust_line:-no toolchain line}; see the log"
   fi
   # The rustup formula is keg-only, so cargo and rustc are its proxies in
   # /opt/homebrew/opt/rustup/bin, which only shells started after that PATH
