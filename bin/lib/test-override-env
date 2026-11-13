@@ -132,4 +132,12 @@ m set --file "$tmp/cfg/config.local.toml" L=here > /dev/null
 m set --file "$tmp/cfg/config.local.toml" L=again > /dev/null
 [ "$(val L)" = again ] && [ "$(calls)" = 2 ] || fail "a newer config.local.toml does not rebuild the cache"
 
+# Values mise 2026.11.6 and newer quote in --dotenv output, and one that spans lines
+printf '%s\n' '[env]' 'D_SPACE = "a b"' 'D_HASH = "a #b"' 'D_QUOTE = "say \"hi\""' \
+  "D_SINGLE = \"it's\"" 'D_EQ = "a=b"' 'D_ML = """a' 'b"""' > "$tmp/cfg/config.override.toml"
+for want in 'D_SPACE=a b' 'D_HASH=a #b' 'D_QUOTE=say "hi"' "D_SINGLE=it's" 'D_EQ=a=b' $'D_ML=a\nb'; do
+  [ "$(val "${want%%=*}")" = "${want#*=}" ] || fail "${want%%=*} is not exported byte for byte: $(val "${want%%=*}")"
+done
+iso zsh -c 'source "$1"' zsh "$cache" || fail "sourcing the cache file fails"
+
 echo "override-env: all checks passed"

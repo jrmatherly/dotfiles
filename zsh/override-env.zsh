@@ -4,8 +4,6 @@
 # [env] keys of both. mise runs only when either file is newer than the cache.
 # Sourced from tilde/.zshenv, and again from tilde/.zshrc because zsh/env.zsh
 # and ~/.zsh.local (the seeds) export after .zshenv.
-# shortcut: `mise env --dotenv` prints values raw, so a multi-line value keeps
-# its first line only; switch to --json if a setting ever needs one.
 () {
   # Lets the settings package read a seed without the override on top
   [[ -z ${DOTFILES_NO_OVERRIDE_ENV:-} ]] || return 0
@@ -20,7 +18,7 @@
   done
   if (( stale )); then
     # .zshenv runs before .zprofile puts mise on PATH, so try where it installs
-    local mise line out in_env
+    local mise line out in_env k
     for mise in ${commands[mise]:-} $HOME/.local/bin/mise ${HOMEBREW_PREFIX:-/opt/homebrew}/bin/mise; do
       [[ ! -x $mise ]] || break
     done
@@ -37,10 +35,14 @@
       done
     done
     # -C $HOME: an untrusted mise.toml in the current directory must not fail the run
-    if [[ -x $mise ]] && out=$("$mise" env --dotenv -C $HOME 2> /dev/null) && mkdir -p ${cache:h}; then
-      for line in "${(@f)out}"; do
-        if (( ${keys[(Ie)${line%%=*}]} )); then print -r -- "export ${line%%=*}=${(qq)${line#*=}}"; fi
-      done >| $cache.$$ && command mv -f $cache.$$ $cache
+    # Evaluated whole in a subshell, not filtered by line: a multi-line value spans lines
+    if [[ -x $mise ]] && out=$("$mise" env -s zsh -C $HOME 2> /dev/null) && mkdir -p ${cache:h}; then
+      (
+        eval "$out"
+        for k in $keys; do
+          if (( ${(P)+k} )); then print -r -- "export $k=${(qq)${(P)k}}"; fi
+        done
+      ) >| $cache.$$ && command mv -f $cache.$$ $cache
     elif [[ -o interactive && -z ${_override_env_warned:-} ]]; then
       # Sourced twice per interactive shell; warn once
       typeset -g _override_env_warned=1
