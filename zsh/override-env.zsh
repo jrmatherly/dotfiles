@@ -1,7 +1,10 @@
 # Values set with `mise set --override` live in mise's override file, and a
 # machine-scoped setting's in config.local.toml. mise applies them at the first
 # prompt only (zsh/init.zsh), so shells that never prompt read this cache of the
-# [env] keys of both. mise runs only when either file is newer than the cache.
+# [env] keys of both, and of every profile's override file
+# (config.rotm-p-<name>.override.toml). The values come from mise, so only the
+# active profile's reach the cache. mise runs only when one of those files, or
+# miserc.local.toml, which names the active profile, is newer than the cache.
 # Sourced from tilde/.zshenv, and again from tilde/.zshrc because zsh/env.zsh
 # and ~/.zsh.local (the seeds) export after .zshenv.
 () {
@@ -11,9 +14,13 @@
   local override=$dir/config.override.toml local=$dir/config.local.toml
   # One cache per override file, so another MISE_CONFIG_DIR never reads this one's values
   local cache=$HOME/.cache/dotfiles/override-env.${override//[^A-Za-z0-9]/_}.zsh
-  [[ -f $override || -f $local ]] || return 0
   local file stale=0
-  for file in $override $local; do
+  local -a files
+  for file in $override $local $dir/config.rotm-p-*.override.toml(N); do
+    [[ ! -f $file ]] || files+=($file)
+  done
+  (( $#files )) || return 0
+  for file in $files $dir/miserc.local.toml; do
     [[ ! -f $file || $cache -nt $file ]] || stale=1
   done
   if (( stale )); then
@@ -23,8 +30,7 @@
       [[ ! -x $mise ]] || break
     done
     local -a keys match mbegin mend
-    for file in $override $local; do
-      [[ -f $file ]] || continue
+    for file in $files; do
       in_env=0
       for line in "${(@f)$(<$file)}"; do
         if [[ $line == \[* ]]; then
@@ -38,8 +44,10 @@
     # Evaluated whole in a subshell, not filtered by line: a multi-line value spans lines
     if [[ -x $mise ]] && out=$("$mise" env -s zsh -C $HOME 2> /dev/null) && mkdir -p ${cache:h}; then
       (
+        # A key of a profile that is not active must not come back from the environment this shell inherited
+        (( ! $#keys )) || unset $keys
         eval "$out"
-        for k in $keys; do
+        for k in ${(u)keys}; do
           if (( ${(P)+k} )); then print -r -- "export $k=${(qq)${(P)k}}"; fi
         done
       ) >| $cache.$$ && command mv -f $cache.$$ $cache

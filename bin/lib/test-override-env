@@ -140,4 +140,19 @@ for want in 'D_SPACE=a b' 'D_HASH=a #b' 'D_QUOTE=say "hi"' "D_SINGLE=it's" 'D_EQ
 done
 iso zsh -c 'source "$1"' zsh "$cache" || fail "sourcing the cache file fails"
 
+# A profile's override file: its keys are exported while the saved env line names it
+rm -f "$tmp/cfg/config.override.toml" "$tmp/cfg/config.local.toml"
+printf '[env]\nP4_KEY = "work"\n' > "$tmp/cfg/config.rotm-p-work.override.toml"
+printf 'env = ["rotm-p-work"]\n' > "$tmp/cfg/miserc.local.toml"
+[ "$(val P4_KEY)" = work ] || fail "a profile's value is not exported with no shared override file: $(val P4_KEY)"
+printf '[env]\nP4_KEY = "shared"\nP4_OTHER = "kept"\n' > "$tmp/cfg/config.override.toml"
+[ "$(val P4_KEY)" = work ] && [ "$(val P4_OTHER)" = kept ] || fail "the profile's value does not beat the shared one: $(val P4_KEY) $(val P4_OTHER)"
+rm "$tmp/cfg/config.override.toml"
+# Leaving the profile rewrites miserc.local.toml, and the next shell drops the value even where it inherited it
+printf 'env = []\n' > "$tmp/cfg/miserc.local.toml"
+[ "$(val P4_KEY)" = unset ] || fail "a profile that is no longer active still exports its value: $(val P4_KEY)"
+[ "$(val P4_KEY P4_KEY=inherited)" = inherited ] || fail "an inherited variable no profile sets was changed"
+touch "$tmp/cfg/miserc.local.toml"
+[ "$(val P4_KEY P4_KEY=inherited)" = inherited ] && ! grep -q P4_KEY "$cache" || fail "an inactive profile's key was cached from the environment"
+
 echo "override-env: all checks passed"
