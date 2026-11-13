@@ -10,6 +10,8 @@ The owner's workflow stays: edit files in a clone, commit, push.
 
 ## Decisions the owner made (2026-11-11)
 
+These outrank everything below them. The design sections and phase briefs were written by agent sessions from these decisions, and a line there that contradicts one is wrong: fix the line, do not ask the owner again. Read this list and the Goal in full before proposing anything for a phase. A question one of them answers is not a question.
+
 1. Design for strangers from the first version. The repository is public.
 2. A user's synced settings live in a private GitHub repository in their own account. Revisit if it limits us.
 3. The base includes everything it does today (apps, VS Code extensions, Claude Code plugins, skills and settings). Every group has an opt-out. Nothing is forced.
@@ -21,6 +23,10 @@ The owner's workflow stays: edit files in a clone, commit, push.
 9. Users follow a `stable` branch. The owner keeps pushing to `main`, and a commit is promoted to `stable` only after the VM install passes on it.
 10. mise has a tested minimum version that the install checks, raised deliberately. Each promotion to `stable` is proven in the VM on the mise version current that day.
 11. P0's probes run in the VM. P0 is executed natively in a fresh session, with one independent review at the end.
+12. (2026-11-12) Decision 3 has no exception for the owner's own projects or values. Nothing is taken out of the base for being the owner's. A value that points at the owner or the owner's domain ships as it is and has a row in `docs/forking.md` saying what a user changes to use that feature themselves.
+13. (2026-11-12) A user's "own changes" are the ones they make through `rotm settings` (the browser UI, the terminal UI or the command line) and their opt-outs. Sync exists so that a new Mac loads them and the user does not configure it again. Every setting the tool can change is in scope, whichever file holds it.
+14. (2026-11-12) Where mise can hold a setting, mise holds it, so the configuration stays standard. Where it cannot, we build what is needed so that setting still syncs through the same private repository.
+15. (2026-11-12) The owner's Mac is moved to `stable` once, by hand, after the last phase (P7). Until then the owner is the only user, nothing is promoted and no VM round is owed.
 
 ## Where we are
 
@@ -288,6 +294,7 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 ### P3: Sign in and sync
 
 - **Outcome.** A user signs in with GitHub once, and their own changes follow them to their next Mac. Nothing that looks like a secret leaves the machine.
+- **Scope.** Decisions 13 and 14: every setting `rotm settings` can change, and the opt-outs. On 2026-11-12 the registry held 45 `env` settings and 12 module switches (mise's files, synced by the measured layout), 26 macOS preferences (a tracked fragment, which an installed copy refuses to edit) and 23 agent-tool settings (each tool's own file). The last two groups need a user-side home before they can sync; the plan finds out for each whether mise can hold it.
 - **Delivers.** `dotfiles-settings sync on|off|now|status`. Sign-in through `gh`. A private repository created in the user's account. The tracked set and the exclude list. A conflict view. A restore path for a second Mac that composes with P1's install.
 - **Known.** mise reads tracking entries only from global and system config, so `dotfiles-settings` writes them into the user's own config, never ours. Connecting an origin shares the whole saved history. mise refuses credential-named files unless `allow_plaintext` is set, and tracked entries can be encrypted. `pull` writes files but does not install tools or render templates, so a pull that changes declarations needs a bootstrap run after it. `mise bootstrap --adopt <setup repo>` is the documented restore, and it and `--from` cannot be combined, so the second-Mac flow is two commands and their order has to be designed. `claude-config save` already has a secrets filter worth reusing as the model for the exclude list.
 - **Settled by P0.** Probe 6: sync, local files and conflicts behave as documented, and a restore must set manual mode after `--adopt`.
