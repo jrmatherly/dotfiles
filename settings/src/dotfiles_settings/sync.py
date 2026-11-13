@@ -96,9 +96,11 @@ SECRET = re.compile(r"(TOKEN|SECRET|PASSPHRASE|API_KEY|CLIENT_KEY)$")  # bin/cla
 LOGIN = ["auth", "login", "--hostname", "github.com", "--git-protocol", "https", "--web"]
 NOT_CONNECTED = "no setup repository is connected"
 NO_CONFLICT = "no sharing conflicts"
+# Not --keep-local: on a Mac connected onto a different file it needs a save, and that save breaks the history
 DECIDE = ("Your saved settings and this Mac's differ in the files above, and neither was overwritten. "
-          "Keep the saved copy of a file with `mise dot pull --take-remote <file>`, or this Mac's with "
-          "`mise dot pull --keep-local <file>`, then run `rotm settings sync now`.")
+          "To keep the saved copy of a file, run `mise dot pull --take-remote <file>`. To keep this Mac's, copy "
+          "the file somewhere else first, run the same command, and copy yours back. Then run "
+          "`rotm settings sync now`.")
 INSTALL = "Nothing was installed or removed. Run `rotm install` to install what is now on."
 DEFAULTS = "macOS preferences changed. Run `set-defaults` to write them."
 
@@ -225,6 +227,7 @@ def now() -> list[str]:
     if NOT_CONNECTED in _text("dot", "origin"):
         raise SettingsError("Sync is not connected. Run `rotm settings sync on` first.")
     _guard()
+    _stop_on_conflict()  # a save while sync on's conflict is held starts a history unrelated to the origin's
     _mise("dot", "save")
     _mise("dot", "sync")
     _mise("dot", "pull")

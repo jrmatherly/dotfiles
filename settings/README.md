@@ -112,7 +112,7 @@ $ dotfiles-settings get updates.slow_step_seconds --json
 
 `on` and `now` stop before the first save, with exit 1, when the folder holds any file but those three, or when a key of `[env]` in its override file ends in `TOKEN`, `SECRET`, `PASSPHRASE`, `API_KEY` or `CLIENT_KEY` (`bin/claude-config`'s rule). The repository keeps every saved file in its history for good, so the message names the file or key: move the file out, or run `mise unset --override <key>` and keep the secret in `~/.zsh.local`.
 
-When this Mac and the repository changed the same file, mise pauses sync and overwrites neither. `on` and `now` exit 1 with `mise dot conflicts`'s listing and apply nothing. Decide each file with `mise dot pull --take-remote <file>` (the saved copy) or `mise dot pull --keep-local <file>` (this Mac's), then run `sync now`.
+When this Mac and the repository changed the same file, mise pauses sync and overwrites neither. `on` and `now` exit 1 with `mise dot conflicts`'s listing and apply nothing. Decide each file with `mise dot pull --take-remote <file>` (the saved copy). To keep this Mac's, copy it aside first and back after, since `--keep-local` fails on a Mac whose first `sync on` met a different file. Then run `sync now`, which checks for a conflict before it saves: a save while that first conflict is held starts a history the origin refuses.
 
 ## Values that are refused
 

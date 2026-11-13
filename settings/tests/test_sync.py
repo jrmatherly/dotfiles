@@ -328,8 +328,8 @@ def test_now_needs_a_connection():
 def test_now_saves_syncs_pulls_then_applies():
     fresh()
     lines = sync.now()
-    assert calls() == ["mise dot origin", "mise dot save", "mise dot sync", "mise dot pull", "mise dot conflicts",
-                       "rotm-modules sync", "replay"], calls()
+    assert calls() == ["mise dot origin", "mise dot conflicts", "mise dot save", "mise dot sync", "mise dot pull",
+                       "mise dot conflicts", "rotm-modules sync", "replay"], calls()
     assert lines, lines
 
 
@@ -369,8 +369,10 @@ def test_apply_right_after_setup_installed_leaves_out_only_the_install_line():
 def test_a_conflict_stops_on_and_now_with_the_commands_that_decide_it():
     def check(fn, *args):
         message = raises(fn, *args)
-        assert all(s in message for s in ("config.override.toml", "--take-remote", "--keep-local")), message
-        assert "replay" not in calls(), calls()
+        assert all(s in message for s in ("config.override.toml", "--take-remote", "copy yours back")), message
+        assert "--keep-local" not in message and "replay" not in calls(), calls()
+        if fn is sync.now:
+            assert "mise dot save" not in calls(), calls()
     for fn, args in ((sync.on, ("rotm-settings",)), (sync.now, ())):
         fresh()
         answer("mise dot conflicts", CONFLICT)

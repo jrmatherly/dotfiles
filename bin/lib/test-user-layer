@@ -124,6 +124,7 @@ mkdir -p "$tmp/bin" "$STATE"
 cat > "$tmp/bin/mise" << 'EOF'
 #!/bin/bash
 echo "$*" >> "$STATE/mise.log"
+[ "$1 $2" != "bootstrap --adopt" ] || exit "$(cat "$STATE/adopt-exit" 2> /dev/null || echo 0)"
 if [ "$1 $2" = "dot conflicts" ]; then
   if [ -s "$STATE/conflicts" ]; then cat "$STATE/conflicts"; else echo "mise no sharing conflicts" >&2; fi
 fi
@@ -153,5 +154,30 @@ rc=0
 PATH="$tmp/bin:/usr/bin:/bin" "$u" restore "$url" > /dev/null 2> "$tmp/err" || rc=$?
 [ "$rc" = 1 ] || fail "restore with a conflict exited $rc"
 grep -qF "conflict: config.override.toml" "$tmp/err" || fail "the conflicting path is not on stderr"
+
+# 13. restore after an adopt that held a conflict: connected for manual sync, tracked and linked all the same
+reset
+rm -f "$STATE/mise.log"
+echo 1 > "$STATE/adopt-exit"
+rc=0
+PATH="$tmp/bin:/usr/bin:/bin" "$u" restore "$url" > /dev/null 2> "$tmp/err" || rc=$?
+[ "$rc" = 1 ] || fail "restore after a held adopt exited $rc"
+[ "$(cat "$STATE/mise.log")" = "bootstrap --adopt $url --only final-hook --yes
+dot conflicts
+dot origin set $url --sync manual --yes
+dot conflicts" ] || fail "restore after a held adopt ran: $(cat "$STATE/mise.log")"
+grep -qxF '[dotfiles."~/.config/rotm"]' "$cfg/config.local.toml" || fail "restore after a held adopt did not write the track entry"
+linked config.override.toml || fail "restore after a held adopt did not link the folder"
+grep -qF "conflict: config.override.toml" "$tmp/err" || fail "the held conflict is not on stderr"
+
+# 14. restore after an adopt that failed with no conflict: its exit code, and nothing more
+reset
+rm -f "$STATE/mise.log" "$STATE/conflicts"
+echo 3 > "$STATE/adopt-exit"
+rc=0
+PATH="$tmp/bin:/usr/bin:/bin" "$u" restore "$url" > /dev/null 2> "$tmp/err" || rc=$?
+[ "$rc" = 3 ] || fail "restore after a failed adopt exited $rc"
+if grep -q '^dot origin set' "$STATE/mise.log"; then fail "restore connected after a failed adopt"; fi
+[ ! -e "$cfg/config.local.toml" ] || fail "restore wrote the track entry after a failed adopt"
 
 echo ok

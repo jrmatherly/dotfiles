@@ -241,6 +241,37 @@ settings d sync on
 check_true "D: sync on onto a different file exits 1" [ "$rc" = 1 ]
 check_true "D: the output names the file" grep -qF config.override.toml <<< "$out"
 check_true "D: the local file is unchanged" [ "$(cat "$(folder d)/config.override.toml")" = "$(printf '[env]\nEDITOR = "vim-d"')" ]
+check_true "D: the origin is connected for manual sync" grep -qF 'mode manual' <<< "$(on d mise dot origin 2>&1)"
+check_true "D: the track entry is written" grep -qxF '[dotfiles."~/.config/rotm"]' "$(cfg d)/config.local.toml"
+check_true "D: the config dir links the override file" linked d config.override.toml
+check_true "D: the config dir links the module list" linked d modules-off.local
+# shellcheck disable=SC2088 # mise expands it, in the scratch home
+held='~/.config/rotm/config.override.toml'
+settings d sync now
+check_true "D: sync now before deciding exits 1 with the conflict" grep -qF 'Conflict: ~/.config/rotm/config.override.toml' <<< "$out"
+rc=0
+out=$(on d mise dot pull --take-remote "$held" 2>&1) || rc=$?
+check_true "D: --take-remote decides it" [ "$rc" = 0 ]
+settings d sync now
+check_true "D: sync now after --take-remote exits 0" [ "$rc" = 0 ]
+check_true "D: mise loads the saved value" grep -qF '"EDITOR": "vim-a"' <<< "$(on d mise env --json)"
+check_true "D: the saved module list is in effect" grep -qF '"conf.d/60-rotm-fonts.toml"' "$(cfg d)/miserc.local.toml"
+# This Mac's copy is kept by setting it aside: --keep-local needs a saved version, and a save here starts a history unrelated to the origin's
+install e
+mkdir -p "$(folder e)"
+printf '[env]\nEDITOR = "vim-e"\n' > "$(folder e)/config.override.toml"
+settings e sync on
+check_true "E: sync on onto a different file exits 1" [ "$rc" = 1 ]
+cp "$(folder e)/config.override.toml" "$S/e-mine"
+rc=0
+out=$(on e mise dot pull --take-remote "$held" 2>&1) || rc=$?
+check_true "E: --take-remote decides it" [ "$rc" = 0 ]
+cp "$S/e-mine" "$(folder e)/config.override.toml"
+settings e sync now
+check_true "E: sync now with this Mac's copy back exits 0" [ "$rc" = 0 ]
+check_true "E: mise loads this Mac's value" grep -qF '"EDITOR": "vim-e"' <<< "$(on e mise env --json)"
+settings a sync now
+check_true "A: loads E's kept value" [ "$(editor a)" = 'EDITOR = "vim-e"' ]
 
 on a mise set --override GITHUB_TOKEN=p3-secret-value > /dev/null
 settings a sync now
