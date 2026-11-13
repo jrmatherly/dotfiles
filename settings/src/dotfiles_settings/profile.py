@@ -100,6 +100,9 @@ def use(name: str) -> list[str]:
     _ensure()
     if name != DEFAULT and name not in names():
         raise InvalidValue(f"no profile named {name}. Profiles: {', '.join([DEFAULT, *names()])}")
+    # apply reports what differs from the last state it saw, so it is shown this one: what the switch itself changes
+    # is what `rotm install` and `set-defaults` have to act on
+    sync._remember()
     was = selected()
     env = [e for e in was if not e.startswith(PREFIX)] + ([PREFIX + name] if name != DEFAULT else [])
     if env:

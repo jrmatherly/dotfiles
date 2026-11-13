@@ -120,6 +120,7 @@ job quiet bash bin/lib/test-modules
 job quiet bash bin/lib/test-user-layer
 # rotm settings sync between scratch installed copies with the real mise and a local bare origin (gh stubbed, no uv)
 job quiet bash bin/lib/test-sync
+job quiet bash bin/lib/test-profiles
 # bin/rea-mcp against a fixture Ghidra keg under a temp HOMEBREW_PREFIX and a fake mise shim (REA never starts)
 job quiet bash bin/lib/test-rea-mcp
 # the Claude Code hooks against sample payloads

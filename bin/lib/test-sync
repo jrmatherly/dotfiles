@@ -207,6 +207,28 @@ settings b sync now
 check_true "B: sync now after A's reset exits 0" [ "$rc" = 0 ]
 check_true "B: the tool was reset to its seed" [ "$(model b)" = haiku ]
 
+# A profile made on A reaches B, linked and listed, and B chooses for itself whether to use it
+settings a profile new work
+settings a profile use work
+settings a set shell.editor vim-work
+check_true "A: the profile's value is not in the shared file" [ "$(editor a)" = 'EDITOR = "vim-2"' ]
+settings a sync now
+check_true "A: sync now with a profile exits 0" [ "$rc" = 0 ]
+settings b sync now
+check_true "B: sync now exits 0 with A's profile" [ "$rc" = 0 ]
+check_true "B: the profile's override file is linked" linked b config.rotm-p-work.override.toml
+check_true "B: the profile's module list is linked" linked b modules-off.rotm-p-work.local
+check_true "B: the checkout is clean with the profile's files" clean b
+settings b profile list
+check_true "B: lists work and keeps default active" [ "$out" = "$(printf '* default\n  work')" ]
+check_true "B: the profile's value is not in effect yet" grep -qF '"EDITOR": "vim-2"' <<< "$(on b mise env --json)"
+settings b profile use work
+check_true "B: profile use exits 0" [ "$rc" = 0 ]
+check_true "B: the profile's value is in effect" grep -qF '"EDITOR": "vim-work"' <<< "$(on b mise env --json)"
+settings a profile use default
+settings b profile use default
+check_true "B: back on the shared settings" grep -qF '"EDITOR": "vim-2"' <<< "$(on b mise env --json)"
+
 printf '\n[bootstrap.packages]\n"brew:p3-probe" = { state = "absent" }\n' >> "$(folder a)/config.override.toml"
 settings a sync now
 settings b sync now

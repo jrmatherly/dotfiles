@@ -1,0 +1,146 @@
+#!/bin/bash
+#
+# Self-check for rotm settings profile: a switch to a profile and back restores what was there, with the real mise.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-profiles`
+#
+# ---
+# The Mac is a scratch home shaped like an installed copy (~/.config/mise a
+# link into a checkout under mise's data dir), as in test-sync, and the CLI
+# runs as python3 -m dotfiles_settings under the Python bin/lib/check picks.
+# HOME, every mise dir, the XDG dirs and the Git config point into the temp
+# dir, every command starts from env -i in the scratch home, and the mise
+# shims are off PATH. Skips when mise is not installed.
+#
+# License: MIT
+
+set -euo pipefail
+
+repo="$(cd "$(dirname "$0")/../.." && pwd -P)"
+
+command -v mise > /dev/null || {
+  echo "test-profiles: mise not found, skipping" >&2
+  echo ok
+  exit 0
+}
+# bin/lib/check's pick, resolved to a path while HOME is still real
+py=$(command -v python3)
+if mise where python > /dev/null 2>&1; then
+  py=$(mise exec python -- python3 -c 'import sys; print(sys.executable)')
+fi
+mise_bin=$(command -v mise)
+git_bin=$(command -v git)
+
+S=$(cd "$(mktemp -d)" && pwd -P)
+trap 'rm -rf "$S"' EXIT
+out=''
+
+check_true() {
+  local name=$1
+  shift
+  "$@" || {
+    echo "FAIL: $name" >&2
+    echo "$out" >&2
+    exit 1
+  }
+  echo "ok: $name"
+}
+
+mkdir -p "$S/bin" "$S/nobrew" "$S/nosys" "$S/tmp" "$S/claude-seed" "$S/home/.config" "$S/home/.claude" "$S/data"
+ln -s "$mise_bin" "$S/bin/mise"
+ln -s "$git_bin" "$S/bin/git"
+printf '[user]\n\tname = test-profiles\n\temail = test-profiles@example.invalid\n[init]\n\tdefaultBranch = main\n' > "$S/gitconfig"
+printf '{"model": "haiku"}\n' > "$S/claude-seed/claude-settings.json"
+echo '{}' > "$S/home/.claude/settings.json"
+
+# Run a command from the scratch home, with nothing of the real environment
+on() {
+  (cd "$S/home" && env -i PATH="$S/bin:/usr/bin:/bin" TERM=dumb TMPDIR="$S/tmp" HOME="$S/home" \
+    MISE_CONFIG_DIR="$S/home/.config/mise" MISE_DATA_DIR="$S/data" MISE_STATE_DIR="$S/state" \
+    MISE_CACHE_DIR="$S/cache" MISE_CEILING_PATHS="$S" MISE_SYSTEM_CONFIG_DIR="$S/nosys" \
+    MISE_SYSTEM_DIR="$S/nosys" MISE_SYSTEM_BREW_PREFIX="$S/nobrew" \
+    XDG_STATE_HOME="$S/home/.local/state" XDG_CONFIG_HOME="$S/home/.config" \
+    CLAUDE_CONFIG_DIR="$S/home/.claude" CLAUDE_CONFIG_SAVE_DIR="$S/claude-seed" \
+    GIT_CONFIG_GLOBAL="$S/gitconfig" GIT_CONFIG_NOSYSTEM=1 \
+    DOTFILES="$repo" PYTHONPATH="$repo/settings/src" "$@" < /dev/null)
+}
+# rotm settings, as bin/dotfiles-settings runs it but without uv; the output lands in $out and the exit code in $rc
+settings() {
+  rc=0
+  out=$(on "$py" -m dotfiles_settings "$@" 2>&1) || rc=$?
+}
+
+# The upstream: a base config and one module, and the repo's ignore rules for mise's local files.
+# The module sets an env key, not a package: mise looks a package up on the network to report its status
+seed="$S/seed"
+cfg_rel=tilde/.config/mise
+mkdir -p "$seed/$cfg_rel/conf.d"
+printf '[dotfiles]\n"~/.base-marker" = { content = "x" }\n' > "$seed/$cfg_rel/config.toml"
+printf '[env]\nP4_FONTS = "loaded"\n' > "$seed/$cfg_rel/conf.d/60-rotm-fonts.toml"
+grep '^tilde/\.config/mise/' "$repo/.gitignore" > "$seed/.gitignore"
+on git -C "$seed" init -q
+on git -C "$seed" add -A
+on git -C "$seed" commit -q -m base
+on git clone -q --bare "$seed" "$S/upstream.git"
+on git clone -q "$S/upstream.git" "$S/data/bootstrap-repo"
+cfg="$S/home/.config/mise"
+ln -s "$S/data/bootstrap-repo/$cfg_rel" "$cfg"
+printf 'env = ["rotm-installed"]\n' > "$cfg/miserc.local.toml"
+
+clean() { [ -z "$(on git -C "$S/data/bootstrap-repo" status --porcelain)" ]; }
+var() { on mise env --json | "$py" -c 'import json, sys; print(json.load(sys.stdin).get(sys.argv[1]))' "$1"; }
+editor() { var EDITOR; }
+has_font() { [ "$(var P4_FONTS)" = loaded ]; }
+ignored() { grep '^ignored_config_paths' "$cfg/miserc.local.toml" || true; }
+in_work() {
+  [ "$(editor)" = work-value ] && grep -qF '"conf.d/60-rotm-fonts.toml"' "$cfg/miserc.local.toml" && ! has_font
+}
+
+settings set shell.editor shared-value
+check_true "a shared setting is in effect" [ "$(editor)" = shared-value ]
+check_true "the module is loaded" has_font
+shared=$(cat "$cfg/config.override.toml")
+line=$(ignored)
+
+settings profile new work
+check_true "profile new exits 0" [ "$rc" = 0 ]
+settings profile use work
+check_true "profile use exits 0" [ "$rc" = 0 ]
+check_true "mise saved both environments" [ "$(grep '^env' "$cfg/miserc.local.toml")" = 'env = ["rotm-installed", "rotm-p-work"]' ]
+check_true "the checkout is clean after new and use" clean
+check_true "a setting the profile does not set falls through" [ "$(editor)" = shared-value ]
+
+settings set shell.editor work-value
+check_true "mise loads the profile's value" [ "$(editor)" = work-value ]
+check_true "the shared override file is unchanged" [ "$(cat "$cfg/config.override.toml")" = "$shared" ]
+settings set modules.fonts off
+check_true "the profile's module switch is in effect" in_work
+check_true "the checkout is clean after two writes" clean
+
+settings profile use default
+check_true "profile use default exits 0" [ "$rc" = 0 ]
+check_true "the output says rotm install applies it" grep -qF 'Run `rotm install`' <<< "$out"
+check_true "the env line is back" [ "$(grep '^env' "$cfg/miserc.local.toml")" = 'env = ["rotm-installed"]' ]
+check_true "the shared value is back" [ "$(editor)" = shared-value ]
+check_true "the module is back on" has_font
+check_true "the ignored list is as before the profile" [ "$(ignored | sed 's/ = \[\]$//')" = "$(sed 's/ = \[\]$//' <<< "${line:-ignored_config_paths}")" ]
+
+settings profile use work
+check_true "switching back needs no set" in_work
+
+rc=0
+out=$(on env MISE_ENV=staging "$py" -m dotfiles_settings profile list 2>&1) || rc=$?
+check_true "profile list warns about MISE_ENV" grep -qF 'MISE_ENV is set in this shell' <<< "$out"
+check_true "profile list marks the active profile" grep -qx '\* work' <<< "$out"
+
+# rotm update's mise call passes no -E, so it keeps the saved profile
+before=$(grep '^env' "$cfg/miserc.local.toml")
+rc=0
+out=$(on mise bootstrap --from "$S/upstream.git" --config-dir "$cfg_rel" --update --only final-hook --yes 2>&1) || rc=$?
+check_true "the update call exits 0" [ "$rc" = 0 ]
+check_true "the update call leaves the env line" [ "$(grep '^env' "$cfg/miserc.local.toml")" = "$before" ]
+check_true "the checkout is clean at the end" clean
+
+echo ok
