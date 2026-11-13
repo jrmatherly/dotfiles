@@ -262,7 +262,7 @@ def _changes(override: Path, modules_off: Path) -> tuple:
             boot.get("macos", {}).get("defaults"))
 
 
-def _snapshot() -> tuple[tuple[Path, Path], tuple[Path, Path]]:
+def _snapshot() -> tuple[tuple[Path, ...], tuple[Path, ...]]:
     """The two files apply compares, and its copies of them from the last apply."""
     live = (mise.config_dir() / "config.override.toml", mise.config_dir() / "modules-off.local")
     return live, tuple(applied_path().parent / f"{p.name}.applied" for p in live)
@@ -284,7 +284,8 @@ def apply() -> list[str]:
     lines = replay(registry.load(), ADAPTERS)
     live, copies = _snapshot()
     (install, macos), (install_was, macos_was) = _changes(*live), _changes(*copies)
-    if install != install_was:
+    # setup.sh sets it when it has just installed with these files, where the line would be false
+    if install != install_was and not os.environ.get("ROTM_JUST_INSTALLED"):
         lines.append(INSTALL)
     if macos != macos_was:
         lines.append(DEFAULTS)

@@ -47,7 +47,24 @@ printf '[dotfiles]\n"~/.config/gh" = { permissions = "0700" }\n"~/.config/keep" 
 printf '#!/bin/bash\necho ran >> "$STATE/extras.log"\n' > "$fix/setup/dotfiles-extras.sh"
 printf '#!/bin/bash\nexit 0\n' > "$fix/setup/dash.sh"
 printf '#!/bin/bash\nexit 0\n' > "$fix/bin/nyan"
-chmod +x "$fix/setup.sh" "$fix"/setup/*.sh "$fix/bin/nyan"
+# Loading saved settings: restore and dotfiles-settings are stubs that log to mise.log; the other rotm-user-layer calls are real
+mv "$fix/bin/lib/rotm-user-layer" "$fix/bin/lib/rotm-user-layer.real"
+cat > "$fix/bin/lib/rotm-user-layer" << 'EOF'
+#!/bin/bash
+[ "${1:-}" = restore ] || exec "$(dirname "$0")/rotm-user-layer.real" "$@"
+echo "pwd=$(pwd -P) helper=rotm-user-layer args=$*" >> "$STATE/mise.log"
+folder="$HOME/.config/rotm"
+if [ -e "$folder/modules-off.local" ]; then echo present; else echo absent; fi > "$STATE/modules-at-restore"
+[ ! -e "$STATE/restore-fails" ] || {
+  echo "rotm-user-layer: the restored settings conflict with this Mac's; nothing was overwritten" >&2
+  exit 1
+}
+for f in modules-off.local config.override.toml; do
+  [ ! -e "$STATE/saved-$f" ] || cp "$STATE/saved-$f" "$folder/$f"
+done
+EOF
+printf '#!/bin/bash\necho "pwd=$(pwd -P) helper=dotfiles-settings args=$* just_installed=${ROTM_JUST_INSTALLED:-}" >> "$STATE/mise.log"\n[ ! -e "$STATE/apply-fails" ]\n' > "$fix/bin/dotfiles-settings"
+chmod +x "$fix/setup.sh" "$fix"/setup/*.sh "$fix/bin/nyan" "$fix/bin/lib/rotm-user-layer" "$fix/bin/dotfiles-settings"
 
 stub() {
   printf '#!/bin/bash\n%s\n' "$2" > "$tmp/bin/$1"
@@ -61,7 +78,15 @@ case $1 in
     case "$*" in
       "bootstrap packages upgrade "*) [ ! -e "$STATE/upgrade-fails" ] ;;
       "bootstrap packages apply --yes --manager brew")
+        cp "$HOME/.config/mise/miserc.local.toml" "$STATE/rc-at-packages" 2> /dev/null || true
         [ ! -e "$STATE/no-packages" ] || { echo "mise ERROR no packages requested for manager 'brew'"; exit 1; } ;;
+      "dot origin")
+        if [ -e "$STATE/origin" ]; then echo "https://github.com/octo/rotm-settings.git"
+        else echo "no setup repository is connected; run mise dot origin set <url>"; fi ;;
+      "env --json")
+        if grep -qsF 'DOTFILES_SKIP_CODEGRAPH = "true"' "$HOME/.config/mise/config.override.toml"; then
+          echo '{"DOTFILES_SKIP_CODEGRAPH":"true"}'
+        else echo '{}'; fi ;;
       *"--manager brew-cask"*) [ ! -e "$STATE/casks-fail" ] ;;
       "bootstrap packages status --json")
         printf '{"brew-cask":{"available":true,"packages":['
@@ -134,7 +159,20 @@ run() {
   prepare
   [ "$copy" = "$fix" ] || { mkdir -p "$(dirname "$copy")" && cp -R "$fix" "$copy"; }
   rc=0
-  out=$(PATH="$tmp/bin:/usr/bin:/bin" "$copy/setup.sh" "$@" 2>&1 < /dev/null) || rc=$?
+  if [ -z "${answers:-}" ]; then
+    out=$(PATH="$tmp/bin:/usr/bin:/bin" "$copy/setup.sh" "$@" 2>&1 < /dev/null) || rc=$?
+    return 0
+  fi
+  # answers=… run: setup.sh on a terminal (script's pty) that types them
+  # The input stays open while setup runs, so a prompt reads an answer and not an end of input; ten seconds at most.
+  # A pipe, not a FIFO, which macOS script refuses
+  PATH="$tmp/bin:/usr/bin:/bin" DOTFILES_SETUP_LOG=none script -q /dev/null "$copy/setup.sh" "$@" > "$STATE/out" 2>&1 < <(
+    printf '%b' "$answers"
+    ticks=0
+    while [ ! -e "$STATE/done" ] && [ $((ticks += 1)) -le 100 ]; do sleep 0.1; done
+  ) || rc=$?
+  touch "$STATE/done"
+  out=$(tr -d '\r' < "$STATE/out")
 }
 # run_installed [setup.sh args...]: the same from a copy of the fixture where mise keeps its checkout
 run_installed() {
@@ -476,6 +514,111 @@ prepare() {
 }
 run -y
 check_true "a package that is missing beside it still is a problem" has 'Setup finished with 1 problem'
+prepare() { :; }
+
+# Saved settings (rotm settings sync): gh is signed in as octo, who has a settings repository.
+# A file in STATE breaks one part: signed-out, no-repo, empty, public, not-settings
+saved='echo "gh $*" >> "$STATE/gh.log"
+case "$*" in
+  "auth token") [ ! -e "$STATE/signed-out" ] && echo tok ;;
+  "api user --jq .login") echo octo ;;
+  "repo view octo/rotm-settings --json isEmpty --jq .isEmpty")
+    [ ! -e "$STATE/no-repo" ] || exit 1
+    if [ -e "$STATE/empty" ]; then echo true; else echo false; fi ;;
+  "repo view octo/rotm-settings --json visibility --jq .visibility")
+    if [ -e "$STATE/public" ]; then echo PUBLIC; else echo PRIVATE; fi ;;
+  "api repos/octo/rotm-settings/contents/.mise-history/format.toml") [ ! -e "$STATE/not-settings" ] ;;
+  *) exit 1 ;;
+esac'
+restore="helper=rotm-user-layer args=restore https://github.com/octo/rotm-settings.git"
+settings_apply="helper=dotfiles-settings args=sync apply"
+restores() { [ "$(grep -cF -- "$restore" "$STATE/mise.log")" = "$1" ]; }
+applies() { [ "$(grep -cF -- "$settings_apply" "$STATE/mise.log")" = "$1" ]; }
+asked() { has 'Load your saved settings from octo/rotm-settings'; }
+hinted() { has 'rotm settings sync on`? (after setup )?to load them'; }
+
+prepare() {
+  stub gh "$saved"
+  echo apps > "$STATE/saved-modules-off.local"
+}
+answers='\ny\n' run
+check_true "saved: a terminal that answers yes exits 0" [ "$rc" -eq 0 ]
+check_true "saved: asks first" asked
+check_true "saved: restores the repository once" restores 1
+check_true "saved: … before the first package list" in_order "$restore" "$apply brew disable="
+check_true "saved: a module switched off on the other Mac is off before the packages" grep -qF '"conf.d/60-rotm-apps.toml"' "$STATE/rc-at-packages"
+check_true "saved: the tool settings apply after the packages and the task" in_order "$apply brew disable=" "$task" "$settings_apply"
+check_true "saved: … once" applies 1
+check_true "saved: … told that setup has just installed" log_has "$settings_apply just_installed=1"
+
+answers='\ny\n' run --without fonts
+check_true "saved --without: the folder held no module list when the restore ran" [ "$(cat "$STATE/modules-at-restore")" = absent ]
+check_true "saved --without: fonts is off on top of what was restored" [ "$(tr '\n' ' ' < "$HOME/.config/rotm/modules-off.local")" = "fonts apps " ]
+check_true "saved --without: … before the packages" grep -qF '"conf.d/60-rotm-fonts.toml", "conf.d/60-rotm-apps.toml"' "$STATE/rc-at-packages"
+
+prepare() {
+  stub gh "$saved"
+  printf '[env]\nDOTFILES_SKIP_CODEGRAPH = "true"\n' > "$STATE/saved-config.override.toml"
+  touch "$STATE/apply-fails"
+}
+answers='\ny\n' run
+check_true "saved: CodeGraph left alone in the restored settings is not installed" log_has "args=install --yes disable=npm:@colbymchenry/codegraph "
+check_true "saved: … and the task is told" log_has "args=bootstrap --only task disable=npm:@colbymchenry/codegraph dotfiles=$fix skip=true "
+check_true "saved: a failed apply of the tool settings names the command that retries it" has 'rotm settings sync apply'
+check_true "saved: … and setup still ends All done" [ "$rc" -eq 0 ]
+
+prepare() { stub gh "$saved"; }
+run
+check_true "saved, stdin closed: no question" eval '! asked'
+check_true "saved, stdin closed: no restore" restores 0
+check_true "saved, stdin closed: says sync on loads them later" hinted
+check_true "no restore in this run: the tool settings are not applied" applies 0
+answers='y\n' run -y
+check_true "saved, -y on a terminal: no question" eval '! asked'
+check_true "saved, -y on a terminal: no restore" restores 0
+check_true "saved, -y on a terminal: says sync on loads them later" hinted
+
+for broken in no-repo empty public not-settings; do
+  prepare() {
+    stub gh "$saved"
+    touch "$STATE/$broken"
+  }
+  answers='\ny\n' run
+  check_true "saved, $broken: no question" eval '! asked'
+  check_true "saved, $broken: no restore" restores 0
+  check_true "saved, $broken: no hint" eval '! hinted'
+done
+
+prepare() {
+  stub gh "$saved"
+  touch "$STATE/signed-out"
+}
+answers='\nn\n' run
+check_true "signed out: no lookup" eval '! grep -qE "^gh (api|repo) " "$STATE/gh.log"'
+check_true "signed out: no restore" restores 0
+
+prepare() {
+  stub gh "$saved"
+  touch "$STATE/origin"
+}
+answers='\ny\n' run
+check_true "an origin already connected: no question" eval '! asked'
+check_true "an origin already connected: no restore" restores 0
+
+prepare() {
+  stub gh "$saved"
+  touch "$STATE/restore-fails"
+}
+answers='\ny\n' run
+check_true "a failed restore: setup carries on" [ "$rc" -eq 0 ]
+check_true "a failed restore: warns and names sync status" has 'rotm settings sync status'
+check_true "a failed restore: the packages still install after it" in_order "$restore" "$apply brew disable="
+check_true "a failed restore: the tool settings are not applied" applies 0
+
+prepare() { stub gh "$saved"; }
+answers='\ny\n' run -- --dry-run
+check_true "a dry run: no question" eval '! asked'
+check_true "a dry run: no restore" restores 0
 prepare() { :; }
 
 # setup/misc.sh under stubs. It puts the Homebrew prefix on PATH and names two kegs, so it must read HOMEBREW_PREFIX

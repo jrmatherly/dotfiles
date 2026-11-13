@@ -119,6 +119,8 @@ mise declares `/etc/pam.d/sudo_local`, which enables Touch ID for `sudo` (conten
 
 Tap formulae resolve through GitHub's API. mise asks `gh` for a token itself. When `gh` isn't signed in and `MISE_GITHUB_TOKEN` is unset, `setup.sh` installs `gh` on its own first and offers to run `gh auth login`, before the packages and the tools spend the limit. With `-y`, without a terminal or after a no, it only warns. The anonymous limit is 60 calls an hour: one run fits, a second within the hour may not (two runs and a `mise bootstrap packages status` used all 60 on a new Mac). If packages fail to resolve, run `gh auth login` and rerun `./setup.sh`.
 
+On your next Mac, once `gh` is signed in, setup looks for the private `rotm-settings` repository that `rotm settings sync on` made in your account. When it finds one, it asks whether to load your saved settings before it installs anything, and Enter loads them. Your `rotm settings` changes and the groups you switched off arrive first, so a group that is off there is not installed here, and `--without` on this run turns groups off on top of them. The tool settings, such as the Claude Code model, are applied at the end of the run, once the tools exist. Saved macOS preferences arrive too and, as on the first Mac, only `set-defaults` writes them. With `-y` or without a terminal setup does not ask: it prints that `rotm settings sync on` loads them later. When the saved settings conflict with this Mac's, nothing is overwritten: setup warns and carries on without them, and `rotm settings sync status` shows what differs. A Mac already connected to a settings repository is not asked again.
+
 ## Preview
 
 To see what a run would do on a Mac that has mise but not the `~/.config/mise` link:

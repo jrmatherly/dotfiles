@@ -353,6 +353,19 @@ def test_apply_names_what_it_cannot_act_on_once():
     assert not [c for c in calls() if c.startswith("defaults")], calls()
 
 
+def test_apply_right_after_setup_installed_leaves_out_only_the_install_line():
+    fresh()
+    (conf / "modules-off.local").write_text("fonts\n")
+    (conf / "config.override.toml").write_text('[bootstrap.macos.defaults."com.apple.dock"]\nautohide = true\n')
+    os.environ["ROTM_JUST_INSTALLED"] = "1"
+    try:
+        lines = sync.apply()
+    finally:
+        del os.environ["ROTM_JUST_INSTALLED"]
+    assert any("set-defaults" in l for l in lines) and not any("rotm install" in l for l in lines), lines
+    assert not sync.apply()
+
+
 def test_a_conflict_stops_on_and_now_with_the_commands_that_decide_it():
     def check(fn, *args):
         message = raises(fn, *args)

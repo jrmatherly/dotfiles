@@ -278,10 +278,9 @@ bash "$DOTFILES_DIR/setup/mise-floor.sh" || exit 1
 # files, without which mise dotfiles and mise bootstrap stop at an ignored one
 [ -n "$dry_run_flag" ] || "$modules" sync > /dev/null || exit $?
 
-if [ "$skip_codegraph" = true ]; then
-  # Read by setup/misc.sh, which reshims without the second one
-  export DOTFILES_SKIP_CODEGRAPH=true MISE_DISABLE_TOOLS="${MISE_DISABLE_TOOLS:+$MISE_DISABLE_TOOLS,}npm:@colbymchenry/codegraph"
-fi
+# Read by setup/misc.sh, which reshims without the second one
+disable_codegraph() { export DOTFILES_SKIP_CODEGRAPH=true MISE_DISABLE_TOOLS="${MISE_DISABLE_TOOLS:+$MISE_DISABLE_TOOLS,}npm:@colbymchenry/codegraph"; }
+[ "$skip_codegraph" != true ] || disable_codegraph
 
 # Keep the sudo timestamp alive so app installers don't re-prompt halfway.
 # `sudo -n -v` extends the credential without prompting (`sudo -n true` only
@@ -453,6 +452,50 @@ github_login() {
 [ "$run_packages" != true ] || [ -n "$dry_run_flag" ] || mise plugins link --force vscode "$DOTFILES_DIR/mise-plugins/vscode"
 github_login
 
+# The settings a user saved with `rotm settings sync on` load before the package lists. This is
+# `sync on`'s lookup in bash, because bin/dotfiles-settings needs uv, which the package lists install
+restored=false
+load_saved_settings() {
+  local origin login repo answer folder aside=""
+  [ -z "$dry_run_flag" ] && github_token || return 0
+  origin=$(mise dot origin 2>&1) || true
+  case "$origin" in *"no setup repository is connected"*) ;; *) return 0 ;; esac
+  login=$(gh api user --jq .login 2> /dev/null) && [ -n "$login" ] || return 0
+  repo="$login/rotm-settings"
+  [ "$(gh repo view "$repo" --json isEmpty --jq .isEmpty 2> /dev/null)" = false ] \
+    && [ "$(gh repo view "$repo" --json visibility --jq .visibility 2> /dev/null)" = PRIVATE ] \
+    && gh api "repos/$repo/contents/.mise-history/format.toml" > /dev/null 2>&1 || return 0
+  if [ ! -t 0 ] || [ -n "$yes" ]; then
+    echo "Your saved settings are in $repo. Run \`rotm settings sync on\` after setup to load them."
+    return 0
+  fi
+  read -rp "Load your saved settings from $repo before installing? [Y/n] " answer || answer=n
+  case "$answer" in n | N) return 0 ;; esac
+  folder=$("$DOTFILES_DIR/bin/lib/rotm-user-layer" dir)
+  # This run's --without wrote the list already: set aside, it would conflict with the saved one
+  if [ -n "$without" ] && [ -e "$folder/modules-off.local" ]; then
+    aside=$(mktemp)
+    mv "$folder/modules-off.local" "$aside"
+  fi
+  if "$DOTFILES_DIR/bin/lib/rotm-user-layer" restore "https://github.com/$repo.git"; then
+    restored=true
+    echo "Loaded your saved settings from $repo."
+  else
+    warning "Your saved settings did not load, and setup carries on without them. Run rotm settings sync status to see why"
+    [ -z "$aside" ] || [ -e "$folder/modules-off.local" ] || mv "$aside" "$folder/modules-off.local"
+  fi
+  [ -z "$aside" ] || rm -f "$aside"
+  # The flag wins over the saved list, and a module switched off there is off before the packages
+  "$modules" sync ${without:+--without "$without"} || exit $?
+  # skip_codegraph was read before the restore
+  if [ "$restored" = true ] && [ "$skip_codegraph" != true ] \
+    && [ "$(mise env --json | /usr/bin/jq -r '.DOTFILES_SKIP_CODEGRAPH // empty')" = true ]; then
+    disable_codegraph
+  fi
+  echo
+}
+load_saved_settings
+
 if [ "$run_packages" = true ]; then
   # Formulae first: reading the claude-multipass-app tap cask needs the Ruby 3 that brew:ruby installs
   packages_for brew formulae formula
@@ -514,6 +557,12 @@ if [ "$run_extras" = true ]; then
   # After the extras script, which writes the identity only while ~/.gitconfig.local is missing
   [ "$run_packages" = false ] || move_credential_config || warning "Could not move the [credential] sections out of tilde/.gitconfig. Move them to ~/.gitconfig.local by hand"
   sudo -k 2> /dev/null || true
+fi
+
+# After the task's claude-config restore, so the saved tool settings are the last write.
+# ROTM_JUST_INSTALLED: this run installed with the restored files, so apply's "run rotm install" would be false
+if [ "$restored" = true ] && ! ROTM_JUST_INSTALLED=1 "$DOTFILES_DIR/bin/dotfiles-settings" sync apply; then
+  warning "Your saved tool settings did not apply. Run rotm settings sync apply once setup is done"
 fi
 
 # Optional: Dash docsets built from local folders
