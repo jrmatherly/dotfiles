@@ -86,7 +86,7 @@ Everything in `$HOME` is a symlink into the clone, so you change a config by edi
 | --- | --- |
 | [Installation](docs/installation.md) | The full install, setup's flags and prompts, a preview, the steps after setup, and the extras (color themes, Obsidian, Dash) |
 | [Updating](docs/updating.md) | What `sysup` does step by step, Renovate, and the macOS update password from 1Password |
-| [Settings sync](docs/settings-sync.md) | Saving your `rotm settings` changes and opt-outs to a private GitHub repository of your own, loading them on a second Mac, and deciding a conflict |
+| [Settings sync](docs/settings-sync.md) | Saving your `rotm settings` changes and opt-outs to a private GitHub repository of your own, loading them on a second Mac, deciding a conflict, and keeping a profile such as work beside your own |
 | [Local customizations](docs/local-customizations.md) | The per-Mac files outside the repo: `~/.zsh.local`, `~/.gitconfig.local`, `~/.ssh/config.local` and the 1Password SSH key |
 | [Make it yours](docs/forking.md) | The values hard-coded to me, for when you fork |
 | [Setup scripts](setup/README.md) | What each setup step does, with a diagram of what it downloads and what needs `sudo` |

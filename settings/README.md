@@ -25,7 +25,7 @@ Each value has one of four sources:
 
 | Source | Meaning |
 | --- | --- |
-| `override` | Set with `dotfiles-settings set` (or `mise set --override`), stored in `config.override.toml` |
+| `override` | Set with `dotfiles-settings set` (or `mise set --override`), stored in `config.override.toml`, or in the active [profile](#profiles)'s override file |
 | `seed` | Exported by a new interactive zsh |
 | `default` | Not exported anywhere, and the script that reads the variable falls back to the registry's `default` itself |
 | `unset` | None of the above |
@@ -57,8 +57,9 @@ The one row in the Dotfiles section, `dotfiles.links`, is the `dotfile` kind and
 | --- | --- | --- |
 | `list [--section S] [--json]` | A JSON array, or one `id<TAB>value<TAB>source` line per setting | 0, 2 for an unknown section |
 | `get <id> [--json]` | A JSON object, or the value alone (an empty line when unset) | 0, 2 for an unknown id |
-| `set <id> <value>` | Nothing on stdout, the note on stderr | 0, 2 for an unknown id or an invalid value, 3 for a read-only setting |
-| `reset <id>` | Nothing on stdout, the note on stderr | 0, 2 for an unknown id, 3 for a read-only setting |
+| `set [--shared] <id> <value>` | Nothing on stdout, the note on stderr | 0, 2 for an unknown id or an invalid value, 3 for a read-only setting |
+| `reset [--shared] <id>` | Nothing on stdout, the note on stderr | 0, 2 for an unknown id, 3 for a read-only setting |
+| `profile list`, `profile use <name>`, `profile new <name>` | The profiles with the active one marked, or what the switch changed, described in [Profiles](#profiles) | 0, 2 for a name that is refused or unknown, 1 when a step stops it |
 | `apply <kind>` | The adapter's lines, or `<kind>: nothing to apply` | 0, 2 for an unknown kind |
 | `sync on [--repo NAME]`, `sync off`, `sync now`, `sync status`, `sync apply` | What happened and what to run next, described in [Sync](#sync) | 0, 1 when a step stops it, 2 for an unknown action |
 | `tui` | Runs the terminal UI | 0 |
@@ -113,6 +114,22 @@ $ dotfiles-settings get updates.slow_step_seconds --json
 `on` and `now` stop before the first save, with exit 1, when the folder holds any file but those three, when a key of `[env]` (each table of an `[[env]]` array) in its override file ends in `TOKEN`, `SECRET`, `PASSPHRASE`, `PASSWORD`, `API_KEY`, `ACCESS_KEY` or `CLIENT_KEY` in any case (`bin/claude-config`'s rule plus two suffixes), or when it holds the key of a `machine`-scoped `env` setting, left there by a version from before scope existed. The repository keeps every saved file in its history for good, so the message names the file or key: move the file out, run `mise unset --override <key>` and keep the secret in `~/.zsh.local`, or run `rotm settings set <id> <value>`, which moves a machine setting to `config.local.toml`.
 
 When this Mac and the repository changed the same file, mise pauses sync and overwrites neither. `on` and `now` exit 1 with `mise dot conflicts`'s listing and apply nothing. Decide each file with `mise dot pull --take-remote <file>` (the saved copy). To keep this Mac's, copy it aside first and back after, since `--keep-local` fails on a Mac whose first `sync on` met a different file. Then run `sync now`, which checks for a conflict before it saves: a save while that first conflict is held starts a history the origin refuses.
+
+## Profiles
+
+A profile is the mise config environment `rotm-p-<name>`, named in the `env` list of `miserc.local.toml`. The prefix is there because a bare name in that list would also load a project's `mise.<name>.toml`. `profile.py` owns the names and the `env` line, and every adapter asks it which profile is active.
+
+| What | Where a profile keeps it | Why |
+| --- | --- | --- |
+| `env` and `macos-default` settings, skipped packages | `config.rotm-p-<name>.override.toml`, which mise ranks above `config.override.toml` | mise holds it, so a key the profile does not set falls through to the shared file |
+| Module switches | `modules-off.rotm-p-<name>.local`, a copy made by `profile new` | mise reads the files it skips from `miserc` only, which has no per-environment form |
+| `tool` settings | `tools.rotm-p-<name>.toml`, laid over `tools.toml` by `sync apply` | mise cannot hold them |
+
+- `profile new` creates the first two files in `~/.config/rotm` and has `rotm-user-layer ensure` link them from the config dir. A write to a profile whose file is missing is refused, because mise would create the file in the config dir, which on an installed copy is the checkout.
+- `profile use` has mise write the `env` line (`mise -E <names> bootstrap --save-env --only final-hook`, which applies nothing), keeps other names in the list, and then runs `sync apply`. Leaving the last profile on a clone removes the line itself, since mise cannot save an empty list.
+- A write goes to the active profile. `--shared` writes the shared file. A write to a profile's override file uses `mise set --file`, and a reset `mise unset --file`: `mise unset --override --env` exits 0 and removes nothing.
+- A `machine`-scoped setting reads and writes `config.local.toml` and ignores profiles.
+- `MISE_ENV` or `-E` in a shell replaces the saved list there, so no profile is in effect in that shell. `profile list` says when `MISE_ENV` is set.
 
 ## Values that are refused
 

@@ -12,6 +12,8 @@ Sync saves one folder, `~/.config/rotm`, which holds three files:
 | `modules-off.local` | The [modules](modules.md) you switched off |
 | `tools.toml` | The agent-tool settings you changed with `rotm settings`, such as the Claude Code default model and the jstack roles |
 
+Each [profile](#profiles) adds up to three files of its own beside them, named after it.
+
 ## What is never saved
 
 - The three settings that describe one Mac: the computer name (`macos.computer_name`), the local hostname (`macos.local_hostname`) and the Hindsight opt-in paths (`hindsight.paths`).
@@ -75,12 +77,48 @@ Two things remain, and the sync command prints a line that names the command for
 
 When setup loaded your settings during the first install, that run installed with them, so only `set-defaults` remains.
 
+## Profiles
+
+A profile is a named variant of your settings, such as `work` beside what you use at home. Switching to it changes what differs, and switching back restores what was there.
+
+| Command | What it does |
+| --- | --- |
+| `rotm settings profile new work` | Makes the profile `work`. It starts with no settings of its own and a copy of your module switches. The name is up to 31 lowercase letters, digits or hyphens |
+| `rotm settings profile use work` | Switches this Mac to `work`. Open a new terminal afterwards. It prints the `rotm install` and `set-defaults` lines when the switch changed modules, packages or macOS preferences |
+| `rotm settings profile use default` | Leaves the profile. `default` is the name for your shared settings alone |
+| `rotm settings profile list` | Lists the profiles and marks the one in use |
+
+**What a profile holds.** Only what you changed while it was in use. A setting the profile does not set comes from your shared settings, so a change to a shared setting reaches every profile that has no value of its own for it. The files are in `~/.config/rotm`:
+
+| File | What it holds |
+| --- | --- |
+| `config.rotm-p-work.override.toml` | The profile's environment-variable settings, macOS preferences and skipped packages. It is laid over `config.override.toml` |
+| `modules-off.rotm-p-work.local` | The modules that are off in the profile. This list is the profile's own copy and does not follow the shared list: a module you switch off for everything later stays on in a profile made earlier |
+| `tools.rotm-p-work.toml` | The agent-tool settings changed in the profile, laid over `tools.toml`. It exists once you change one |
+
+**Where a change goes.** While a profile is in use, `rotm settings set` and `reset` change the profile. Add `--shared` to change your shared settings instead:
+
+```shell
+rotm settings set --shared shell.editor vim
+```
+
+When the profile has its own value for that setting, the profile's value stays in effect there and the command says so. `rotm settings reset <id>` removes the profile's value, and the shared one shows through. A second `reset` removes the shared value. The three settings that [describe one Mac](#what-is-never-saved) ignore profiles.
+
+**Which Mac uses which profile.** Sync carries every profile to every Mac, and each Mac chooses for itself. A profile made on one Mac appears in `profile list` on the next after `rotm settings sync now`, and that Mac stays on `default` until you run `profile use` there.
+
+Two things turn a profile off without `profile use`:
+
+- **`MISE_ENV` in a shell.** mise uses that variable in place of the saved profile, in that shell only. `profile list` says when it is set. `MISE_ENV=staging,rotm-p-work` keeps the profile.
+- **Running the install line again.** The line in [Installation](installation.md) names its own environment, which replaces the saved choice, so this Mac is back on `default`. The profile's files are untouched and one `profile use` restores it. `rotm install` and `rotm update` keep the profile.
+
+There is no command to delete or rename a profile. Switch away from it, then delete or rename its three files in `~/.config/rotm` and the links of the same names in `~/.config/mise`.
+
 ## What stops a save
 
 `sync on` and `sync now` check the folder before every save. When a check fails, the command exits 1, names what it found and saves nothing.
 
-- **A file that is not one of the three.** mise would save it with the rest. Finder leaves a `.DS_Store` file when you open the folder, and that file is enough to stop the save. Move the file out of `~/.config/rotm`, or delete it, and run the command again.
-- **A setting named like a secret.** The check looks at the keys under `[env]` in `config.override.toml`, in every table when it is written as `[[env]]`, and stops at one that ends in `TOKEN`, `SECRET`, `PASSPHRASE`, `PASSWORD`, `API_KEY`, `ACCESS_KEY` or `CLIENT_KEY`, in any case. Run `mise unset --override <KEY>`, keep the value in `~/.zsh.local`, and run the command again.
+- **A file that is not one of the three, or one of a profile's.** mise would save it with the rest. Finder leaves a `.DS_Store` file when you open the folder, and that file is enough to stop the save. Move the file out of `~/.config/rotm`, or delete it, and run the command again.
+- **A setting named like a secret.** The check looks at the keys under `[env]` in `config.override.toml` and in each profile's override file, in every table when it is written as `[[env]]`, and stops at one that ends in `TOKEN`, `SECRET`, `PASSPHRASE`, `PASSWORD`, `API_KEY`, `ACCESS_KEY` or `CLIENT_KEY`, in any case. Run the `mise unset` command the message names (`mise unset --override <KEY>` for the shared file, `mise unset --file <file> <KEY>` for a profile's), keep the value in `~/.zsh.local`, and run the command again.
 - **A setting that describes one Mac, left in `config.override.toml`.** A version from before these settings stayed on their Mac kept the computer name and the local hostname there. Run the `rotm settings set <id> <value>` the message names, which moves the value to `config.local.toml`, and run the command again.
 
 The secret check reads the name, not the value, so a secret under another name passes it. mise has a check of its own that refuses to send a line that looks like a secret. By then mise has already saved the line in the history on this Mac, and its message says how to remove it. Keep secrets out of `rotm settings` and out of the folder.
