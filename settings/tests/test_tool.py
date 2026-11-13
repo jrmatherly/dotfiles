@@ -207,6 +207,7 @@ def test_claude_model_under_a_profile():
     live.write_text(LIVE); tracked_settings.write_text('{"model": "opus"}')
     A.write(s, "sonnet")
     profile.miserc().write_text('env = ["rotm-p-work"]\n')
+    profile.override_path("work").touch()
     try:
         A.write(s, "haiku")
         assert model() == "haiku" and sync._load(sync.tools_path())[s.id] == "sonnet"
@@ -224,6 +225,18 @@ def test_claude_model_under_a_profile():
         A.reset(s)
         assert model() == "opus" and s.id not in sync._load(sync.tools_path())
         assert s.id not in sync._load(sync.applied_path())
+        # a reset the tool refuses keeps the id applied, so the next replay tries again
+        A.write(s, "sonnet")
+        good = live.read_text()
+        live.write_text('{"env": {')
+        assert raises_type(lambda: A.reset(s), SettingsError)
+        assert sync._load(sync.applied_path()).get(s.id) == "sonnet", "a failed reset dropped the applied record"
+        live.write_text(good)
+        A.reset(s)
+        # a saved profile whose files are not on this Mac: the write is refused before the tool changes
+        profile.miserc().write_text('env = ["rotm-p-gone"]\n')
+        assert raises(lambda: A.write(s, "haiku"), "the profile gone has no settings file")
+        assert model() == "opus" and not profile.tools_path("gone").exists()
     finally:
         profile.shared = False
         profile.miserc().unlink()

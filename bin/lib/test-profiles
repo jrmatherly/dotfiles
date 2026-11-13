@@ -133,6 +133,8 @@ check_true "switching back needs no set" in_work
 rc=0
 out=$(on env MISE_ENV=staging "$py" -m dotfiles_settings profile list 2>&1) || rc=$?
 check_true "profile list warns about MISE_ENV" grep -qF 'MISE_ENV is set in this shell' <<< "$out"
+check_true "profile list marks default, since mise is not using the saved profile there" grep -qx '\* default' <<< "$out"
+settings profile list
 check_true "profile list marks the active profile" grep -qx '\* work' <<< "$out"
 
 # rotm update's mise call passes no -E, so it keeps the saved profile

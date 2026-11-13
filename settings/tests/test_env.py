@@ -9,6 +9,7 @@ for d in (home, conf, cwd, zdot):
     d.mkdir()
 os.environ.update(HOME=str(home), MISE_CONFIG_DIR=str(conf), VSCODE_SETTINGS_ENV=str(tmp / "vscode.env"))
 os.environ.pop("DOTFILES_SETTINGS_MISE", None)
+os.environ.pop("MISE_ENV", None)  # it would replace the saved profile in the real mise these checks run
 (cwd / "mise.toml").write_text('[env]\nT_PROJECT = "x"\n')  # never trusted
 os.chdir(cwd)
 

@@ -242,8 +242,11 @@ def status_entries() -> list[dict]:
 class MacosDefaultAdapter:
     def write_note(self, s: Setting) -> str:
         if name := masked(*split_key(s.key)):
-            return (f"Saved in {override_path()}, the shared settings. The profile {name} keeps its own value, which "
-                    f"stays in effect there: `rotm settings reset {s.id}` removes it.")
+            where = ("Edited tilde/.config/mise/conf.d/20-macos.toml, a tracked file. Commit the file to keep the change."
+                     if shared_target(*split_key(s.key)) == fragment_path()
+                     else f"Saved in {override_path()}, the shared settings.")
+            return (f"{where} The profile {name} keeps its own value, which stays in effect there: "
+                    f"`rotm settings reset {s.id}` removes it.")
         if name := profile.target():
             return f"Saved in {profile.override_path(name)}, the profile {name}'s settings, and wrote that one preference."
         if target(*split_key(s.key)) == fragment_path():
@@ -272,11 +275,11 @@ class MacosDefaultAdapter:
         same = old == entry["value"] and type(old) is type(entry["value"])
         return Value(s.id, value, Source.SEED if same else Source.OVERRIDE, render(s, old), drift)
 
-    def write(self, s: Setting, value: str) -> None:
+    def write(self, s: Setting, value: str, path: Path | None = None) -> None:
         # One key only: `defaults apply` would undo every hand change and write the config.local.toml opt-ins
         domain, key = split_key(s.key)
         literal = to_literal(s, value)
-        path = target(domain, key)
+        path = path or target(domain, key)
         text = read_text(path)
         put(path, set_key(text, domain, key, literal))
         if masked(domain, key):  # the profile's value stays in effect, so there is nothing to read back or write
@@ -324,7 +327,7 @@ class MacosDefaultAdapter:
             raise SettingsError("20-macos.toml is not in git HEAD, so there is no committed value to return to")
         old = declared(head, domain, key)
         if old is not MISSING:
-            self.write(s, render(s, old))
+            self.write(s, render(s, old), fragment_path())  # named: with a profile active a write goes to its file
             return
         fragment_path().write_text(remove_key(read_text(), domain, key))
         print(f'mise never deletes a preference. Run: defaults delete {domain} "{key}"', file=sys.stderr)

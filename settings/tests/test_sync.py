@@ -448,7 +448,9 @@ def test_status():
 
 
 def use(name):
-    """The saved env line, as profile.use leaves it."""
+    """The saved env line, as profile.use leaves it, and the profile's override file, as profile.new does."""
+    if name:
+        (conf / f"config.rotm-p-{name}.override.toml").touch()
     (conf / "miserc.local.toml").write_text(f'env = ["rotm-installed", "rotm-p-{name}"]\n' if name else "")
 
 
@@ -469,6 +471,13 @@ def test_a_profile_records_and_replays_its_own_tool_settings():
     use(None)
     lines = sync.replay([s, extra], {"fake": fake})
     assert fake.values == {"claude.model": "opus"} and any("Reset jstack.role" in l for l in lines), (fake.values, lines)
+    # replay goes through the real adapter, which records what it writes: a shared value must not land in a profile
+    use("home")
+    recording = Fake({})
+    recording.write = lambda s, value: (recording.values.__setitem__(s.id, value), sync.record(s, value))
+    sync.replay([s, extra], {"fake": recording})
+    assert recording.values == {"claude.model": "opus"} and not profile.tools_path("home").exists(), \
+        "replay copied a shared value into the active profile"
     # --shared writes tools.toml while the profile keeps its value
     use("work")
     profile.shared = True

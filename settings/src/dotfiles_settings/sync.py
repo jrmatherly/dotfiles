@@ -47,10 +47,22 @@ def _save(path: Path, change: Callable[[Tools], Tools]) -> None:
     edit_file(path, lambda text: render(change(_parse(text, path))))
 
 
-def _target_tools() -> Path:
+replaying = False  # set while replay drives the adapters: what it writes is already recorded
+
+
+def target_tools(write: bool = True) -> Path:
+    """The tools file a set or reset changes. A write to a profile whose files are not on this Mac is refused."""
     from . import profile  # here, not at the top: profile.py imports this module
     name = profile.target()
-    return profile.tools_path(name) if name else tools_path()
+    if not name:
+        return tools_path()
+    if write:
+        profile.settings_file(name)
+    return profile.tools_path(name)
+
+
+def mark_applied(s: Setting, value: str) -> None:
+    _save(applied_path(), lambda t: {**t, s.id: value})
 
 
 def wanted_tools() -> Tools:
@@ -68,30 +80,39 @@ def masked(s: Setting) -> bool:
 
 
 def record(s: Setting, value: str) -> None:
-    if s.scope == "machine":
+    if s.scope == "machine" or replaying:
         return
-    _save(_target_tools(), lambda t: {**t, s.id: value})
+    _save(target_tools(), lambda t: {**t, s.id: value})
     if not masked(s):  # tools.applied.toml is what this Mac's tools hold, one file whatever the profile
-        _save(applied_path(), lambda t: {**t, s.id: value})
+        mark_applied(s, value)
 
 
 def forget(s: Setting) -> None:
-    if s.scope == "machine":
+    if s.scope == "machine" or replaying:
         return
     drop = lambda t: {k: v for k, v in t.items() if k != s.id}
     # The profile's value first, then the shared one, as a reset of an env setting does
-    path = next((p for p in (_target_tools(), tools_path()) if s.id in _load(p)), None)
+    path = next((p for p in (target_tools(write=False), tools_path()) if s.id in _load(p)), None)
     if path:
         _save(path, drop)
     # Still applied while another layer sets it: the shared file under a profile's, or the profile's under --shared
     want = wanted_tools().get(s.id)
     if want is not None:
-        _save(applied_path(), lambda t: {**t, s.id: want})
+        mark_applied(s, want)
     elif s.id in _load(applied_path()):
         _save(applied_path(), drop)
 
 
 def replay(settings: list[Setting], adapters: dict[str, Adapter]) -> list[str]:
+    global replaying
+    replaying = True  # an adapter records what it writes, which would copy a shared value into the active profile
+    try:
+        return _replay(settings, adapters)
+    finally:
+        replaying = False
+
+
+def _replay(settings: list[Setting], adapters: dict[str, Adapter]) -> list[str]:
     by_id = {s.id: s for s in settings}
     wanted, applied = wanted_tools(), _load(applied_path())
     lines, done = [], {}

@@ -129,7 +129,7 @@ A profile is the mise config environment `rotm-p-<name>`, named in the `env` lis
 - `profile use` has mise write the `env` line (`mise -E <names> bootstrap --save-env --only final-hook`, which applies nothing), keeps other names in the list, and then runs `sync apply`. Leaving the last profile on a clone removes the line itself, since mise cannot save an empty list.
 - A write goes to the active profile. `--shared` writes the shared file. A write to a profile's override file uses `mise set --file`, and a reset `mise unset --file`: `mise unset --override --env` exits 0 and removes nothing.
 - A `machine`-scoped setting reads and writes `config.local.toml` and ignores profiles.
-- `MISE_ENV` or `-E` in a shell replaces the saved list there, so no profile is in effect in that shell. `profile list` says when `MISE_ENV` is set.
+- `MISE_ENV` in a shell replaces the saved list there, for mise and so for `dotfiles-settings`: a read or a write in that shell follows the profile `MISE_ENV` names, or the shared settings when it names none. `profile list` says when it is set, and `profile use` still changes the saved list. The module list is the exception: mise reads it from `miserc.local.toml` whatever `MISE_ENV` says, so the module switches follow the saved profile.
 
 ## Values that are refused
 

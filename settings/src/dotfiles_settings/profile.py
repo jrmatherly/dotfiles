@@ -24,18 +24,24 @@ def miserc() -> Path:
 
 
 def selected() -> list[str]:
+    """The saved env list."""
     try:
         env = tomllib.loads(miserc().read_text()).get("env", [])
     except FileNotFoundError:
         return []
     except tomllib.TOMLDecodeError as e:
         raise SettingsError(f"{miserc()} is not valid TOML: {e}") from None
-    return [env] if isinstance(env, str) else list(env)
+    if not (isinstance(env, list) and all(isinstance(e, str) for e in env)):
+        raise SettingsError(f"env in {miserc()} is not a list of names")
+    return env
 
 
 def active() -> str | None:
-    """The profile reads follow: the last rotm-p- entry of the saved env list."""
-    return next((e[len(PREFIX):] for e in reversed(selected()) if e.startswith(PREFIX)), None)
+    """The profile in effect: the last rotm-p- entry of the env list mise uses, which is MISE_ENV where a shell
+    sets it and the saved list otherwise."""
+    env = os.environ.get("MISE_ENV")
+    names = [e.strip() for e in env.split(",")] if env else selected()
+    return next((e[len(PREFIX):] for e in reversed(names) if e.startswith(PREFIX)), None)
 
 
 def target() -> str | None:
@@ -95,8 +101,11 @@ def use(name: str) -> list[str]:
     path = miserc()
     text = path.read_text() if path.exists() else ""
     line = ENV_LINE.search(text)
-    if line and line.group().count("[") != line.group().count("]"):
-        raise SettingsError(f"the env list in {path} spans several lines; put it on one line and try again")
+    if line:
+        try:
+            tomllib.loads(line.group())
+        except tomllib.TOMLDecodeError:
+            raise SettingsError(f"the env list in {path} spans several lines; put it on one line and try again") from None
     _ensure()
     if name != DEFAULT and name not in names():
         raise InvalidValue(f"no profile named {name}. Profiles: {', '.join([DEFAULT, *names()])}")
@@ -110,7 +119,14 @@ def use(name: str) -> list[str]:
         mise.run_mise(["-E", ",".join(env), "bootstrap", "--save-env", "--only", "final-hook"])
     elif was:
         # mise cannot save an empty list (it errors with no -E), so the line is removed here
-        path.write_text(ENV_LINE.sub("", text, count=1))
+        left = ENV_LINE.sub("", text, count=1)
+        try:
+            still = tomllib.loads(left).get("env")
+        except tomllib.TOMLDecodeError:
+            still = True
+        if still:  # a quoted key, or a list under another spelling: nothing here can remove it safely
+            raise SettingsError(f"could not remove the env list from {path}; edit it by hand")
+        path.write_text(left)
     return [f"Now using {'the shared settings' if name == DEFAULT else f'the profile {name}'}.", *sync.apply(),
             "Open a new shell to pick this up."]
 

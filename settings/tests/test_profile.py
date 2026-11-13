@@ -19,6 +19,7 @@ def script(path: Path, body: str) -> str:
 # One log for both, so the order of an ensure and a mise call can be read
 script(tmp / "dotfiles/bin/lib/rotm-user-layer", f'echo "ensure" >> {log}\nexec {repo}/bin/lib/rotm-user-layer "$@"')
 os.environ.update(HOME=str(tmp / "home"), MISE_CONFIG_DIR=str(cfg), ROTM_USER_DIR=str(user), DOTFILES=str(tmp / "dotfiles"),
+                  XDG_STATE_HOME=str(tmp / "state"),
                   DOTFILES_SETTINGS_MISE=script(tmp / "mise", f'echo "mise $*" >> {log}'))
 os.environ.pop("MISE_ENV", None)
 
@@ -88,6 +89,20 @@ rc.write_text(split)
 raises(profile.use, SettingsError, "spans several lines", "work")
 assert rc.read_text() == split
 
+# a one-line list with brackets in a trailing comment is not a multi-line list
+rc.write_text('env = ["rotm-installed"] # was [x]]\n')
+profile.use("work")
+assert calls()[-1] == "mise -E rotm-installed,rotm-p-work bootstrap --save-env --only final-hook"
+# a line this module cannot remove is an error, not a false "now using the shared settings"
+quoted = '"env" = ["rotm-p-work"]\n'
+rc.write_text(quoted)
+raises(profile.use, SettingsError, "edit it by hand", "default")
+assert rc.read_text() == quoted
+# an env that is not a list of names is one line, not a traceback
+for bad in ("env = 5\n", "env = [1]\n"):
+    rc.write_text(bad)
+    raises(profile.listing, SettingsError, "env")
+
 # active and target
 rc.write_text('env = ["rotm-installed", "rotm-p-work"]\n')
 assert profile.active() == profile.target() == "work"
@@ -103,8 +118,13 @@ assert profile.selected() == [] and profile.active() is None
 assert profile.listing() == ["* default", "  home", "  work"]
 rc.write_text('env = ["rotm-installed", "rotm-p-work"]\n')
 assert profile.listing() == ["  default", "  home", "* work"]
+# MISE_ENV replaces the saved list in mise, so the saved profile is not the one in effect in that shell
 os.environ["MISE_ENV"] = "staging"
-assert profile.listing()[-1] == "MISE_ENV is set in this shell, and mise uses it in place of the saved profile."
+assert profile.active() is None and profile.selected() == ["rotm-installed", "rotm-p-work"]
+assert profile.listing() == ["* default", "  home", "  work",
+                             "MISE_ENV is set in this shell, and mise uses it in place of the saved profile."]
+os.environ["MISE_ENV"] = "staging,rotm-p-work"
+assert profile.active() == "work" and profile.listing()[2] == "* work"
 del os.environ["MISE_ENV"]
 rc.write_text('env = ["rotm-p-gone"]\n')
 assert profile.listing() == ["* default", "  home", "  work", "The saved profile gone has no settings file on this Mac."]

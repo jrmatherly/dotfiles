@@ -155,4 +155,28 @@ printf 'env = []\n' > "$tmp/cfg/miserc.local.toml"
 touch "$tmp/cfg/miserc.local.toml"
 [ "$(val P4_KEY P4_KEY=inherited)" = inherited ] && ! grep -q P4_KEY "$cache" || fail "an inactive profile's key was cached from the environment"
 
+# MISE_ENV replaces the saved profile in mise, so a shell that sets it has a cache of its own
+printf '[env]\nP4_KEY = "home"\n' > "$tmp/cfg/config.rotm-p-home.override.toml"
+printf 'env = ["rotm-p-work"]\n' > "$tmp/cfg/miserc.local.toml"
+[ "$(val P4_KEY MISE_ENV=rotm-p-home)" = home ] || fail "MISE_ENV does not select its own profile's value: $(val P4_KEY MISE_ENV=rotm-p-home)"
+[ "$(val P4_KEY)" = work ] || fail "a shell with MISE_ENV changed what a plain shell exports: $(val P4_KEY)"
+[ "$(val P4_KEY MISE_ENV=rotm-p-home)" = home ] || fail "a plain shell changed what a shell with MISE_ENV exports"
+rm "$tmp/cfg/config.rotm-p-home.override.toml"
+
+# A profile's file that is removed, and a removed miserc.local.toml, rebuild the cache
+printf '[env]\nP4_OTHER = "kept"\n' > "$tmp/cfg/config.override.toml"
+[ "$(val P4_KEY)" = work ] || fail "setup for the removal checks"
+mv "$tmp/cfg/config.rotm-p-work.override.toml" "$tmp/aside.toml"
+[ "$(val P4_KEY)" = unset ] && [ "$(val P4_OTHER)" = kept ] || fail "a removed profile file still exports its value: $(val P4_KEY)"
+mv "$tmp/aside.toml" "$tmp/cfg/config.rotm-p-work.override.toml"
+[ "$(val P4_KEY)" = work ] || fail "a restored profile file is not exported"
+rm "$tmp/cfg/miserc.local.toml"
+[ "$(val P4_KEY)" = unset ] || fail "a removed miserc.local.toml still exports the profile's value: $(val P4_KEY)"
+
+# A key named like one of the cache's own variables or a zsh special is left out, and the other keys still export
+printf '[env]\nout = "x"\nkeys = "y"\nstatus = "z"\nfiles = "f"\nP4_OTHER = "kept"\n' > "$tmp/cfg/config.override.toml"
+[ "$(val P4_OTHER)" = kept ] || fail "a key named like a cache variable lost the other keys: $(val P4_OTHER)"
+iso zsh -c 'source "$1"' zsh "$cache" 2> "$tmp/err" && [ ! -s "$tmp/err" ] || fail "the cache errors when sourced: $(cat "$tmp/err")"
+[ -z "$(find "${cache%/*}" -name '*.zsh.*')" ] || fail "a temp file was left beside the cache"
+
 echo "override-env: all checks passed"

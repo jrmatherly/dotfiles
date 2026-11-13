@@ -49,7 +49,9 @@ shared_off="$dir/modules-off.local"
 rc_file="$dir/miserc.local.toml"
 profile=''
 if [ -f "$rc_file" ]; then
-  profile=$(grep -E '^[[:space:]]*env[[:space:]]*=' "$rc_file" | head -1 | grep -oE '"rotm-p-[a-z0-9-]+"' | tail -1 | tr -d '"') || true
+  # The top-level env line without its comment, as settings/src/dotfiles_settings/profile.py reads it
+  profile=$(awk '/^[[:space:]]*\[/ { exit } /^[[:space:]]*env[[:space:]]*=/ { sub(/#.*/, ""); print; exit }' "$rc_file" \
+    | grep -oE "[\"']rotm-p-[a-z0-9-]+[\"']" | tail -1 | tr -d "\"'") || true
 fi
 profile_off=${profile:+$dir/modules-off.$profile.local}
 # The list in effect
@@ -91,7 +93,7 @@ write_off() {
   if [ -n "${ROTM_SHARED:-}" ]; then
     off_file=$shared_off
   elif [ -n "$profile" ] && [ "$off_file" != "$profile_off" ]; then
-    die 1 "the profile ${profile#rotm-p-} has no module list on this Mac ($profile_off). Run 'rotm settings sync now' to fetch it, or pass --shared to change the shared list"
+    die 1 "the profile ${profile#rotm-p-} has no module list on this Mac ($profile_off). Run 'rotm settings sync now' to fetch it, or 'rotm settings set --shared modules.<name> on|off' to change the shared list"
   fi
   for m in "${modules[@]}"; do
     if [ "$m" = "$1" ]; then

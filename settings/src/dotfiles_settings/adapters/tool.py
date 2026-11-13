@@ -311,6 +311,8 @@ class ToolAdapter:
         name, (_, writer, _) = _tool(s)
         if writer is None:
             raise SettingsError(f"{s.id} is read-only")
+        if s.scope != "machine" and not sync.replaying:
+            sync.target_tools()  # refuses a profile whose files are missing before the tool changes
         if not sync.masked(s):  # under --shared the active profile's own value stays the tool's
             writer(name, s, value)
         sync.record(s, value)
@@ -319,14 +321,20 @@ class ToolAdapter:
         name, (reader, writer, resetter) = _tool(s)
         if not (writer or resetter):
             raise SettingsError(f"{s.id} is read-only")
+        was = sync._load(sync.applied_path()).get(s.id)
         sync.forget(s)
         # What is still in effect once this value is gone: the shared file's under a profile's, or the profile's
         # under a --shared reset
         want = sync.wanted_tools().get(s.id) if s.scope != "machine" else None
-        if want is not None and writer:
-            if reader(name, s).value != want:
-                writer(name, s, want)
-        elif resetter:
-            resetter(name, s)
-        else:
-            writer(name, s, self.read(s).seed or "")
+        try:
+            if want is not None and writer:
+                if reader(name, s).value != want:
+                    writer(name, s, want)
+            elif resetter:
+                resetter(name, s)
+            else:
+                writer(name, s, self.read(s).seed or "")
+        except SettingsError:
+            if was is not None and not sync.replaying:
+                sync.mark_applied(s, was)  # the tool still holds it, so the next replay tries the reset again
+            raise

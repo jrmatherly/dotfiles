@@ -103,6 +103,14 @@ ROTM_SHARED=1 "$m" set network off > /dev/null
 sed -i '' 's/^env = .*/env = []/' "$cfg/miserc.local.toml"
 "$m" sync > /dev/null
 [ "$(line)" = 'ignored_config_paths = ["conf.d/60-rotm-cloud.toml", "conf.d/60-rotm-network.toml"]' ] || fail "leaving the profile did not restore the shared list's line"
+# The env line is read as Python reads it: a name in a trailing comment or under a table is not the profile, single quotes are
+printf 'env = ["rotm-installed"] # was "rotm-p-work"\n' > "$cfg/miserc.local.toml"
+[ "$("$m" off | tr '\n' ' ')" = "cloud network " ] || fail "a profile named only in a comment was used"
+printf 'ignored_config_paths = []\n[x]\nenv = ["rotm-p-work"]\n' > "$cfg/miserc.local.toml"
+[ "$("$m" off | tr '\n' ' ')" = "cloud network " ] || fail "an env line under a table was used"
+printf "env = ['rotm-p-work']\n" > "$cfg/miserc.local.toml"
+[ "$("$m" off | tr '\n' ' ')" = "fonts media " ] || fail "a single-quoted profile name was not read"
+printf 'env = []\n' > "$cfg/miserc.local.toml"
 # A saved profile whose list is not on this Mac: reads use the shared list, a change is refused
 sed -i '' 's/^env = .*/env = ["rotm-installed", "rotm-p-gone"]/' "$cfg/miserc.local.toml"
 [ "$("$m" off | tr '\n' ' ')" = "cloud network " ] || fail "a profile with no list does not read the shared one"
@@ -110,6 +118,7 @@ before=$(cat "$cfg"/*)
 rc=0
 "$m" set media off 2> "$tmp/err" || rc=$?
 [ "$rc" = 1 ] && grep -qF 'modules-off.rotm-p-gone.local' "$tmp/err" || fail "set in a profile with no list exited $rc, or did not name the file"
+grep -qF 'rotm settings set --shared' "$tmp/err" || fail "the refusal does not name a way to change the shared list that exists"
 [ "$(cat "$cfg"/*)" = "$before" ] || fail "a refused set changed a file"
 ROTM_SHARED=1 "$m" set media off > /dev/null
 [ "$(tr '\n' ' ' < "$cfg/modules-off.local")" = "cloud network media " ] || fail "ROTM_SHARED with no profile list did not change the shared list"

@@ -337,6 +337,23 @@ override.write_text("")
 status([{**entry, "value": 44, "current": "44"}])
 adapter.write(dock, "44")
 assert fragment_path().read_text() == FRAGMENT and "tilesize = 44" in work.read_text()
+# a reset of a key only the tracked fragment changed returns the fragment to HEAD and leaves the profile alone
+work.write_text("")
+fragment_path().write_text(FRAGMENT.replace("tilesize = 38", "tilesize = 50"))
+status([entry]); head(FRAGMENT)
+adapter.reset(dock)
+assert "tilesize = 38" in fragment_path().read_text() and work.read_text() == "", work.read_text()
+# --shared on a clone edits the tracked fragment, and the note names that file
+work.write_text(DOCK.format(44))
+profile.shared = True
+status([{**entry, "value": 44, "current": "44"}])
+adapter.write(dock, "50")
+note = adapter.write_note(dock)
+profile.shared = False
+assert "tilesize = 50" in fragment_path().read_text() and "20-macos.toml" in note and "Commit" in note, note
+assert "The profile work keeps its own value" in note and str(override) not in note, note
+fragment_path().write_text(FRAGMENT)
+work.write_text("")
 # a saved profile with no file refuses, and the folder behind the link gone is the same one-line error
 profile.miserc().write_text('env = ["rotm-p-gone"]\n')
 raises(SettingsError, lambda: adapter.write(dock, "44"), contains="the profile gone has no settings file")
