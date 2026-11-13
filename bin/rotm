@@ -18,6 +18,11 @@
 #
 # `rotm settings sync {{on}}`
 #
+# - Keep named variants of your settings, and switch between them:
+#
+# `rotm settings profile new {{work}}`
+# `rotm settings profile use {{work}}`
+#
 # - Print this help:
 #
 # `rotm help`

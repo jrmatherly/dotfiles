@@ -67,6 +67,7 @@ rotm() { bash "$fix/bin/rotm" "$@"; }
 
 check "install passes its arguments to setup.sh" "rotm install -y -- --upgrade && grep -qx 'setup -y -- --upgrade' '$tmp/log'"
 check "settings passes through" "rotm settings list && grep -qx 'dotfiles-settings list' '$tmp/log'"
+check "settings profile passes through" "rotm settings profile use work && grep -qx 'dotfiles-settings profile use work' '$tmp/log'"
 : > "$tmp/log"
 check "update fetches the branch it is on" "rotm update && grep -q -- \"--from $origin?ref=stable --config-dir tilde/.config/mise --update --only final-hook\" '$tmp/log'"
 check "update runs mise from HOME" "grep -qx \"cwd $HOME\" '$tmp/log'"

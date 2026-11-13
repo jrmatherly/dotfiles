@@ -19,14 +19,26 @@
 # `dotfiles-settings set {{setup.skip_codegraph}} {{on}}`
 # `dotfiles-settings reset {{setup.skip_codegraph}}`
 #
+# - Make a profile, switch to it, and list them (`default` is the shared settings alone):
+#
+# `dotfiles-settings profile new {{work}}`
+# `dotfiles-settings profile use {{work}}`
+# `dotfiles-settings profile list`
+#
+# - With a profile active, change the shared settings instead of the profile's:
+#
+# `dotfiles-settings set --shared {{shell.editor}} {{vim}}`
+#
 # - Read one setting as JSON:
 #
 # `dotfiles-settings get {{shell.editor}} --json`
 #
 # ---
 # Package: settings/ (registry.toml lists the settings). Changes go to mise's
-# config.override.toml and beat exports in zsh/env.zsh and ~/.zsh.local.
-# Exit codes: 0 ok, 1 failure, 2 unknown id or invalid value, 3 read-only.
+# config.override.toml, or to the active profile's override file, and beat
+# exports in zsh/env.zsh and ~/.zsh.local.
+# Exit codes: 0 ok, 1 failure, 2 unknown id, invalid value or refused profile
+# name, 3 read-only.
 #
 # License: MIT
 

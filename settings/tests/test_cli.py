@@ -143,4 +143,42 @@ assert run("sync")[0] == 2
 os.environ["DOTFILES_SETTINGS_MISE"] = fake("2026.11.8 no setup repository is connected")
 code, out, _ = run("sync", "status")
 assert code == 0 and "not connected" in out, (code, out)
+
+# profile: the three actions reach profile.py, a refused or unknown name exits 2, and --shared sets profile.shared
+from dotfiles_settings import profile
+os.environ["DOTFILES_SETTINGS_MISE"] = fake("2026.11.8 macos-arm64")
+helper = tmp / "dotfiles/bin/lib/rotm-user-layer"  # profile use links a profile's files before it looks for one
+helper.parent.mkdir(parents=True)
+helper.write_text("#!/bin/sh\n")
+helper.chmod(0o755)
+os.environ["DOTFILES"] = str(tmp / "dotfiles")
+profile.listing = lambda: ["* default", "  work"]
+assert run("profile", "list") == (0, "* default\n  work\n", "")
+code, out, err = run("profile", "use", "nope")
+assert (code, out) == (2, "") and "no profile named nope" in err, (code, err)
+code, out, err = run("profile", "new", "Work")
+assert (code, out) == (2, "") and "profile name" in err, (code, err)
+code, _, err = run("profile")
+assert code == 2 and "usage:" in err, (code, err)
+seen = []
+real_use, profile.use = profile.use, lambda name: seen.append(name) or [f"Now using {name}."]
+assert run("profile", "use", "work") == (0, "Now using work.\n", "") and seen == ["work"]
+profile.use = real_use
+
+
+class Spy:
+    write_note = ""
+
+    def write(self, s, value):
+        seen.append(("set", profile.shared))
+
+    def reset(self, s):
+        seen.append(("reset", profile.shared))
+
+
+cli.ADAPTERS["env"], seen = Spy(), []
+for argv in (("set", "--shared", "t.flag", "on"), ("set", "t.flag", "on"), ("reset", "--shared", "t.flag"),
+             ("reset", "t.flag")):
+    assert run(*argv)[0] == 0, argv
+assert seen == [("set", True), ("set", False), ("reset", True), ("reset", False)], seen
 print("ok")

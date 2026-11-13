@@ -1,8 +1,8 @@
-"""The dotfiles-settings command: list, get, set, reset, apply, sync, tui and serve. Exit codes 0 ok, 1 failure,
-2 unknown id or invalid value, 3 read-only."""
+"""The dotfiles-settings command: list, get, set, reset, apply, sync, profile, tui and serve. Exit codes 0 ok, 1 failure,
+2 unknown id, invalid value or refused profile name, 3 read-only."""
 import argparse, importlib, json, os, re, sys
 
-from . import mise, registry, sync
+from . import mise, profile, registry, sync
 from .adapters import ADAPTERS
 from .model import InvalidValue, Setting, SettingsError, Value, note_for
 
@@ -55,13 +55,22 @@ def parser() -> argparse.ArgumentParser:
     c = sub.add_parser("set", help="change a setting")
     c.add_argument("id")
     c.add_argument("value")
+    shared = "with a profile active, change the shared settings instead of the profile's"
+    c.add_argument("--shared", action="store_true", help=shared)
     c = sub.add_parser("reset", help="go back to what the shell files set")
     c.add_argument("id")
+    c.add_argument("--shared", action="store_true", help=shared)
     c = sub.add_parser("apply", help="apply the settings of one kind")
     c.add_argument("kind")
     c = sub.add_parser("sync", help="keep your settings in a private GitHub repository and load them on another Mac")
     c.add_argument("action", choices=("on", "off", "now", "status", "apply"))
     c.add_argument("--repo", default="rotm-settings", help="the repository's name in your account (sync on)")
+    c = sub.add_parser("profile", help="keep named variants of your settings, such as personal and work")
+    actions = c.add_subparsers(dest="action", required=True)
+    actions.add_parser("list", help="every profile, the active one marked")
+    for action, text in (("use", "switch to a profile, or to default for the shared settings alone"),
+                         ("new", "make a profile")):
+        actions.add_parser(action, help=text).add_argument("name")
     sub.add_parser("tui", help="open the terminal UI")
     c = sub.add_parser("serve", help="open the UI in a browser tab")
     c.add_argument("--no-open", action="store_true")
@@ -94,6 +103,9 @@ def run(args: argparse.Namespace) -> None:
         lines = sync.on(args.repo) if args.action == "on" else getattr(sync, args.action)()
         print("\n".join(lines) if lines else "Nothing to apply: your saved settings are already in effect here.")
         return
+    if args.command == "profile":
+        print("\n".join(profile.listing() if args.action == "list" else getattr(profile, args.action)(args.name)))
+        return
     settings = registry.load()
     if args.command == "list":
         if args.section:
@@ -113,6 +125,7 @@ def run(args: argparse.Namespace) -> None:
     elif args.command in ("set", "reset"):
         s = writable(settings, args.id)
         adapter = ADAPTERS[s.kind]
+        profile.shared = args.shared
         if args.command == "set":
             adapter.write(s, normalize(s, args.value))
         else:
