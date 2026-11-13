@@ -42,7 +42,7 @@ VS Code's Settings Sync is the model: a shared base, a per-user layer that syncs
 
 Measured in probe 4: a `--from` run reads the user's global config and applies its own entries, but a project entry beats a user entry with the same key, and neither `enabled = false` nor `mode = "absent"` in the user's config cancels it. The user layer adds to the base; it does not override the base's dotfile entries.
 
-The owner's own values (name, clone URL, weather location, personal taps, the `coolify` MCP note) move out of the base into the owner's user layer. That layer is the first real test of the design.
+The owner's own values (name, clone URL, weather location, personal taps, the `coolify` MCP note) were to move out of the base into the owner's user layer. **Changed by the owner (2026-11-12):** nothing moves out. Everything the project installs and configures today stays in the base for every user, and the user layer is where anyone, the owner included, opts out of a part or changes a value. The owner's user layer is still the first real test of the design.
 
 ## How each requirement maps onto mise
 
@@ -249,8 +249,8 @@ Also measured that day: with `HOME` and every `MISE_*_DIR` pointed at a scratch 
 
 - `docs/superpowers/plans/completed/2026-11-11-p0-probes-and-model-default.md` (done 2026-11-11): the probes in a scratch home, and the `claude-config save` model rule. Its results fill in this spec and decide the open points.
 - `docs/superpowers/plans/completed/2026-11-11-p1-install-and-update.md` (done 2026-11-12): the config-dir shape, mise to fetch and link followed by `setup.sh`, the `rotm` command, and an `installed` config environment for targets apps rewrite.
-- `docs/superpowers/plans/completed/2026-11-12-p2-modules-and-opt-outs.md` (done 2026-11-12): twelve modules as always-loaded `conf.d/60-rotm-<name>.toml` files, a helper that derives mise's `ignored_config_paths` line from what is switched off, a switch per module in `dotfiles-settings`, and `--without` on the install line. The owner split P2 that day: the owner's layer is P2b, not written.
-- P2b and P3 to P7 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
+- `docs/superpowers/plans/completed/2026-11-12-p2-modules-and-opt-outs.md` (done 2026-11-12): twelve modules as always-loaded `conf.d/60-rotm-<name>.toml` files, a helper that derives mise's `ignored_config_paths` line from what is switched off, a switch per module in `dotfiles-settings`, and `--without` on the install line. The owner split P2 that day, and withdrew the split-off half (P2b) the same evening.
+- P3 to P7 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
 
 ## Phase briefs
 
@@ -275,13 +275,10 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 - **Shipped.** `docs/superpowers/plans/completed/2026-11-12-p2-modules-and-opt-outs.md` (2026-11-12): twelve modules as always-loaded `conf.d/60-rotm-<name>.toml` fragments, switched off through `ignored_config_paths` by `bin/lib/rotm-modules`, with `--without` on the install line, a `modules.<name>` switch in `dotfiles-settings`, `sysup` and `misc.sh` skipping an off module's steps, and `state = "absent"` for one package. The `env` list of the first design was dropped because it fails off. Proven in the VM on `35dce30`.
 - **Done when.** With one module off, a dry run of the install lists none of that module's packages.
 
-### P2b: The owner's layer
+### P2b: The owner's layer (withdrawn)
 
-- **Outcome.** A stranger gets nothing that is only true for the owner.
-- **Delivers.** The 13 owner-specific values in `docs/forking.md` moved into an owner layer, with `docs/forking.md` shrinking to match.
-- **Known.** Split from P2 by the owner on 2026-11-12. Most of the 13 values are not mise config (fastfetch, lazygit, `agents/claude-*`, `agents/catalog/curated.toml`, `package.json`), so where the layer lives is undecided. The mise part can be a module of P2's kind.
-- **Waiting on.** P2, and a design for the layer's home.
-- **Done when.** With the owner layer absent, `git grep -i` for the owner's name, domain and account finds nothing outside that layer, LICENSE and the README credits.
+- **Withdrawn by the owner on 2026-11-12.** It was the half of the first P2 brief that moved the 13 owner-specific values in `docs/forking.md` out of the base, split off that morning because it had no design. The owner then decided that nothing leaves the base: what the project installs and configures today is what every user gets, and personalising is the user layer's job (P3). "The owner's layer" always meant the owner's own user layer, never a second kind of layer in this repository.
+- **What P3 inherits.** A user can opt out of any part and change any shipped value from their own layer, without editing a tracked file. P2 covers the packages and tools (modules, `state = "absent"`). The values in linked config files are not covered: probe 4 measured that a user's entry cannot cancel or replace a `[dotfiles]` entry the base declares, and fastfetch's folder is one symlink.
 
 ### P3: Sign in and sync
 
@@ -289,6 +286,7 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 - **Delivers.** `dotfiles-settings sync on|off|now|status`. Sign-in through `gh`. A private repository created in the user's account. The tracked set and the exclude list. A conflict view. A restore path for a second Mac that composes with P1's install.
 - **Known.** mise reads tracking entries only from global and system config, so `dotfiles-settings` writes them into the user's own config, never ours. Connecting an origin shares the whole saved history. mise refuses credential-named files unless `allow_plaintext` is set, and tracked entries can be encrypted. `pull` writes files but does not install tools or render templates, so a pull that changes declarations needs a bootstrap run after it. `mise bootstrap --adopt <setup repo>` is the documented restore, and it and `--from` cannot be combined, so the second-Mac flow is two commands and their order has to be designed. `claude-config save` already has a secrets filter worth reusing as the model for the exclude list.
 - **Settled by P0.** Probe 6: sync, local files and conflicts behave as documented, and a restore must set manual mode after `--adopt`. Still waiting on P1's shape: under the config-dir shape the user has no global config of their own, and what "the user layer" means for sync has to be redefined around the `*.local.toml` and override files.
+- **Decided.** The base keeps everything it ships today (see P2b, withdrawn), so the user layer must be able to change a shipped value, not only add to the base.
 - **Decided.** Manual sync only in this phase. No LaunchAgent, no `[bootstrap.services.mise-history]`. Automatic sync is its own later plan.
 - **Done when.** Two scratch homes exchange a changed setting through a private repository, a `*.local.toml` value stays put, a file holding a token is refused, and a conflicting edit pauses with both versions shown.
 
@@ -321,12 +319,14 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 - **Outcome.** The Mac this project is written on runs an install from `stable`, like any user's, and has `rotm`.
 - **Decided.** By the owner on 2026-11-12: last, after every phase above has landed. Until then that Mac stays on `setup.sh` from the clone, the owner is the only consumer, and nothing is promoted to `stable`. The move is done once, by hand: no command, flag or `setup.sh` branch is added to the product for it, and moving a clone-based Mac to an install is not a path users get.
 - **Known.** Probe 10: `--update` with `?ref=stable` switches a clone given as `--from-dir` from `main` to `stable`, so the working clone cannot be the installed copy. `~/dotfiles` has to point at the installed copy instead of the clone. `setup.sh` unlinks the folders `config.rotm-installed.toml` makes real, but only the VM has run that, from a fresh home. The gitignored local files under the clone's `tilde/.config/mise/` and `mole/*.local` do not come with a fresh copy.
-- **Waiting on.** P2b to P6, a promotion of `stable` proven in the VM (decisions 9 and 10), and a written runbook for the hand move, including how the development clone and the installed copy live on one Mac.
+- **Waiting on.** P3 to P6, a promotion of `stable` proven in the VM (decisions 9 and 10), and a written runbook for the hand move, including how the development clone and the installed copy live on one Mac.
 - **Done when.** `bin/lib/rotm-mode` prints `installed` on that Mac, `rotm update` brings a new `stable` commit, and work in the clone at `~/dev/dotfiles` changes nothing in the live config until it is promoted.
 
 ## Open points for the owner
 
-None. The three that were here (the name, the owner's Mac, background sync) are decisions 6 to 8.
+The three that were here (the name, the owner's Mac, background sync) are decisions 6 to 8.
+
+One, raised on 2026-11-12 and not answered: a few shipped values are facts about the owner, not preferences, and are wrong for anyone else until changed. fastfetch prints the owner's name, site and city (`tilde/.config/fastfetch/config.jsonc`), lazygit's `authorColors` names the owner, and `macos.disable_time_machine` defaults to on, which stops a user's backups when they run `set-defaults`. Under "everything stays" these ship as they are. The alternative is a neutral default for those few, with the owner's values in the owner's layer.
 
 ## Research notes (2026-11-11)
 
