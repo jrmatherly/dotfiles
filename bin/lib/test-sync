@@ -1,0 +1,250 @@
+#!/bin/bash
+#
+# Self-check for rotm settings sync: two Macs exchange their settings through a settings repository, with the real mise.
+#
+# - Run it (pnpm check does too); exits 1 naming the first failed assertion:
+#
+# `test-sync`
+#
+# ---
+# Each Mac is a scratch home shaped like an installed copy (~/.config/mise a
+# link into a checkout under mise's data dir), and the settings repository is
+# a local bare repository. sync.py builds a github.com URL, so the scratch Git
+# config rewrites it to that path (url.<bare>.insteadOf); gh is a stub that
+# answers from the bare repository; the CLI runs as python3 -m
+# dotfiles_settings under the Python bin/lib/check picks, never through uv.
+# HOME, every mise dir, the XDG dirs, CLAUDE_CONFIG_DIR and the Git config
+# point into the temp dir, every command starts from env -i in the scratch
+# home, and the mise shims are off PATH, since a shim under a fake HOME starts
+# cold and fetches every tool's versions from the network. Skips when mise is
+# not installed.
+#
+# License: MIT
+
+set -euo pipefail
+
+repo="$(cd "$(dirname "$0")/../.." && pwd -P)"
+
+command -v mise > /dev/null || {
+  echo "test-sync: mise not found, skipping" >&2
+  echo ok
+  exit 0
+}
+# bin/lib/check's pick, resolved to a path while HOME is still real
+py=$(command -v python3)
+if mise where python > /dev/null 2>&1; then
+  py=$(mise exec python -- python3 -c 'import sys; print(sys.executable)')
+fi
+mise_bin=$(command -v mise)
+git_bin=$(command -v git)
+
+S=$(cd "$(mktemp -d)" && pwd -P)
+trap 'rm -rf "$S"' EXIT
+out=''
+
+check_true() {
+  local name=$1
+  shift
+  "$@" || {
+    echo "FAIL: $name" >&2
+    echo "$out" >&2
+    exit 1
+  }
+  echo "ok: $name"
+}
+
+# Only mise and git, so no shim and no other tool of the real home is reachable
+mkdir -p "$S/bin" "$S/stub" "$S/nobrew" "$S/nosys" "$S/tmp" "$S/claude-seed"
+ln -s "$mise_bin" "$S/bin/mise"
+ln -s "$git_bin" "$S/bin/git"
+bare="$S/origin.git"
+url=https://github.com/octo/rotm-settings.git
+cat > "$S/gitconfig" << EOF
+[user]
+	name = test-sync
+	email = test-sync@example.invalid
+[init]
+	defaultBranch = main
+[url "$bare"]
+	insteadOf = $url
+EOF
+# The stub gh: signed in as octo, and the repository is the bare one, missing until gh repo create makes it
+cat > "$S/stub/gh" << EOF
+#!/bin/bash
+bare="$bare"
+has() {
+  local r
+  for r in \$(git -C "\$bare" for-each-ref --format='%(refname)'); do
+    git -C "\$bare" cat-file -e "\$r:\$1" 2> /dev/null && return 0
+  done
+  return 1
+}
+case "\$*" in
+  "auth status") exit 0 ;;
+  "api user --jq .login") echo octo ;;
+  "repo view octo/rotm-settings --json isEmpty --jq .isEmpty")
+    [ -d "\$bare" ] || { echo "GraphQL: Could not resolve to a Repository" >&2; exit 1; }
+    if [ -z "\$(git -C "\$bare" for-each-ref)" ]; then echo true; else echo false; fi
+    ;;
+  "repo create rotm-settings --private") git init -q --bare "\$bare" ;;
+  "api repos/octo/rotm-settings/contents/.mise-history/format.toml") has .mise-history/format.toml ;;
+  *) echo "stub gh: unexpected: \$*" >&2; exit 1 ;;
+esac
+EOF
+chmod +x "$S/stub/gh"
+printf '{"model": "haiku"}\n' > "$S/claude-seed/claude-settings.json"
+path="$S/stub:$S/bin:/usr/bin:/bin"
+
+# The upstream: a base config with a dotfile entry, a package and one module, and the repo's ignore rules for mise's local files
+seed="$S/seed"
+cfg_rel=tilde/.config/mise
+mkdir -p "$seed/$cfg_rel/conf.d"
+printf '[dotfiles]\n"~/.base-marker" = { content = "x" }\n' > "$seed/$cfg_rel/config.toml"
+printf '[bootstrap.packages]\n"brew:p3-probe" = "latest"\n' > "$seed/$cfg_rel/conf.d/30-packages.toml"
+printf '[bootstrap.packages]\n"brew-cask:p3-font" = "latest"\n' > "$seed/$cfg_rel/conf.d/60-rotm-fonts.toml"
+grep '^tilde/\.config/mise/' "$repo/.gitignore" > "$seed/.gitignore"
+GIT_CONFIG_GLOBAL="$S/gitconfig" GIT_CONFIG_NOSYSTEM=1 git -C "$seed" init -q
+GIT_CONFIG_GLOBAL="$S/gitconfig" GIT_CONFIG_NOSYSTEM=1 git -C "$seed" add -A
+GIT_CONFIG_GLOBAL="$S/gitconfig" GIT_CONFIG_NOSYSTEM=1 git -C "$seed" commit -q -m base
+GIT_CONFIG_GLOBAL="$S/gitconfig" GIT_CONFIG_NOSYSTEM=1 git clone -q --bare "$seed" "$S/upstream.git"
+
+# Run a command as Mac $1, from its home, with nothing of the real environment
+on() {
+  local mac="$S/$1"
+  shift
+  (cd "$mac/home" && env -i PATH="${PATH_OVERRIDE:-$path}" TERM=dumb TMPDIR="$S/tmp" HOME="$mac/home" \
+    MISE_CONFIG_DIR="$mac/home/.config/mise" MISE_DATA_DIR="$mac/data" MISE_STATE_DIR="$mac/state" \
+    MISE_CACHE_DIR="$mac/cache" MISE_CEILING_PATHS="$S" MISE_SYSTEM_CONFIG_DIR="$S/nosys" \
+    MISE_SYSTEM_DIR="$S/nosys" MISE_SYSTEM_BREW_PREFIX="$S/nobrew" \
+    XDG_STATE_HOME="$mac/home/.local/state" XDG_CONFIG_HOME="$mac/home/.config" \
+    CLAUDE_CONFIG_DIR="$mac/home/.claude" CLAUDE_CONFIG_SAVE_DIR="$S/claude-seed" \
+    GIT_CONFIG_GLOBAL="$S/gitconfig" GIT_CONFIG_NOSYSTEM=1 \
+    DOTFILES="$repo" PYTHONPATH="$repo/settings/src" "$@" < /dev/null)
+}
+# rotm settings, as bin/dotfiles-settings runs it but without uv; the output lands in $out and the exit code in $rc
+settings() {
+  local mac=$1
+  shift
+  rc=0
+  out=$(on "$mac" "$py" -m dotfiles_settings "$@" 2>&1) || rc=$?
+}
+# A new Mac: a clone of the upstream under mise's data dir, linked as the config dir, and an empty Claude Code settings file
+install() {
+  mkdir -p "$S/$1/home/.config" "$S/$1/home/.claude" "$S/$1/data"
+  on "$1" git clone -q "$S/upstream.git" "$S/$1/data/bootstrap-repo"
+  ln -s "$S/$1/data/bootstrap-repo/$cfg_rel" "$S/$1/home/.config/mise"
+  echo '{}' > "$S/$1/home/.claude/settings.json"
+}
+cfg() { echo "$S/$1/home/.config/mise"; }
+folder() { echo "$S/$1/home/.config/rotm"; }
+clean() { [ -z "$(on "$1" git -C "$S/$1/data/bootstrap-repo" status --porcelain)" ]; }
+linked() { [ "$(readlink "$(cfg "$1")/$2")" = "$(folder "$1")/$2" ]; }
+history() { git -C "$bare" log --all -p --format=%H; }
+in_origin() {
+  local r
+  for r in $(git -C "$bare" for-each-ref --format='%(refname)'); do
+    git -C "$bare" ls-tree -r --name-only "$r" | grep -qxF "$1" && return 0
+  done
+  return 1
+}
+editor() { grep -E '^EDITOR = ' "$(folder "$1")/config.override.toml"; }
+model() { "$py" -c 'import json, sys; print(json.load(open(sys.argv[1])).get("model"))' "$S/$1/home/.claude/settings.json"; }
+
+install a
+settings a set shell.editor vim-1
+settings a set modules.fonts off
+settings a sync on
+check_true "A: sync on exits 0" [ "$rc" = 0 ]
+check_true "A: the origin holds config.override.toml" in_origin home/.config/rotm/config.override.toml
+check_true "A: the origin holds modules-off.local" in_origin home/.config/rotm/modules-off.local
+check_true "A: the checkout is clean after sync on" clean a
+
+install b
+settings b sync on
+check_true "B: sync on exits 0" [ "$rc" = 0 ]
+check_true "B: the folder holds A's override file" [ "$(editor b)" = 'EDITOR = "vim-1"' ]
+check_true "B: the folder holds A's module list" [ "$(cat "$(folder b)/modules-off.local")" = fonts ]
+check_true "B: the config dir links the override file" linked b config.override.toml
+check_true "B: the config dir links the module list" linked b modules-off.local
+check_true "B: miserc.local.toml ignores the module A switched off" grep -qF '"conf.d/60-rotm-fonts.toml"' "$(cfg b)/miserc.local.toml"
+check_true "B: the checkout is clean" clean b
+check_true "B: the restore applied nothing of the base" [ ! -e "$S/b/home/.base-marker" ]
+
+# C has no python3 and no uv, as setup's restore runs before uv is installed
+install c
+mkdir -p "$S/c/bin"
+for f in /usr/bin/*; do
+  case ${f##*/} in python* | pip* | pydoc* | uv | uvx) continue ;; esac
+  ln -s "$f" "$S/c/bin/"
+done
+ln -s "$mise_bin" "$S/c/bin/mise"
+ln -sf "$git_bin" "$S/c/bin/git"
+check_true "C: python3 is off PATH" [ -z "$(PATH_OVERRIDE="$S/c/bin:/bin" on c /bin/bash -c 'command -v python3 uv' || true)" ]
+rc=0
+out=$(PATH_OVERRIDE="$S/c/bin:/bin" on c "$repo/bin/lib/rotm-user-layer" restore "$url" 2>&1) || rc=$?
+check_true "C: rotm-user-layer restore exits 0" [ "$rc" = 0 ]
+check_true "C: the same files as B" diff -r "$(folder b)" "$(folder c)"
+check_true "C: the same links as B" linked c config.override.toml
+check_true "C: the module list is linked" linked c modules-off.local
+check_true "C: the same track entry as B" [ "$(grep -A1 -F '[dotfiles."~/.config/rotm"]' "$(cfg c)/config.local.toml")" = "$(grep -A1 -F '[dotfiles."~/.config/rotm"]' "$(cfg b)/config.local.toml")" ]
+
+settings a set shell.editor vim-2
+settings a sync now
+check_true "A: sync now after a change exits 0" [ "$rc" = 0 ]
+settings b sync now
+check_true "B: sync now exits 0" [ "$rc" = 0 ]
+check_true "B: the override file has A's new value" [ "$(editor b)" = 'EDITOR = "vim-2"' ]
+
+settings a set claude.model sonnet
+settings a sync now
+settings b sync now
+check_true "B: sync now with a tool setting exits 0" [ "$rc" = 0 ]
+check_true "B: the tool has A's value" [ "$(model b)" = sonnet ]
+settings a reset claude.model
+settings a sync now
+settings b sync now
+check_true "B: sync now after A's reset exits 0" [ "$rc" = 0 ]
+check_true "B: the tool was reset to its seed" [ "$(model b)" = haiku ]
+
+printf '\n[bootstrap.packages]\n"brew:p3-probe" = { state = "absent" }\n' >> "$(folder a)/config.override.toml"
+settings a sync now
+settings b sync now
+check_true "B: sync now with a package switched off exits 0" [ "$rc" = 0 ]
+check_true "B: the output says rotm install applies it" grep -qF 'Run `rotm install`' <<< "$out"
+out=$(on b mise bootstrap packages status --json 2>&1)
+check_true "B: mise reports the package absent" "$py" -c 'import json, sys
+pkgs = json.loads(sys.argv[1])["brew"]["packages"]
+sys.exit(not any(p["package"] == "p3-probe" and p.get("state") == "absent" for p in pkgs))' "$out"
+
+settings a set macos.computer_name p3-local-only
+settings a sync now
+settings b sync now
+check_true "A: the machine-scoped value is in config.local.toml" grep -qF p3-local-only "$(cfg a)/config.local.toml"
+check_true "the config.local.toml value is not in B's home" [ -z "$(grep -rRl p3-local-only "$S/b" || true)" ]
+check_true "the config.local.toml value is not in the origin's history" [ -z "$(history | grep p3-local-only || true)" ]
+
+settings a set shell.editor vim-a
+settings b set shell.editor vim-b
+settings a sync now
+check_true "A: the first of two edits syncs" [ "$rc" = 0 ]
+settings b sync now
+check_true "B: the second of two edits exits 1" [ "$rc" = 1 ]
+check_true "B: the conflict names the file" grep -qF config.override.toml <<< "$out"
+check_true "A kept its value" [ "$(editor a)" = 'EDITOR = "vim-a"' ]
+check_true "B kept its value" [ "$(editor b)" = 'EDITOR = "vim-b"' ]
+
+install d
+mkdir -p "$(folder d)"
+printf '[env]\nEDITOR = "vim-d"\n' > "$(folder d)/config.override.toml"
+settings d sync on
+check_true "D: sync on onto a different file exits 1" [ "$rc" = 1 ]
+check_true "D: the output names the file" grep -qF config.override.toml <<< "$out"
+check_true "D: the local file is unchanged" [ "$(cat "$(folder d)/config.override.toml")" = "$(printf '[env]\nEDITOR = "vim-d"')" ]
+
+on a mise set --override GITHUB_TOKEN=p3-secret-value > /dev/null
+settings a sync now
+check_true "A: sync now with a token exits 1" [ "$rc" = 1 ]
+check_true "A: the refusal names the token" grep -qF GITHUB_TOKEN <<< "$out"
+check_true "the token is not in the origin's history" [ -z "$(history | grep p3-secret-value || true)" ]
+
+echo ok
