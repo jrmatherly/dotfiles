@@ -296,7 +296,7 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 
 - **Outcome.** One Mac, or one user across Macs, switches between named variants such as personal and work.
 - **Delivers.** `dotfiles-settings profile list|use|new`. A profile as a config environment, with the choice saved. Per-profile module lists and settings. A rule for which settings are machine-scoped and so ignore profiles.
-- **Known.** `-E work` selects `mise.work.toml` or `config.work.toml`, and `--save-env` writes the choice to `miserc.local.toml`. `[env_sets]` names a group of environments, so a profile can be "these modules plus these settings". A dotfile entry can differ by profile with `variants`. `-E` replaces the saved selection for that run and does not add to it, so a profile owns the `env` line of `miserc.local.toml` alone, beside `installed`: P2's modules never touch it and live in `ignored_config_paths`.
+- **Known.** `-E work` selects `mise.work.toml` or `config.work.toml`, and `--save-env` writes the choice to `miserc.local.toml`. `[env_sets]` names a group of environments, so a profile can be "these modules plus these settings". A dotfile entry can differ by profile with `variants`. `-E` replaces the saved selection for that run and does not add to it, so a profile owns the `env` line of `miserc.local.toml` alone, beside `rotm-installed`: P2's modules never touch it and live in `ignored_config_paths`.
 - **Settled by P0.** Probe 7: `--save-env` is remembered. P2 shipped the module list as `modules-off.local` and `ignored_config_paths`.
 - **Done when.** Switching profile and applying changes exactly the entries that differ, and switching back restores them.
 

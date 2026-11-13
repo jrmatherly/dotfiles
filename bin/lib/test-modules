@@ -86,7 +86,6 @@ echo typo >> "$cfg/modules-off.local"
 "$m" sync 2> "$tmp/err" || fail "a stray name in modules-off.local failed sync"
 grep -q 'typo' "$tmp/err" || fail "a stray name was not reported"
 
-
 # A list on several lines, the variable that replaces the saved list, and no config dir
 reset
 printf 'ignored_config_paths = [\n  "/opt/mine.toml",\n]\n' > "$cfg/miserc.local.toml"

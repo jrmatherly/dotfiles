@@ -184,6 +184,17 @@ warning() {
   echo "${red}/!\\ $1 /!\\${reset}"
 }
 
+# Until 2026-11-12 the config environment was named `installed`, a name a
+# project's own mise.installed.toml also answers to. A copy from then still has
+# it saved, and without the new name config.rotm-installed.toml is not read.
+# Before every check that can stop the run: a copy left with the old name has
+# its app-written targets linked into the checkout by the next mise dotfiles apply.
+rc_local="$DOTFILES_DIR/tilde/.config/mise/miserc.local.toml"
+if [ "$installed" = true ] && [ -z "$dry_run_flag" ] && grep -qE '^env[[:space:]]*=.*"installed"' "$rc_local" 2> /dev/null; then
+  sed -i '' -E '/^env[[:space:]]*=/s/"installed"/"rotm-installed"/' "$rc_local"
+  echo "Renamed the saved config environment from installed to rotm-installed"
+fi
+
 # The clone itself needed git, so on a new Mac the tools are usually there
 if ! xcode-select -p > /dev/null 2>&1; then
   echo "Command Line Tools missing; run: xcode-select --install, then rerun $self" >&2
@@ -230,15 +241,6 @@ fi
 
 # mise skips a module (conf.d/60-rotm-<name>.toml) only while ignored_config_paths
 # in miserc.local.toml names it, so the list is written before any mise call
-# Until 2026-11-12 the config environment was named `installed`, a name a
-# project's own mise.installed.toml also answers to. A copy from then still has
-# it saved, and without the new name config.rotm-installed.toml is not read.
-rc_local="$DOTFILES_DIR/tilde/.config/mise/miserc.local.toml"
-if [ "$installed" = true ] && [ -z "$dry_run_flag" ] && grep -q '^env = .*"installed"' "$rc_local" 2> /dev/null; then
-  sed -i '' '/^env = /s/"installed"/"rotm-installed"/' "$rc_local"
-  echo "Renamed the saved config environment from installed to rotm-installed"
-fi
-
 if [ -n "$dry_run_flag" ]; then
   echo "dry run: the module list is not written"
 else
@@ -289,7 +291,10 @@ sudo_keepalive_start() {
     kill -0 "$$" 2> /dev/null || exit
   done &
   SUDO_KEEPALIVE_PID=$!
-  trap sudo_keepalive_stop EXIT INT TERM
+  # A trap that returns lets the run carry on past a guarded step, so Ctrl-C exits and EXIT cleans up
+  trap sudo_keepalive_stop EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
 }
 
 # Stop the keep-alive and drop the cached credential (`sudo -k`), so the steps
