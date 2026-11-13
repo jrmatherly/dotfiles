@@ -1027,7 +1027,7 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
         </g>
         <g data-graph-role="automatic-crossover" style="--step:3">
           <path data-graph-role="automatic-crossover-underlay" d="M 450 238 L 574 238 Q 582 238 582 230 L 582 80 Q 582 72 590 72 L 620 72" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="setup" data-edge-to="registries" data-edge-label="2 · packages · tools · extensions" data-edge-key="3" data-edge-id="step-packages" data-composition-points="450,238;582,238;582,72;620,72" data-composition-crossover="halo" data-composition-independent="true" d="M 450 238 L 574 238 Q 582 238 582 230 L 582 80 Q 582 72 590 72 L 620 72" class="a-dashed" data-animate="edge" style="--step: 3;" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+          <path data-edge-from="setup" data-edge-to="registries" data-edge-label="2 · gh login · packages · tools · extensions" data-edge-key="3" data-edge-id="step-packages" data-composition-points="450,238;582,238;582,72;620,72" data-composition-crossover="halo" data-composition-independent="true" d="M 450 238 L 574 238 Q 582 238 582 230 L 582 80 Q 582 72 590 72 L 620 72" class="a-dashed" data-animate="edge" style="--step: 3;" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:4">
           <path data-graph-role="automatic-crossover-underlay" d="M 450 253.05 L 620 253.05" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
@@ -1206,9 +1206,9 @@ been cleared for every commercial, promotional, or redistributive use.</metadata
           <rect x="302" y="200" width="106" height="14" rx="3" class="c-mask"/>
           <text x="355" y="210" class="t-edge-dashed" font-size="8" text-anchor="middle">when mise is missing</text>
         </g>
-        <g data-edge-from="setup" data-edge-to="registries" data-edge-label="2 · packages · tools · extensions" data-edge-key="3" data-edge-id="step-packages">
-          <rect x="497.8" y="135" width="168.4" height="14" rx="3" class="c-mask"/>
-          <text x="582" y="145" class="t-edge-dashed" font-size="8" text-anchor="middle">2 · packages · tools · extensions</text>
+        <g data-edge-from="setup" data-edge-to="registries" data-edge-label="2 · gh login · packages · tools · extensions" data-edge-key="3" data-edge-id="step-packages">
+          <rect x="471.4" y="135" width="221.2" height="14" rx="3" class="c-mask"/>
+          <text x="582" y="145" class="t-edge-dashed" font-size="8" text-anchor="middle">2 · gh login · packages · tools · extensions</text>
         </g>
         <g data-edge-from="setup" data-edge-to="mise" data-edge-label="3 · mise bootstrap" data-edge-key="4" data-edge-id="step-mise">
           <rect x="486.8" y="263.05" width="96.39999999999999" height="14" rx="3" class="c-mask"/>

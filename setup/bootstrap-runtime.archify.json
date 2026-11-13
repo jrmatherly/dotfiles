@@ -3,13 +3,13 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "Dotfiles Bootstrap Runtime",
-    "output": ".archify/architecture-dotfiles-runtime-20261111-110553/dotfiles-runtime.html",
+    "output": ".archify/architecture-dotfiles-runtime-20261112-203224/dotfiles-runtime.html",
     "quality_profile": "showcase",
     "repository": {
       "url": "git@github.com:jrmatherly/returnofthemac.git",
       "provider": "github",
       "link_mode": "local-only",
-      "revision": "eaa487c0798c2f91371bc0f014b9c9b605968750"
+      "revision": "0dcced7ac3d9474954fad78db9bcc12c82eed899"
     }
   },
   "components": [
@@ -24,7 +24,7 @@
         {
           "path": "setup.sh",
           "line": 5,
-          "end_line": 15,
+          "end_line": 17,
           "label": "usage"
         }
       ]
@@ -39,20 +39,20 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 269,
-          "end_line": 276,
+          "line": 326,
+          "end_line": 349,
           "label": "mise dotfiles apply, before any package"
         },
         {
           "path": "setup.sh",
-          "line": 342,
-          "end_line": 381,
-          "label": "packages, bootstrap, mise install, the task"
+          "line": 424,
+          "end_line": 486,
+          "label": "gh login, packages, bootstrap, tools, the task"
         },
         {
           "path": "setup.sh",
-          "line": 383,
-          "end_line": 430,
+          "line": 488,
+          "end_line": 539,
           "label": "extensions, extras, failures listed last"
         }
       ]
@@ -101,8 +101,8 @@
         },
         {
           "path": "setup/misc.sh",
-          "line": 455,
-          "end_line": 466,
+          "line": 465,
+          "end_line": 476,
           "label": "claude-config restore"
         }
       ]
@@ -117,8 +117,8 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 205,
-          "end_line": 212,
+          "line": 264,
+          "end_line": 271,
           "label": "curl -fsSL https://mise.run | sh"
         }
       ]
@@ -133,19 +133,19 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 290,
-          "end_line": 296,
+          "line": 362,
+          "end_line": 368,
           "label": "mise bootstrap packages apply"
         },
         {
           "path": "setup.sh",
-          "line": 363,
-          "end_line": 370,
+          "line": 468,
+          "end_line": 475,
           "label": "mise install"
         },
         {
           "path": "setup/misc.sh",
-          "line": 223,
+          "line": 229,
           "label": "uv tool install"
         }
       ]
@@ -160,13 +160,13 @@
       "sources": [
         {
           "path": "setup/misc.sh",
-          "line": 145,
+          "line": 147,
           "label": "claude.ai/install.sh"
         },
         {
           "path": "setup/misc.sh",
-          "line": 455,
-          "end_line": 466,
+          "line": 465,
+          "end_line": 476,
           "label": "marketplaces + plugins"
         }
       ]
@@ -204,7 +204,7 @@
       "sources": [
         {
           "path": "tilde/.config/mise/conf.d/40-dotfiles.toml",
-          "line": 12,
+          "line": 17,
           "label": "[dotfiles]"
         },
         {
@@ -215,8 +215,8 @@
         },
         {
           "path": "setup.sh",
-          "line": 328,
-          "end_line": 341,
+          "line": 407,
+          "end_line": 419,
           "label": "[credential] sections to ~/.gitconfig.local"
         }
       ]
@@ -251,8 +251,8 @@
       "sources": [
         {
           "path": "setup.sh",
-          "line": 123,
-          "end_line": 134,
+          "line": 151,
+          "end_line": 162,
           "label": "re-run under script(1)"
         }
       ]
@@ -306,7 +306,7 @@
       "id": "step-packages",
       "from": "setup",
       "to": "registries",
-      "label": "2 · packages · tools · extensions",
+      "label": "2 · gh login · packages · tools · extensions",
       "variant": "dashed"
     },
     {
@@ -371,8 +371,9 @@
       "dot": "emerald",
       "title": "Primary path",
       "items": [
-        "./setup.sh: link dotfiles → packages → mise bootstrap → mise install → setup/misc.sh → extensions → dotfiles-extras.sh",
+        "./setup.sh: link dotfiles → GitHub login → packages → mise bootstrap → mise install → setup/misc.sh → extensions → dotfiles-extras.sh",
         "mise bootstrap applies files, dotfiles and the login shell; setup.sh then runs mise install and the task (misc.sh) alone",
+        "gh is installed alone and gh auth login offered before the packages, which spend GitHub's anonymous 60 API calls an hour; a run that cannot ask only warns",
         "A failed package or tool only warns: the list prints last and setup exits 2",
         "-- --skip packages skips the package steps; --dash adds dash.sh",
         "Idempotent: re-running is how changes are applied",
