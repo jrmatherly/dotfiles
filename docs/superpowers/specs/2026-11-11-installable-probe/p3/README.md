@@ -8,6 +8,7 @@ Evidence for the P3 plan (`docs/superpowers/plans/2026-11-12-p3-sign-in-and-sync
 | `2-folder-outside-checkout.sh` | Does a folder outside the checkout, linked into the config dir, sync both ways between two installed copies? |
 | `4-adopt-final-hook.sh` | Does `mise bootstrap --adopt` apply the base, with and without `--only final-hook`? |
 | `5-track-table-and-conflict.sh` | What does mise print with no origin and no conflict, is a track entry honoured as its own table, and what happens on a restore onto a different local file? |
+| `6-seeded-copy-in-symlink-each.sh` | Can `config.rotm-installed.toml` turn `jstack-models.md` in the `~/.claude/rules` `symlink-each` folder into a seeded copy, on a first apply, a second, and over an older install where it is a link? Written for Task 4, after the inline probe 6 below; its `[exit N]` lines are mise's own status |
 
 Two probes were run inline and are not saved; the plan's table records their results: probe 3 (what the override file can hold, and `mise set --override`'s exit code) and probe 6 (a link with no target yet, `disable_tools`, how mise authenticates its Git calls, and credential precedence).
 

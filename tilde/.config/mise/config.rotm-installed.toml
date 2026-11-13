@@ -5,8 +5,9 @@
 #
 # Without these entries such a write goes through a symlink into mise's
 # checkout, and `rotm update` then refuses to fast-forward it. Every entry is a
-# seeded copy (create_if_missing: written once, then the user's), a merge or a
-# real folder, never a symlink (bin/lib/test-dotfiles checks). New entries come
+# seeded copy (create_if_missing: written once, then the user's), a merge, a
+# real folder or a symlink-each folder that excludes a seeded file, never a
+# symlink (bin/lib/test-dotfiles checks). New entries come
 # from row 8 of the VM proof in the P1 plan: use the Mac, then list what
 # `git status` shows in the checkout.
 
@@ -28,3 +29,7 @@
 "~/Library/Application Support/Code/User/chatLanguageModels.json" = { source = "~/dotfiles/vscode/User/chatLanguageModels.json", mode = "copy", create_if_missing = true }
 "~/Library/Application Support/Code/User/snippets" = { permissions = "0700" }
 "~/Library/Application Support/Code/User/snippets/global.code-snippets" = { source = "~/dotfiles/vscode/User/snippets/global.code-snippets", mode = "copy", create_if_missing = true }
+
+# rotm settings writes the jstack roles here; every other rule stays a link
+"~/.claude/rules" = { source = "~/dotfiles/tilde/.claude/rules", mode = "symlink-each", exclude = [".DS_Store", "jstack-models.md"] }
+"~/.claude/rules/jstack-models.md" = { source = "~/dotfiles/tilde/.claude/rules/jstack-models.md", mode = "copy", create_if_missing = true }

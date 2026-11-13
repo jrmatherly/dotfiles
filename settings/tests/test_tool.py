@@ -287,6 +287,13 @@ def test_write_note_only_for_jstack_roles():
     assert "tracked file" in tool.JSTACK_NOTE
     for other in ("hindsight.enabled", "hindsight.paths", "claude.model"):
         assert A.write_note(by_id(other)) == ""
+    # An installed copy seeds a real file: nothing to commit
+    rule.unlink(); rule.write_text(RULE)
+    try:
+        note = A.write_note(by_id("jstack.bug_fix"))
+        assert "your own copy" in note and str(rule) in note and "Commit" not in note, note
+    finally:
+        rule.unlink(); rule.symlink_to(tracked)
 
 
 SCAN = ("keep a@m  path: x.py\noff b@m  no signal\n"

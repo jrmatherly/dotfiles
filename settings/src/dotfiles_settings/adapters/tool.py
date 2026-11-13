@@ -292,7 +292,10 @@ def _tool(s: Setting) -> tuple[str, tuple[Reader, Writer | None, Resetter | None
 
 class ToolAdapter:
     def write_note(self, s: Setting) -> str:
-        return JSTACK_NOTE if s.key.startswith("jstack:") else ""
+        if not s.key.startswith("jstack:"):
+            return ""
+        # A clone links the tracked file; an installed copy seeds a real one
+        return JSTACK_NOTE if jstack_path().is_symlink() else f"Saved in {jstack_path()}, your own copy of the roles."
 
     def watch_paths(self) -> list[Path]:
         seed = claude_seed_path()

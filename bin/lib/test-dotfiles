@@ -40,12 +40,19 @@ installed="$repo/tilde/.config/mise/config.rotm-installed.toml"
 # Each key redeclares a base entry, or sits inside a folder this file makes real
 while IFS= read -r key; do
   grep -qF "\"$key\" = " "$fragment" && continue
-  grep -qF "\"${key%/*}\" = { permissions" "$installed" \
+  grep -qF "\"${key%/*}\" = { permissions" "$installed" && continue
+  # or is a seeded copy of a file its folder's symlink-each entry excludes
+  grep -F "\"${key%/*}\" = " "$installed" | grep -F 'mode = "symlink-each", exclude = [' | grep -qF "\"${key##*/}\"" \
     || fail "config.rotm-installed.toml declares $key, which redeclares nothing and is in no folder it makes real"
 done < <(sed -n 's/^"\([^"]*\)" = .*/\1/p' "$installed")
+# A redeclared symlink-each entry may only change its exclude list
+while IFS= read -r line; do
+  base=$(grep -F "${line%% = *} = " "$fragment" || true)
+  [ "${line%, exclude = *}" = "${base%, exclude = *}" ] || fail "config.rotm-installed.toml changes more than the exclude list of ${line%% = *}"
+done < <(grep -E '^"[^"]*" = .*mode = "symlink-each", exclude = ' "$installed")
 # A symlink here would put app writes back in the checkout
-if grep -E '^"' "$installed" | grep -vE 'mode = "copy", create_if_missing = true|merge = |= \{ permissions = "[0-7]+" \}' | grep -q .; then
-  fail "config.rotm-installed.toml has an entry that is neither create_if_missing, merge nor a real folder"
+if grep -E '^"' "$installed" | grep -vE 'mode = "copy", create_if_missing = true|merge = |= \{ permissions = "[0-7]+" \}|mode = "symlink-each", exclude = ' | grep -q .; then
+  fail "config.rotm-installed.toml has an entry that is neither create_if_missing, merge, a real folder nor an exclude-only symlink-each"
 fi
 
 command -v mise > /dev/null || {
@@ -171,10 +178,15 @@ code_user="$home/Library/Application Support/Code/User"
 [ ! -L "$code_user" ] && [ -f "$code_user/snippets/global.code-snippets" ] && [ ! -L "$code_user/keybindings.json" ] \
   || fail "installed: Code/User is not a real folder with seeded files"
 [ -L "$home/.zshenv" ] || fail "installed: an entry the environment does not name is no longer a link"
+roles="$home/.claude/rules/jstack-models.md"
+[ ! -L "$roles" ] && cmp -s "$roles" "$repo/tilde/.claude/rules/jstack-models.md" || fail "installed: jstack-models.md is not a seeded copy"
+[ -L "$home/.claude/rules/verify-first.md" ] || fail "installed: the other rules are no longer links"
 # What the user or an app writes afterwards stays, and never reaches the checkout
 echo "# mine" >> "$home/.gitconfig"
 echo "editor: vim" >> "$home/.config/gh/config.yml"
+echo "# mine" >> "$roles"
 mi dotfiles apply --yes > "$tmp/out" 2>&1 || fail "installed: second apply failed: $(cat "$tmp/out")"
-grep -qx '# mine' "$home/.gitconfig" && grep -qx 'editor: vim' "$home/.config/gh/config.yml" || fail "installed: a second apply overwrote a seeded file"
+grep -qx '# mine' "$home/.gitconfig" && grep -qx 'editor: vim' "$home/.config/gh/config.yml" && grep -qx '# mine' "$roles" \
+  || fail "installed: a second apply overwrote a seeded file"
 
 echo ok

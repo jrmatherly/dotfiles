@@ -56,7 +56,7 @@ A copy that `mise bootstrap --from` fetched lives in `~/.local/share/mise/bootst
 - `setup.sh` names `rotm install` in its retry line and its warnings. It stops when `~/.zshrc` or `~/.gitconfig` is your own file and does not load ours: on an installed copy those two are seeded once (`tilde/.zshrc.installed`, `tilde/.gitconfig.installed`) and then yours, so mise would keep an existing one without a word. Before it links the dotfiles it removes a symlink into the copy at any path `config.rotm-installed.toml` declares as a real folder, because mise would otherwise keep the link and write that folder's files into the copy.
 - `sysup` does not pull and reports `installed copy: run rotm update`. It does not run `claude-config save`, which writes `agents/` inside the copy.
 - `dotfiles` prints the `rotm update` hint and pulls nothing.
-- `rotm settings` (`dotfiles-settings`) refuses to change a macOS preference or a jstack model role, because both are stored in tracked files. The settings kept in mise's override file work as on a clone.
+- `rotm settings` (`dotfiles-settings`) writes a macOS preference to mise's override file instead of `conf.d/20-macos.toml`, and a jstack model role to `~/.claude/rules/jstack-models.md`, which `config.rotm-installed.toml` seeds as your own copy instead of a link. The other settings work as on a clone.
 - `vscode-settings` renders `settings.json` into `~/Library/Application Support/Code/User`, not into the copy's `vscode/User`.
 
 `rotm update` fetches the branch the copy is on and then runs `setup.sh`. It stops before `setup.sh` when mise cannot update the copy, and lists the tracked files that differ in it.
