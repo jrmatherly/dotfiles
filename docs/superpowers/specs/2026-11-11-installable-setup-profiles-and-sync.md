@@ -16,7 +16,7 @@ The owner's workflow stays: edit files in a clone, commit, push.
 4. macOS only. Linux is a later follow-up.
 5. The tracked Claude Code default model is `opus`. One Mac's choice does not change it.
 6. The product is named `returnofthemac`, and its command is `rotm` (owner, 2026-11-11 evening). It replaces `kitbag`, the choice from earlier that day, which a wider check ruled out (see "Names considered"). Checked for both names: PyPI, crates.io, npm, RubyGems, Homebrew formulae and casks have neither; neither is a command, alias or man page on this Mac; the Mac App Store search returns no app with either name. On GitHub the user `ReturnOfTheMac` (2009, no repositories) and the organization `RoTM` (no repositories) exist, so the project stays under the owner's account. A search for `rotm` finds 865 repositories, mostly for the game Realm of the Mad God, and none is a command-line tool of that name. Domains: `returnofthemac.com` is registered; whois reports `returnofthemac.sh` and `rotm.sh` as not found. Apple's guidelines for third parties treat "Mac" as its trademark and allow it in a product name when combined with another non-generic word, when the product is not a computer or operating system, and when the name suggests no link to Apple. A web search found no trademark registration for the song title "Return of the Mack" (Mark Morrison, 1996) and no software by this name; Paul Graham's 2005 essay is titled "Return of the Mac". Not checked: a search of the USPTO, UK and EU registers themselves.
-7. The owner's Mac moves to installed mode on the existing clone (`--from-dir`), and only after installed mode is proven in the VM. **Changed by probe 10 (2026-11-11):** `--update` with `?ref=stable` switched the clone from `main` to `stable`, so the owner's Mac keeps `setup.sh` from the clone and installed mode is proven in the VM only. This was the rule the P0 plan set for that result.
+7. The owner's Mac moves to installed mode on the existing clone (`--from-dir`), and only after installed mode is proven in the VM. **Changed by probe 10 (2026-11-11):** `--update` with `?ref=stable` switched the clone from `main` to `stable`, so the owner's Mac keeps `setup.sh` from the clone and installed mode is proven in the VM only. This was the rule the P0 plan set for that result. **Changed by the owner (2026-11-12):** that holds only while the phases are being built. Once they have landed, the owner's Mac moves to an install from `stable` (P7).
 8. Sync is manual first. Automatic background sync is a later opt-in, after manual sync has been used for real.
 9. Users follow a `stable` branch. The owner keeps pushing to `main`, and a commit is promoted to `stable` only after the VM install passes on it.
 10. mise has a tested minimum version that the install checks, raised deliberately. Each promotion to `stable` is proven in the VM on the mise version current that day.
@@ -250,7 +250,7 @@ Also measured that day: with `HOME` and every `MISE_*_DIR` pointed at a scratch 
 - `docs/superpowers/plans/completed/2026-11-11-p0-probes-and-model-default.md` (done 2026-11-11): the probes in a scratch home, and the `claude-config save` model rule. Its results fill in this spec and decide the open points.
 - `docs/superpowers/plans/completed/2026-11-11-p1-install-and-update.md` (done 2026-11-12): the config-dir shape, mise to fetch and link followed by `setup.sh`, the `rotm` command, and an `installed` config environment for targets apps rewrite.
 - `docs/superpowers/plans/completed/2026-11-12-p2-modules-and-opt-outs.md` (done 2026-11-12): twelve modules as always-loaded `conf.d/60-rotm-<name>.toml` files, a helper that derives mise's `ignored_config_paths` line from what is switched off, a switch per module in `dotfiles-settings`, and `--without` on the install line. The owner split P2 that day: the owner's layer is P2b, not written.
-- P2b and P3 to P6 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
+- P2b and P3 to P7 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
 
 ## Phase briefs
 
@@ -315,6 +315,14 @@ How to use these when writing a plan: read the brief, then read "Verified facts"
 - **Known.** The README was rewritten on 2026-11-11 as a short landing page with the detail in four `docs/` pages. A new docs page must not be named after a command, because `help <name>` reads `docs/<name>.md` before tldr.
 - **Waiting on.** Everything above. Each earlier phase updates the docs it makes false in its own commits; P6 is the pass that reorders them around the new default.
 - **Done when.** `docs-auditor` finds no claim in the README or `docs/` that the shipped code contradicts.
+
+### P7: The owner's Mac moves to stable
+
+- **Outcome.** The Mac this project is written on runs an install from `stable`, like any user's, and has `rotm`.
+- **Decided.** By the owner on 2026-11-12: last, after every phase above has landed. Until then that Mac stays on `setup.sh` from the clone, the owner is the only consumer, and nothing is promoted to `stable`.
+- **Known.** Probe 10: `--update` with `?ref=stable` switches a clone given as `--from-dir` from `main` to `stable`, so the working clone cannot be the installed copy. `~/dotfiles` has to point at the installed copy instead of the clone. `setup.sh` unlinks the folders `config.rotm-installed.toml` makes real, but only the VM has run that, from a fresh home. The gitignored local files under the clone's `tilde/.config/mise/` and `mole/*.local` do not come with a fresh copy.
+- **Waiting on.** P2b to P6, a promotion of `stable` proven in the VM (decisions 9 and 10), and a design for how the development clone and the installed copy live on one Mac.
+- **Done when.** `bin/lib/rotm-mode` prints `installed` on that Mac, `rotm update` brings a new `stable` commit, and work in the clone at `~/dev/dotfiles` changes nothing in the live config until it is promoted.
 
 ## Open points for the owner
 
