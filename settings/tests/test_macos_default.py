@@ -19,18 +19,18 @@ from dotfiles_settings.adapters.macos_default import (MacosDefaultAdapter, fragm
 from dotfiles_settings.model import InvalidValue, Setting, SettingsError, Source
 
 FRAGMENT = '''# header comment
-[bootstrap.macos.defaults.NSGlobalDomain]
+[bootstrap.settings.macos.defaults.NSGlobalDomain]
 # key repeat why
 KeyRepeat = 1
 "com.apple.springing.enabled" = true
 
-[bootstrap.macos.defaults."com.apple.dock"]
+[bootstrap.settings.macos.defaults."com.apple.dock"]
 # size why
 tilesize = 38 # trailing why
 autohide = true
 FXInfo = { General = true }
 
-[[bootstrap.macos.defaults_entries]]
+[[bootstrap.settings.macos.defaults_entries]]
 domain = "com.apple.finder"
 key = "DesktopViewSettings"
 path = ["GroupBy"]
@@ -61,12 +61,16 @@ assert out.replace("tilesize = 44", "tilesize = 38") == FRAGMENT
 # quoted keys and bare domains
 assert '"com.apple.springing.enabled" = false' in set_key(FRAGMENT, "NSGlobalDomain", "com.apple.springing.enabled", "false")
 
+# the spelling mise 2026.11.8 deprecates is not read
+old = '[bootstrap.macos.defaults."com.apple.dock"]\ntilesize = 48\n'
+assert macos_default.declared(old, "com.apple.dock", "tilesize") is macos_default.MISSING
+
 # a new key lands in its table, a new table lands at the end
 out = set_key(FRAGMENT, "com.apple.dock", "show-recents", "false")
-assert tomllib.loads(out)["bootstrap"]["macos"]["defaults"]["com.apple.dock"]["show-recents"] is False
-assert out.index("show-recents") < out.index("[[bootstrap.macos.defaults_entries]]")
+assert tomllib.loads(out)["bootstrap"]["settings"]["macos"]["defaults"]["com.apple.dock"]["show-recents"] is False
+assert out.index("show-recents") < out.index("[[bootstrap.settings.macos.defaults_entries]]")
 out = set_key(FRAGMENT, "com.apple.screencapture", "name", '"Shot"')
-assert tomllib.loads(out)["bootstrap"]["macos"]["defaults"]["com.apple.screencapture"] == {"name": "Shot"}
+assert tomllib.loads(out)["bootstrap"]["settings"]["macos"]["defaults"]["com.apple.screencapture"] == {"name": "Shot"}
 
 # the type guard: 1 is not true
 raises(InvalidValue, lambda: set_key(FRAGMENT, "com.apple.dock", "autohide", "1"))
@@ -81,10 +85,10 @@ assert "autohide" not in out and "tilesize = 38 # trailing why" in out
 nasty = 'Sh"ot \\ #1'
 s = setting(key="com.apple.screencapture/name", type="string")
 out = set_key(FRAGMENT, "com.apple.screencapture", "name", to_literal(s, nasty))
-assert tomllib.loads(out)["bootstrap"]["macos"]["defaults"]["com.apple.screencapture"]["name"] == nasty
+assert tomllib.loads(out)["bootstrap"]["settings"]["macos"]["defaults"]["com.apple.screencapture"]["name"] == nasty
 # and again when it replaces a value that already has a trailing comment
 out = set_key(out.replace(to_literal(s, nasty), to_literal(s, nasty) + " # why"), "com.apple.screencapture", "name", to_literal(s, "a # b"))
-assert tomllib.loads(out)["bootstrap"]["macos"]["defaults"]["com.apple.screencapture"]["name"] == "a # b" and out.endswith('"a # b" # why\n')
+assert tomllib.loads(out)["bootstrap"]["settings"]["macos"]["defaults"]["com.apple.screencapture"]["name"] == "a # b" and out.endswith('"a # b" # why\n')
 
 # to_literal: a bool arrives the way the CLI passes it, "" for false
 b = setting(key="com.apple.dock/autohide", type="bool", true_value="true")
@@ -214,11 +218,11 @@ assert 'Run: defaults delete com.apple.dock "showhidden"' in err.getvalue()
 # A clone whose override file declares a preference (it arrived by sync from an installed copy) changes it there
 override = conf / "config.override.toml"
 fragment_path().write_text(FRAGMENT)
-override.write_text('[bootstrap.macos.defaults."com.apple.dock"]\ntilesize = 44\n')
+override.write_text('[bootstrap.settings.macos.defaults."com.apple.dock"]\ntilesize = 44\n')
 status([{**entry, "value": 50, "current": "50"}])
 adapter.write(dock, "50")
 assert fragment_path().read_text() == FRAGMENT
-assert tomllib.loads(override.read_text())["bootstrap"]["macos"]["defaults"]["com.apple.dock"] == {"tilesize": 50}
+assert tomllib.loads(override.read_text())["bootstrap"]["settings"]["macos"]["defaults"]["com.apple.dock"] == {"tilesize": 50}
 assert written == [("com.apple.dock", "tilesize", "-int", "50")] and str(override) in adapter.write_note(dock)
 status([entry])
 adapter.reset(dock)
@@ -230,7 +234,7 @@ assert ADAPTERS["macos-default"].__class__ is MacosDefaultAdapter and "macos-def
 
 # every macos-default registry entry is declared in the real fragment with a matching type
 repo = Path(__file__).resolve().parents[2]
-declared = tomllib.loads((repo / "tilde/.config/mise/conf.d/20-macos.toml").read_text())["bootstrap"]["macos"]["defaults"]
+declared = tomllib.loads((repo / "tilde/.config/mise/conf.d/20-macos.toml").read_text())["bootstrap"]["settings"]["macos"]["defaults"]
 settings = registry.load()
 macos = [s for s in settings if s.kind == "macos-default"]
 assert len(macos) == 26
@@ -269,12 +273,12 @@ status([{**entry, "value": 44, "current": "44"}])
 adapter.write(dock, "44")
 assert fragment_path().read_text() == FRAGMENT
 data = tomllib.loads(override.read_text())
-assert data["bootstrap"]["macos"]["defaults"]["com.apple.dock"] == {"tilesize": 44} and data["env"] == {"EDITOR": "vim"}
+assert data["bootstrap"]["settings"]["macos"]["defaults"]["com.apple.dock"] == {"tilesize": 44} and data["env"] == {"EDITOR": "vim"}
 assert written == [("com.apple.dock", "tilesize", "-int", "44")] and killed == ["Dock"]
 assert str(override) in adapter.write_note(dock) and "20-macos.toml" not in adapter.write_note(dock)
 status([{**entry, "key": "autohide", "value": False, "current": "false"}])
 adapter.write(hide, cli.normalize(hide, "off"))
-assert tomllib.loads(override.read_text())["bootstrap"]["macos"]["defaults"]["com.apple.dock"] == {"tilesize": 44, "autohide": False}
+assert tomllib.loads(override.read_text())["bootstrap"]["settings"]["macos"]["defaults"]["com.apple.dock"] == {"tilesize": 44, "autohide": False}
 status([{**entry, "value": 44, "current": "44"}])
 v = adapter.read(dock)
 assert (v.value, v.source, v.seed) == ("44", Source.OVERRIDE, "38")
@@ -282,7 +286,7 @@ status([entry])
 adapter.reset(dock)
 assert fragment_path().read_text() == FRAGMENT
 data = tomllib.loads(override.read_text())
-assert data["bootstrap"]["macos"]["defaults"]["com.apple.dock"] == {"autohide": False} and data["env"] == {"EDITOR": "vim"}
+assert data["bootstrap"]["settings"]["macos"]["defaults"]["com.apple.dock"] == {"autohide": False} and data["env"] == {"EDITOR": "vim"}
 assert written == [("com.apple.dock", "tilesize", "-int", "38")]
 # a reset with nothing to remove writes no file
 (user / "config.override.toml").unlink()

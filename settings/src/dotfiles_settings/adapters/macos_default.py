@@ -51,9 +51,19 @@ def parse_literal(literal: str):
     return tomllib.loads(f"v = {literal}")["v"]
 
 
+# The one place the table's path is spelled. mise 2026.11.8 deprecates [bootstrap.macos.defaults]
+TABLE = ("bootstrap", "settings", "macos", "defaults")
+
+
+def _tables(data: dict) -> dict:
+    for name in TABLE:
+        data = data.setdefault(name, {})
+    return data
+
+
 def declared(text: str, domain: str, key: str):
     try:
-        tables = tomllib.loads(text).get("bootstrap", {}).get("macos", {}).get("defaults", {})
+        tables = _tables(tomllib.loads(text))
     except tomllib.TOMLDecodeError as e:
         raise SettingsError(f"20-macos.toml: {e}") from None
     for name, table in tables.items():
@@ -65,7 +75,7 @@ def declared(text: str, domain: str, key: str):
 def locate(lines: list[str], domain: str, key: str) -> tuple[int | None, int, int | None]:
     """The table's header index, the index its lines end before, and the key's line index."""
     name = re.escape(json.dumps(domain)) + (f"|{re.escape(domain)}" if BARE.fullmatch(domain) else "")
-    header = re.compile(rf"\[\s*bootstrap\.macos\.defaults\.(?:{name})\s*\]\s*(#.*)?")
+    header = re.compile(rf"\[\s*{re.escape('.'.join(TABLE))}\.(?:{name})\s*\]\s*(#.*)?")
     start = next((i for i, line in enumerate(lines) if header.fullmatch(line.strip())), None)
     if start is None:
         return None, len(lines), None
@@ -90,7 +100,7 @@ def literal_end(line: str) -> int:
 
 def checked(text: str, out: str, domain: str, key: str, value=MISSING) -> str:
     want = copy.deepcopy(tomllib.loads(text))
-    table = want.setdefault("bootstrap", {}).setdefault("macos", {}).setdefault("defaults", {}).setdefault(domain, {})
+    table = _tables(want).setdefault(domain, {})
     if value is MISSING:
         table.pop(key, None)
     else:
@@ -124,7 +134,7 @@ def set_key(text: str, domain: str, key: str, literal: str) -> str:
         lines.insert(last + 1, f"{name} = {literal}\n")
     else:
         header = domain if BARE.fullmatch(domain) else json.dumps(domain)
-        lines = [text.rstrip("\n") + "\n", f"\n[bootstrap.macos.defaults.{header}]\n", f"{name} = {literal}\n"]
+        lines = [text.rstrip("\n") + "\n", f"\n[{'.'.join(TABLE)}.{header}]\n", f"{name} = {literal}\n"]
     return checked(text, "".join(lines), domain, key, new)
 
 

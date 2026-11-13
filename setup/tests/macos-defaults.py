@@ -13,7 +13,7 @@ def type_name(t):
 
 
 def parse(path):
-    return tomllib.loads(path.read_text())["bootstrap"]["macos"]
+    return tomllib.loads(path.read_text())["bootstrap"]["settings"]["macos"]
 
 
 def fragment_types(path) -> dict[tuple[str, str], type]:

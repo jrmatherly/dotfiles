@@ -283,7 +283,7 @@ def _changes(override: Path, modules_off: Path) -> tuple:
     boot = o.get("bootstrap", {})
     off = modules_off.read_text().split() if modules_off.exists() else []
     return ((off, boot.get("packages"), o.get("settings", {}).get("disable_tools")),
-            boot.get("macos", {}).get("defaults"))
+            boot.get("settings", {}).get("macos", {}).get("defaults"))
 
 
 def _snapshot() -> tuple[tuple[Path, ...], tuple[Path, ...]]:

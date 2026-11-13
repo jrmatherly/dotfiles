@@ -53,7 +53,7 @@ To skip a single package from a module that stays on, declare it absent in `~/.c
 disable_tools = ["npm:serverless"]
 ```
 
-`rotm settings` keeps its own changes in the same file, under `[env]` and `[bootstrap.macos.defaults]`, and leaves these tables alone. [Settings sync](settings-sync.md) saves the file, so both opt-outs reach your next Mac. An opt-out left in `~/.config/mise/config.local.toml` still works and stays on that Mac, because mise never syncs a `*.local.toml` file.
+`rotm settings` keeps its own changes in the same file, under `[env]` and `[bootstrap.settings.macos.defaults]`, and leaves these tables alone. [Settings sync](settings-sync.md) saves the file, so both opt-outs reach your next Mac. An opt-out left in `~/.config/mise/config.local.toml` still works and stays on that Mac, because mise never syncs a `*.local.toml` file.
 
 An absent package that is already installed is left in place, and neither setup nor `sysup` reports it as a problem. This works for a `vscode:` key too: mise reports the extension as absent and never installs or removes it. With such an extension installed, `mise bootstrap packages apply --manager vscode` exits 1, which setup treats as no problem, while a plain `apply` and `upgrade` exit 0.
 

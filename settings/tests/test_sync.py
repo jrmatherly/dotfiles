@@ -385,7 +385,7 @@ def test_apply_names_what_it_cannot_act_on_once():
     assert not any("rotm install" in l for l in sync.apply())
     (conf / "config.override.toml").write_text('[bootstrap.packages]\n"brew:p" = { state = "absent" }\n')
     assert any("rotm install" in l for l in sync.apply())
-    (conf / "config.override.toml").write_text('[bootstrap.macos.defaults."com.apple.dock"]\nautohide = true\n')
+    (conf / "config.override.toml").write_text('[bootstrap.settings.macos.defaults."com.apple.dock"]\nautohide = true\n')
     lines = sync.apply()
     assert any("set-defaults" in l for l in lines) and any("rotm install" in l for l in lines), lines
     assert not sync.apply()
@@ -395,7 +395,7 @@ def test_apply_names_what_it_cannot_act_on_once():
 def test_apply_right_after_setup_installed_leaves_out_only_the_install_line():
     fresh()
     (conf / "modules-off.local").write_text("fonts\n")
-    (conf / "config.override.toml").write_text('[bootstrap.macos.defaults."com.apple.dock"]\nautohide = true\n')
+    (conf / "config.override.toml").write_text('[bootstrap.settings.macos.defaults."com.apple.dock"]\nautohide = true\n')
     os.environ["ROTM_JUST_INSTALLED"] = "1"
     try:
         lines = sync.apply()
