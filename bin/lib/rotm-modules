@@ -95,7 +95,7 @@ kept() {
 
 sync() {
   [ -d "$dir" ] || die 1 "no mise config dir at $dir"
-  local line='' entries='' names='' new='' trust='' env_line='' env_new='' have='' want m stray
+  local line='' entries='' names='' new='' trust='' have='' want m stray
   if [ -f "$off_file" ]; then
     while IFS= read -r stray; do
       case " ${modules[*]} " in
@@ -115,12 +115,6 @@ sync() {
         || die 1 "the ignored_config_paths list in miserc.local.toml is not on one line; not rewriting $rc_file"
       # The user's own entries stay first, in their order
       entries=$(kept "$line" 'conf.d/60-rotm-*')
-    fi
-    # The first design's sync wrote "rotm-<name>" entries into env
-    env_line=$(grep -E '^env[[:space:]]*=[[:space:]]*\[.*"rotm-.*\][[:space:]]*$' "$rc_file" | head -1 || true)
-    if [ -n "$env_line" ]; then
-      env_new=$(kept "$env_line" 'rotm-*')
-      env_new=${env_new:+env = [$env_new]}
     fi
   fi
   for m in "${modules[@]}"; do
@@ -142,9 +136,8 @@ sync() {
       || echo "rotm-modules: 'mise trust $trust' failed, so mise dotfiles and mise bootstrap will stop at that file" >&2
   fi
 
-  want=$({ [ -z "$have" ] || printf '%s\n' "$have"; } | IGN="$new" ENV_OLD="$env_line" ENV_NEW="$env_new" awk '
+  want=$({ [ -z "$have" ] || printf '%s\n' "$have"; } | IGN="$new" awk '
     !i && /^ignored_config_paths[[:space:]]*=/ { print ENVIRON["IGN"]; i = 1; next }
-    ENVIRON["ENV_OLD"] != "" && $0 == ENVIRON["ENV_OLD"] { if (ENVIRON["ENV_NEW"] != "") print ENVIRON["ENV_NEW"]; next }
     { print }
     END { if (!i && ENVIRON["IGN"] != "") print ENVIRON["IGN"] }')
   [ "$want" != "$have" ] || return 0

@@ -29,23 +29,23 @@ for path in "$repo"/tilde/.[!.]* "$repo"/tilde/.config/* "$repo"/tilde/.claude/*
   rel=${path#"$repo"/tilde/}
   case "$rel" in
     .DS_Store | */.DS_Store | .claude | .config | .claude/skills | .codex | .ssh) continue ;;
-    # The wrappers config.installed.toml seeds, never linked themselves
+    # The wrappers config.rotm-installed.toml seeds, never linked themselves
     *.installed) continue ;;
   esac
   grep -qF "\"~/$rel\" = " "$fragment" || fail "no [dotfiles] entry for ~/$rel"
 done
 
-installed="$repo/tilde/.config/mise/config.installed.toml"
-[ -f "$installed" ] || fail "config.installed.toml is missing"
+installed="$repo/tilde/.config/mise/config.rotm-installed.toml"
+[ -f "$installed" ] || fail "config.rotm-installed.toml is missing"
 # Each key redeclares a base entry, or sits inside a folder this file makes real
 while IFS= read -r key; do
   grep -qF "\"$key\" = " "$fragment" && continue
   grep -qF "\"${key%/*}\" = { permissions" "$installed" \
-    || fail "config.installed.toml declares $key, which redeclares nothing and is in no folder it makes real"
+    || fail "config.rotm-installed.toml declares $key, which redeclares nothing and is in no folder it makes real"
 done < <(sed -n 's/^"\([^"]*\)" = .*/\1/p' "$installed")
 # A symlink here would put app writes back in the checkout
 if grep -E '^"' "$installed" | grep -vE 'mode = "copy", create_if_missing = true|merge = |= \{ permissions = "[0-7]+" \}' | grep -q .; then
-  fail "config.installed.toml has an entry that is neither create_if_missing, merge nor a real folder"
+  fail "config.rotm-installed.toml has an entry that is neither create_if_missing, merge nor a real folder"
 fi
 
 command -v mise > /dev/null || {
@@ -154,7 +154,7 @@ cp "$fragment" "$tmp/cfg2/conf.d/"
 cp "$installed" "$tmp/cfg2/"
 ln -s "$repo" "$home/dotfiles"
 mi() {
-  (cd "$tmp" && env -i HOME="$home" PATH="$PATH" MISE_ENV=installed MISE_CONFIG_DIR="$tmp/cfg2" MISE_STATE_DIR="$tmp/state2" \
+  (cd "$tmp" && env -i HOME="$home" PATH="$PATH" MISE_ENV=rotm-installed MISE_CONFIG_DIR="$tmp/cfg2" MISE_STATE_DIR="$tmp/state2" \
     MISE_DATA_DIR="$tmp/data2" MISE_CACHE_DIR="$tmp/cache2" MISE_CEILING_PATHS="$tmp" mise "$@")
 }
 mi dotfiles status > "$tmp/out" 2>&1 || true

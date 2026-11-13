@@ -1,6 +1,6 @@
-# The `installed` config environment: how a copy fetched by `mise bootstrap
+# The `rotm-installed` config environment: how a copy fetched by `mise bootstrap
 # --from` deploys the targets that apps and tools write to. The install line
-# selects it with `-E installed --save-env`, and it beats conf.d/40-dotfiles.toml
+# selects it with `-E rotm-installed --save-env`, and it beats conf.d/40-dotfiles.toml
 # key by key (probe 12). A development clone never reads it.
 #
 # Without these entries such a write goes through a symlink into mise's

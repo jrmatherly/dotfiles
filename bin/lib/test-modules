@@ -62,13 +62,10 @@ rc=0
 
 # Only our entries of the one line change: env, other keys and the user's own ignores stay; a stale module entry goes
 reset
-printf 'env = ["installed"]\nignored_config_paths = ["/opt/mine.toml", "conf.d/60-rotm-gone.toml"]\nfoo = 1\n' > "$cfg/miserc.local.toml"
+printf 'env = ["rotm-installed"]\nignored_config_paths = ["/opt/mine.toml", "conf.d/60-rotm-gone.toml"]\nfoo = 1\n' > "$cfg/miserc.local.toml"
 "$m" sync --without fonts,cloud > /dev/null
-grep -qxF 'env = ["installed"]' "$cfg/miserc.local.toml" || fail "sync touched the env line"
-# The first design's sync wrote rotm- entries into env: they go, the rest stays
-sed -i '' 's/^env = .*/env = ["installed", "rotm-fonts", "rotm-media"]/' "$cfg/miserc.local.toml"
+grep -qxF 'env = ["rotm-installed"]' "$cfg/miserc.local.toml" || fail "sync touched the env line"
 "$m" sync > /dev/null
-grep -qxF 'env = ["installed"]' "$cfg/miserc.local.toml" || fail "sync left the first design's env entries"
 grep -qx 'foo = 1' "$cfg/miserc.local.toml" || fail "sync dropped another key"
 [ "$(line)" = 'ignored_config_paths = ["/opt/mine.toml", "conf.d/60-rotm-fonts.toml", "conf.d/60-rotm-cloud.toml"]' ] || fail "the user's entry was not kept first, or a stale one stayed"
 [ "$("$m" off | tr '\n' ' ')" = "fonts cloud " ] || fail "--without"
@@ -89,11 +86,6 @@ echo typo >> "$cfg/modules-off.local"
 "$m" sync 2> "$tmp/err" || fail "a stray name in modules-off.local failed sync"
 grep -q 'typo' "$tmp/err" || fail "a stray name was not reported"
 
-# An env line that held only the first design's entries goes whole
-reset
-printf 'env = ["rotm-fonts", "rotm-media"]\n' > "$cfg/miserc.local.toml"
-"$m" sync > /dev/null
-[ ! -s "$cfg/miserc.local.toml" ] || fail "an env line of only rotm- entries stayed"
 
 # A list on several lines, the variable that replaces the saved list, and no config dir
 reset
@@ -160,11 +152,11 @@ declared MISE_IGNORED_CONFIG_PATHS="$cfg/conf.d/60-rotm-security.toml" > "$tmp/v
 grep -q font-fira-code "$tmp/var.json" || fail "mise: MISE_IGNORED_CONFIG_PATHS no longer replaces the saved list"
 if grep -q nmap "$tmp/var.json"; then fail "mise: MISE_IGNORED_CONFIG_PATHS did not ignore its own file"; fi
 before=$(line)
-smise MISE_CONFIG_DIR= mise -E installed bootstrap --save-env --only final-hook --yes > "$tmp/save.out" 2>&1 || {
+smise MISE_CONFIG_DIR= mise -E rotm-installed bootstrap --save-env --only final-hook --yes > "$tmp/save.out" 2>&1 || {
   cat "$tmp/save.out" >&2
   fail "mise: bootstrap --save-env"
 }
-grep -q '^env = \["installed"\]' "$cfg/miserc.local.toml" || fail "mise: --save-env did not save the env list"
+grep -q '^env = \["rotm-installed"\]' "$cfg/miserc.local.toml" || fail "mise: --save-env did not save the env list"
 [ "$(line)" = "$before" ] || fail "mise: --save-env changed the ignored_config_paths line"
 
 rotm set fonts on > /dev/null

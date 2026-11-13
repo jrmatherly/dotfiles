@@ -33,7 +33,7 @@ For using the setup as it is. To change it or make it your own, [clone it](#inst
 ```shell
 xcode-select --install
 curl https://mise.run | sh
-~/.local/bin/mise -E installed bootstrap --from 'https://github.com/jrmatherly/returnofthemac.git?ref=stable' --config-dir tilde/.config/mise --save-env --only final-hook && ~/.local/share/mise/bootstrap-repo/setup.sh
+~/.local/bin/mise -E rotm-installed bootstrap --from 'https://github.com/jrmatherly/returnofthemac.git?ref=stable' --config-dir tilde/.config/mise --save-env --only final-hook && ~/.local/share/mise/bootstrap-repo/setup.sh
 ```
 
 1. **Install the Command Line Tools and [mise](https://mise.run).** The line names mise by its path, because a new Mac's `PATH` does not have `~/.local/bin` yet.

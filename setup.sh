@@ -230,6 +230,15 @@ fi
 
 # mise skips a module (conf.d/60-rotm-<name>.toml) only while ignored_config_paths
 # in miserc.local.toml names it, so the list is written before any mise call
+# Until 2026-11-12 the config environment was named `installed`, a name a
+# project's own mise.installed.toml also answers to. A copy from then still has
+# it saved, and without the new name config.rotm-installed.toml is not read.
+rc_local="$DOTFILES_DIR/tilde/.config/mise/miserc.local.toml"
+if [ "$installed" = true ] && [ -z "$dry_run_flag" ] && grep -q '^env = .*"installed"' "$rc_local" 2> /dev/null; then
+  sed -i '' '/^env = /s/"installed"/"rotm-installed"/' "$rc_local"
+  echo "Renamed the saved config environment from installed to rotm-installed"
+fi
+
 if [ -n "$dry_run_flag" ]; then
   echo "dry run: the module list is not written"
 else
@@ -316,7 +325,7 @@ cd "$HOME"
 # nothing left to do.
 if [ "$run_dotfiles" = true ]; then
   title "🔗 Linking the dotfiles…"
-  # A folder that config.installed.toml makes real may still be a link from before
+  # A folder that config.rotm-installed.toml makes real may still be a link from before
   # that entry arrived. mise keeps such a link and writes the folder's entries
   # through it, into the checkout (probe 14), so the link goes first.
   if [ "$installed" = true ] && [ -z "$dry_run_flag" ]; then
@@ -329,7 +338,7 @@ if [ "$run_dotfiles" = true ]; then
           echo "Unlinked $path: it is a real folder on an installed copy"
           ;;
       esac
-    done < <(sed -n 's/^"\([^"]*\)" = { permissions = .*/\1/p' "$DOTFILES_DIR/tilde/.config/mise/config.installed.toml" 2> /dev/null)
+    done < <(sed -n 's/^"\([^"]*\)" = { permissions = .*/\1/p' "$DOTFILES_DIR/tilde/.config/mise/config.rotm-installed.toml" 2> /dev/null)
   fi
   # --yes: the Enter prompt above was the confirmation, and mise asks per file otherwise
   if ! mise dotfiles apply --yes ${dry_run_flag:+"$dry_run_flag"}; then

@@ -37,7 +37,7 @@ esac
 row=${1:-}
 ref=${P2_REF:-main}
 checkout="$HOME/.local/share/mise/bootstrap-repo"
-fetch="$HOME/.local/bin/mise -E installed bootstrap --from 'https://github.com/jrmatherly/returnofthemac.git?ref=$ref' --config-dir tilde/.config/mise --save-env --only final-hook"
+fetch="$HOME/.local/bin/mise -E rotm-installed bootstrap --from 'https://github.com/jrmatherly/returnofthemac.git?ref=$ref' --config-dir tilde/.config/mise --save-env --only final-hook"
 all=fonts,apps,vscode,claude,agents,cloud,kubernetes,devops,security,network,languages,media
 cfg="$HOME/.config/mise"
 status="git -C $HOME/dotfiles status --porcelain --untracked-files=no"

@@ -20,7 +20,7 @@ You need macOS on Apple Silicon. There are two ways in. [Without a clone](#insta
 1. Run the install line. It names mise by its path, because a new Mac's `PATH` does not have `~/.local/bin` yet:
 
    ```shell
-   ~/.local/bin/mise -E installed bootstrap --from 'https://github.com/jrmatherly/returnofthemac.git?ref=stable' --config-dir tilde/.config/mise --save-env --only final-hook && ~/.local/share/mise/bootstrap-repo/setup.sh
+   ~/.local/bin/mise -E rotm-installed bootstrap --from 'https://github.com/jrmatherly/returnofthemac.git?ref=stable' --config-dir tilde/.config/mise --save-env --only final-hook && ~/.local/share/mise/bootstrap-repo/setup.sh
    ```
 
    mise fetches the `stable` branch into `~/.local/share/mise/bootstrap-repo`, links `~/.config/mise` into it and applies nothing itself. `setup.sh` then runs from that copy, with the prompts described under [Run setup](#run-setup), and takes the same flags after its path. `--from` trusts this repository's mise configuration for the run, so [read it](../tilde/.config/mise) first if you want to know what it does. Adding `--dry-run` after `bootstrap` previews mise's part. To leave groups out from the start, add `--without <names>` after `setup.sh`, as in `setup.sh --without security,cloud`. The groups are `fonts`, `apps`, `vscode`, `claude`, `agents`, `cloud`, `kubernetes`, `devops`, `security`, `network`, `languages` and `media`.

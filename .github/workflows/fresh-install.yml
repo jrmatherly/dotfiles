@@ -81,7 +81,7 @@ jobs:
           REF: ${{ github.ref_name }}
         run: |
           rc=0
-          { ~/.local/bin/mise -E installed bootstrap --from "https://github.com/jrmatherly/returnofthemac.git?ref=$REF" --config-dir tilde/.config/mise --save-env --only final-hook \
+          { ~/.local/bin/mise -E rotm-installed bootstrap --from "https://github.com/jrmatherly/returnofthemac.git?ref=$REF" --config-dir tilde/.config/mise --save-env --only final-hook \
             && ~/.local/share/mise/bootstrap-repo/setup.sh -y --skip-codegraph -- --skip user; } || rc=$?
           [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || exit "$rc"
       - name: Disk after setup

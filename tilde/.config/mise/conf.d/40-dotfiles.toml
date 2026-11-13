@@ -10,7 +10,7 @@
 # is repointed without asking.
 #
 # A copy mise fetched itself (bin/lib/rotm-mode prints `installed`) also reads
-# ../config.installed.toml, which redeclares the targets apps and tools write
+# ../config.rotm-installed.toml, which redeclares the targets apps and tools write
 # to as seeded copies and real folders. An entry added here for such a target
 # needs its counterpart there.
 
