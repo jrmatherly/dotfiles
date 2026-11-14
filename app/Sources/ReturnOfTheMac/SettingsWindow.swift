@@ -8,13 +8,13 @@ import SwiftUI
 @MainActor
 final class SettingsWindowController {
   let window: NSWindow
-  private let model: SettingsModel
+  let model: SettingsModel
   private let state: AppState
 
-  init(state: AppState, runner: CommandRunner) {
+  init(state: AppState, runner: CommandRunner, section: String? = nil) {
     self.state = state
     model = SettingsModel(runner: runner)
-    let hosting = NSHostingController(rootView: SettingsView(model: model, state: state))
+    let hosting = NSHostingController(rootView: SettingsView(model: model, state: state, section: section))
     window = NSWindow(contentViewController: hosting)
     window.title = "Return of the Mac Settings"
     window.styleMask = [.titled, .closable, .miniaturizable, .resizable]

@@ -21,42 +21,73 @@ struct SettingRowView: View {
   }
 
   var body: some View {
-    HStack(alignment: .firstTextBaseline, spacing: 12) {
-      VStack(alignment: .leading, spacing: 3) {
-        HStack(spacing: 6) {
-          Text(row.label)
-          if readOnly {
-            Image(systemName: "lock.fill")
-              .foregroundStyle(.secondary)
-              .accessibilityLabel("Read-only")
-              .help("Read-only")
-          }
-          if row.source == "override" { badge("Override", "Changed from the default") }
-          if pending == .reset { badge("Reset staged", "Goes back to the default when applied") } else if pending != nil {
-            badge("Changed", "Not applied yet")
-          }
+    Group {
+      if row.widget.isEmpty {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+          labels
+          Spacer(minLength: 16)
+          control.disabled(readOnly)
+          actions
         }
-        if !row.help.isEmpty {
-          Text(row.help).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+      } else {
+        // A compound editor sits under its label, so its width never squeezes the label.
+        VStack(alignment: .trailing, spacing: 8) {
+          HStack(alignment: .firstTextBaseline, spacing: 12) {
+            labels
+            Spacer(minLength: 16)
+            actions
+          }
+          control.disabled(readOnly)
         }
-      }
-      Spacer(minLength: 16)
-      control.disabled(readOnly).accessibilityLabel(row.label)
-      if pending != nil {
-        Button("Undo") { model.unstage(row.settingId) }
-          .accessibilityLabel("Undo the change to \(row.label)")
-      } else if row.source == "override" && !readOnly {
-        Button("Reset") { model.stageReset(row.settingId, shared: shared) }
-          .accessibilityLabel("Reset \(row.label)")
       }
     }
     .padding(.vertical, 4)
   }
 
+  private var labels: some View {
+    VStack(alignment: .leading, spacing: 3) {
+      HStack(spacing: 6) {
+        Text(row.label)
+        if readOnly {
+          Image(systemName: "lock.fill")
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Read-only")
+            .help("Read-only")
+        }
+        if row.source == "override" { badge("Override", "Changed from the default") }
+        if pending == .reset { badge("Reset staged", "Goes back to the default when applied") } else if pending != nil {
+          badge("Changed", "Not applied yet")
+        }
+      }
+      if !row.help.isEmpty {
+        Text(row.help).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+      }
+    }
+  }
+
+  @ViewBuilder private var actions: some View {
+    if pending != nil {
+      Button("Undo") { model.unstage(row.settingId) }
+        .accessibilityLabel("Undo the change to \(row.label)")
+    } else if row.source == "override" && !readOnly {
+      Button("Reset") { model.stageReset(row.settingId, shared: shared) }
+        .accessibilityLabel("Reset \(row.label)")
+    }
+  }
+
   @ViewBuilder private var control: some View {
+    // The compound editors label each of their own controls.
+    switch row.widget {
+    case "seats": SeatsEditor(row: row, value: text.wrappedValue, stage: { text.wrappedValue = $0 })
+    case "lines": LinesEditor(row: row, value: text.wrappedValue, stage: { text.wrappedValue = $0 })
+    default: simple.accessibilityLabel(row.label)
+    }
+  }
+
+  @ViewBuilder private var simple: some View {
     switch row.type {
     case _ where !row.widget.isEmpty:
-      // shortcut: seats and lines show their value read-only until Task 7 adds their editors.
+      // A widget this app has no editor for yet shows its value read-only.
       Text(row.value ?? "").font(.body.monospaced()).foregroundStyle(.secondary).textSelection(.enabled)
         .frame(maxWidth: 280, alignment: .trailing)
     case "bool":
@@ -68,9 +99,9 @@ struct SettingRowView: View {
       }
       .labelsHidden().fixedSize()
     case "int":
-      TextField(row.label, text: text).labelsHidden().multilineTextAlignment(.trailing).frame(width: 80)
+      TextField(row.label, text: text).labelsHidden().textFieldStyle(.roundedBorder).multilineTextAlignment(.trailing).frame(width: 80)
     default:
-      TextField(row.label, text: text).labelsHidden().frame(width: 280)
+      TextField(row.label, text: text).labelsHidden().textFieldStyle(.roundedBorder).frame(width: 280)
     }
   }
 

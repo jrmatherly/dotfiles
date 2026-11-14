@@ -1,0 +1,36 @@
+#!/bin/bash
+#
+# Render the menu bar app's windows to PNGs, in light and dark, for review.
+#
+# - Render them into `.shots/` at the top of the clone:
+#
+# `app-shots`
+#
+# - Render them into another folder:
+#
+# `app-shots {{path/to/folder}}`
+#
+# ---
+# Runs the app's ShotsTests suite, which opens each window inside the test
+# process with fake `rotm` output from the test fixtures, so nothing runs
+# against the real home. The suite is skipped unless UI_SHOTS_DIR is set.
+# `pnpm shots` runs this.
+#
+# License: MIT
+
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/../.." && pwd -P)
+dir=${1:-$root/.shots}
+mkdir -p "$dir"
+dir=$(cd "$dir" && pwd -P)
+
+# The app's SwiftUI macros need Xcode's compiler plugin, as in bin/lib/check
+xcode=/Applications/Xcode.app/Contents/Developer
+developer=${DEVELOPER_DIR:-$(xcode-select -p 2> /dev/null || true)}
+if [[ -z $developer || $developer == */CommandLineTools ]] && [ -d "$xcode" ]; then
+  export DEVELOPER_DIR=$xcode
+fi
+
+UI_SHOTS_DIR=$dir swift test --package-path "$root/app" --filter Shots
+echo "app-shots: wrote $(find "$dir" -maxdepth 1 -name '*.png' | wc -l | tr -d ' ') images to $dir"

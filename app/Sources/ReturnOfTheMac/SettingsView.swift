@@ -10,13 +10,19 @@ struct SettingsView: View {
   @State private var shared = false
   @State private var reviewing = false
 
+  init(model: SettingsModel, state: AppState, section: String? = nil) {
+    self.model = model
+    self.state = state
+    _section = State(initialValue: section)
+  }
+
   private var profileActive: Bool { (state.status?.profile.active ?? "default") != "default" }
   private var writeShared: Bool { shared && profileActive }
   private var shown: String? { section.flatMap { model.sections.contains($0) ? $0 : nil } ?? model.sections.first }
 
   var body: some View {
     NavigationSplitView {
-      List(model.sections, id: \.self, selection: $section) { Text($0) }
+      List(model.sections, id: \.self, selection: Binding(get: { shown }, set: { section = $0 })) { Text($0) }
         .navigationSplitViewColumnWidth(min: 150, ideal: 180)
     } detail: {
       detail
