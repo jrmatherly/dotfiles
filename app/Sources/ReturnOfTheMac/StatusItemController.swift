@@ -12,6 +12,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
   private let menu = NSMenu()
   private var timer: Timer?
   private var settingsWindow: SettingsWindowController?
+  private let console = ConsoleWindowController()
 
   init(state: AppState) {
     self.state = state
@@ -40,6 +41,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     guard state.tool == .ready, let runner = state.runner else { return popMenu() }
     if settingsWindow == nil { settingsWindow = SettingsWindowController(state: state, runner: runner) }
     settingsWindow?.show()
+  }
+
+  /// What Quit asks while something runs, nil when nothing does.
+  var quitQuestion: (message: String, detail: String)? {
+    if let session = console.running { return ("Stop \(session.title) and quit?", "Quitting stops the command.") }
+    return state.busy.map { ("Quit while a command is running?", $0) }
   }
 
   func menuWillOpen(_ menu: NSMenu) {
@@ -117,7 +124,25 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     case "settings": showSettings()
     case "launchAtLogin": toggleLaunchAtLogin()
     case "quit": NSApp.terminate(nil)
-    default: break
+    default:
+      if let command = ConsoleCommand.named(id) { runConsole(command) }
+    }
+  }
+
+  private func runConsole(_ command: ConsoleCommand) {
+    guard !state.blocked, confirm(command.question, "\(command.commandLine) in a console window", command.button),
+      !state.blocked
+    else { return }
+    let home = FileManager.default.homeDirectoryForCurrentUser
+    let session = ConsoleSession(
+      title: command.title, command: command.command(home: home), environment: ConsoleCommand.environment(home: home),
+      logDirectory: home.appendingPathComponent("Library/Logs/returnofthemac"))
+    // The settings window reloads itself when sessionRunning clears (SettingsWindowController.watchActions).
+    state.sessionRunning = true
+    console.run(session) { [weak self] in
+      guard let self else { return }
+      self.state.sessionRunning = false
+      Task { await self.state.refresh(recheckUpdates: true) }
     }
   }
 

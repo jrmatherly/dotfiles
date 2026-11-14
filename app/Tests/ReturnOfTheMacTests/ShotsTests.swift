@@ -63,6 +63,35 @@ private func shoot(_ name: String, _ open: () async throws -> NSWindow) async th
   }
 }
 
+/// The console running a temp script, never `rotm`, once `ready` holds.
+@MainActor
+private func consoleWindow(_ body: String, sessions: inout [ConsoleSession], ready: (ConsoleSession) -> Bool) async throws
+  -> NSWindow
+{
+  let dir = FileManager.default.temporaryDirectory.appendingPathComponent("rotm-shots-\(UUID().uuidString)")
+  try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+  let script = dir.appendingPathComponent("update")
+  try "#!/bin/bash\n\(body)\n".write(to: script, atomically: true, encoding: .utf8)
+  try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+  let session = ConsoleSession(
+    title: "Update", command: [script.path], environment: ["TERM": "dumb"], logDirectory: dir.appendingPathComponent("logs"))
+  sessions.append(session)
+  let controller = ConsoleWindowController()
+  controller.run(session) {}
+  let deadline = Date().addingTimeInterval(20)
+  while !ready(session), Date() < deadline { try await Task.sleep(nanoseconds: 20_000_000) }
+  #expect(ready(session), "the script reached the state the shot is of")
+  return controller.window
+}
+
+private let updateOutput = """
+  echo "Already on 'stable'"
+  echo "Your branch is up to date with 'origin/stable'."
+  echo 'Updating 2 packages with mise bootstrap'
+  for n in 1 2 3 4 5 6 7 8 9 10 11 12; do echo "  [ok]  ~/.config/tool-$n -> ~/dotfiles/tilde/.config/tool-$n"; done
+  echo 'A long line that a narrow window has to wrap rather than clip, so nothing past the right edge is lost from view.'
+  """
+
 private func editableFields(in view: NSView) -> [NSTextField] {
   let mine = (view as? NSTextField).map { $0.isEditable ? [$0] : [] } ?? []
   return mine + view.subviews.flatMap(editableFields)
@@ -93,6 +122,26 @@ private func editableFields(in view: NSView) -> [NSTextField] {
     model.stage("jstack.arena_runners", value: "claude-fable-5-2 medium, opus medium, sonnet high", shared: false)
     #expect(model.staged.count == 2)
     try await shoot("settings-review") { hosting(ReviewSheet(edits: model.staged, blocked: false, apply: {}, cancel: {})) }
+  }
+
+  @Test func console() async throws {
+    var sessions: [ConsoleSession] = []
+    try await shoot("console-running") {
+      try await consoleWindow(updateOutput + "\necho 'Installing packages…'; sleep 60", sessions: &sessions) {
+        $0.text.contains("Installing packages")
+      }
+    }
+    try await shoot("console-password") {
+      try await consoleWindow(
+        updateOutput + "\necho '/!\\ Activate sudo /!\\'; stty -echo; printf 'Password:'; read -r p", sessions: &sessions
+      ) { $0.wantsSecret }
+    }
+    sessions.forEach { $0.stop() }
+    for session in sessions {
+      let deadline = Date().addingTimeInterval(10)
+      while session.phase == .running, Date() < deadline { try await Task.sleep(nanoseconds: 20_000_000) }
+      #expect(session.phase == .stopped)
+    }
   }
 
   @Test func noFieldTakesFocusOnOpen() async throws {

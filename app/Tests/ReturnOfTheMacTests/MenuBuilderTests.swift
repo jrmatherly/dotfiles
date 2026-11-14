@@ -32,30 +32,42 @@ private func profiles(active: String, enabled: Bool = true) -> MenuEntry {
     enabled: true)
 }
 
-private let more = MenuEntry(
-  title: "More",
-  kind: .submenu([
-    .action("Run Setup Again…", "runSetup", enabled: false),
-    .action("Apply macOS Preferences…", "applyMacOS", enabled: false),
-    .separator,
-    MenuEntry(title: "Launch at Login", kind: .toggle(false, "launchAtLogin"), enabled: true),
-  ]),
-  enabled: true)
+private func more(open: Bool) -> MenuEntry {
+  MenuEntry(
+    title: "More",
+    kind: .submenu([
+      .action("Run Setup Again…", "runSetup", enabled: open),
+      .action("Apply macOS Preferences…", "applyMacOS", enabled: open),
+      .separator,
+      MenuEntry(title: "Launch at Login", kind: .toggle(false, "launchAtLogin"), enabled: true),
+    ]),
+    enabled: true)
+}
 
 private func menu(profile: MenuEntry, sync: [MenuEntry], setup: String, open: Bool = true) -> [MenuEntry] {
   [profile, .separator] + sync + [
     .separator,
     .info(setup),
-    .action("Update…", "update", enabled: false),
+    .action("Update…", "update", enabled: open),
     .separator,
-    more,
+    more(open: open),
     .action("Settings…", "settings", enabled: open),
     .separator,
     .action("Quit", "quit"),
   ]
 }
 
-private let syncOff: [MenuEntry] = [.info("Sync: off"), .action("Turn On Sync…", "turnOnSync", enabled: false)]
+private let syncOff: [MenuEntry] = [.info("Sync: off"), .action("Turn On Sync…", "turnOnSync")]
+
+private func actions(_ entries: [MenuEntry]) -> Set<String> {
+  Set(entries.flatMap { entry -> [String] in
+    switch entry.kind {
+    case .action(let id): return [id]
+    case .submenu(let sub): return Array(actions(sub))
+    default: return []
+    }
+  })
+}
 
 @MainActor
 struct MenuBuilderTests {
@@ -109,6 +121,19 @@ struct MenuBuilderTests {
     await s.syncNow()
     let entries = MenuBuilder.entries(for: s, launchAtLogin: false)
     #expect(Array(entries.prefix(3)) == [.info("Synced."), .action("Dismiss", "dismiss"), .separator])
+  }
+
+  @Test func everyConsoleCommandHasItsEntry() async {
+    let ids = actions(MenuBuilder.entries(for: await state(), launchAtLogin: false))
+    #expect(Set(ConsoleCommand.all.map(\.action)).isSubset(of: ids))
+  }
+
+  @Test func blockedDisablesTurnOnSync() async {
+    let s = await state()
+    s.sessionRunning = true
+    let entries = MenuBuilder.entries(for: s, launchAtLogin: false)
+    #expect(entries.contains(.action("Turn On Sync…", "turnOnSync", enabled: false)))
+    #expect(entries.contains(.action("Update…", "update", enabled: false)))
   }
 
   @Test func theAttentionSymbolExists() {

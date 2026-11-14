@@ -16,8 +16,6 @@ extension MenuEntry {
 }
 
 /// The whole menu as data, so tests compare it and the controller only draws it.
-/// The entries whose commands later tasks add (the console) are listed now
-/// and stay disabled until those land.
 @MainActor enum MenuBuilder {
   static let profilePrefix = "useProfile:"
 
@@ -54,16 +52,16 @@ extension MenuEntry {
       if sync.conflicts != nil { title += ", a conflict to settle" }
       menu += [.info(title), .action("Sync Now", "syncNow", enabled: open)]
     } else {
-      menu += [.info("Sync: off"), .action("Turn On Sync…", "turnOnSync", enabled: false)]
+      menu += [.info("Sync: off"), .action("Turn On Sync…", "turnOnSync", enabled: open)]
     }
 
-    menu += [.separator, .info(setupLine(status: status, check: state.updateCheck)), .action("Update…", "update", enabled: false), .separator]
+    menu += [.separator, .info(setupLine(status: status, check: state.updateCheck)), .action("Update…", "update", enabled: open), .separator]
     menu.append(
       MenuEntry(
         title: "More",
         kind: .submenu([
-          .action("Run Setup Again…", "runSetup", enabled: false),
-          .action("Apply macOS Preferences…", "applyMacOS", enabled: false),
+          .action("Run Setup Again…", "runSetup", enabled: open),
+          .action("Apply macOS Preferences…", "applyMacOS", enabled: open),
           .separator,
           MenuEntry(title: "Launch at Login", kind: .toggle(launchAtLogin, "launchAtLogin"), enabled: true),
         ]),

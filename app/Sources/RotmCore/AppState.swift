@@ -32,7 +32,8 @@ import Observation
     self.now = now
   }
 
-  public func refresh() async {
+  /// `recheckUpdates` runs `update --check` now instead of at most hourly, as after the console's update.
+  public func refresh(recheckUpdates: Bool = false) async {
     if runner == nil {
       guard let tool = locate() else {
         self.tool = .missing(Self.notFound)
@@ -54,7 +55,7 @@ import Observation
       }
       return
     }
-    if let checkedAt, now().timeIntervalSince(checkedAt) < 3600 { return }
+    if !recheckUpdates, let checkedAt, now().timeIntervalSince(checkedAt) < 3600 { return }
     checkedAt = now()
     // A failed check keeps the last answer: no network is not worth a message.
     if let out = try? await runner.run(["update", "--check", "--json"]), let check = try? Decode.updateCheck(out.stdout) {

@@ -25,6 +25,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     statusItem = controller
   }
 
+  // A command under `script` dies with the app, so quitting mid-run stops it.
+  func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    guard let question = statusItem?.quitQuestion else { return .terminateNow }
+    let alert = NSAlert()
+    alert.messageText = question.message
+    alert.informativeText = question.detail
+    alert.addButton(withTitle: "Quit")
+    alert.addButton(withTitle: "Cancel")
+    NSApp.activate(ignoringOtherApps: true)
+    return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+  }
+
   // A second launch that showed nothing would read as a failed one.
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
     statusItem?.showSettings()

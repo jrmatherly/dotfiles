@@ -146,6 +146,21 @@ struct AppStateTests {
     #expect(runner.calls.filter { $0 == statusArgs }.count == 3)
   }
 
+  // After the console's update, "2 updates waiting" must not stand for the rest of the hour.
+  @Test func aRecheckRunsTheUpdateCheckWithinTheHour() async {
+    let runner = FakeRunner()
+    stubClean(runner)
+    let clock = Clock()
+    let state = makeState(runner, clock: clock)
+    await state.refresh()
+    #expect(state.updateCheck?.behind == 2)
+    runner.stub(checkArgs, .success(CommandOutput(stdout: #"{"mode":"installed","branch":"stable","behind":0}"#, stderr: "")))
+    clock.advance(minutes: 1)
+    await state.refresh(recheckUpdates: true)
+    #expect(runner.calls.filter { $0 == checkArgs }.count == 2)
+    #expect(state.updateCheck?.behind == 0)
+  }
+
   @Test func needsAttention() async {
     let clean = FakeRunner()
     stubClean(clean, check: #"{"mode":"installed","branch":"stable","behind":0}"#)
