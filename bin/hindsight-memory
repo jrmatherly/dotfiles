@@ -51,7 +51,7 @@
 set -euo pipefail
 
 # Bumping either pin is a reviewed commit; the daemon's versions live in hindsight/pyproject.toml
-CODING_AGENTS_VERSION=0.8.3
+CODING_AGENTS_VERSION=0.8.6
 repo=$(cd "$(dirname "$0")/.." && pwd -P)
 EMBED_VERSION=$(sed -n 's/.*"hindsight-embed==\([^"]*\)".*/\1/p' "$repo/hindsight/pyproject.toml" 2> /dev/null) || EMBED_VERSION=''
 
