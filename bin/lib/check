@@ -83,6 +83,28 @@ if command -v uv > /dev/null; then
 else
   echo "check: uv not found, skipping the dotfiles-settings UI tests" >&2
 fi
+# The menu bar app (app/). Its SwiftUI macros' compiler plugin ships with
+# Xcode, not the Command Line Tools, so build through Xcode when xcode-select
+# points at the Tools. swift test reports on stderr even when it passes, so its
+# output is kept only when it fails
+xcode=/Applications/Xcode.app/Contents/Developer
+developer=${DEVELOPER_DIR:-$(xcode-select -p 2> /dev/null || true)}
+if [[ -z $developer || $developer == */CommandLineTools ]] && [ -d "$xcode" ]; then
+  export DEVELOPER_DIR=$xcode
+  developer=$xcode
+fi
+app_tests() {
+  local out
+  out=$(swift test --package-path app 2>&1) || {
+    grep -vE 'ld: warning|^\s*$' <<< "$out" | tail -n 60
+    return 1
+  }
+}
+if command -v swift > /dev/null && [[ -n $developer && $developer != */CommandLineTools ]]; then
+  job app_tests
+else
+  echo "check: Xcode not found, skipping the app tests" >&2
+fi
 # Lint the GitHub Actions workflows (expressions, runner labels, embedded shell)
 if command -v actionlint > /dev/null; then
   job actionlint .github/workflows/*.yml

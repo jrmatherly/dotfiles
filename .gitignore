@@ -71,3 +71,8 @@ vscode/User/.render-check-*.json
 # dotfiles-settings (settings/): uv's environment and build output. uv.lock is tracked.
 settings/.venv/
 settings/dist/
+
+# The menu bar app's SwiftPM build, its release builds, and the rendered windows (pnpm shots)
+app/.build/
+app/dist/
+.shots/

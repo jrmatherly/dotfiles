@@ -42,9 +42,10 @@ tilde/            mirrors $HOME (dotfiles, .config/*, .codex, .ssh/config)
 zsh/              sourced by tilde/.zshrc
 bin/              CLI scripts on PATH (see bin/CLAUDE.md); bin/lib/ helpers also on PATH
 settings/         uv package dotfiles-settings: registry.toml + adapters, CLI, Textual UI (bin/dotfiles-settings)
+app/              Swift menu bar app over `rotm settings`
 docs/             alias index + docs/gui/<app>.md cheat sheets (rendered by `help`); docs/superpowers/plans/ = open implementation plans (not applied yet); move each to plans/completed/ once fully implemented; docs/superpowers/specs/ = the assessments and designs those plans argue from; a spec moves to specs/completed/ when every plan built on it is completed (a spec with no plan, when its "built" or decision section records the work as shipped)
 vscode/User/      whole dir symlinked to ~/Library/Application Support/Code/User
-.github/          workflows: check.yml = `pnpm check` on macOS for PRs and pushes to main; fresh-install.yml = a manual run of `./setup.sh` from a clone and of the install line
+.github/          workflows: check.yml = `pnpm check` for PRs and pushes to main; fresh-install.yml = a manual install run
 agents/           instructions.md → Amp/Codex AGENTS.md; catalog/ = generator for `bin/claude-catalog`
 obsidian/ firefox/ mole/ colors/ etc.     app config + repo-owned themes
 icons/                                     vendored binaries, don't edit
