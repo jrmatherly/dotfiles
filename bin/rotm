@@ -10,6 +10,10 @@
 #
 # `rotm update {{-y}}`
 #
+# - Say whether an update is waiting, installing nothing:
+#
+# `rotm update --check {{--json}}`
+#
 # - See and change the settings, as `dotfiles-settings` does:
 #
 # `rotm settings {{list}}`
@@ -29,7 +33,8 @@
 #
 # ---
 # `update` works only on an installed copy (mise's checkout, see
-# bin/lib/rotm-mode): a development clone is pulled by hand. It stops before
+# bin/lib/rotm-mode): a development clone is pulled by hand, and `--check`
+# reports it as one. It stops before
 # setup when mise cannot fast-forward the copy, and lists the tracked files
 # that differ in it.
 #
@@ -44,23 +49,53 @@ usage() {
 }
 
 update() {
-  local branch url arg rc yes=""
-  if [ "$("$(dirname "$0")/lib/rotm-mode" "$DOTFILES")" = clone ]; then
-    echo "rotm: this is a development clone. Pull it yourself, then run ./setup.sh" >&2
-    exit 1
-  fi
-  if ! branch=$(git -C "$DOTFILES" symbolic-ref -q --short HEAD); then
-    echo "rotm: the installed copy is not on a branch (git -C $DOTFILES status shows where it is)" >&2
-    exit 1
-  fi
-  # mise refuses a URL that differs from the checkout's origin, so it is read
-  url=$(git -C "$DOTFILES" remote get-url origin)
+  local branch url arg rc mode behind err yes="" check="" json=""
   for arg in "$@"; do
     case "$arg" in
       --) break ;;
       -y | --yes) yes=--yes ;;
+      --check) check=1 ;;
+      --json) json=1 ;;
     esac
   done
+  mode=$("$(dirname "$0")/lib/rotm-mode" "$DOTFILES")
+  branch=$(git -C "$DOTFILES" symbolic-ref -q --short HEAD) || branch=""
+  if [ "$mode" = clone ]; then
+    if [ -z "$check" ]; then
+      echo "rotm: this is a development clone. Pull it yourself, then run ./setup.sh" >&2
+      exit 1
+    elif [ -n "$json" ]; then
+      [ -n "$branch" ] && branch="\"$branch\"" || branch=null
+      echo "{\"mode\":\"clone\",\"branch\":$branch,\"behind\":null}"
+    else
+      echo "This is a development clone. Pull it yourself."
+    fi
+    exit 0
+  fi
+  if [ -z "$branch" ]; then
+    echo "rotm: the installed copy is not on a branch (git -C $DOTFILES status shows where it is)" >&2
+    exit 1
+  fi
+  if [ -n "$check" ]; then
+    # FETCH_HEAD needs no refspec: how mise sets up the copy's remote is not known
+    if ! err=$(git -C "$DOTFILES" fetch --quiet origin "$branch" 2>&1); then
+      echo "rotm: could not fetch $branch from origin: ${err%%$'\n'*}" >&2
+      exit 1
+    fi
+    behind=$(git -C "$DOTFILES" rev-list --count HEAD..FETCH_HEAD)
+    if [ -n "$json" ]; then
+      echo "{\"mode\":\"installed\",\"branch\":\"$branch\",\"behind\":$behind}"
+    elif [ "$behind" = 0 ]; then
+      echo "Up to date."
+    elif [ "$behind" = 1 ]; then
+      echo "1 update is waiting. Run rotm update."
+    else
+      echo "$behind updates are waiting. Run rotm update."
+    fi
+    exit 0
+  fi
+  # mise refuses a URL that differs from the checkout's origin, so it is read
+  url=$(git -C "$DOTFILES" remote get-url origin)
   cd "$HOME"
   # --only final-hook: fetch and link, apply nothing (probes 11 and 13). setup.sh does the installing.
   mise bootstrap --from "$url?ref=$branch" --config-dir tilde/.config/mise --update --only final-hook ${yes:+"$yes"} || {

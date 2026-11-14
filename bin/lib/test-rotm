@@ -77,6 +77,24 @@ check "update without -y does not pass --yes to mise" "! grep -q -- '--yes' '$tm
 check "update -y passes --yes to mise and -y to setup.sh" "rotm update -y && grep -q -- '--only final-hook --yes' '$tmp/log' && grep -qx 'setup -y' '$tmp/log'"
 : > "$tmp/log"
 check "a -y after -- is for mise bootstrap, not this update" "rotm update -- -y && ! grep -q -- '--yes' '$tmp/log'"
+git -C "$fix" push -q origin stable
+git clone -q -b stable "$origin" "$tmp/up"
+push_one() { git -C "$tmp/up" -c user.name=t -c user.email=t@example.com commit -q --allow-empty -m "$1" && git -C "$tmp/up" push -q origin stable; }
+check "--check on a copy level with origin" "[ \"\$(rotm update --check --json)\" = '{\"mode\":\"installed\",\"branch\":\"stable\",\"behind\":0}' ] && [ \"\$(rotm update --check)\" = 'Up to date.' ]"
+push_one one
+check "--check one commit behind" "[ \"\$(rotm update --check)\" = '1 update is waiting. Run rotm update.' ]"
+push_one two
+head=$(git -C "$fix" rev-parse HEAD)
+status=$(git -C "$fix" status --short)
+: > "$tmp/log"
+check "--check two commits behind" "[ \"\$(rotm update --check --json)\" = '{\"mode\":\"installed\",\"branch\":\"stable\",\"behind\":2}' ] && [ \"\$(rotm update --check)\" = '2 updates are waiting. Run rotm update.' ]"
+check "--check leaves HEAD and the tree alone" "[ \"\$(git -C '$fix' rev-parse HEAD)\" = '$head' ] && [ \"\$(git -C '$fix' status --short)\" = '$status' ]"
+check "--check runs no mise and no setup.sh" "[ ! -s '$tmp/log' ]"
+git -C "$fix" remote set-url origin "$tmp/nowhere.git"
+check "--check exits 1 with one line when the fetch fails" "rotm update --check 2> '$tmp/err'; [ \$? -eq 1 ] && [ \"\$(wc -l < '$tmp/err')\" -eq 1 ]"
+git -C "$fix" remote set-url origin "$origin"
+git -C "$tmp/dev" init -q -b main
+check "--check in a dev clone exits 0" "[ \"\$(bash '$tmp/dev/bin/rotm' update --check --json)\" = '{\"mode\":\"clone\",\"branch\":\"main\",\"behind\":null}' ] && [ \"\$(bash '$tmp/dev/bin/rotm' update --check)\" = 'This is a development clone. Pull it yourself.' ]"
 : > "$tmp/log"
 echo edit >> "$fix/setup.sh"
 check "a refused update exits with mise's code" "STUB_MISE_RC=1 rotm update > '$tmp/out' 2>&1; [ \$? -eq 1 ]"
