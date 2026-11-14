@@ -27,6 +27,11 @@ These outrank everything below them. The design sections and phase briefs were w
 13. (2026-11-12) A user's "own changes" are the ones they make through `rotm settings` (the browser UI, the terminal UI or the command line) and their opt-outs. Sync exists so that a new Mac loads them and the user does not configure it again. Every setting the tool can change is in scope, whichever file holds it.
 14. (2026-11-12) Where mise can hold a setting, mise holds it, so the configuration stays standard. Where it cannot, we build what is needed so that setting still syncs through the same private repository.
 15. (2026-11-12) The owner's Mac is moved to `stable` once, by hand, after the last phase (P7). Until then the owner is the only user, nothing is promoted and no VM round is owed.
+16. (2026-11-13) The menu bar app's code lives in this repository, under `app/`.
+17. (2026-11-13) The app has a native settings window for every setting. The end goal is to remove the browser variant (`rotm settings serve`) once that window covers it, leaving the native window and the command line.
+18. (2026-11-13) The app updates itself through mise, by upgrading its own cask, since mise installs the casks with no `brew`. It tells the user an update exists. The user chooses when to install it, and nothing installs by itself.
+19. (2026-11-13) The steps that need a terminal today (`rotm update`, `rotm install`, the GitHub sign-in) run inside the app, with no Terminal window. The owner runs the VM probes that prove it, from a step-by-step runbook handed over at the moment it is needed, not earlier.
+20. (2026-11-13) P5 is one plan file.
 
 ## Where we are
 
@@ -293,7 +298,8 @@ Also measured that day: with `HOME` and every `MISE_*_DIR` pointed at a scratch 
 - `docs/superpowers/plans/completed/2026-11-12-p2-modules-and-opt-outs.md` (done 2026-11-12): twelve modules as always-loaded `conf.d/60-rotm-<name>.toml` files, a helper that derives mise's `ignored_config_paths` line from what is switched off, a switch per module in `dotfiles-settings`, and `--without` on the install line. The owner split P2 that day, and withdrew the split-off half (P2b) the same evening.
 - `docs/superpowers/plans/completed/2026-11-12-p3-sign-in-and-sync.md` (done 2026-11-13): a user's folder outside the checkout that mise's history tracks, mise's override file for every setting mise can hold, `tools.toml` for the rest, and `rotm settings sync on|off|now|status|apply`. Its proof in the VM against a real private repository is still owed (its Task 9, Step 6).
 - `docs/superpowers/plans/completed/2026-11-13-p4-profiles.md` (done 2026-11-13): a profile as a config environment named `rotm-p-<name>` with its own `config.<env>.override.toml`, a module list and a `tools.toml` per profile, and `rotm settings profile list|use|new` with `--shared` on `set` and `reset`. Its first three tasks fixed the shell cache reading values mise quotes from 2026.11.6, raised the mise floor to 2026.11.8 and moved the macOS preferences to `[bootstrap.settings.macos]`. Its measurements are in `2026-11-13-p4-probe/` beside this file. Its proof in the VM is still owed (its Task 11, Step 3).
-- P5 to P7 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
+- `docs/superpowers/plans/2026-11-13-p5-menu-bar-app.md` (written 2026-11-13, not started): the menu bar app as a Swift package in `app/`, the JSON it needs from `rotm settings`, a console for update, setup and the sign-in, a native settings window, a `menubar` module with a cask in the owner's tap, and an update through mise. Its Task 0 is a set of probes the owner runs in the VM.
+- P6 and P7 are not written yet. Each gets its own plan file when the one before it has landed. The briefs below are what each plan must be written from.
 
 ## Phase briefs
 
