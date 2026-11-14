@@ -8,7 +8,7 @@
 
 **Tech Stack:** bash (`bin/hindsight-memory`, `bin/sysup`, their `bin/lib/test-*` self-checks), uv 0.13, jq.
 
-**Spec:** `docs/superpowers/specs/2026-11-13-hindsight-daemon-environment-and-uv-cache.md`. Read its Goal and the owner's decisions 1 to 6 first. Task 1 builds decision 3 (A), Task 2 builds decisions 1 and 4 (the prune step and B), Task 4 is decision 5 (C), and decision 6 (D) is already carried out.
+**Spec:** `docs/superpowers/specs/completed/2026-11-13-hindsight-daemon-environment-and-uv-cache.md`. Read its Goal and the owner's decisions 1 to 6 first. Task 1 builds decision 3 (A), Task 2 builds decisions 1 and 4 (the prune step and B), Task 4 is decision 5 (C), and decision 6 (D) is already carried out.
 
 ## Global Constraints
 
@@ -71,7 +71,7 @@ Renovate is active here (`config:recommended`, PR 19) and would open a PR for ea
 
 ```json
 {
-  "description": "The Hindsight daemon moves with its hook package, behind a database backup: docs/superpowers/specs/2026-11-13-hindsight-daemon-environment-and-uv-cache.md",
+  "description": "The Hindsight daemon moves with its hook package, behind a database backup: docs/superpowers/specs/completed/2026-11-13-hindsight-daemon-environment-and-uv-cache.md",
   "matchPackageNames": ["hindsight-embed", "hindsight-api"],
   "enabled": false
 }
@@ -286,7 +286,7 @@ Done on 2026-11-14: the owner said yes and `~/.pg0/instances/hindsight-embed-` w
 Spec: add the cold-start proof and the prune's freed size as "Verified facts" rows and remove the matching "Not verified" lines. Memory `uv-cache-prune-in-sysup`: replace the "interpretation, not measured" paragraph with the measured cause and the freed size, and drop the constraints the code now carries.
 
 ```bash
-git add docs/superpowers/specs/2026-11-13-hindsight-daemon-environment-and-uv-cache.md
+git add docs/superpowers/specs/completed/2026-11-13-hindsight-daemon-environment-and-uv-cache.md
 git commit -m "Record the Hindsight daemon move and the first measured prune"
 ```
 

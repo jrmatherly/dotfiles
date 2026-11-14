@@ -1,6 +1,6 @@
 # Hindsight's daemon environment and the uv cache
 
-Findings from 2026-11-13 on why `~/.cache/uv` grows, what a prune can and cannot do, and whether Hindsight is installed and configured the way its vendor intends as of November 2026. The plan built on it is `docs/superpowers/plans/2026-11-13-hindsight-daemon-environment-and-uv-cache.md`. It extends `docs/superpowers/specs/completed/2026-10-24-hindsight-memory.md`.
+Findings from 2026-11-13 on why `~/.cache/uv` grows, what a prune can and cannot do, and whether Hindsight is installed and configured the way its vendor intends as of November 2026. The plan built on it is `docs/superpowers/plans/completed/2026-11-13-hindsight-daemon-environment-and-uv-cache.md`. It extends `docs/superpowers/specs/completed/2026-10-24-hindsight-memory.md`.
 
 ## Goal
 
