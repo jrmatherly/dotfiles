@@ -1,7 +1,7 @@
 {
   "name": "dotfiles",
   "version": "0.0.1",
-  "packageManager": "pnpm@12.17.0",
+  "packageManager": "pnpm@12.18.0",
   "type": "module",
   "description": "My personal dotfiles for configuring macOS with Zsh and mise.",
   "private": true,
@@ -19,7 +19,7 @@
     "avif": "^0.6.0"
   },
   "devDependencies": {
-    "@ampcode/plugin": "0.0.0-20261019001835-g91990d5",
+    "@ampcode/plugin": "0.0.0-20261102001236-gf10f41a",
     "prettier": "^3.9.9",
     "prettier-plugin-sh": "^0.20.0"
   }
