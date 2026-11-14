@@ -239,17 +239,17 @@ This task changes the live machine. Start it only on the owner's word, and give 
 4. The lock in `sysup`'s before/after checksum and the `timeout 30` bound had no assertion. Both have one now.
 5. `docs/privacy.md` said the daemon runs from the environment without saying when.
 
-- [ ] **Step 1: Record the before state**
+- [x] **Step 1: Record the before state**
 
 Run: `curl -sf http://127.0.0.1:9077/v1/default/banks | jq '.banks | length'`, `du -sh ~/.pg0`, `pgrep -fl 'uvx hindsight-api'`.
 Expected: a bank count (20 or more on 2026-11-13), about 1.2G, and one `uv tool uvx hindsight-api@1.1.0` line.
 
-- [ ] **Step 2: Migrate**
+- [x] **Step 2: Migrate**
 
 Run: `hindsight-memory upgrade`
 Expected: `daemon environment updated`, exit 0, `UV_OFFLINE=1 uv run --directory ~/.hindsight/daemon-env python -c ''` exits 0 (the hook's `uv run` has no `--frozen`; this runs the same lock check with the network off and does not depend on the daemon, which `upgrade` has just stopped), `lsof -nP -iTCP:8888 -sTCP:LISTEN` prints nothing, `jq -r .embedPackagePath ~/.hindsight/coding-agent.json` prints `/Users/<you>/.hindsight/daemon-env`, and `pgrep -fl 'uvx hindsight-api'` prints nothing (the old daemon stopped).
 
-- [ ] **Step 3: Prove the hook's cold start**
+- [x] **Step 3: Prove the hook's cold start**
 
 Open a new Claude Code session in `~/dev/dotfiles` and send one prompt. Then run: `pgrep -fl hindsight-api`, the Step 1 bank count, and `tail -3 ~/.hindsight/coding-agents-logs/plugin.log`.
 Expected: one process whose path starts with `~/.hindsight/daemon-env/.venv/bin/python`, no `uv tool uvx hindsight-api` process, the same bank count, the 🧠 banner in the session, and no error in the log tail. If the daemon does not start, go back in this order, because every `hindsight-memory upgrade` (so every `sysup`) sets the key again: `git revert <Task 1's commit>` (Task 2 also edited the Hindsight bullet's neighbour in `docs/updating.md`; keep Task 2's bullet if the revert conflicts there), `pnpm check`, push, then `jq 'del(.embedPackagePath)' ~/.hindsight/coding-agent.json` through a temp file. Report the log tail and stop.
@@ -272,7 +272,7 @@ df -k /System/Volumes/Data | awk 'NR==2{print $4}'
 
 Expected: the prune prints `Removed N files (X)`. The difference of the two `df` numbers, in KiB, is the first real measurement of what a prune frees here. If it times out, `pgrep -fl 'uv tool uvx'` names the process still holding the lock.
 
-- [ ] **Step 5: Check memory defence is applied**
+- [x] **Step 5: Check memory defence is applied**
 
 Run: `curl -sf "http://127.0.0.1:9077/v1/default/banks/coding-agent::dotfiles" | jq '.. | .memory_defense? // empty'` (if that path 404s, list the routes with `curl -sf http://127.0.0.1:9077/openapi.json | jq -r '.paths | keys[]' | grep -i bank` and read the bank's config route).
 Expected: `enabled: true` with the `sensitive_data` redact rule. If it is absent, record that in the spec as a finding; do not change the config in this task.
