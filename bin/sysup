@@ -510,6 +510,29 @@ if command -v uv > /dev/null; then
   else
     status notice uv "unrecognized output, see the log"
   fi
+  # The timeout is 10 because uvx-launched MCP servers hold the cache lock for
+  # as long as their session is open, and uv's default wait is 300 s
+  step "uv cache"
+  uv_cache=$(uv cache dir 2> /dev/null) || uv_cache=''
+  if [ -z "$uv_cache" ]; then
+    status fail "uv cache" "run: uv cache dir"
+  else
+    uv_before=$({ find "$uv_cache/archive-v0" -mindepth 1 -maxdepth 1 2> /dev/null || true; } | wc -l | tr -d ' ')
+    if UV_LOCK_TIMEOUT=10 capture uv cache prune; then
+      uv_after=$({ find "$uv_cache/archive-v0" -mindepth 1 -maxdepth 1 2> /dev/null || true; } | wc -l | tr -d ' ')
+      if [ "$uv_after" -lt "$uv_before" ]; then
+        status changed "uv cache" "pruned $((uv_before - uv_after)) entries"
+      else
+        status ok "uv cache" "nothing to prune"
+      fi
+    elif [[ $out == *"waiting for"* ]]; then
+      uv_envs=$({ find "$uv_cache/archive-v0" -mindepth 2 -maxdepth 2 -name pyvenv.cfg 2> /dev/null || true; } | wc -l | tr -d ' ')
+      status ok "uv cache" "in use, not pruned ($uv_envs cached environments)"
+    else
+      status fail "uv cache" "run: uv cache prune"
+      show
+    fi
+  fi
   # An upgrade replaces Scrapling's package dir, and with it the marker file
   # that makes `scrapling install` a no-op, so its Chromium is re-checked
   if ! module_off agents Scrapling && command -v scrapling > /dev/null; then
@@ -613,12 +636,12 @@ if command -v claude > /dev/null; then
   if ! module_off agents "Hindsight memory" && [ -f "${HINDSIGHT_CONFIG:-$HOME/.hindsight/coding-agent.json}" ]; then
     step "Hindsight memory"
     # What the installer writes: the hooks in both agents' settings and the
-    # staged runtime. Compared before and after, since its output lists every
+    # staged runtime, plus the daemon environment's lock. Compared before and after, since its output lists every
     # step as done either way
     hindsight_state() {
       {
         jq -c '.hooks' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json" || true
-        cat "$HOME/.codex/hooks.json" "$HOME/.hindsight/coding-agents/package.json" || true
+        cat "$HOME/.codex/hooks.json" "$HOME/.hindsight/coding-agents/package.json" "${HINDSIGHT_DAEMON_ENV:-$HOME/.hindsight/daemon-env}/uv.lock" || true
       } 2> /dev/null | cksum
     }
     hindsight_before=$(hindsight_state)
@@ -630,7 +653,7 @@ if command -v claude > /dev/null; then
       [ -z "$newer" ] || status notice "Hindsight memory" "$newer; bump CODING_AGENTS_VERSION in bin/hindsight-memory"
       [ -z "$warned" ] || status notice "Hindsight memory" "installer: ${warned%%$'\n'*}; see the log"
       if [ "$(hindsight_state)" != "$hindsight_before" ]; then
-        status changed "Hindsight memory" "hooks or runtime updated"
+        status changed "Hindsight memory" "hooks, runtime or daemon environment updated"
       elif [ -z "$newer$warned" ]; then
         status ok "Hindsight memory" "hooks and runtime unchanged"
       fi

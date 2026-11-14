@@ -16,6 +16,7 @@ sysup
 - upgrades mise tools (Node/Python patch releases, CodeGraph, the npm CLIs, the Aspire CLI and flate); a tool mise could not reinstall is a notice
 - updates the stable Rust toolchain (`rustup update`). rustup is the `brew:rustup` package, called by path because it keeps its proxies in `/opt/homebrew/opt/rustup/bin`. A notice follows when `cargo --version` fails in that shell, or when a mise rust toolchain that no config pins shadows it
 - upgrades the uv tools (Serena and Scrapling), then re-runs `scrapling install` so its Chromium matches
+- prunes the uv cache (`uv cache prune`, waiting at most 10 s for the lock) and reports how many cached environments are waiting when open Claude Code sessions keep it busy
 - reinstalls the Iosevka Code font if its upstream zip changed
 - updates Claude Code itself (`claude update`) and reports its version, before the steps below so they run on the new binary
 - reinstalls each tracked agent skill whose source changed since it was installed, for the agents it is listed for (`claude-config restore skills --update`); the skills CLI records a GitHub folder's git SHA or a well-known site's digest, so unchanged skills are left alone, and a skill it can't check is reinstalled every time

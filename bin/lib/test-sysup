@@ -112,12 +112,29 @@ stub rustup 'if [ -e "$STATE/rust-odd" ]; then echo "  stable-aarch64-apple-darw
 elif [ -e "$STATE/rust" ]; then
   echo "  stable-aarch64-apple-darwin updated - rustc 1.99.1 (58cf8f9c3 2026-10-13) (from rustc 1.99.0 (b940084d7 2026-09-28))"
 else echo "  stable-aarch64-apple-darwin unchanged - rustc 1.99.1 (58cf8f9c3 2026-10-13)"; fi'
-stub uv 'if [ -e "$STATE/uv" ]; then
-  echo "Updated serena-agent v0.1.4 -> v0.1.5"; echo " - serena-agent==0.1.4"; echo " + serena-agent==0.1.5"
-  echo "Installed 3 executables: index-project, serena, serena-mcp-server"
-  echo "Modified scrapling environment"; echo " - sse-starlette==3.5.0"; echo " + sse-starlette==3.5.1"
-elif [ -e "$STATE/uv-fails" ]; then echo "error: network down"; exit 1
-else echo "Nothing to upgrade"; fi'
+stub uv 'case "$1 $2" in
+  "tool upgrade") if [ -e "$STATE/uv" ]; then
+      echo "Updated serena-agent v0.1.4 -> v0.1.5"; echo " - serena-agent==0.1.4"; echo " + serena-agent==0.1.5"
+      echo "Installed 3 executables: index-project, serena, serena-mcp-server"
+      echo "Modified scrapling environment"; echo " - sse-starlette==3.5.0"; echo " + sse-starlette==3.5.1"
+    elif [ -e "$STATE/uv-fails" ]; then echo "error: network down"; exit 1
+    else echo "Nothing to upgrade"; fi ;;
+  "cache dir") echo "$HOME/.cache/uv" ;;
+  "cache prune") echo "${UV_LOCK_TIMEOUT:-}" > "$STATE/lock-timeout"
+    if [ -e "$STATE/cache-busy" ]; then
+      echo "Cache is currently in-use, waiting for other uv processes to finish"
+      echo "error: Timeout (${UV_LOCK_TIMEOUT:-300}s) when waiting for lock on $HOME/.cache/uv/.lock"; exit 2
+    elif [ -e "$STATE/cache-fails" ]; then echo "error: Permission denied"; exit 2
+    elif [ -e "$STATE/cache-stale" ]; then rm -rf "$HOME/.cache/uv/archive-v0"/*; fi ;;
+esac'
+# 25 cached tool environments, as uv lays them out under archive-v0
+uv_envs() {
+  local i
+  for i in $(seq 25); do
+    mkdir -p "$HOME/.cache/uv/archive-v0/e$i"
+    : > "$HOME/.cache/uv/archive-v0/e$i/pyvenv.cfg"
+  done
+}
 stub scrapling 'echo "Chromium already installed"'
 stub install-iosevka-code 'echo "Iosevka Code is up to date"'
 stub install-snippetslab-skill '[ ! -e "$STATE/snippetslab" ] || { mkdir -p "$HOME/.agents/skills/snippetslab"; date +%s%N > "$HOME/.agents/skills/snippetslab/SKILL.md"; }'
@@ -214,6 +231,8 @@ check_true "up to date: skills checked, the uncheckable one named" has '^✔ age
 check_true "up to date: REA skill matches" has '^✔ REA skill +matches rea-agents 6\.8\.0$'
 check_true "up to date: Hindsight unchanged" has '^✔ Hindsight memory +hooks and runtime unchanged$'
 check_true "up to date: Rust is ok" has '^✔ Rust +up to date$'
+check_true "cache: nothing to prune is ok" has '^✔ uv cache +nothing to prune$'
+check_true "cache: the wait is bounded" [ "$(cat "$STATE/lock-timeout")" = 10 ]
 check_true "up to date: nothing for mise prune" has '^✔ mise prune +nothing unused$'
 check_true "up to date: no changed, notice or failed line" lacks '^ *[↻●✖]'
 check_true "up to date: one-line summary" has '^Everything up to date\.$'
@@ -236,7 +255,8 @@ check_true "under HOME: the log path is the ~/ form" has '^Logging to ~/dotfiles
 rm -rf "$DOTFILES/logs"
 mkdir -p "$STATE/installs/node/24.0.0" "$STATE/installs/aspire/13.6.0"
 head -c 2048 /dev/zero > "$STATE/installs/node/24.0.0/bin"
-touch "$STATE/settings" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/prune" "$STATE/pull" "$STATE/pkg" "$STATE/mise-newer" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea" "$STATE/catalog-delta"
+touch "$STATE/settings" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/prune" "$STATE/pull" "$STATE/pkg" "$STATE/mise-newer" "$STATE/mise" "$STATE/uv-fails" "$STATE/plugin" "$STATE/config" "$STATE/claude-fails" "$STATE/hindsight-newer" "$STATE/hindsight-warns" "$STATE/rea" "$STATE/catalog-delta" "$STATE/cache-stale"
+uv_envs
 mkdir -p "$CLAUDE_CONFIG_DIR/skills"
 ln -s /nonexistent "$CLAUDE_CONFIG_DIR/skills/reverse-engineer-anything"
 run
@@ -246,7 +266,8 @@ check_true "changes: newer Hindsight release is a notice" has '^● Hindsight me
 check_true "changes: the installer's ▲ warning is a notice, first line only" has '^● Hindsight memory +installer: macOS needs a current Rust toolchain to build the daemon.s dependencies \(litellm; see the log$'
 check_true "changes: a warned or newer Hindsight step is not also ok" lacks '^✔ Hindsight memory'
 check_true "changes: skills that changed upstream named" has '^↻ agent skills +1 skill updated: one; 1 unchanged$'
-check_true "changes: Hindsight hooks change seen" has '^↻ Hindsight memory +hooks or runtime updated$'
+check_true "changes: Hindsight hooks change seen" has '^↻ Hindsight memory +hooks, runtime or daemon environment updated$'
+check_true "cache: a prune that removed entries is a change" has '^↻ uv cache +pruned 25 entries$'
 [ ! -x /Applications/SnippetsLab.app/Contents/Helpers/lab ] || check_true "changes: SnippetsLab change seen" has '^↻ SnippetsLab skill +updated from SnippetsLab$'
 check_true "changes: no upgrading line off a terminal" lacks 'upgrading'
 check_true "changes: dropped retired rules are reported" has '^↻ Claude settings +dropped retired permission rules$'
@@ -293,9 +314,11 @@ check_true "changes: log keeps the uv output" grep -qx 'error: network down' "$D
 check_true "changes: log keeps the status lines and the table" grep -q -e '^↻ packages  *2 packages upgraded$' -e '^    gh  ' "$DOTFILES"/logs/sysup-*.log
 
 # A warning alone (no newer release) must still replace the ok line
-rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/catalog-delta" "$STATE/pkg" "$STATE/pkg-upgraded" "$STATE/mise-newer" "$STATE/self-updated"
-touch "$STATE/pkg-broken"
+rm -rf "$DOTFILES/logs" "$STATE/hindsight-newer" "$STATE/skills" "$STATE/hindsight-change" "$STATE/snippetslab" "$STATE/catalog-delta" "$STATE/pkg" "$STATE/pkg-upgraded" "$STATE/mise-newer" "$STATE/self-updated" "$STATE/cache-stale"
+uv_envs
+touch "$STATE/pkg-broken" "$STATE/cache-busy"
 run
+check_true "cache: busy is ok and carries the count" has '^✔ uv cache +in use, not pruned \(25 cached environments\)$'
 check_true "warned: installer warning is the step's only line" lacks '^✔ Hindsight memory'
 check_true "warned: installer warning still a notice" has '^● Hindsight memory +installer: '
 check_true "package needs repair: a notice naming it" has '^● packages status +brew:jq needs_repair; run: mise bootstrap packages apply$'
@@ -332,12 +355,13 @@ check_true "package state unreadable: the run reaches mise prune" has '^✔ mise
 rm -rf "$DOTFILES/logs" "$STATE/pkg-status-fails" "$STATE/mise-calls.log"
 
 
-rm -rf "$DOTFILES/logs" "$STATE/claude-fails"
-touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust" "$STATE/no-cargo" "$STATE/rea-fails" "$STATE/prune" "$STATE/prune-fails"
+rm -rf "$DOTFILES/logs" "$STATE/claude-fails" "$STATE/cache-busy"
+touch "$STATE/claude" "$STATE/hindsight-fails" "$STATE/uv" "$STATE/rust" "$STATE/no-cargo" "$STATE/rea-fails" "$STATE/prune" "$STATE/prune-fails" "$STATE/cache-fails"
 run
 check_true "update: mise prune failure names the command" has '^✖ mise prune +run: mise prune --yes$'
 check_true "update: mise prune failure output shown" has '^    mise ERROR uninstall failed$'
-rm -f "$STATE/prune" "$STATE/prune-fails"
+check_true "cache: another failure names the command" has '^✖ uv cache +run: uv cache prune$'
+rm -f "$STATE/prune" "$STATE/prune-fails" "$STATE/cache-fails"
 check_true "update: REA skill failure names the command" has '^✖ REA skill +run: rea setup --skill-client shared --skill-client claude_code --skill --yes$'
 check_true "update: REA skill failure shows only the remediation" has '^    Skill directory is a symbolic link\.$'
 check_true "update: REA skill failure hides the doctor payload" lacks 'needs_human'
