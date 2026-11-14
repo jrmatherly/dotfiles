@@ -125,7 +125,8 @@ stub uv 'case "$1 $2" in
       echo "Cache is currently in-use, waiting for other uv processes to finish"
       echo "error: Timeout (${UV_LOCK_TIMEOUT:-300}s) when waiting for lock on $HOME/.cache/uv/.lock"; exit 2
     elif [ -e "$STATE/cache-fails" ]; then echo "Cache is currently in-use, waiting for other uv processes to finish"; echo "error: Permission denied"; exit 2
-    elif [ -e "$STATE/cache-stale" ]; then rm -rf "$HOME/.cache/uv/archive-v0"/*; fi ;;
+    elif [ -e "$STATE/cache-stale" ]; then rm -rf "$HOME/.cache/uv/archive-v0"/*
+    elif [ -e "$STATE/cache-files" ]; then echo "Pruning cache at: $HOME/.cache/uv"; echo "Removed 29 files (100.0KiB)"; fi ;;
 esac'
 # 25 cached tool environments, as uv lays them out under archive-v0
 uv_envs() {
@@ -179,6 +180,7 @@ stub op '[ "$1" = read ] && echo secret'
 stub hindsight-memory '[ -e "$STATE/hindsight-fails" ] && { echo "installer failed"; exit 1; }; [ -e "$STATE/hindsight-newer" ] && echo "newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION"
 if [ -e "$STATE/hindsight-warns" ]; then echo "│  ✓ runtime staged at ~/.hindsight/coding-agents"; echo "│  ▲ macOS needs a current Rust toolchain to build the daemon'"'"'s dependencies (litellm"; echo "│    publishes no macOS wheel). Install from https://rustup.rs"; fi
 [ ! -e "$STATE/hindsight-change" ] || { mkdir -p "$HOME/.codex"; date +%s%N > "$HOME/.codex/hooks.json"; }
+if [ -e "$STATE/hindsight-lock" ]; then mkdir -p "$HOME/.hindsight/daemon-env"; date +%s%N > "$HOME/.hindsight/daemon-env/uv.lock"; echo "warning: the coding-agent daemon did not stop and still runs the old environment"; fi
 if [ -e "$STATE/hindsight-unbuilt" ]; then echo "warning: the daemon environment did not build; run: hindsight-memory upgrade"; mkdir -p "$HOME/.codex"; date +%s%N > "$HOME/.codex/hooks.json"; fi
 echo "runtime re-staged"'
 # A failing stub, not a missing one: CI's macOS runner has a real cargo on PATH
@@ -332,13 +334,15 @@ check_true "no code: the manager is one notice" has '^● packages status +vscod
 check_true "no code: its packages are not listed" lacks 'vscode:'
 check_true "no code: not all installed" lacks 'packages status +all installed'
 rm -rf "$DOTFILES/logs" "$STATE/pkg-no-code" "$STATE/hindsight-unbuilt"
-touch "$STATE/undeclared"
+touch "$STATE/undeclared" "$STATE/hindsight-lock"
 run
+check_true "lock: a changed daemon lock alone is a change" has '^↻ Hindsight memory +hooks, runtime or daemon environment updated$'
+check_true "lock: a daemon that did not stop is a notice" has '^● Hindsight memory +the daemon did not stop and still runs the old environment; see the log$'
 check_true "undeclared: a notice with the command" has '^● packages prune +2 packages no config declares; review: mise bootstrap packages prune --dry-run$'
 only_dry_runs() { [ -s "$STATE/prune-args.log" ] && ! grep -v -- --dry-run "$STATE/prune-args.log" | grep -q .; }
 check_true "undeclared: sysup never prunes" only_dry_runs
 check_true "undeclared: casks are reported too" grep -q -- '-m brew-cask' "$STATE/prune-args.log"
-rm -rf "$DOTFILES/logs" "$STATE/undeclared"
+rm -rf "$DOTFILES/logs" "$STATE/undeclared" "$STATE/hindsight-lock"
 touch "$STATE/prune-report-fails"
 run
 check_true "prune report fails: fail line names the command" has '^✖ packages prune +run: mise bootstrap packages prune --dry-run$'
@@ -382,12 +386,13 @@ check_true "update: Hindsight failure names the command" has '^✖ Hindsight mem
 check_true "update: Hindsight failure output shown" has '^    installer failed$'
 
 rm -rf "$DOTFILES/logs" "$STATE/rea-fails"
-touch "$STATE/macos" "$STATE/macos-fails" "$STATE/rea"
+touch "$STATE/macos" "$STATE/macos-fails" "$STATE/rea" "$STATE/cache-files"
 run
+check_true "cache: removed files outside archive-v0 are a change" has '^↻ uv cache +removed 29 files \(100\.0KiB\)$'
 check_true "macOS: failed install reports fail only" has '^✖ macOS'
 check_true "macOS: failed install does not also say changed" lacks '^↻ macOS'
 check_true "REA skill change seen despite stderr noise" has '^↻ REA skill'
-rm -rf "$DOTFILES/logs" "$STATE/macos-fails"
+rm -rf "$DOTFILES/logs" "$STATE/macos-fails" "$STATE/cache-files"
 touch "$STATE/macos-os" "$STATE/prune" "$STATE/rust-odd"
 mkdir -p "$HOME/.local/share/mise/installs/rust"
 run

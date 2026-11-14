@@ -231,6 +231,14 @@ This task changes the live machine. Start it only on the owner's word, and give 
 **Files:**
 - Modify: the spec's "Verified facts" and "Not verified" sections; the memory `uv-cache-prune-in-sysup`.
 
+- [x] **Step 0: Close the code review's five minor findings** (2026-11-14, on the owner's word, before the move)
+
+1. A good sync after a failed one stopped a healthy daemon, because the failed sync had removed the lock it compared against. `sync_env` now compares against `~/.hindsight/daemon-env/.synced`, the checksum of the lock last synced, which a failed sync keeps.
+2. A daemon stop that failed or timed out was silent. `hindsight-embed daemon stop` exits 0 when nothing is running and 1 when it cannot stop (`hindsight_embed/cli.py` and `daemon_embed_manager.py` `stop`, 1.1.0), so a non-zero exit is now a warning with the stop command, and `sysup` turns it into a notice.
+3. `nothing to prune` could be false when a prune removed files outside `archive-v0`. A real prune on uv 0.13.7 prints `Removed 29 files (100.0KiB)` and a no-op prints `No unused entries found` (throwaway cache). The step now reports `changed` from uv's `Removed` line when the entry count did not move.
+4. The lock in `sysup`'s before/after checksum and the `timeout 30` bound had no assertion. Both have one now.
+5. `docs/privacy.md` said the daemon runs from the environment without saying when.
+
 - [ ] **Step 1: Record the before state**
 
 Run: `curl -sf http://127.0.0.1:9077/v1/default/banks | jq '.banks | length'`, `du -sh ~/.pg0`, `pgrep -fl 'uvx hindsight-api'`.

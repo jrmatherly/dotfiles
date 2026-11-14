@@ -138,12 +138,18 @@ write_cfg() {
 # the lock (so merge_defaults unsets embedPackagePath and the hook uses uvx)
 # and never fails the script
 sync_env() {
-  local before
+  local before now stamp=$env_dir/.synced
   env_changed=0
-  before=$(cksum 2> /dev/null < "$env_dir/uv.lock") || before=''
+  # The lock last synced, kept apart from the lock itself: a failed sync removes
+  # the lock, and a later good sync of the same lock must not stop a healthy daemon
+  before=$(cat "$stamp" 2> /dev/null) || before=''
   if mkdir -p "$env_dir" && cp "$repo/hindsight/pyproject.toml" "$repo/hindsight/uv.lock" "$env_dir/" \
     && "${uv_cmd[@]}" sync --frozen --directory "$env_dir"; then
-    [ "$(cksum < "$env_dir/uv.lock")" = "$before" ] || env_changed=1
+    now=$(cksum < "$env_dir/uv.lock")
+    if [ "$now" != "$before" ]; then
+      env_changed=1
+      echo "$now" > "$stamp"
+    fi
   else
     rm -f "$env_dir/uv.lock"
     warning "the daemon environment did not build; run: hindsight-memory upgrade"
@@ -204,7 +210,7 @@ cmd_init() {
     [ -f "$cfg" ] || fail "the installer left no config at $cfg"
   fi
   # A first build has no daemon running from it, and a stop would fetch hindsight-embed through uvx
-  [ ! -f "$env_dir/uv.lock" ] || had_lock=1
+  [ ! -f "$env_dir/.synced" ] || had_lock=1
   sync_env
   merge_defaults
   [ "$had_lock$env_changed" != 11 ] || stop_daemon
@@ -217,7 +223,8 @@ stop_daemon() {
   local bound=()
   echo "daemon environment updated"
   ! command -v timeout > /dev/null || bound=(timeout 30)
-  ${bound[@]+"${bound[@]}"} "${embed[@]}" -p coding-agent daemon stop || true
+  ${bound[@]+"${bound[@]}"} "${embed[@]}" -p coding-agent daemon stop \
+    || warning "the coding-agent daemon did not stop and still runs the old environment; stop it with: ${embed[*]} -p coding-agent daemon stop"
 }
 
 cmd_upgrade() {

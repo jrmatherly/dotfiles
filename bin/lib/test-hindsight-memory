@@ -35,6 +35,8 @@ export HINDSIGHT_MEMORY_EMBED="$HOME/bin/embed"
 export HINDSIGHT_MEMORY_NPM="$HOME/bin/npm"
 export HINDSIGHT_MEMORY_UV="$HOME/bin/uv"
 export HINDSIGHT_DAEMON_ENV="$HOME/.hindsight/daemon-env"
+# for the timeout stub; the script reaches every other stub through its override
+PATH="$HOME/bin:$PATH"
 cfg=$HINDSIGHT_CONFIG
 
 mkdir -p "$HOME/bin"
@@ -53,6 +55,13 @@ EOF
 cat > "$HOME/bin/embed" << 'EOF'
 #!/bin/bash
 echo "$*" >> "$HOME/embed.log"
+[ ! -e "$HOME/embed-fails" ] || exit 1
+EOF
+cat > "$HOME/bin/timeout" << 'EOF'
+#!/bin/bash
+echo "$*" >> "$HOME/timeout.log"
+shift
+exec "$@"
 EOF
 # the stub answers with the script's own pin by default, so a pin bump keeps the equal-to-pin case covered
 sed -n 's/^CODING_AGENTS_VERSION=//p' "$script" > "$HOME/pin"
@@ -130,15 +139,24 @@ jq '.embedPackagePath = "/stale"' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
 check_true "init again" hm init
 check "a hand-edited embedPackagePath is reset" "$HINDSIGHT_DAEMON_ENV" "$(jq -r .embedPackagePath "$cfg")"
 check_true "an init that built the first environment left the daemon alone" bash -c '! grep -q "daemon stop" "$HOME/embed.log" 2> /dev/null'
-echo '# older' >> "$HINDSIGHT_DAEMON_ENV/uv.lock"
+echo older > "$HINDSIGHT_DAEMON_ENV/.synced"
 check "init on a changed lock reports the change" "daemon environment updated" "$(hm init | grep 'daemon environment')"
 check "init on a changed lock stops the daemon once" 1 "$(grep -c -- '-p coding-agent daemon stop' "$HOME/embed.log")"
 : > "$HOME/embed.log"
 check "upgrade, lock unchanged" ok "$(hm upgrade > /dev/null && echo ok)"
 check "no daemon stop when the lock is unchanged" 0 "$(grep -c 'daemon stop' "$HOME/embed.log" || true)"
-echo '# older' >> "$HINDSIGHT_DAEMON_ENV/uv.lock"
+echo older > "$HINDSIGHT_DAEMON_ENV/.synced"
 check "upgrade reports the change" "daemon environment updated" "$(hm upgrade | grep 'daemon environment')"
 check "a changed lock stops the daemon once" 1 "$(grep -c -- '-p coding-agent daemon stop' "$HOME/embed.log")"
+check_true "the stop is bounded" grep -qx -- "30 $HOME/bin/embed -p coding-agent daemon stop" "$HOME/timeout.log"
+echo older > "$HINDSIGHT_DAEMON_ENV/.synced"
+touch "$HOME/embed-fails"
+stuck=$(hm upgrade 2>&1 > /dev/null)
+rm "$HOME/embed-fails"
+check_true "a daemon that did not stop is a warning with the command" grep -q "did not stop and still runs the old environment; stop it with: $HOME/bin/embed -p coding-agent daemon stop" <<< "$stuck"
+: > "$HOME/embed.log"
+echo older > "$HINDSIGHT_DAEMON_ENV/.synced"
+hm upgrade > /dev/null
 touch "$HOME/uv-fails"
 warned=$(hm upgrade 2>&1 > /dev/null)
 check_true "a failed sync warns with the recovery command" grep -q 'did not build; run: hindsight-memory upgrade' <<< "$warned"
@@ -146,6 +164,7 @@ check_true "a failed sync leaves no installed lock" [ ! -e "$HINDSIGHT_DAEMON_EN
 check "a failed sync unsets embedPackagePath" null "$(jq -c .embedPackagePath "$cfg")"
 rm "$HOME/uv-fails"
 check "upgrade recovers" ok "$(hm upgrade > /dev/null && echo ok)"
+check "recovering on the same lock leaves the daemon alone" 1 "$(grep -c -- '-p coding-agent daemon stop' "$HOME/embed.log")"
 check "embedPackagePath is back" "$HINDSIGHT_DAEMON_ENV" "$(jq -r .embedPackagePath "$cfg")"
 : > "$HOME/uv.log"
 bash -c 'unset HINDSIGHT_MEMORY_EMBED; "$0" status' "$script" > /dev/null

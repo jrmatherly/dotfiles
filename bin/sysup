@@ -522,6 +522,9 @@ if command -v uv > /dev/null; then
       uv_after=$({ find "$uv_cache/archive-v0" -mindepth 1 -maxdepth 1 2> /dev/null || true; } | wc -l | tr -d ' ')
       if [ "$uv_after" -lt "$uv_before" ]; then
         status changed "uv cache" "pruned $((uv_before - uv_after)) entries"
+      # uv's own line covers what the entry count misses: files it removed outside archive-v0
+      elif uv_removed=$(grep -o 'Removed [0-9].*' <<< "$out"); then
+        status changed "uv cache" "removed ${uv_removed#Removed }"
       else
         status ok "uv cache" "nothing to prune"
       fi
@@ -653,6 +656,7 @@ if command -v claude > /dev/null; then
       newer=$(grep -o 'newer release [^;]*' <<< "$out" || true)
       [ -z "$newer" ] || status notice "Hindsight memory" "$newer; bump CODING_AGENTS_VERSION in bin/hindsight-memory"
       [ -z "$warned" ] || status notice "Hindsight memory" "installer: ${warned%%$'\n'*}; see the log"
+      ! grep -q 'daemon did not stop' <<< "$out" || status notice "Hindsight memory" "the daemon did not stop and still runs the old environment; see the log"
       # hindsight-memory exits 0 here and the hook is back on uvx; the removed lock is not an update
       if grep -q 'daemon environment did not build' <<< "$out"; then
         status notice "Hindsight memory" "daemon environment did not build; run: hindsight-memory upgrade"
