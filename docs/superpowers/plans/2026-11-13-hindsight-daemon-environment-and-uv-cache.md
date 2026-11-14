@@ -294,23 +294,25 @@ git commit -m "Record the Hindsight daemon move and the first measured prune"
 
 ### Task 4: Bump the pins (decision C, its own commit)
 
+Done on 2026-11-14 on the owner's word (spec decision 7 and facts 21 and 22), with hook 0.8.6 and server 1.2.0, the newest pair that is 7 days old. Step 6 ran with other sessions open, so the backup was proven cold (no postgres and no `postmaster.pid` before and after the copy) with the kill switch on. The tool rename in Step 4 did not apply: it is in 0.8.7.
+
 Both pins move together, because no vendor page says which hook versions work with which server versions. Spec fact 14 lists what is known about the releases.
 
 **Files:**
 - Modify: `hindsight/pyproject.toml`, `hindsight/uv.lock`, `bin/hindsight-memory` (`CODING_AGENTS_VERSION`, and `defaults()` only if a key was renamed), `bin/lib/test-hindsight-memory`
 - Modify for the 0.8.7 tool rename: `tilde/.claude/rules/hindsight.md`, `agents/catalog/curated.toml`, and any permission rule in `agents/claude-settings.json` or `.claude/settings.json` that names an old tool (`grep -rn knowledge_page . --exclude-dir=.git --exclude-dir=docs`)
 
-- [ ] **Step 1: Read what changed**
+- [x] **Step 1: Read what changed**
 
 Read https://hindsight.vectorize.io/changelog/integrations/coding-agents for 0.8.4 to the newest version `npm pack --dry-run --json @vectorize-io/hindsight-coding-agents | jq -r '.[0].version'` prints, and the GitHub release notes of vectorize-io/hindsight for every server release after 1.1.0. Then settle the two things the spec could not: stage the new hook package in a scratch directory (`npm pack @vectorize-io/hindsight-coding-agents@<version>` there, untar) and run `grep -c 'knowledge_page' package/dist/mcp-server.js` and `grep -o 'embedPackagePath[^,]*' package/dist/daemon-start.js | head -3`.
 Expected: a written list of renamed tools and config keys with the URL for each; whether the old tool names survive in the MCP server; and `embedPackagePath` still mapped to `uv run --directory`. If `embedPackagePath` is gone, stop and report: Task 1's design depends on it.
 
-- [ ] **Step 2: Bump and re-lock**
+- [x] **Step 2: Bump and re-lock**
 
 Set both versions in `hindsight/pyproject.toml` to the newest release, run `uv lock --directory hindsight`, and read which packages the lock gained or lost (`git diff hindsight/uv.lock | grep '^[+-]name'`).
 Expected: the two Hindsight packages move; new dependencies, if any, are named in the commit body.
 
-- [ ] **Step 3: Try it on a throwaway profile before the live daemon**
+- [x] **Step 3: Try it on a throwaway profile before the live daemon**
 
 In a scratch copy of `hindsight/`: `uv sync --frozen`, then, every call with its profile:
 
@@ -328,9 +330,9 @@ curl -sf http://127.0.0.1:9199/health
 
 Run `lsof -nP -iTCP:8888 -sTCP:LISTEN` right after `profile create` as well: it must print nothing (spec fact 16's cause was found by elimination, so check after every call). Expected from the last command: `"status":"healthy"`. Then `uv run hindsight-embed -p pinbump daemon stop`, `uv run hindsight-embed profile delete pinbump`, check `lsof -nP -iTCP:8888 -sTCP:LISTEN` and `pgrep -fl pinbump` print nothing, and ask the owner before removing `~/.pg0/instances/hindsight-embed-pinbump`. This sequence passed for 1.1.0 on 2026-11-13.
 
-- [ ] **Step 4: Bump `CODING_AGENTS_VERSION`** to the version Step 1's `npm pack` printed, apply any key rename to `defaults()` and its test, rename the tools in the files listed above, and run `bin/lib/test-hindsight-memory && pnpm check`.
+- [x] **Step 4: Bump `CODING_AGENTS_VERSION`** to the version Step 1's `npm pack` printed, apply any key rename to `defaults()` and its test, rename the tools in the files listed above, and run `bin/lib/test-hindsight-memory && pnpm check`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add hindsight bin/hindsight-memory bin/lib/test-hindsight-memory tilde/.claude/rules/hindsight.md agents/catalog/curated.toml
@@ -338,7 +340,7 @@ git add agents/claude-settings.json .claude/settings.json # only if Step 4 renam
 git commit -m "Update Hindsight to <daemon version> and its hook package to <package version>"
 ```
 
-- [ ] **Step 6: Apply on this Mac, on the owner's word, behind a backup**
+- [x] **Step 6: Apply on this Mac, on the owner's word, behind a backup**
 
 The new server migrates the database at its first start and no downgrade is documented, so the copy is the way back. With every Claude Code and Codex session closed:
 
