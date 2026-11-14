@@ -8,12 +8,13 @@
 
 **Tech Stack:** bash (`bin/hindsight-memory`, `bin/sysup`, their `bin/lib/test-*` self-checks), uv 0.13, jq.
 
-**Spec:** `docs/superpowers/specs/2026-11-13-hindsight-daemon-environment-and-uv-cache.md`. Read its Goal, the owner's decisions and the open decisions A to D first. Tasks 1 and 2 assume A and B are answered as recommended; Task 4 is decision C, Task 3 Step 6 is decision D.
+**Spec:** `docs/superpowers/specs/2026-11-13-hindsight-daemon-environment-and-uv-cache.md`. Read its Goal, the owner's decisions and the open decisions A to D first. Tasks 1 and 2 assume A and B are answered as recommended; Task 4 is decision C, Task 3 Step 6 is decision D. None of the four is answered yet: ask before starting.
 
 ## Global Constraints
 
 - Never run `sysup`, `./setup.sh` or `hindsight-memory init|upgrade|uninstall` on this Mac outside Task 3. The self-checks use stubs and a fixture `HOME`.
 - `uv cache prune` never gets `--force`, and nothing in this plan runs a prune against the real `~/.cache/uv` except the owner in Task 3.
+- Every `hindsight-embed` call names its profile with `-p`. A call without one can start a second daemon on port 8888 with its own database (spec fact 16). After any hand-run `hindsight-embed` command, `lsof -nP -iTCP:8888 -sTCP:LISTEN` must print nothing.
 - The versions appear in exactly one place: `hindsight/pyproject.toml`. `bin/hindsight-memory` reads `EMBED_VERSION` from it. `CODING_AGENTS_VERSION` stays in the script.
 - `requires-python = ">=3.13,<3.14"`, the interpreter the cached environments already use (`pyvenv.cfg`: 3.13.15).
 - The environment directory is `~/.hindsight/daemon-env` (override `HINDSIGHT_DAEMON_ENV`). It is written into the config as an absolute path, because whether the plugin expands `~` in `embedPackagePath` is unchecked.
@@ -23,9 +24,9 @@
 
 ## Review Focus
 
-1. **`uv` missing or `uv sync` failing during `init`** (offline, PyPI down): the config must not gain `embedPackagePath` for an environment that does not exist, or the daemon cannot start at all. Expected: the key is left unset, a warning names `hindsight-memory upgrade`, and the vendor's `uvx` path keeps working. Test in Task 1.
+1. **`uv` missing or `uv sync` failing during `init`** (offline, PyPI down): the config must not gain `embedPackagePath` for an environment that does not exist, or the daemon cannot start at all. Expected: the previous environment and its lock are put back, the key is unset until a sync succeeds, a warning names `hindsight-memory upgrade`, and the vendor's `uvx` path keeps working meanwhile. Test in Task 1.
 2. **A hand-edited `embedPackagePath`** in the config: `merge_defaults` lets existing keys win, so a stale path would survive. Expected: like `embedVersion`, this key always follows the script. Test in Task 1.
-3. **The lock changes while the daemon runs** (a pin bump pulled by `sysup`): the running daemon keeps the old environment until it restarts. Expected: `upgrade` stops the daemon after a sync that changed the lock, and only then. Test in Task 1.
+3. **The lock changes while the daemon runs** (a pin bump pulled by `sysup`): the running daemon keeps the old environment until it restarts. Expected: `upgrade` stops the daemon after a sync that changed the lock, and only then, and a stop that hangs cannot stall `sysup`. Test in Task 1.
 4. **The cache is busy on every `sysup` run** (sessions are usually open): the step must cost seconds, not the default 300, and must not fail the run. Test in Task 2.
 5. **`uv cache prune` exits non-zero for a reason other than the lock** (permissions, a full disk): that is a `fail` line with the command, not the busy branch. Test in Task 2.
 
@@ -35,12 +36,13 @@
 
 **Files:**
 - Create: `hindsight/pyproject.toml`, `hindsight/uv.lock`
-- Modify: `bin/hindsight-memory`, `bin/lib/test-hindsight-memory`
-- Modify (docs, same commit): `.claude/rules/hindsight-wiring.md`, `tilde/.claude/rules/hindsight.md`, `docs/privacy.md` only if its Hindsight line names `uvx`, `docs/forking.md` only if it lists the pins
+- Modify: `bin/hindsight-memory`, `bin/lib/test-hindsight-memory`, `.gitignore` (add `hindsight/.venv/` beside `settings/.venv/`), `renovate.json`
+- Modify (docs, same commit): `.claude/rules/hindsight-wiring.md`, `tilde/.claude/rules/hindsight.md`, `setup/README.md` (the Hindsight bullet near line 137), `docs/privacy.md` (line 28's last sentence), `docs/updating.md` (the Hindsight bullet near line 23), the one-line description of the self-check in `bin/lib/check` (near line 129)
+- Do not add `hindsight/` to the tree in `CLAUDE.md`: the file is 11,995 of its 12,000 byte cap (`bin/lib/test-conventions`).
 
 **Interfaces:**
-- Produces: `~/.hindsight/daemon-env/{pyproject.toml,uv.lock,.venv}`; config key `embedPackagePath` (absolute path); `hindsight-memory upgrade` prints the line `daemon environment updated` when the installed lock changed (Task 2 does not parse it; `sysup`'s existing before/after checksum gains the lock file instead).
-- New overrides for the self-check, same style as the existing ones: `HINDSIGHT_MEMORY_UV` (instead of `uv`), `HINDSIGHT_DAEMON_ENV` (instead of `~/.hindsight/daemon-env`).
+- Produces: `~/.hindsight/daemon-env/{pyproject.toml,uv.lock,.venv}`; config key `embedPackagePath` (absolute path, the plugin passes it through unexpanded); `hindsight-memory upgrade` prints `daemon environment updated` when the installed lock changed. Task 2 does not parse that line: `sysup`'s before/after checksum gains the lock file.
+- New overrides for the self-check: `HINDSIGHT_MEMORY_UV` (instead of `uv`), `HINDSIGHT_DAEMON_ENV` (instead of `~/.hindsight/daemon-env`).
 
 - [ ] **Step 1: Create the project and its lock**
 
@@ -61,65 +63,84 @@ dependencies = ["hindsight-embed==1.1.0", "hindsight-api==1.1.0"]
 ```
 
 Run: `uv lock --directory hindsight`
-Expected: `Resolved 231 packages` (the count may differ by a few as dependencies release), and `hindsight/uv.lock` exists. No `.venv` is created by `uv lock`.
+Expected: `Resolved 231 packages` (a few more or fewer as dependencies release) and `hindsight/uv.lock` exists. `uv lock` creates no `.venv`.
 
-- [ ] **Step 2: Write the failing self-check cases** in `bin/lib/test-hindsight-memory`
+- [ ] **Step 2: Keep Renovate off the two pins**
 
-Add a `uv` stub that logs its arguments to `$HOME/uv.log`, exits 1 when `$HOME/uv-fails` exists, and on `sync` creates `$HINDSIGHT_DAEMON_ENV/.venv/bin/hindsight-embed`. Export `HINDSIGHT_MEMORY_UV="$HOME/bin/uv"` and `HINDSIGHT_DAEMON_ENV="$HOME/.hindsight/daemon-env"`. Leave `HINDSIGHT_MEMORY_EMBED` set as today so existing cases keep their stub. Cases, in the file's `check`/`check_true` style:
+Renovate is active here (`config:recommended`, PR 19) and would open a PR for each package alone, against "both together, behind a backup" (Task 4). Add to `packageRules` in `renovate.json`:
+
+```json
+{
+  "description": "The Hindsight daemon moves with its hook package, behind a database backup: docs/superpowers/specs/2026-11-13-hindsight-daemon-environment-and-uv-cache.md",
+  "matchPackageNames": ["hindsight-embed", "hindsight-api"],
+  "enabled": false
+}
+```
+
+- [ ] **Step 3: Write the failing self-check cases** in `bin/lib/test-hindsight-memory`
+
+Move the `repo=` assignment from line 159 up to sit under `script=` (line 18); `set -u` is on and the new cases need it early. Add a `uv` stub to `$HOME/bin` that appends its arguments to `$HOME/uv.log`, exits 1 when `$HOME/uv-fails` exists, and on `sync` creates `$HINDSIGHT_DAEMON_ENV/.venv/bin/hindsight-embed`. Export `HINDSIGHT_MEMORY_UV="$HOME/bin/uv"` and `HINDSIGHT_DAEMON_ENV="$HOME/.hindsight/daemon-env"` with the other overrides. `HINDSIGHT_MEMORY_EMBED` stays set, so the existing cases keep their stub. In the two existing assertions that hold the literal `1.1.0` (lines 85 and 93), read the version from `hindsight/pyproject.toml` instead. Put the new cases after the first `init` block (after line 99) and before the `paths` cases:
 
 ```bash
 check "init copies the lock" "$(cksum < "$repo/hindsight/uv.lock")" "$(cksum < "$HINDSIGHT_DAEMON_ENV/uv.lock")"
 check "init syncs the environment frozen" "sync --frozen --directory $HINDSIGHT_DAEMON_ENV" "$(tail -1 "$HOME/uv.log")"
 check "init points the hook at the environment" "$HINDSIGHT_DAEMON_ENV" "$(jq -r .embedPackagePath "$cfg")"
-check "embedVersion follows pyproject" "$(sed -n 's/.*"hindsight-embed==\([^"]*\)".*/\1/p' "$repo/hindsight/pyproject.toml")" "$(jq -r .embedVersion "$cfg")"
 # Review Focus 2
 jq '.embedPackagePath = "/stale"' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
 check_true "init again" hm init
 check "a hand-edited embedPackagePath is reset" "$HINDSIGHT_DAEMON_ENV" "$(jq -r .embedPackagePath "$cfg")"
-# Review Focus 3: unchanged lock leaves the daemon alone, a changed one stops it
-: > "$HOME/embed.log"; check_true "upgrade, lock unchanged" hm upgrade
+# Review Focus 3: an unchanged lock leaves the daemon alone, a changed one stops it once
+: > "$HOME/embed.log"
+check_true "upgrade, lock unchanged" hm upgrade
 check "no daemon stop when the lock is unchanged" 0 "$(grep -c 'daemon stop' "$HOME/embed.log" || true)"
-echo '# changed' >> "$HINDSIGHT_DAEMON_ENV/uv.lock"
+echo '# older' >> "$HINDSIGHT_DAEMON_ENV/uv.lock"
 check "upgrade reports the change" "daemon environment updated" "$(hm upgrade | grep 'daemon environment')"
 check "a changed lock stops the daemon once" 1 "$(grep -c -- '-p coding-agent daemon stop' "$HOME/embed.log")"
-# Review Focus 1
-rm -rf "$HINDSIGHT_DAEMON_ENV"; touch "$HOME/uv-fails"
-check_true "init survives a failed sync" hm init
-check "a failed sync leaves embedPackagePath unset" null "$(jq -c .embedPackagePath "$cfg")"
+# Review Focus 1: a failed sync keeps the previous environment and its lock
+echo '# older' >> "$HINDSIGHT_DAEMON_ENV/uv.lock"
+before=$(cksum < "$HINDSIGHT_DAEMON_ENV/uv.lock")
+touch "$HOME/uv-fails"
+check_true "upgrade survives a failed sync" hm upgrade
+check "a failed sync restores the previous lock" "$before" "$(cksum < "$HINDSIGHT_DAEMON_ENV/uv.lock")"
+check "a stale lock unsets embedPackagePath" null "$(jq -c .embedPackagePath "$cfg")"
 rm "$HOME/uv-fails"
+check_true "upgrade recovers" hm upgrade
+check "embedPackagePath is back" "$HINDSIGHT_DAEMON_ENV" "$(jq -r .embedPackagePath "$cfg")"
 ```
 
-`$repo` is the repo root the test already derives for `$script`.
-
-- [ ] **Step 3: Run it to see it fail**
+- [ ] **Step 4: Run it to see it fail**
 
 Run: `bin/lib/test-hindsight-memory`
-Expected: `FAIL: init copies the lock` (the directory does not exist yet).
+Expected: `FAIL: init copies the lock`.
 
-- [ ] **Step 4: Implement in `bin/hindsight-memory`**
+- [ ] **Step 5: Implement in `bin/hindsight-memory`**
 
-- `EMBED_VERSION` is read from `hindsight/pyproject.toml` with the `sed` expression in the test, the repo root resolved from the script's own path (`$(cd "$(dirname "$0")/.." && pwd -P)`); fail with a clear message when it is empty.
-- `env_dir=${HINDSIGHT_DAEMON_ENV:-$HOME/.hindsight/daemon-env}` and `uv_cmd=(${HINDSIGHT_MEMORY_UV:-uv})`.
-- The default `embed` command becomes `"${uv_cmd[@]}" run --frozen --directory "$env_dir" hindsight-embed` when `$env_dir/.venv` exists, else the current `uvx hindsight-embed@$EMBED_VERSION` (a machine that never synced still gets `status` and `uninstall`).
-- `sync_env()`: returns 0 and prints nothing when both files already match and `.venv` exists; otherwise copies `pyproject.toml` and `uv.lock`, runs `"${uv_cmd[@]}" sync --frozen --directory "$env_dir"`, and prints `daemon environment updated`. On a failed sync it removes the copied lock (so the next run retries), warns `the daemon environment did not build; run: hindsight-memory upgrade`, and returns 1.
-- `merge_defaults` sets `.embedPackagePath = $p` when `sync_env` succeeded or the environment already exists, and deletes the key otherwise. It follows the script on every run, like `embedVersion`.
-- `cmd_init` and `cmd_upgrade` call `sync_env` before `merge_defaults`. `cmd_upgrade` runs `"${embed[@]}" -p coding-agent daemon stop || true` only when `sync_env` printed the update line. That covers the first sync on a machine whose daemon still runs from `uvx`, and stopping a daemon that is not running is harmless. `cmd_init` never stops it.
-- Header comment: one line under `init` and `upgrade` naming the environment, and the two new overrides in the Overrides list.
+- `EMBED_VERSION` is read from `hindsight/pyproject.toml` with `sed -n 's/.*"hindsight-embed==\([^"]*\)".*/\1/p'`, the repo root resolved from the script's own path (`$(cd "$(dirname "$0")/.." && pwd -P)`). Fail with a clear message when it is empty.
+- `env_dir=${HINDSIGHT_DAEMON_ENV:-$HOME/.hindsight/daemon-env}`. `uv_cmd=(${HINDSIGHT_MEMORY_UV:-uv})` goes inside the existing `# shellcheck disable=SC2206` block with the other three.
+- The default `embed` command, set once at the top as today: `"${uv_cmd[@]}" run --frozen --directory "$env_dir" hindsight-embed` when `$env_dir/.venv/bin/hindsight-embed` exists, else `uvx hindsight-embed@$EMBED_VERSION`. So the first migration on a machine stops the old daemon through `uvx`, which is the command that started it.
+- `sync_env()` sets a global `env_changed` (0 or 1) and never fails the script. It keeps a copy of the installed `pyproject.toml` and `uv.lock` when they exist, copies the repo's pair in, and runs `"${uv_cmd[@]}" sync --frozen --directory "$env_dir"` every time (about 1 s when nothing changed). On success, `env_changed=1` when the installed lock's `cksum` differs from before (a first sync counts). On failure it puts the previous pair back, or removes the two files when there was none, warns `the daemon environment did not build; run: hindsight-memory upgrade`, and leaves `env_changed=0`.
+- `merge_defaults` sets `.embedPackagePath = $p` only when `$env_dir/.venv/bin/hindsight-embed` exists and the installed `uv.lock` is byte-equal to the repo's (`cmp -s`); otherwise it deletes the key, so the hook falls back to `uvx hindsight-embed@<embedVersion>` and never runs `uv run` against a lock that is not the reviewed one. Like `embedVersion`, the key follows the script on every run.
+- `cmd_init` and `cmd_upgrade` call `sync_env` before `merge_defaults`. `cmd_upgrade` then, when `env_changed` is 1, prints `daemon environment updated` and stops the daemon so the next prompt's hook starts it from the new environment: `"${embed[@]}" -p coding-agent daemon stop || true`, prefixed with `timeout 30` when `timeout` is on PATH (the `prune=(timeout 600 …)` pattern in `bin/sysup`), because `sysup` runs `upgrade` with no bound of its own. `cmd_init` never stops the daemon.
+- Header comment: the line that says `embedVersion alone always follows the pin` now names `embedPackagePath` too; one line under `init` and `upgrade` names the environment; the two new overrides join the Overrides list. Each header line stays one sentence on one line (`help` renders it).
 
-- [ ] **Step 5: Run the self-check and the gate**
+- [ ] **Step 6: Run the self-check and the gate**
 
 Run: `bin/lib/test-hindsight-memory && help hindsight-memory > /dev/null && pnpm check`
-Expected: every line `ok: …`, exit 0. If `pnpm check` lints `hindsight/uv.lock` or `pyproject.toml` and fails, add `hindsight/uv.lock` to `.prettierignore` (a generated file) and say so in the commit body.
+Expected: every line `ok: …`, exit 0. Prettier does not check TOML or the lock (`bin/lib/check` globs `js,cjs,ts,md,json,sh`).
 
-- [ ] **Step 6: Update the instruction files**
+- [ ] **Step 7: Docs and instruction files**
 
-- `.claude/rules/hindsight-wiring.md`: replace the first bullet with: the hook-package pin is `CODING_AGENTS_VERSION` in the script, the daemon's versions are `hindsight/pyproject.toml`, and `uv.lock` beside it is why the daemon no longer runs through `uvx` (spec `2026-11-13-hindsight-daemon-environment-and-uv-cache.md`). Add: `embedPackagePath` follows the script on every run.
-- `tilde/.claude/rules/hindsight.md`: in the "Manage it" bullet, the pinned versions are now in two files as above.
+- `.claude/rules/hindsight-wiring.md`: replace the first bullet. The hook-package pin is `CODING_AGENTS_VERSION` in the script, the daemon's versions are `hindsight/pyproject.toml`, and the `uv.lock` beside it is why the daemon does not run through `uvx` (this plan's spec). Add that `embedPackagePath` follows the script on every run and is unset whenever the installed lock is not the repo's.
+- `tilde/.claude/rules/hindsight.md`: in the "Manage it" bullet, the daemon's versions are pinned in `hindsight/pyproject.toml` and the hook package's in `bin/hindsight-memory`.
+- `setup/README.md` line 137: "pinned in the script" becomes the two places, and the sentence gains the locked environment at `~/.hindsight/daemon-env`.
+- `docs/privacy.md` line 28: replace the last sentence (each build holds about 1.9 GB in the uv cache) with: the daemon runs from one environment at `~/.hindsight/daemon-env`.
+- `docs/updating.md` Hindsight bullet: `sysup` also syncs the daemon's locked environment and restarts the daemon when the lock changed.
+- `bin/lib/check` line 129 and the self-check's own header: add `uv` to the stubbed commands.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add hindsight bin/hindsight-memory bin/lib/test-hindsight-memory .claude/rules/hindsight-wiring.md tilde/.claude/rules/hindsight.md
+git add hindsight .gitignore renovate.json bin/hindsight-memory bin/lib/test-hindsight-memory bin/lib/check .claude/rules/hindsight-wiring.md tilde/.claude/rules/hindsight.md setup/README.md docs/privacy.md docs/updating.md
 git commit -m "Run the Hindsight daemon from a locked environment"
 ```
 
@@ -128,7 +149,7 @@ git commit -m "Run the Hindsight daemon from a locked environment"
 ### Task 2: Prune the uv cache in sysup
 
 **Files:**
-- Modify: `bin/sysup` (after the `uv` tools step near line 493, and `hindsight_state` near line 618), `bin/lib/test-sysup`
+- Modify: `bin/sysup` (inside the `uv` block at lines 493 to 525, and `hindsight_state` near line 618), `bin/lib/test-sysup`
 - Modify (docs, same commit): `docs/updating.md`, `.claude/rules/sysup.md`
 
 **Interfaces:**
@@ -137,18 +158,15 @@ git commit -m "Run the Hindsight daemon from a locked environment"
 
 - [ ] **Step 1: Write the failing self-check cases** in `bin/lib/test-sysup`
 
-Extend the `uv` stub: on `cache dir` print `$HOME/.cache/uv`; on `cache prune`, when `$STATE/cache-busy` exists print the two real lines from spec fact 6 and exit 2, when `$STATE/cache-fails` exists print `error: Permission denied` and exit 2, otherwise remove `$HOME/.cache/uv/archive-v0/*` when `$STATE/cache-stale` exists and exit 0. Record `UV_LOCK_TIMEOUT` to `$STATE/lock-timeout`. Create 25 fixture directories `archive-v0/e$i` each holding an empty `pyvenv.cfg` for the busy and stale cases. Assertions:
+The `uv` stub (lines 115 to 120) ignores its arguments today. Make it a `case "$1 $2"` dispatcher: the existing body under `tool upgrade`; `cache dir` prints `$HOME/.cache/uv`; `cache prune` writes `$UV_LOCK_TIMEOUT` to `$STATE/lock-timeout`, then, when `$STATE/cache-busy` exists, prints the two lines from spec fact 6 and exits 2, when `$STATE/cache-fails` exists prints `error: Permission denied` and exits 2, and otherwise removes `$HOME/.cache/uv/archive-v0/*` when `$STATE/cache-stale` exists and exits 0. Do not add runs: the file has three scenario runs (the default at line 193, "changes" at 242, the warned one at 298). Put the nothing-to-prune case in the default run (no `archive-v0` directory at all, which is a fresh Mac), `cache-stale` with 25 fixture directories `archive-v0/e$i/pyvenv.cfg` in the "changes" run, and `cache-busy` with 25 more in the warned run; `cache-fails` goes in whichever later run already collects failures (near line 336). Assertions, with the glyphs `bin/sysup` defines (`✔` ok, `↻` changed, `●` notice, `✖` fail):
 
 ```bash
 check_true "cache: nothing to prune is ok" has '^✔ uv cache +nothing to prune$'
 check "cache: the wait is bounded" 10 "$(cat "$STATE/lock-timeout")"
-check_true "cache: a prune that removed entries is a change" has '^● uv cache +pruned 25 entries$'
-check_true "cache: busy with many environments is a notice" has '^● uv cache +in use, 25 cached environments; close Claude Code sessions, then run: uv cache prune$'
-check_true "cache: busy with few environments is ok" has '^✔ uv cache +in use, not pruned$'
+check_true "cache: a prune that removed entries is a change" has '^↻ uv cache +pruned 25 entries$'
+check_true "cache: busy is ok and carries the count" has '^✔ uv cache +in use, not pruned \(25 cached environments\)$'
 check_true "cache: another failure names the command" has '^✖ uv cache +run: uv cache prune$'
 ```
-
-Use the glyphs the file's existing `ok`, `changed`, `notice` and `fail` assertions use; the ones above are placeholders for them.
 
 - [ ] **Step 2: Run it to see it fail**
 
@@ -157,16 +175,20 @@ Expected: `FAIL: cache: nothing to prune is ok`.
 
 - [ ] **Step 3: Implement the step in `bin/sysup`**
 
-Inside the existing `if command -v uv` block, after the tools branch: `step "uv cache"`; count entries with `find "$(uv cache dir)/archive-v0" -mindepth 1 -maxdepth 1 | wc -l` before and after; run `UV_LOCK_TIMEOUT=10 capture uv cache prune`.
+Inside the existing `if command -v uv` block, after the tools branch: `step "uv cache"`, then count the entries before and after `UV_LOCK_TIMEOUT=10 capture uv cache prune` (the prefix reaches the command through the `capture` function in bash 3.2; checked). `sysup` runs under `set -euo pipefail` and `archive-v0` may not exist, so every count has this shape, which also strips the padding macOS `wc` adds:
+
+```bash
+{ find "$uv_cache/archive-v0" -mindepth 1 -maxdepth 1 2> /dev/null || true; } | wc -l | tr -d ' '
+```
 
 - exit 0 and the count dropped: `changed`, `pruned <before minus after> entries`.
 - exit 0 and the count is the same: `ok`, `nothing to prune`.
-- non-zero and the output contains `waiting for lock`: count `archive-v0/*/pyvenv.cfg`; 20 or more is `notice` with the text in the test, fewer is `ok`, `in use, not pruned`.
+- non-zero and the output contains `waiting for`: `ok`, `in use, not pruned (<N> cached environments)`, where N counts `archive-v0/*/pyvenv.cfg` the same guarded way. No notice (spec decision B): sessions are usually open, and what a prune frees is unmeasured until Task 3.
 - any other failure: `fail`, `run: uv cache prune`, then `show`.
 
 One comment above the step: the timeout is 10 because uvx-launched MCP servers hold the lock for as long as their session is open, and uv's default wait is 300 s.
 
-Also add `"${HINDSIGHT_DAEMON_ENV:-$HOME/.hindsight/daemon-env}/uv.lock"` to the files `hindsight_state` checksums, and change the `changed` text to `hooks, runtime or daemon environment updated`. Update the matching assertion in `test-sysup`.
+Also add `"${HINDSIGHT_DAEMON_ENV:-$HOME/.hindsight/daemon-env}/uv.lock"` to the files `hindsight_state` checksums, and change that step's `changed` text to `hooks, runtime or daemon environment updated`. Update the matching assertion in `test-sysup`.
 
 - [ ] **Step 4: Run the self-check and the gate**
 
@@ -175,7 +197,7 @@ Expected: exit 0.
 
 - [ ] **Step 5: Docs**
 
-- `docs/updating.md`, after the uv tools bullet: `sysup` prunes the uv cache (`uv cache prune`, waiting at most 10 s for the lock) and says so when open Claude Code sessions keep it busy. In the Hindsight bullet: it also syncs the daemon's locked environment.
+- `docs/updating.md`, after the uv tools bullet: `sysup` prunes the uv cache (`uv cache prune`, waiting at most 10 s for the lock) and reports how many cached environments are waiting when open Claude Code sessions keep it busy.
 - `.claude/rules/sysup.md`, one bullet **uv cache**: the 10 s `UV_LOCK_TIMEOUT` and why, never `--force` (it ignores the in-use check), `changed` comes from the `archive-v0` entry count, and a prune removes every cached tool environment, which the next `uvx` rebuilds.
 
 - [ ] **Step 6: Commit**
@@ -202,12 +224,12 @@ Expected: a bank count (20 or more on 2026-11-13), about 1.2G, and one `uv tool 
 - [ ] **Step 2: Migrate**
 
 Run: `hindsight-memory upgrade`
-Expected: `daemon environment updated`, exit 0, `jq -r .embedPackagePath ~/.hindsight/coding-agent.json` prints `/Users/<you>/.hindsight/daemon-env`, and `pgrep -fl 'uvx hindsight-api'` prints nothing (the old daemon stopped).
+Expected: `daemon environment updated`, exit 0, `UV_OFFLINE=1 uv run --directory ~/.hindsight/daemon-env hindsight-embed -p coding-agent daemon status` exits 0 without touching the network (the hook's call has no `--frozen`, and whether it needs the network to trust the lock is unchecked), `jq -r .embedPackagePath ~/.hindsight/coding-agent.json` prints `/Users/<you>/.hindsight/daemon-env`, and `pgrep -fl 'uvx hindsight-api'` prints nothing (the old daemon stopped).
 
 - [ ] **Step 3: Prove the hook's cold start**
 
 Open a new Claude Code session in `~/dev/dotfiles` and send one prompt. Then run: `pgrep -fl hindsight-api`, the Step 1 bank count, and `tail -3 ~/.hindsight/coding-agents-logs/plugin.log`.
-Expected: one process whose path starts with `~/.hindsight/daemon-env/.venv/bin/python`, no `uv tool uvx hindsight-api` process, the same bank count, the 🧠 banner in the session, and no error in the log tail. If the daemon does not start, set it back with `jq 'del(.embedPackagePath)' ~/.hindsight/coding-agent.json` (through a temp file), report the log tail, and stop.
+Expected: one process whose path starts with `~/.hindsight/daemon-env/.venv/bin/python`, no `uv tool uvx hindsight-api` process, the same bank count, the 🧠 banner in the session, and no error in the log tail. If the daemon does not start, go back in this order, because every `hindsight-memory upgrade` (so every `sysup`) sets the key again: `git revert` the Task 1 commit, then `jq 'del(.embedPackagePath)' ~/.hindsight/coding-agent.json` through a temp file. Report the log tail and stop.
 
 - [ ] **Step 4: The owner measures a real prune**
 
@@ -234,8 +256,8 @@ Expected: `enabled: true` with the `sensitive_data` redact rule. If it is absent
 
 - [ ] **Step 6: Stale leftovers (decision D)**
 
-Run: `cat ~/.pg0/instances/hindsight-embed-/instance.json` and `pgrep -fl 'instances/hindsight-embed-/'`.
-Expected: no process. With the owner's yes, `rm -rf ~/.pg0/instances/hindsight-embed-`. Leave `coding-agent.json.pre-pages.bak` and `.hindsight-backup` alone.
+The directory is the default profile's database and holds only the 2026-10-24 prototype (spec fact 15). Run: `pgrep -fl 'instances/hindsight-embed-/'` and `lsof -nP -iTCP:8888 -sTCP:LISTEN`.
+Expected: both print nothing. With the owner's yes, the owner runs `rm -rf ~/.pg0/instances/hindsight-embed-` (a removal outside the repo is theirs to run). Leave `coding-agent.json.pre-pages.bak` and `.hindsight-backup` alone.
 
 - [ ] **Step 7: Write down what was measured, then commit**
 
@@ -250,32 +272,76 @@ git commit -m "Record the Hindsight daemon move and the first measured prune"
 
 ### Task 4: Bump the pins (decision C, its own commit)
 
+Both pins move together, because no vendor page says which hook versions work with which server versions. Spec fact 14 lists what is known about the releases.
+
 **Files:**
-- Modify: `hindsight/pyproject.toml`, `hindsight/uv.lock`, `bin/hindsight-memory` (`CODING_AGENTS_VERSION`, and `defaults()` only if a key was renamed)
+- Modify: `hindsight/pyproject.toml`, `hindsight/uv.lock`, `bin/hindsight-memory` (`CODING_AGENTS_VERSION`, and `defaults()` only if a key was renamed), `bin/lib/test-hindsight-memory`
+- Modify for the 0.8.7 tool rename: `tilde/.claude/rules/hindsight.md`, `agents/catalog/curated.toml`, and any permission rule in `agents/claude-settings.json` or `.claude/settings.json` that names an old tool (`grep -rn knowledge_page . --exclude-dir=.git --exclude-dir=docs`)
 
 - [ ] **Step 1: Read what changed**
 
-Read https://hindsight.vectorize.io/changelog/integrations/coding-agents for 0.8.4 to the newest version `npm pack --dry-run --json @vectorize-io/hindsight-coding-agents | jq -r '.[0].version'` prints, and the GitHub release notes of vectorize-io/hindsight 1.2.0 and 1.2.1. Write down every renamed or removed config key, especially what 0.8.7's "Knowledge Pages to Pages" rename does to `autoInject: "pages"`, `pageTriggerCron` and `pageRefreshEveryTurns`.
-Expected: a list, or "none", with the URL for each entry.
+Read https://hindsight.vectorize.io/changelog/integrations/coding-agents for 0.8.4 to the newest version `npm pack --dry-run --json @vectorize-io/hindsight-coding-agents | jq -r '.[0].version'` prints, and the GitHub release notes of vectorize-io/hindsight for every server release after 1.1.0. Then settle the two things the spec could not: stage the new hook package in a scratch directory (`npm pack @vectorize-io/hindsight-coding-agents@<version>` there, untar) and run `grep -c 'knowledge_page' package/dist/mcp-server.js` and `grep -o 'embedPackagePath[^,]*' package/dist/daemon-start.js | head -3`.
+Expected: a written list of renamed tools and config keys with the URL for each; whether the old tool names survive in the MCP server; and `embedPackagePath` still mapped to `uv run --directory`. If `embedPackagePath` is gone, stop and report: Task 1's design depends on it.
 
 - [ ] **Step 2: Bump and re-lock**
 
-Set both versions in `hindsight/pyproject.toml` to the newest release, run `uv lock --directory hindsight`, and read the `uv.lock` diff's added and removed package names (`git diff --stat` plus `git diff hindsight/uv.lock | grep '^[+-]name'`).
-Expected: the two Hindsight packages move; new top-level dependencies, if any, are named in the commit body.
+Set both versions in `hindsight/pyproject.toml` to the newest release, run `uv lock --directory hindsight`, and read which packages the lock gained or lost (`git diff hindsight/uv.lock | grep '^[+-]name'`).
+Expected: the two Hindsight packages move; new dependencies, if any, are named in the commit body.
 
 - [ ] **Step 3: Try it on a throwaway profile before the live daemon**
 
-In a scratch copy of `hindsight/`: `uv sync --frozen`, then `uv run hindsight-embed profile create pinbump --port 9199 --env HINDSIGHT_API_LLM_PROVIDER=claude-code --env HINDSIGHT_API_LLM_MODEL=claude-haiku-5-5`, `uv run hindsight-embed -p pinbump daemon start`, `curl -sf http://127.0.0.1:9199/health`.
-Expected: `"status":"healthy"`. Then `daemon stop`, `profile delete pinbump`, and `rm -rf ~/.pg0/instances/hindsight-embed-pinbump`. This is the sequence that passed for 1.1.0 on 2026-11-13.
-
-- [ ] **Step 4: Bump `CODING_AGENTS_VERSION`** to the newest version Step 1's `npm pack` printed, apply any key rename to `defaults()` and its test, run `bin/lib/test-hindsight-memory && pnpm check`.
-
-- [ ] **Step 5: Commit, then apply on this Mac on the owner's word** with `hindsight-memory upgrade`, and repeat Task 3 Step 3. A database migration between daemon versions is one-way; say so when asking.
+In a scratch copy of `hindsight/`: `uv sync --frozen`, then, every call with its profile:
 
 ```bash
-git add hindsight bin/hindsight-memory bin/lib/test-hindsight-memory
+uv run hindsight-embed profile create pinbump --port 9199 --env HINDSIGHT_API_LLM_PROVIDER=claude-code --env HINDSIGHT_API_LLM_MODEL=claude-haiku-5-5
+```
+
+```bash
+uv run hindsight-embed -p pinbump daemon start
+```
+
+```bash
+curl -sf http://127.0.0.1:9199/health
+```
+
+Expected: `"status":"healthy"`. Then `uv run hindsight-embed -p pinbump daemon stop`, `uv run hindsight-embed profile delete pinbump`, check `lsof -nP -iTCP:8888 -sTCP:LISTEN` and `pgrep -fl pinbump` print nothing, and ask the owner before removing `~/.pg0/instances/hindsight-embed-pinbump`. This sequence passed for 1.1.0 on 2026-11-13.
+
+- [ ] **Step 4: Bump `CODING_AGENTS_VERSION`** to the version Step 1's `npm pack` printed, apply any key rename to `defaults()` and its test, rename the tools in the files listed above, and run `bin/lib/test-hindsight-memory && pnpm check`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add hindsight bin/hindsight-memory bin/lib/test-hindsight-memory tilde/.claude/rules/hindsight.md agents/catalog/curated.toml
 git commit -m "Update Hindsight to <daemon version> and its hook package to <package version>"
 ```
+
+- [ ] **Step 6: Apply on this Mac, on the owner's word, behind a backup**
+
+The new server migrates the database at its first start and no downgrade is documented, so the copy is the way back. With every Claude Code and Codex session closed:
+
+```bash
+hindsight-memory status | head -3
+```
+
+```bash
+uv run --frozen --directory ~/.hindsight/daemon-env hindsight-embed -p coding-agent daemon stop
+```
+
+```bash
+pgrep -fl 'instances/hindsight-embed-coding-agent'
+```
+
+That must print nothing before the copy: a daemon that is killed can leave its Postgres running (spec fact 16), and a copy of a live data directory is not a backup. If it prints a process, stop it with `~/.pg0/installation/18.1.0/bin/pg_ctl -D ~/.pg0/instances/hindsight-embed-coding-agent/data stop -m fast`.
+
+```bash
+cp -R ~/.pg0/instances/hindsight-embed-coding-agent ~/.pg0/instances/hindsight-embed-coding-agent.before-bump
+```
+
+```bash
+hindsight-memory upgrade
+```
+
+Then repeat Task 3 Step 3 and Step 1's bank count. Expected: the same bank count, the 🧠 banner, a search through the renamed tool returns pages. To go back: stop the daemon, revert the commit, `hindsight-memory upgrade`, and move the `.before-bump` copy into place. The owner removes the copy once a week of sessions has gone by without a problem.
 
 ---
 

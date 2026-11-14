@@ -13,12 +13,14 @@ The Hindsight daemon runs from one reviewed, locked environment that never multi
 
 ## Open decisions for the owner
 
-| # | Question | Recommendation |
-| --- | --- | --- |
-| A | Run the daemon from a locked uv project (finding 4) instead of the vendor's default `uvx`? | Yes. It is the vendor's own code path (`embedPackagePath`), it removes the cause, and it makes the 231 dependencies a reviewed diff. |
-| B | What `sysup` says when the cache is in use and the prune is skipped. | `ok` below 20 cached environments, `notice` with the command at 20 or more. |
-| C | Bump the pins (hook package 0.8.3 to 0.8.6 or 0.8.7, daemon 1.1.0 to 1.2.1) now or later? | Later, as its own commit after the lock lands (Task 4), because 0.8.7 carries a breaking rename. |
-| D | Delete the stale `~/.pg0/instances/hindsight-embed-` (65 MB, not this session's)? | Yes, after checking nothing uses it (Task 3). |
+Researched further on 2026-11-14 at the owner's request. Each recommendation names the evidence behind it.
+
+| # | Question | Recommendation | Evidence and what could go wrong |
+| --- | --- | --- | --- |
+| A | Run the daemon from a locked uv project instead of the vendor's default `uvx`? | Yes. | Facts 4, 12 and 13. The vendor's table calls `embedPackagePath` a development option ("run a local checkout instead"), so a later hook release could change it. The hook package is pinned, so that can only arrive through a reviewed bump, and Task 1 falls back to `uvx` whenever the environment is missing. |
+| B | What `sysup` says when the cache is in use and the prune is skipped. | An `ok` line that carries the count: `in use, not pruned (N cached environments)`. No notice yet. | Sessions are usually open, so a notice would fire on most runs, and the space a prune frees is unmeasured (fact 8). Once Task 3 has the number, a notice at a threshold is a one-line change if the space turns out to matter. This replaces the first draft's notice at 20. |
+| C | Bump the pins now or later? | Later, as Task 4, both together, behind a database backup. | Fact 14. Nothing in 0.8.4 to 0.8.7 or 1.2.x fixes a problem this setup has. 1.2.1 runs three migrations with no documented downgrade. 0.8.7 renames three MCP tools, which this repo names in `tilde/.claude/rules/hindsight.md` and `agents/catalog/curated.toml`. No page states which hook versions work with which server versions. |
+| D | Delete `~/.pg0/instances/hindsight-embed-` (65 MB)? | Yes, it holds no real memory. Keeping it costs 65 MB and nothing else. | Fact 15: one bank `proto-test`, one document, two facts, all written 2026-10-24 06:53 UTC by the first spec's prototype. |
 
 ## Verified facts
 
@@ -37,6 +39,12 @@ Each row was measured on this Mac on 2026-11-13 (uv 0.13.7) unless it names anot
 | 9 | The vendor knows. Issue vectorize-io/hindsight#2915 (35 environments, 55.5 GiB) was closed 2026-07-31 by a docs change (PR 3118): stop the daemon, then `uv cache prune`. | `gh issue view`, `gh pr view`. |
 | 10 | The pins are behind. npm has hook package 0.8.7; 0.8.6 is the newest that `min-release-age` allows today. PyPI has `hindsight-embed`, `hindsight-api` 1.2.1. | `npm view`, `npm pack --dry-run`; PyPI from the subagent. |
 | 11 | `uv` has no cache size limit or TTL. PR astral-sh/uv#20116 (open) adds a preview `cache-autoprune` and makes `uvx` release the lock before running the command. uv 0.13.8 only stops duplicate builds from concurrent `uvx` calls. | Subagent read of the uv docs, issues 5731 and 9790, and the 0.13.8 notes. Not re-read here. |
+
+| 12 | A project environment survives a prune, and `uv run` without `--frozen` leaves `uv.lock` byte-identical. | Throwaway cache and project on 2026-11-14: `uv sync --frozen`, `uv cache prune` ("Removed 48 files"), then `uv run --directory` still ran from `.venv`; `shasum uv.lock` equal before and after. |
+| 13 | A long-running `uv run` holds the cache lock like `uvx` does. The daemon start does not, because `hindsight-embed daemon start` exits (fact 4). | A sleeping `uv run` child made `UV_LOCK_TIMEOUT=2 uv cache prune` time out. |
+| 14 | What the newer releases change. Hook 0.8.7 renames `hindsight_search_knowledge_pages`, `hindsight_list_knowledge_pages` and `hindsight_read_knowledge_page` to `hindsight_search_pages`, `hindsight_list_pages` and `hindsight_read_page`; the vendor says a permission rule naming an old tool needs the new name. Server 1.2.1 runs three migrations at startup. 0.8.4 to 0.8.6 fix the codebase survey (off here) and other agents. | Subagent read of the vendor changelogs, the 1.2.0 and 1.2.1 release notes and the hook README on 2026-11-14; not re-read here. `grep -rn knowledge_page` found the two tracked files named in decision C. Issue 6334 (a daemon enabled only under `paths` never starts) does not apply: `serverMode` is top-level in this config. Issue 6553 (open): with the daemon down, each prompt waits 16 to 21 s. |
+| 15 | `~/.pg0/instances/hindsight-embed-` is the default profile's database and holds only the first spec's prototype: bank `proto-test` (created 2026-10-24 06:53 UTC), 1 document (`cli_put_20261024_025331`, "Prototype note: the dotfiles repo gate is pnpm check…"), 2 memory units. The live database holds 24 banks, 439 documents and 21,003 memory units. | `psql` against both instances on 2026-11-14. |
+| 16 | A `hindsight-embed` call without `-p <profile>` can start a daemon for the default profile. On 2026-11-13 at 23:35 a prototype call from the scratch environment (`uv run hindsight-embed --version`, by elimination, not re-run to confirm) started one on port 8888 with the fact 15 database on 5433. It was found and stopped on 2026-11-14 (`kill`, then `pg_ctl stop -m fast`); the data is as it was except for Postgres housekeeping. | `ps -o lstart` showed the process running from the scratch `.venv`; `lsof` on 8888 and 5433. |
 
 ## What this means
 
@@ -60,5 +68,7 @@ From the vendor pages the owner listed. These rest on the docs subagent's readin
 ## Not verified
 
 - The real size of the cache and what a prune frees (fact 8).
-- Which config keys 0.8.7's "Knowledge Pages to Pages" rename touches.
+- Whether 0.8.7 renames any client config key (the changelog names only tools and one server-side key), and whether the old tool names still answer.
+- Which hook versions work with which server versions, and whether a 1.2.1 database can be opened by 1.1.0 again.
+- What started the Hindsight control plane on port 19077 at 23:35 on 2026-11-13 (`npm exec @vectorize-io/hindsight-control-plane@1.1.0`, pid 90101): the same second as fact 16's daemon, so probably the same call, but the jstack band's Memory button opens the same dashboard. Left running.
 - That the hook's own cold start (not a hand-run `daemon start`) works with `embedPackagePath` on the `coding-agent` profile. Task 3 proves it on the live daemon.
