@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <title>Return of the Mac: Comeback</title>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#E8DCC8"/>
+  <g transform="translate(100 100) scale(6.8667)">
+    <path d="M60 16A44 44 0 1 0 104 60" fill="none" stroke="#D9643A" stroke-width="6" stroke-linecap="round"/>
+    <path d="M53 7l10 9-10 9" fill="none" stroke="#D9643A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="40" y="78" width="40" height="9" rx="2" fill="#2B2730"/>
+    <rect x="34" y="32" width="52" height="48" rx="7" fill="#3A3541"/>
+    <rect x="41" y="39" width="38" height="25" rx="3" fill="#8FD3C1"/>
+    <path d="M47 47l5 4-5 4" fill="none" stroke="#3A3541" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="56" y="53" width="8" height="2.5" fill="#3A3541"/>
+    <rect x="64" y="70" width="15" height="2.5" rx="1.25" fill="#E8DCC8"/>
+  </g>
+</svg>
