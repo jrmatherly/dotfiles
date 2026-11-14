@@ -10,10 +10,14 @@ The Hindsight daemon runs from one reviewed, locked environment that never multi
 
 1. 2026-11-13: `sysup` gains a `uv cache prune` step.
 2. 2026-11-13: this work comes before the rest of P5 (the `app-v0.1.0` tag, Tasks 9, 11 and 12).
+3. 2026-11-14 (A): the daemon runs from a locked uv project through `embedPackagePath`.
+4. 2026-11-14 (B): when the cache is in use, `sysup` prints an `ok` line with the count of cached environments and no notice.
+5. 2026-11-14 (C): the pins are bumped later, both together, behind a database backup (plan Task 4).
+6. 2026-11-14 (D): the stale `~/.pg0/instances/hindsight-embed-` is deleted. Done that day, after `pgrep` and `lsof` on ports 8888 and 5433 printed nothing; the live daemon stayed healthy.
 
-## Open decisions for the owner
+## How decisions 3 to 6 were reached
 
-Researched further on 2026-11-14 at the owner's request. Each recommendation names the evidence behind it.
+They were open questions A to D, researched further on 2026-11-14 at the owner's request. The owner accepted all four recommendations that day. Each row names the evidence behind it.
 
 | # | Question | Recommendation | Evidence and what could go wrong |
 | --- | --- | --- | --- |

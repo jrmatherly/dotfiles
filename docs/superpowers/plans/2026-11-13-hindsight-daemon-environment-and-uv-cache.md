@@ -8,7 +8,7 @@
 
 **Tech Stack:** bash (`bin/hindsight-memory`, `bin/sysup`, their `bin/lib/test-*` self-checks), uv 0.13, jq.
 
-**Spec:** `docs/superpowers/specs/2026-11-13-hindsight-daemon-environment-and-uv-cache.md`. Read its Goal, the owner's decisions and the open decisions A to D first. Tasks 1 and 2 assume A and B are answered as recommended; Task 4 is decision C, Task 3 Step 6 is decision D. None of the four is answered yet: ask before starting.
+**Spec:** `docs/superpowers/specs/2026-11-13-hindsight-daemon-environment-and-uv-cache.md`. Read its Goal and the owner's decisions 1 to 6 first. Tasks 1 and 2 build decisions 3 and 4 (A and B), Task 4 is decision 5 (C), and decision 6 (D) is already carried out.
 
 ## Global Constraints
 
@@ -183,7 +183,7 @@ Inside the existing `if command -v uv` block, after the tools branch: `step "uv 
 
 - exit 0 and the count dropped: `changed`, `pruned <before minus after> entries`.
 - exit 0 and the count is the same: `ok`, `nothing to prune`.
-- non-zero and the output contains `waiting for`: `ok`, `in use, not pruned (<N> cached environments)`, where N counts `archive-v0/*/pyvenv.cfg` the same guarded way. No notice (spec decision B): sessions are usually open, and what a prune frees is unmeasured until Task 3.
+- non-zero and the output contains `waiting for`: `ok`, `in use, not pruned (<N> cached environments)`, where N counts `archive-v0/*/pyvenv.cfg` the same guarded way. No notice (spec decision 4): sessions are usually open, and what a prune frees is unmeasured until Task 3.
 - any other failure: `fail`, `run: uv cache prune`, then `show`.
 
 One comment above the step: the timeout is 10 because uvx-launched MCP servers hold the lock for as long as their session is open, and uv's default wait is 300 s.
@@ -254,10 +254,9 @@ Expected: the prune prints `Removed N files (X)`. The difference of the two `df`
 Run: `curl -sf "http://127.0.0.1:9077/v1/default/banks/coding-agent::dotfiles" | jq '.. | .memory_defense? // empty'` (if that path 404s, list the routes with `curl -sf http://127.0.0.1:9077/openapi.json | jq -r '.paths | keys[]' | grep -i bank` and read the bank's config route).
 Expected: `enabled: true` with the `sensitive_data` redact rule. If it is absent, record that in the spec as a finding; do not change the config in this task.
 
-- [ ] **Step 6: Stale leftovers (decision D)**
+- [x] **Step 6: Stale leftovers (decision D)**
 
-The directory is the default profile's database and holds only the 2026-10-24 prototype (spec fact 15). Run: `pgrep -fl 'instances/hindsight-embed-/'` and `lsof -nP -iTCP:8888 -sTCP:LISTEN`.
-Expected: both print nothing. With the owner's yes, the owner runs `rm -rf ~/.pg0/instances/hindsight-embed-` (a removal outside the repo is theirs to run). Leave `coding-agent.json.pre-pages.bak` and `.hindsight-backup` alone.
+Done on 2026-11-14: the owner said yes and `~/.pg0/instances/hindsight-embed-` was removed (spec decision 6). Leave `coding-agent.json.pre-pages.bak` and `.hindsight-backup` alone.
 
 - [ ] **Step 7: Write down what was measured, then commit**
 
