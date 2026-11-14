@@ -17,7 +17,7 @@ struct ConsoleView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      ConsoleText(text: session.text, title: session.title)
+      ConsoleText(runs: session.runs, title: session.title)
       Divider()
       VStack(alignment: .leading, spacing: 10) {
         HStack {
@@ -73,18 +73,21 @@ struct ConsoleView: View {
   }
 }
 
-/// A read-only monospaced text view that keeps following the output while
-/// the user has not scrolled up.
+/// A read-only monospaced text view, in the colours the command sent, that
+/// keeps following the output while the user has not scrolled up.
 private struct ConsoleText: NSViewRepresentable {
-  let text: String
+  let runs: [StyledRun]
   let title: String
+
+  final class Coordinator { var shown: [StyledRun] = [] }
+
+  func makeCoordinator() -> Coordinator { Coordinator() }
 
   func makeNSView(context: Context) -> NSScrollView {
     let scroll = NSTextView.scrollableTextView()
     let view = scroll.documentView as! NSTextView
     view.isEditable = false
     view.isSelectable = true
-    view.isRichText = false
     view.textContainerInset = NSSize(width: 8, height: 8)
     view.setAccessibilityLabel("Output of \(title)")
     return scroll
@@ -93,18 +96,49 @@ private struct ConsoleText: NSViewRepresentable {
   func updateNSView(_ scroll: NSScrollView, context: Context) {
     guard let view = scroll.documentView as? NSTextView, let storage = view.textStorage else { return }
     view.setAccessibilityLabel("Output of \(title)")
-    let shown = storage.string
-    guard shown != text else { return }
+    let shown = context.coordinator.shown
+    guard shown != runs else { return }
     let following = scroll.documentVisibleRect.maxY >= view.bounds.maxY - 24
-    let attributes: [NSAttributedString.Key: Any] = [
-      .font: NSFont.monospacedSystemFont(ofSize: NSFont.smallSystemFontSize + 1, weight: .regular),
-      .foregroundColor: NSColor.textColor,
-    ]
-    if !shown.isEmpty, text.hasPrefix(shown) {
-      storage.append(NSAttributedString(string: (text as NSString).substring(from: storage.length), attributes: attributes))
+    // New output only grows the last run shown or adds runs after it.
+    if let last = shown.indices.last, runs.count > last, runs[..<last] == shown[..<last],
+      runs[last].style == shown[last].style, runs[last].text.hasPrefix(shown[last].text)
+    {
+      let tail = (runs[last].text as NSString).substring(from: (shown[last].text as NSString).length)
+      let added = NSMutableAttributedString(string: tail, attributes: Self.attributes(runs[last].style))
+      for run in runs[(last + 1)...] { added.append(NSAttributedString(string: run.text, attributes: Self.attributes(run.style))) }
+      storage.append(added)
     } else {
-      storage.setAttributedString(NSAttributedString(string: text, attributes: attributes))
+      let all = NSMutableAttributedString()
+      for run in runs { all.append(NSAttributedString(string: run.text, attributes: Self.attributes(run.style))) }
+      storage.setAttributedString(all)
     }
+    context.coordinator.shown = runs
     if following { view.scrollToEndOfDocument(nil) }
+  }
+
+  private static let regular = NSFont.monospacedSystemFont(ofSize: NSFont.smallSystemFontSize + 1, weight: .regular)
+  private static let bold = NSFont.monospacedSystemFont(ofSize: NSFont.smallSystemFontSize + 1, weight: .bold)
+
+  /// Black, white and the default are the label colour, so they read on either background.
+  private static let palette: [NSColor] = [
+    .labelColor, .systemRed, .systemGreen, yellow, .systemBlue, .systemPurple, .systemCyan, .labelColor,
+    .secondaryLabelColor, .systemRed, .systemGreen, yellow, .systemBlue, .systemPink, .systemTeal, .labelColor,
+  ]
+
+  /// System yellow is barely visible on a white background.
+  private static let yellow = NSColor(name: nil) {
+    $0.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+      ? .systemYellow : NSColor(srgbRed: 0.6, green: 0.45, blue: 0, alpha: 1)
+  }
+
+  private static func attributes(_ style: TextStyle) -> [NSAttributedString.Key: Any] {
+    let color: NSColor
+    switch style.foreground {
+    case nil: color = .textColor
+    case .basic(let n): color = palette[n]
+    case .rgb(let r, let g, let b):
+      color = NSColor(srgbRed: CGFloat(r) / 255, green: CGFloat(g) / 255, blue: CGFloat(b) / 255, alpha: 1)
+    }
+    return [.font: style.bold ? bold : regular, .foregroundColor: color]
   }
 }

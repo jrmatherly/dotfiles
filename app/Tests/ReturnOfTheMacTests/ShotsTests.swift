@@ -92,6 +92,18 @@ private let updateOutput = """
   echo 'A long line that a narrow window has to wrap rather than clip, so nothing past the right edge is lost from view.'
   """
 
+/// Setup's ticks and warnings as `rotm update` colours them, and five rows of the art it ends with, from the P5 probe.
+private let colouredOutput = #"""
+  printf '  [ \033[00;32m✔\033[0m ] set for rotm\n'
+  printf '  [\033[0;33m!\033[0m] No Firefox Developer Edition profile found, skipping Firefox styles\n'
+  printf '\033[1mBold\033[22m, \033[31mred\033[0m, \033[34mblue\033[0m, \033[35mmagenta\033[0m, \033[36mcyan\033[0m, \033[90mbright black\033[0m\n'
+  printf '\033[1m\033[38;2;214;40;40m        \033[38;2;214;40;40m██\033[38;2;20;20;20m████████\033[38;2;214;40;40m████████\033[38;2;20;20;20m████████\033[38;2;214;40;40m██\033[m\n'
+  printf '\033[1m\033[38;2;214;40;40m        \033[38;2;20;20;20m████\033[38;2;245;245;245m████\033[38;2;20;20;20m████\033[38;2;214;40;40m████\033[38;2;20;20;20m████\033[38;2;245;245;245m████\033[38;2;20;20;20m████\033[m\n'
+  printf '\033[1m\033[38;2;20;20;20m        \033[38;2;20;20;20m██████\033[38;2;245;245;245m████\033[38;2;20;20;20m██\033[38;2;214;40;40m████\033[38;2;20;20;20m██\033[38;2;245;245;245m████\033[38;2;20;20;20m██████\033[m\n'
+  printf '\033[1m\033[38;2;20;20;20m        \033[38;2;214;40;40m██\033[38;2;20;20;20m██████████\033[38;2;214;40;40m████\033[38;2;20;20;20m██████████\033[38;2;214;40;40m██\033[m\n'
+  printf '\033[1m\033[38;2;214;40;40m        \033[38;2;214;40;40m████\033[38;2;20;20;20m██████\033[38;2;214;40;40m████████\033[38;2;20;20;20m██████\033[38;2;214;40;40m████\033[m\n'
+  """#
+
 private func editableFields(in view: NSView) -> [NSTextField] {
   let mine = (view as? NSTextField).map { $0.isEditable ? [$0] : [] } ?? []
   return mine + view.subviews.flatMap(editableFields)
@@ -127,7 +139,7 @@ private func editableFields(in view: NSView) -> [NSTextField] {
   @Test func console() async throws {
     var sessions: [ConsoleSession] = []
     try await shoot("console-running") {
-      try await consoleWindow(updateOutput + "\necho 'Installing packages…'; sleep 60", sessions: &sessions) {
+      try await consoleWindow(updateOutput + "\n" + colouredOutput + "\necho 'Installing packages…'; sleep 60", sessions: &sessions) {
         $0.text.contains("Installing packages")
       }
     }

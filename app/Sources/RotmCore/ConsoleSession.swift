@@ -44,11 +44,14 @@ public struct ConsoleCommand: Equatable, Sendable {
 }
 
 /// One command run under `/usr/bin/script`, so it has a terminal for its
-/// prompts, with its output kept as plain text and in a private log.
+/// prompts, with its output kept as text, as the same text in styled runs,
+/// and in a private log.
 @MainActor @Observable public final class ConsoleSession {
   public enum Phase: Equatable { case running, finished(Int32), stopped }
 
   public private(set) var text = ""
+  /// `text` cut where the colour or weight changes: their texts joined are always `text`.
+  public private(set) var runs: [StyledRun] = []
   public private(set) var phase: Phase = .running
   public private(set) var wantsSecret = false
   public let title: String
@@ -56,7 +59,6 @@ public struct ConsoleCommand: Equatable, Sendable {
 
   static let cap = 200_000
   private static let keptLogs = 20
-  private static let escape = "\u{1B}(\\[[0-9;?]*[A-Za-z]|\\][^\u{07}\u{1B}]*(\u{07}|\u{1B}\\\\)|[()][A-Z0-9]|[=>])|\u{07}"
   private static let partialEscape = "\u{1B}(\\[[0-9;?]*|\\][^\u{07}\u{1B}]*|[()])?\\z"
   private static let secretPrompt = "(?i)password.*:\\s*$"
 
@@ -66,6 +68,7 @@ public struct ConsoleCommand: Equatable, Sendable {
   @ObservationIgnored private var input: FileHandle?
   @ObservationIgnored private var log: FileHandle?
   @ObservationIgnored private var pending = Data()
+  @ObservationIgnored private var parser = AnsiParser()
   @ObservationIgnored private var carriage = false
   @ObservationIgnored private var exitStatus: Int32?
   @ObservationIgnored private var outputDone = false
@@ -119,6 +122,7 @@ public struct ConsoleCommand: Equatable, Sendable {
     } catch {
       output.fileHandleForReading.readabilityHandler = nil
       text = "Could not start \(command.first ?? "the command"): \(error.localizedDescription)\n"
+      runs = [StyledRun(text: text, style: TextStyle())]
       phase = .finished(127)
       return
     }
@@ -170,7 +174,7 @@ public struct ConsoleCommand: Equatable, Sendable {
     process = nil
   }
 
-  private func receive(_ chunk: Data) {
+  func receive(_ chunk: Data) {
     guard !chunk.isEmpty else {
       outputDone = true
       finishIfDone()
@@ -185,24 +189,27 @@ public struct ConsoleCommand: Equatable, Sendable {
       pending = Data(string[partial].utf8) + pending
       string.removeSubrange(partial)
     }
-    let plain = string.replacingOccurrences(of: Self.escape, with: "", options: .regularExpression)
-    append(plain)
+    var logged = String.UnicodeScalarView()
+    for run in parser.parse(string) { append(run.text, run.style, logged: &logged) }
+    if text.utf8.count > Self.cap, text.count > Self.cap {
+      let scalars = text.unicodeScalars.count
+      text.removeFirst(text.count - Self.cap)
+      dropFirstScalars(scalars - text.unicodeScalars.count)
+    }
+    try? log?.write(contentsOf: Data(String(logged).utf8))
+    let lastLine = text.lastIndex(of: "\n").map { text[text.index(after: $0)...] } ?? text[...]
+    wantsSecret = lastLine.range(of: Self.secretPrompt, options: .regularExpression) != nil
   }
 
   /// A bare \r starts the line over; \r\n, which the terminal makes of every
   /// \n, is a newline. A \r at the end of a chunk waits for the next one.
-  private func append(_ plain: String) {
+  private func append(_ plain: String, _ style: TextStyle, logged: inout String.UnicodeScalarView) {
     var shown = String.UnicodeScalarView()
-    var logged = String.UnicodeScalarView()
     for scalar in plain.unicodeScalars {
       if carriage, scalar != "\n", scalar != "\r" {
-        text.unicodeScalars.append(contentsOf: shown)
+        add(String(shown), style)
         shown = String.UnicodeScalarView()
-        if let newline = text.lastIndex(of: "\n") {
-          text.removeSubrange(text.index(after: newline)...)
-        } else {
-          text = ""
-        }
+        startLineOver()
         logged.append("\r")
       }
       carriage = scalar == "\r"
@@ -211,11 +218,50 @@ public struct ConsoleCommand: Equatable, Sendable {
         logged.append(scalar)
       }
     }
-    text.unicodeScalars.append(contentsOf: shown)
-    if text.utf8.count > Self.cap, text.count > Self.cap { text.removeFirst(text.count - Self.cap) }
-    try? log?.write(contentsOf: Data(String(logged).utf8))
-    let lastLine = text.lastIndex(of: "\n").map { text[text.index(after: $0)...] } ?? text[...]
-    wantsSecret = lastLine.range(of: Self.secretPrompt, options: .regularExpression) != nil
+    add(String(shown), style)
+  }
+
+  private func add(_ shown: String, _ style: TextStyle) {
+    guard !shown.isEmpty else { return }
+    text += shown
+    if let last = runs.last, last.style == style {
+      runs[runs.count - 1] = StyledRun(text: last.text + shown, style: style)
+    } else {
+      runs.append(StyledRun(text: shown, style: style))
+    }
+  }
+
+  /// A newline is a character of its own, so cutting the text and the runs
+  /// after their last one keeps them equal.
+  private func startLineOver() {
+    if let newline = text.lastIndex(of: "\n") {
+      text.removeSubrange(text.index(after: newline)...)
+    } else {
+      text = ""
+    }
+    while let last = runs.last {
+      if let newline = last.text.unicodeScalars.lastIndex(of: "\n") {
+        let kept = String(last.text.unicodeScalars[...newline])
+        if kept != last.text { runs[runs.count - 1] = StyledRun(text: kept, style: last.style) }
+        return
+      }
+      runs.removeLast()
+    }
+  }
+
+  private func dropFirstScalars(_ count: Int) {
+    var left = count
+    var whole = 0
+    for run in runs {
+      let length = run.text.unicodeScalars.count
+      guard length <= left else { break }
+      left -= length
+      whole += 1
+    }
+    runs.removeFirst(whole)
+    if left > 0, let first = runs.first {
+      runs[0] = StyledRun(text: String(first.text.unicodeScalars.dropFirst(left)), style: first.style)
+    }
   }
 
   /// The length of the longest prefix that does not end inside a UTF-8 sequence.
