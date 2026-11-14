@@ -254,7 +254,7 @@ Expected: `daemon environment updated`, exit 0, `UV_OFFLINE=1 uv run --directory
 Open a new Claude Code session in `~/dev/dotfiles` and send one prompt. Then run: `pgrep -fl hindsight-api`, the Step 1 bank count, and `tail -3 ~/.hindsight/coding-agents-logs/plugin.log`.
 Expected: one process whose path starts with `~/.hindsight/daemon-env/.venv/bin/python`, no `uv tool uvx hindsight-api` process, the same bank count, the 🧠 banner in the session, and no error in the log tail. If the daemon does not start, go back in this order, because every `hindsight-memory upgrade` (so every `sysup`) sets the key again: `git revert <Task 1's commit>` (Task 2 also edited the Hindsight bullet's neighbour in `docs/updating.md`; keep Task 2's bullet if the revert conflicts there), `pnpm check`, push, then `jq 'del(.embedPackagePath)' ~/.hindsight/coding-agent.json` through a temp file. Report the log tail and stop.
 
-- [ ] **Step 4: The owner measures a real prune**
+- [x] **Step 4: The owner measures a real prune**
 
 The owner quits every Claude Code session and runs, in a terminal:
 
@@ -281,7 +281,7 @@ Expected: `enabled: true` with the `sensitive_data` redact rule. If it is absent
 
 Done on 2026-11-14: the owner said yes and `~/.pg0/instances/hindsight-embed-` was removed (spec decision 6). Leave `coding-agent.json.pre-pages.bak` and `.hindsight-backup` alone.
 
-- [ ] **Step 7: Write down what was measured, then commit**
+- [x] **Step 7: Write down what was measured, then commit**
 
 Spec: add the cold-start proof and the prune's freed size as "Verified facts" rows and remove the matching "Not verified" lines. Memory `uv-cache-prune-in-sysup`: replace the "interpretation, not measured" paragraph with the measured cause and the freed size, and drop the constraints the code now carries.
 

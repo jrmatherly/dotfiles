@@ -52,12 +52,13 @@ Each row was measured on this Mac on 2026-11-13 (uv 0.13.7) unless it names anot
 | 17 | The hook's own cold start works with `embedPackagePath` on the `coding-agent` profile. After `hindsight-memory upgrade` (exit 0, `daemon environment updated`, the old `uvx` daemon stopped, the offline `uv run` lock check exit 0, the installed lock byte-equal to the repo's), a fresh `claude -p` session in this repo started the daemon in under 30 s. It runs as `~/.hindsight/daemon-env/.venv/bin/python …/hindsight-api --idle-timeout 0 --port 9077` with parent pid 1, no `uv tool uvx hindsight-api` process exists, `/health` is healthy, the bank count is 24 before and after, and the plugin log's last lines are `daemon ready`. Port 8888 stayed silent. | Plan Task 3 Steps 1 to 3 on 2026-11-14. |
 | 18 | Memory defence is applied: the `coding-agent::dotfiles` bank's stored config holds `memory_defense` `enabled: true` with the `sensitive_data` redact rule. | `GET /v1/default/banks/{bank_id}/config` on 2026-11-14. |
 | 19 | `hindsight-embed daemon stop` exits 0 when nothing is running and 1 when it cannot stop the daemon. A prune that removes entries prints `Removed N files (X)`; one that removes nothing prints `No unused entries found`; a busy one prints the waiting line, then `error: Timeout (Ns) when waiting for lock on …`. | `hindsight_embed/cli.py` and `daemon_embed_manager.py` 1.1.0, read on 2026-11-14; throwaway `UV_CACHE_DIR` with uv 0.13.7. |
+| 20 | A real prune of this cache freed 3.41 GiB. uv printed `Removed 2658942 files (92.5GiB)` and `du -sh ~/.cache/uv` went from 105 GiB to 12 GiB, but free space on the data volume rose by 3,577,492 KiB. uv and `du` count each copy-on-write clone at full size (fact 8); the volume has no APFS snapshot that could be holding the blocks. The daemon stayed healthy with 24 banks, running from `~/.hindsight/daemon-env` (fact 12 on the live machine). | The owner ran `UV_LOCK_TIMEOUT=30 uv cache prune` between two `df -k /System/Volumes/Data` readings on 2026-11-14 with every Claude Code session closed (plan Task 3 Step 4); `tmutil listlocalsnapshots /` and `diskutil apfs listSnapshots` afterwards. |
 
 ## What this means
 
 - **The lock fixes the cause and a gap in the first design.** The 2026-10-24 spec says hook code changes only through a reviewed bump. The daemon's 200-odd dependencies were outside that rule: each cold start could run versions nobody reviewed. A tracked `uv.lock` puts them inside it.
 - **It also frees the cache lock.** `uv run … hindsight-embed daemon start` exits once the daemon is up (fact 4), so the daemon stops blocking prunes. The browser-use servers still hold it while sessions are open, and `@latest` in that plugin is not this repo's to change.
-- **The prune is housekeeping, not the fix.** It removes every cached environment each time it runs (fact 7), they come back as tools are used, and how much real space it frees is unmeasured (fact 8). Task 3 takes that measurement.
+- **The prune is housekeeping, not the fix.** It removes every cached environment each time it runs (fact 7), they come back as tools are used, and the first one freed 3.41 GiB of real space where uv reported 92.5 GiB (fact 20).
 - **A prune is safe for memory.** The database is in `~/.pg0` (1.2 GiB) and the config in `~/.hindsight` (68 MB), both outside the cache.
 
 ## Checked and left alone
@@ -74,7 +75,6 @@ From the vendor pages the owner listed. These rest on the docs subagent's readin
 
 ## Not verified
 
-- The real size of the cache and what a prune frees (fact 8).
 - Whether 0.8.7 renames any client config key (the changelog names only tools and one server-side key), and whether the old tool names still answer.
 - Which hook versions work with which server versions, and whether a 1.2.1 database can be opened by 1.1.0 again.
 - What started the Hindsight control plane on port 19077 at 23:35 on 2026-11-13 (`npm exec @vectorize-io/hindsight-control-plane@1.1.0`, pid 90101): the same second as fact 16's daemon, so probably the same call, but the jstack band's Memory button opens the same dashboard. Left running.
