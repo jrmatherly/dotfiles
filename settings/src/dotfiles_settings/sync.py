@@ -317,20 +317,26 @@ def now() -> list[str]:
     return [*apply(), "Saved and synced: this Mac and your settings repository hold the same settings."]
 
 
-def status() -> list[str]:
+def state() -> dict:
     origin = _text("dot", "origin").strip().partition("\n")[0]
     if NOT_CONNECTED in origin:
-        return ["Sync is not connected. Run `rotm settings sync on` to save your settings to a private GitHub "
-                "repository."]
+        return {"connected": False, "origin": None, "waiting": [], "conflicts": None}
     waiting = [l.strip() for l in _text("dot", "status").splitlines() if "unsaved" in l or "pending" in l]
     conflicts = _text("dot", "conflicts").strip()
-    lines = [f"Sync is on: {origin}", *waiting]
-    if waiting:
+    held = CONFLICT in conflicts or (conflicts and NO_CONFLICT not in conflicts)
+    return {"connected": True, "origin": origin, "waiting": waiting, "conflicts": conflicts if held else None}
+
+
+def status() -> list[str]:
+    s = state()
+    if not s["connected"]:
+        return ["Sync is not connected. Run `rotm settings sync on` to save your settings to a private GitHub "
+                "repository."]
+    lines = [f"Sync is on: {s['origin']}", *s["waiting"]]
+    if s["waiting"]:
         lines.append("Run `rotm settings sync now` to save and share them.")
-    if CONFLICT in conflicts:
-        lines += [conflicts, DECIDE]
-    elif conflicts and NO_CONFLICT not in conflicts:
-        lines.append(conflicts)
+    if conflicts := s["conflicts"]:
+        lines += [conflicts, DECIDE] if CONFLICT in conflicts else [conflicts]
     return lines
 
 

@@ -1,9 +1,10 @@
-"""The dotfiles-settings command: list, get, set, reset, apply, sync, profile, tui and serve. Exit codes 0 ok, 1 failure,
+"""The dotfiles-settings command: list, get, set, reset, apply, status, sync, profile, tui and serve. Exit codes 0 ok, 1 failure,
 2 unknown id, invalid value or refused profile name, 3 read-only."""
-import argparse, importlib, json, os, re, sys
+import argparse, importlib, json, os, re, subprocess, sys
+from pathlib import Path
 
 from . import mise, profile, registry, sync
-from .adapters import ADAPTERS
+from .adapters import ADAPTERS, tool
 from .model import InvalidValue, Setting, SettingsError, Value, note_for
 
 TRUE = ("true", "on", "yes", "1")
@@ -38,9 +39,30 @@ def normalize(s: Setting, raw: str) -> str:
 
 
 def to_json(s: Setting, v: Value) -> dict:
+    seats, role = s.widget == "seats", s.key.partition(":")[2]
     return {"setting_id": s.id, "value": v.value, "source": v.source.value, "seed": v.seed, "drift": v.drift,
             "label": s.label, "section": s.section, "type": s.type, "choices": list(s.choices),
-            "widget": s.widget, "access": s.access}
+            "widget": s.widget, "access": s.access, "help": s.help, "kind": s.kind, "scope": s.scope,
+            "seat_models": tool.seat_models(role) if seats else [], "seat_efforts": list(tool.EFFORTS) if seats else [],
+            "seat_list": seats and role in tool.LIST_ROLES}
+
+
+def git(*args: str) -> str | None:
+    dotfiles = os.environ.get("DOTFILES")
+    if not dotfiles:
+        return None
+    try:
+        r = subprocess.run(["git", "-C", dotfiles, *args], capture_output=True, text=True)
+    except FileNotFoundError:
+        return None
+    return r.stdout.strip() or None if r.returncode == 0 else None
+
+
+def status() -> dict:
+    dotfiles = os.environ.get("DOTFILES")
+    return {"mode": "installed" if dotfiles and mise.installed(Path(dotfiles)) else "clone",
+            "branch": git("symbolic-ref", "-q", "--short", "HEAD"), "commit": git("rev-parse", "--short", "HEAD"),
+            "profile": profile.state(), "sync": sync.state()}
 
 
 def parser() -> argparse.ArgumentParser:
@@ -62,6 +84,8 @@ def parser() -> argparse.ArgumentParser:
     c.add_argument("--shared", action="store_true", help=shared)
     c = sub.add_parser("apply", help="apply the settings of one kind")
     c.add_argument("kind")
+    c = sub.add_parser("status", help="this copy's mode, branch and commit, the profile in use and the sync state")
+    c.add_argument("--json", action="store_true")
     c = sub.add_parser("sync", help="keep your settings in a private GitHub repository and load them on another Mac")
     c.add_argument("action", choices=("on", "off", "now", "status", "apply"))
     c.add_argument("--repo", default="rotm-settings", help="the repository's name in your account (sync on)")
@@ -98,6 +122,15 @@ def run(args: argparse.Namespace) -> None:
         return
     if args.command == "serve":
         ui("serve").run(not args.no_open)
+        return
+    if args.command == "status":
+        st = status()
+        if args.json:
+            print(json.dumps(st, indent=2))
+            return
+        sync_line = st["sync"]["origin"] if st["sync"]["connected"] else "not connected"
+        print(f"Mode: {st['mode']}\nBranch: {st['branch'] or 'none'}\nCommit: {st['commit'] or 'none'}\n"
+              f"Profile: {st['profile']['active']}\nSync: {sync_line}")
         return
     if args.command == "sync":
         lines = sync.on(args.repo) if args.action == "on" else getattr(sync, args.action)()

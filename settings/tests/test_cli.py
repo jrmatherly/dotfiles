@@ -1,5 +1,5 @@
 """Checks the CLI contract (subcommands, JSON, exit codes) against an isolated mise config. Run: python3 test_cli.py"""
-import atexit, contextlib, io, json, os, shutil, sys, tempfile
+import atexit, contextlib, io, json, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
 
 tmp = Path(tempfile.mkdtemp())
@@ -60,6 +60,16 @@ kind = "env"
 key = "T_LOCKED"
 type = "string"
 access = "ro"
+
+[[setting]]
+id = "t.text"
+section = "Two"
+label = "Text"
+help = ""
+kind = "env"
+key = "T_TEXT"
+type = "string"
+access = "rw"
 ''')
 os.environ.update(HOME=str(home), MISE_CONFIG_DIR=str(conf), VSCODE_SETTINGS_ENV=str(tmp / "vscode.env"),
                   DOTFILES_SETTINGS_REGISTRY=str(tmp / "registry.toml"))
@@ -94,9 +104,11 @@ def fake(text):
 if shutil.which("mise"):
     code, out, _ = run("list", "--json")
     rows = json.loads(out)
-    assert code == 0 and [r["setting_id"] for r in rows] == ["t.flag", "t.count", "t.pick", "t.dir", "t.locked"]
-    assert set(rows[0]) == {"setting_id", "value", "source", "seed", "drift", "label", "section", "type",
-                            "choices", "widget", "access"}
+    assert code == 0 and [r["setting_id"] for r in rows] == ["t.flag", "t.count", "t.pick", "t.dir", "t.locked",
+                                                             "t.text"]
+    assert set(rows[0]) == {"access", "choices", "drift", "help", "kind", "label", "scope", "seat_efforts", "seat_list",
+                            "seat_models", "section", "seed", "setting_id", "source", "type", "value", "widget"}
+    assert (rows[0]["kind"], rows[0]["scope"], rows[0]["seat_models"], rows[0]["seat_list"]) == ("env", "user", [], False)
     assert rows[2]["choices"] == ["a", "b"] and rows[0]["choices"] == [] and rows[0]["widget"] == ""
     assert rows[1]["value"] == "10" and rows[1]["source"] == "default"
     assert rows[0]["value"] is None and rows[0]["source"] == "unset"
@@ -104,7 +116,8 @@ if shutil.which("mise"):
     assert run("set", "t.flag", "on")[0] == 0
     assert json.loads(run("get", "t.flag", "--json")[1]) == {
         "setting_id": "t.flag", "value": "1", "source": "override", "seed": None, "drift": False,
-        "label": "Flag", "section": "One", "type": "bool", "choices": [], "widget": "", "access": "rw"}
+        "label": "Flag", "section": "One", "type": "bool", "choices": [], "widget": "", "access": "rw",
+        "help": "", "kind": "env", "scope": "user", "seat_models": [], "seat_efforts": [], "seat_list": False}
     assert run("set", "t.flag", "off")[0] == 0 and run("get", "t.flag")[1] == "\n"
     code, _, err = run("reset", "t.flag")
     assert code == 0 and "Open a new shell" in err
@@ -113,6 +126,8 @@ if shutil.which("mise"):
     assert run("set", "t.count", "007")[0] == 0 and run("get", "t.count")[1] == "7\n"
     assert run("set", "t.dir", "~/x")[0] == 0 and run("get", "t.dir")[1] == str(Path.home() / "x") + "\n"
     assert len(json.loads(run("list", "--section", "one", "--json")[1])) == 2
+    # a value a shell would eat arrives byte for byte after --
+    assert run("set", "t.text", "--", '-a "b" #c')[0] == 0 and run("get", "t.text")[1] == '-a "b" #c\n'
 
     for argv, code in ((("get", "nope"), 2), (("set", "nope", "1"), 2), (("reset", "nope"), 2),
                        (("set", "t.flag", "maybe"), 2), (("set", "t.count", "ten"), 2),
@@ -152,6 +167,28 @@ helper.parent.mkdir(parents=True)
 helper.write_text("#!/bin/sh\n")
 helper.chmod(0o755)
 os.environ["DOTFILES"] = str(tmp / "dotfiles")
+
+# status: the mode, the checkout's branch and commit, the profile and the sync state, without the registry
+git = ["git", "-C", str(tmp / "dotfiles"), "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
+subprocess.run([*git, "init", "-q", "-b", "main"], check=True)
+subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "x"], check=True)
+os.environ["DOTFILES_SETTINGS_MISE"] = fake("2026.11.8 no setup repository is connected")
+os.environ["DOTFILES_SETTINGS_REGISTRY"] = str(tmp / "absent.toml")
+code, out, err = run("status", "--json")
+status = json.loads(out)
+assert code == 0 and set(status) == {"branch", "commit", "mode", "profile", "sync"}, (code, out, err)
+assert set(status["profile"]) == {"active", "names", "missing", "mise_env"}
+assert set(status["sync"]) == {"connected", "origin", "waiting", "conflicts"}
+assert (status["mode"], status["branch"]) == ("clone", "main") and re.fullmatch(r"[0-9a-f]{7,}", status["commit"])
+assert status["profile"] == {"active": "default", "names": [], "missing": None, "mise_env": False}
+assert status["sync"] == {"connected": False, "origin": None, "waiting": [], "conflicts": None}
+code, out, err = run("status")
+assert code == 0 and err == "" and len(out.splitlines()) == 5 and "main" in out, (code, out, err)
+os.environ["DOTFILES"] = str(tmp / "absent")
+status = json.loads(run("status", "--json")[1])
+assert (status["mode"], status["branch"], status["commit"]) == ("clone", None, None), status
+os.environ["DOTFILES"] = str(tmp / "dotfiles")
+os.environ["DOTFILES_SETTINGS_REGISTRY"] = str(tmp / "registry.toml")
 profile.listing = lambda: ["* default", "  work"]
 assert run("profile", "list") == (0, "* default\n  work\n", "")
 code, out, err = run("profile", "use", "nope")
@@ -176,9 +213,23 @@ class Spy:
         seen.append(("reset", profile.shared))
 
 
-cli.ADAPTERS["env"], seen = Spy(), []
+real_env, cli.ADAPTERS["env"], seen = cli.ADAPTERS["env"], Spy(), []
 for argv in (("set", "--shared", "t.flag", "on"), ("set", "t.flag", "on"), ("reset", "--shared", "t.flag"),
              ("reset", "t.flag")):
     assert run(*argv)[0] == 0, argv
 assert seen == [("set", True), ("set", False), ("reset", True), ("reset", False)], seen
+cli.ADAPTERS["env"] = real_env
+
+# The app's decoder tests read these fixtures, so a field renamed here or there fails one side's gate
+fixtures = Path(__file__).resolve().parents[2] / "app/Tests/RotmTestSupport/Fixtures"
+live = json.loads(run("list", "--json")[1])[0]
+assert all(set(row) == set(live) for row in json.loads((fixtures / "list.json").read_text())), set(live)
+
+
+def shape(value):
+    return {k: shape(v) for k, v in value.items()} if isinstance(value, dict) else None
+
+
+os.environ["DOTFILES_SETTINGS_MISE"] = fake("2026.11.8 no setup repository is connected")
+assert shape(json.loads((fixtures / "status.json").read_text())) == shape(json.loads(run("status", "--json")[1]))
 print("ok")

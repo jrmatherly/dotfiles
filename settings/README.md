@@ -8,7 +8,7 @@ There are three ways in:
 
 - `dotfiles-settings tui` opens the terminal UI. Sections are on the left and the highlighted section's settings on the right. A row shows where its value comes from, and an overridden row has a **Reset** button (`ctrl+r` resets the focused row). `p` opens the plugin stack of the folder it was started from, with `k` to keep a plugin and `o` to turn one off.
 - `dotfiles-settings serve` opens the same UI in a browser tab. `--no-open` prints the URL without opening it.
-- `list`, `get`, `set`, `reset` and `apply` are for scripts, with `--json` on `list` and `get`.
+- `list`, `get`, `set`, `reset`, `apply` and `status` are for scripts and the menu bar app, with `--json` on `list`, `get` and `status`.
 
 ```shell
 dotfiles-settings list
@@ -57,10 +57,11 @@ The one row in the Dotfiles section, `dotfiles.links`, is the `dotfile` kind and
 | --- | --- | --- |
 | `list [--section S] [--json]` | A JSON array, or one `id<TAB>value<TAB>source` line per setting | 0, 2 for an unknown section |
 | `get <id> [--json]` | A JSON object, or the value alone (an empty line when unset) | 0, 2 for an unknown id |
-| `set [--shared] <id> <value>` | Nothing on stdout, the note on stderr | 0, 2 for an unknown id or an invalid value, 3 for a read-only setting |
+| `set [--shared] <id> [--] <value>` | Nothing on stdout, the note on stderr. Put `--` before a value that starts with `-` | 0, 2 for an unknown id or an invalid value, 3 for a read-only setting |
 | `reset [--shared] <id>` | Nothing on stdout, the note on stderr | 0, 2 for an unknown id, 3 for a read-only setting |
 | `profile list`, `profile use <name>`, `profile new <name>` | The profiles with the active one marked, or what the switch changed, described in [Profiles](#profiles) | 0, 2 for a name that is refused or unknown, 1 when a step stops it |
 | `apply <kind>` | The adapter's lines, or `<kind>: nothing to apply` | 0, 2 for an unknown kind |
+| `status [--json]` | This copy's mode, branch and commit, the profile in use and the sync state, one line each, or the JSON object [below](#status) | 0 |
 | `sync on [--repo NAME]`, `sync off`, `sync now`, `sync status`, `sync apply` | What happened and what to run next, described in [Sync](#sync) | 0, 1 when a step stops it, 2 for an unknown action |
 | `tui` | Runs the terminal UI | 0 |
 | `serve [--no-open]` | Prints the URL and serves the UI until you stop it | 0 |
@@ -69,7 +70,7 @@ In Claude Code, `set`, `reset` and `apply` ask first.
 
 Exit 1 is any other failure: mise missing or older than 2026.11.8, an override file that is not valid TOML, a failed mise call. Every failure prints one `dotfiles-settings: <message>` line to stderr, with no traceback. `--section` matches the section name in any case. The `env` kind has nothing to apply.
 
-A JSON object has these eleven keys:
+A setting's JSON object has these seventeen keys:
 
 | Key | Value |
 | --- | --- |
@@ -78,9 +79,12 @@ A JSON object has these eleven keys:
 | `source` | `override`, `seed`, `default` or `unset` |
 | `seed` | What `reset` would go back to, or `null` |
 | `drift` | Whether the live system differs from the declared value. Always `false` for `env` |
-| `label`, `section`, `type`, `access` | From the registry |
+| `label`, `section`, `help`, `kind`, `type`, `access` | From the registry |
+| `scope` | `user`, or `machine` for a setting that describes this Mac and never syncs |
 | `choices` | An array of strings, empty unless `type` is `enum` |
 | `widget` | `""`, `"lines"` or `"seats"` |
+| `seat_models`, `seat_efforts` | What one seat of a jstack role can name: the model names (with `inherit`, and `codex` for the roles that take it) and the efforts. Empty unless `widget` is `"seats"`. A value may also hold a full model id such as `claude-fable-5-2` |
+| `seat_list` | Whether the role takes more than one seat, comma-separated. `false` unless `widget` is `"seats"` |
 
 ```console
 $ dotfiles-settings get updates.slow_step_seconds --json
@@ -95,9 +99,53 @@ $ dotfiles-settings get updates.slow_step_seconds --json
   "type": "int",
   "choices": [],
   "widget": "",
-  "access": "rw"
+  "access": "rw",
+  "help": "sysup adds the elapsed time to a step's result line when the step took at least this long.",
+  "kind": "env",
+  "scope": "user",
+  "seat_models": [],
+  "seat_efforts": [],
+  "seat_list": false
 }
 ```
+
+### Status
+
+`status --json` prints one object. It never loads the registry, so it answers in the time of its git and mise calls.
+
+```json
+{
+  "mode": "clone",
+  "branch": "main",
+  "commit": "a7bff71",
+  "profile": {
+    "active": "default",
+    "names": ["work"],
+    "missing": null,
+    "mise_env": false
+  },
+  "sync": {
+    "connected": false,
+    "origin": null,
+    "waiting": [],
+    "conflicts": null
+  }
+}
+```
+
+| Key | Value |
+| --- | --- |
+| `mode` | `installed` when `$DOTFILES` is the copy mise fetched, else `clone` |
+| `branch`, `commit` | The checkout's branch and short commit, or `null` when `$DOTFILES` is unset or git cannot read it (a detached `HEAD` has no branch) |
+| `profile.active` | The profile in effect, or `default` for the shared settings alone |
+| `profile.names` | The profiles on this Mac, `default` not included |
+| `profile.missing` | The saved profile's name when it has no settings file on this Mac, else `null` |
+| `profile.mise_env` | Whether `MISE_ENV` is set, which replaces the saved profile in that shell |
+| `sync.connected`, `sync.origin` | Whether a settings repository is connected, and mise's line describing it |
+| `sync.waiting` | mise's lines for the changes not yet saved or shared |
+| `sync.conflicts` | mise's conflict text, else `null` |
+
+Nothing records whether a setup run is still owed, so `status` does not say. The commands that change something print what to run next.
 
 ## Sync
 

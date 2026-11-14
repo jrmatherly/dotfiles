@@ -1,0 +1,17 @@
+{
+  "mode": "clone",
+  "branch": "main",
+  "commit": "a7bff71",
+  "profile": {
+    "active": "default",
+    "names": ["work"],
+    "missing": null,
+    "mise_env": false
+  },
+  "sync": {
+    "connected": false,
+    "origin": null,
+    "waiting": [],
+    "conflicts": null
+  }
+}

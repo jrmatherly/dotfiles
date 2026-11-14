@@ -131,12 +131,18 @@ def use(name: str) -> list[str]:
             "Open a new shell to pick this up."]
 
 
-def listing() -> list[str]:
+def state() -> dict:
     current, have = active(), names()
-    shown = current if current in have else None
-    lines = [f"{'*' if n == (shown or DEFAULT) else ' '} {n}" for n in [DEFAULT, *have]]
-    if current and current not in have:
-        lines.append(f"The saved profile {current} has no settings file on this Mac.")
-    if os.environ.get("MISE_ENV"):
+    return {"active": current if current in have else DEFAULT, "names": have,
+            "missing": current if current and current not in have else None,
+            "mise_env": bool(os.environ.get("MISE_ENV"))}
+
+
+def listing() -> list[str]:
+    s = state()
+    lines = [f"{'*' if n == s['active'] else ' '} {n}" for n in [DEFAULT, *s["names"]]]
+    if s["missing"]:
+        lines.append(f"The saved profile {s['missing']} has no settings file on this Mac.")
+    if s["mise_env"]:
         lines.append("MISE_ENV is set in this shell, and mise uses it in place of the saved profile.")
     return lines

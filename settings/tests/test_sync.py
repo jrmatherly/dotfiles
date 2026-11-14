@@ -438,13 +438,18 @@ def test_off_only_disconnects():
 def test_status():
     fresh()
     answer("mise dot origin", "no setup repository is connected; `mise dot origin set <url>` connects one\n")
-    assert any("not connected" in l for l in sync.status())
+    assert sync.state() == {"connected": False, "origin": None, "waiting": [], "conflicts": None}
+    assert any("Sync is not connected" in l for l in sync.status())
+    fresh()
+    assert sync.state() == {"connected": True, "origin": CONNECTED.strip(), "waiting": [], "conflicts": None}, sync.state()
     fresh()
     answer("mise dot status", "\nTracking\n  ✓ 1 entry · 1 file\n  ⚠ unsaved changes: 1 path(s) since the latest "
            "checkpoint (~/.config/rotm/config.override.toml)\n\nRepository\n  Branch: main · Mode: manual\n")
     answer("mise dot conflicts", CONFLICT)
     text = "\n".join(sync.status())
     assert URL in text and "unsaved changes" in text and CONFLICT.strip() in text and "Tracking" not in text, text
+    state = sync.state()
+    assert state["conflicts"] == CONFLICT.strip() and len(state["waiting"]) == 1, state
 
 
 def use(name):

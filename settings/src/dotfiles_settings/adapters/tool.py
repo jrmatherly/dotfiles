@@ -170,6 +170,13 @@ EFFORTS = ("low", "medium", "high", "xhigh", "max")
 LIST_ROLES = frozenset({"arena runners", "arena cross-judge pool", "architect runners", "interrogate reviewers"})
 CODEX_ROLES = frozenset({"arena cross-judge pool", "reflect tooling"})
 FULL_MODEL = re.compile(r"claude-[a-z0-9.-]+")
+
+
+def seat_models(role: str) -> list[str]:
+    """What one seat of a jstack role can name, as the editors offer it."""
+    return [*MODELS, "inherit", *(["codex"] if role in CODEX_ROLES else [])]
+
+
 JSTACK_NOTE = "Edited tilde/.claude/rules/jstack-models.md, a tracked file. Commit it to keep the change."
 
 

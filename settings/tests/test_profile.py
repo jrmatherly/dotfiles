@@ -129,4 +129,14 @@ del os.environ["MISE_ENV"]
 rc.write_text('env = ["rotm-p-gone"]\n')
 assert profile.listing() == ["* default", "  home", "  work", "The saved profile gone has no settings file on this Mac."]
 
+# state: what listing prints, as data
+assert profile.state() == {"active": "default", "names": ["home", "work"], "missing": "gone", "mise_env": False}
+rc.write_text('env = ["rotm-installed", "rotm-p-work"]\n')
+assert profile.state() == {"active": "work", "names": ["home", "work"], "missing": None, "mise_env": False}
+os.environ["MISE_ENV"] = "staging"
+assert profile.state() == {"active": "default", "names": ["home", "work"], "missing": None, "mise_env": True}
+del os.environ["MISE_ENV"]
+rc.unlink()
+assert profile.state()["active"] == "default" and profile.state()["missing"] is None
+
 print("ok")

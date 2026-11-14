@@ -85,7 +85,7 @@ class SeatsEditor(Widget):
 
     def seat_row(self, n: int) -> Horizontal:
         model, effort = self.seats[n]
-        names = [*tool.MODELS, "inherit", *(["codex"] if self.role in tool.CODEX_ROLES else [])]
+        names = tool.seat_models(self.role)
         if model and model not in names:
             names.append(model)  # a full model id stays selectable, so opening the row never changes it
         return Horizontal(

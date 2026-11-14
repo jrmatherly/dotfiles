@@ -280,6 +280,17 @@ def test_jstack_read():
     assert A.read(by_id("jstack.arena_runners")).source is Source.SEED
 
 
+def test_seat_fields_for_a_gui():
+    def row(id):
+        return cli.to_json(by_id(id), Value(id, None, Source.UNSET, None, False))
+    one, many, codex = row("jstack.bug_fix"), row("jstack.architect_runners"), row("jstack.reflect_tooling")
+    assert one["seat_models"] == [*tool.MODELS, "inherit"] and one["seat_efforts"] == list(tool.EFFORTS)
+    assert (one["seat_list"], many["seat_list"], codex["seat_list"]) == (False, True, False)
+    assert many["seat_models"] == one["seat_models"] and codex["seat_models"] == [*tool.MODELS, "inherit", "codex"]
+    plain = row("claude.model")
+    assert (plain["seat_models"], plain["seat_efforts"], plain["seat_list"]) == ([], [], False)
+
+
 def test_jstack_round_trip_is_byte_identical():
     tracked.write_text(RULE)
     A.write(by_id("jstack.bug_fix"), "sonnet high")
