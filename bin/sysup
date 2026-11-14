@@ -525,7 +525,8 @@ if command -v uv > /dev/null; then
       else
         status ok "uv cache" "nothing to prune"
       fi
-    elif [[ $out == *"waiting for"* ]]; then
+    # uv prints "waiting for other uv processes" as soon as it waits, so only the timeout line means busy
+    elif [[ $out == *"when waiting for lock"* ]]; then
       uv_envs=$({ find "$uv_cache/archive-v0" -mindepth 2 -maxdepth 2 -name pyvenv.cfg 2> /dev/null || true; } | wc -l | tr -d ' ')
       status ok "uv cache" "in use, not pruned ($uv_envs cached environments)"
     else
@@ -652,7 +653,10 @@ if command -v claude > /dev/null; then
       newer=$(grep -o 'newer release [^;]*' <<< "$out" || true)
       [ -z "$newer" ] || status notice "Hindsight memory" "$newer; bump CODING_AGENTS_VERSION in bin/hindsight-memory"
       [ -z "$warned" ] || status notice "Hindsight memory" "installer: ${warned%%$'\n'*}; see the log"
-      if [ "$(hindsight_state)" != "$hindsight_before" ]; then
+      # hindsight-memory exits 0 here and the hook is back on uvx; the removed lock is not an update
+      if grep -q 'daemon environment did not build' <<< "$out"; then
+        status notice "Hindsight memory" "daemon environment did not build; run: hindsight-memory upgrade"
+      elif [ "$(hindsight_state)" != "$hindsight_before" ]; then
         status changed "Hindsight memory" "hooks, runtime or daemon environment updated"
       elif [ -z "$newer$warned" ]; then
         status ok "Hindsight memory" "hooks and runtime unchanged"

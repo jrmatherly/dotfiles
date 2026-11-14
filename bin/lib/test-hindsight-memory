@@ -129,6 +129,10 @@ check "init points the hook at the environment" "$HINDSIGHT_DAEMON_ENV" "$(jq -r
 jq '.embedPackagePath = "/stale"' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
 check_true "init again" hm init
 check "a hand-edited embedPackagePath is reset" "$HINDSIGHT_DAEMON_ENV" "$(jq -r .embedPackagePath "$cfg")"
+check_true "an init that built the first environment left the daemon alone" bash -c '! grep -q "daemon stop" "$HOME/embed.log" 2> /dev/null'
+echo '# older' >> "$HINDSIGHT_DAEMON_ENV/uv.lock"
+check "init on a changed lock reports the change" "daemon environment updated" "$(hm init | grep 'daemon environment')"
+check "init on a changed lock stops the daemon once" 1 "$(grep -c -- '-p coding-agent daemon stop' "$HOME/embed.log")"
 : > "$HOME/embed.log"
 check "upgrade, lock unchanged" ok "$(hm upgrade > /dev/null && echo ok)"
 check "no daemon stop when the lock is unchanged" 0 "$(grep -c 'daemon stop' "$HOME/embed.log" || true)"

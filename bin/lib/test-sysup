@@ -124,7 +124,7 @@ stub uv 'case "$1 $2" in
     if [ -e "$STATE/cache-busy" ]; then
       echo "Cache is currently in-use, waiting for other uv processes to finish"
       echo "error: Timeout (${UV_LOCK_TIMEOUT:-300}s) when waiting for lock on $HOME/.cache/uv/.lock"; exit 2
-    elif [ -e "$STATE/cache-fails" ]; then echo "error: Permission denied"; exit 2
+    elif [ -e "$STATE/cache-fails" ]; then echo "Cache is currently in-use, waiting for other uv processes to finish"; echo "error: Permission denied"; exit 2
     elif [ -e "$STATE/cache-stale" ]; then rm -rf "$HOME/.cache/uv/archive-v0"/*; fi ;;
 esac'
 # 25 cached tool environments, as uv lays them out under archive-v0
@@ -179,6 +179,7 @@ stub op '[ "$1" = read ] && echo secret'
 stub hindsight-memory '[ -e "$STATE/hindsight-fails" ] && { echo "installer failed"; exit 1; }; [ -e "$STATE/hindsight-newer" ] && echo "newer release 0.9.0 on npm; bump CODING_AGENTS_VERSION"
 if [ -e "$STATE/hindsight-warns" ]; then echo "│  ✓ runtime staged at ~/.hindsight/coding-agents"; echo "│  ▲ macOS needs a current Rust toolchain to build the daemon'"'"'s dependencies (litellm"; echo "│    publishes no macOS wheel). Install from https://rustup.rs"; fi
 [ ! -e "$STATE/hindsight-change" ] || { mkdir -p "$HOME/.codex"; date +%s%N > "$HOME/.codex/hooks.json"; }
+if [ -e "$STATE/hindsight-unbuilt" ]; then echo "warning: the daemon environment did not build; run: hindsight-memory upgrade"; mkdir -p "$HOME/.codex"; date +%s%N > "$HOME/.codex/hooks.json"; fi
 echo "runtime re-staged"'
 # A failing stub, not a missing one: CI's macOS runner has a real cargo on PATH
 stub cargo '[ -e "$STATE/no-cargo" ] && exit 1; echo "cargo 1.99.1"'
@@ -323,12 +324,14 @@ check_true "warned: installer warning is the step's only line" lacks '^✔ Hinds
 check_true "warned: installer warning still a notice" has '^● Hindsight memory +installer: '
 check_true "package needs repair: a notice naming it" has '^● packages status +brew:jq needs_repair; run: mise bootstrap packages apply$'
 rm -rf "$DOTFILES/logs" "$STATE/pkg-broken"
-touch "$STATE/pkg-no-code"
+touch "$STATE/pkg-no-code" "$STATE/hindsight-unbuilt"
 run
+check_true "unbuilt: a daemon environment that did not build is a notice" has '^● Hindsight memory +daemon environment did not build; run: hindsight-memory upgrade$'
+check_true "unbuilt: the removed lock is not reported as an update" lacks '^↻ Hindsight memory'
 check_true "no code: the manager is one notice" has '^● packages status +vscode is not available \(1 packages? skipped\)$'
 check_true "no code: its packages are not listed" lacks 'vscode:'
 check_true "no code: not all installed" lacks 'packages status +all installed'
-rm -rf "$DOTFILES/logs" "$STATE/pkg-no-code"
+rm -rf "$DOTFILES/logs" "$STATE/pkg-no-code" "$STATE/hindsight-unbuilt"
 touch "$STATE/undeclared"
 run
 check_true "undeclared: a notice with the command" has '^● packages prune +2 packages no config declares; review: mise bootstrap packages prune --dry-run$'

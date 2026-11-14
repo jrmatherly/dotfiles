@@ -41,7 +41,7 @@
 # path with spaces is not supported):
 #   HINDSIGHT_CONFIG            the config file (the plugin honours it too)
 #   HINDSIGHT_MEMORY_INSTALLER  instead of npx -y @vectorize-io/hindsight-coding-agents@<pin>
-#   HINDSIGHT_MEMORY_EMBED      instead of uvx hindsight-embed@<pin>
+#   HINDSIGHT_MEMORY_EMBED      instead of hindsight-embed from the daemon environment (uvx hindsight-embed@<pin> until it is built)
 #   HINDSIGHT_MEMORY_NPM        instead of npm
 #   HINDSIGHT_MEMORY_UV         instead of uv
 #   HINDSIGHT_DAEMON_ENV        instead of ~/.hindsight/daemon-env
@@ -190,6 +190,7 @@ norm_path() {
 }
 
 cmd_init() {
+  local had_lock=0
   if [ ! -f "$cfg" ]; then
     [ ! -f "$aside" ] || mv "$aside" "$cfg"
     # Only a config this run created or restored goes back aside: with hooks
@@ -202,21 +203,29 @@ cmd_init() {
     fi
     [ -f "$cfg" ] || fail "the installer left no config at $cfg"
   fi
+  # A first build has no daemon running from it, and a stop would fetch hindsight-embed through uvx
+  [ ! -f "$env_dir/uv.lock" ] || had_lock=1
   sync_env
   merge_defaults
+  [ "$had_lock$env_changed" != 11 ] || stop_daemon
+}
+
+# A daemon left running would keep old code in memory over a .venv whose files
+# were replaced; the next prompt's hook starts it from the new environment.
+# Bounded because sysup puts no bound on upgrade.
+stop_daemon() {
+  local bound=()
+  echo "daemon environment updated"
+  ! command -v timeout > /dev/null || bound=(timeout 30)
+  ${bound[@]+"${bound[@]}"} "${embed[@]}" -p coding-agent daemon stop || true
 }
 
 cmd_upgrade() {
-  local latest newest bound=()
+  local latest newest
   run_installer || fail "the installer failed; the config is unchanged"
   sync_env
   merge_defaults
-  if [ "$env_changed" = 1 ]; then
-    echo "daemon environment updated"
-    # The next prompt's hook starts it from the new environment; sysup puts no bound on upgrade
-    ! command -v timeout > /dev/null || bound=(timeout 30)
-    ${bound[@]+"${bound[@]}"} "${embed[@]}" -p coding-agent daemon stop || true
-  fi
+  [ "$env_changed" != 1 ] || stop_daemon
   # pack --dry-run resolves the newest version npm's min-release-age allows today
   # (it fetches the tarball to do so); `npm view` ignores that setting and named
   # 0.8.3 a week before the pin could install it (checked 2026-10-29)
