@@ -96,6 +96,9 @@ echo fonts > "$cfg/modules-off.rotm-p-work.local"
 [ "$(tr '\n' ' ' < "$cfg/modules-off.rotm-p-work.local")" = "fonts media " ] || fail "set did not change the profile's list"
 [ "$(cat "$cfg/modules-off.local")" = cloud ] || fail "set in a profile changed the shared list"
 [ "$(line)" = 'ignored_config_paths = ["conf.d/60-rotm-fonts.toml", "conf.d/60-rotm-media.toml"]' ] || fail "the line is not the profile's list: $(line)"
+"$m" set menubar off > /dev/null
+[ "$(line)" = 'ignored_config_paths = ["conf.d/60-rotm-fonts.toml", "conf.d/60-rotm-media.toml", "conf.d/60-rotm-menubar.toml"]' ] || fail "menubar off is not in the line: $(line)"
+"$m" set menubar on > /dev/null
 ROTM_SHARED=1 "$m" set network off > /dev/null
 [ "$(tr '\n' ' ' < "$cfg/modules-off.local")" = "cloud network " ] || fail "ROTM_SHARED did not change the shared list"
 [ "$(tr '\n' ' ' < "$cfg/modules-off.rotm-p-work.local")" = "fonts media " ] || fail "ROTM_SHARED changed the profile's list"

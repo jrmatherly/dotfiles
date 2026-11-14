@@ -480,5 +480,7 @@ if [ -x "$claude_bin" ] && module_on claude; then
 fi
 
 # The menu bar app, once the packages have put it in /Applications
-info "🖥️  Opening the menu bar app…"
-"$DOTFILES_DIR/setup/menubar-open.sh" 2>&1 | indent || true
+if module_on menubar; then
+  info "🖥️  Opening the menu bar app…"
+  "$DOTFILES_DIR/setup/menubar-open.sh" 2>&1 | indent || true
+fi

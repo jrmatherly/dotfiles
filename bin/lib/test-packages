@@ -144,7 +144,9 @@ trap 'rm -rf "$tmp"' EXIT
 # The same tap at two different URLs still fails
 cp -R "$config_dir" "$tmp/two-urls"
 sed -i '' 's#^"jrmatherly/tap" = "[^"]*"#"jrmatherly/tap" = "https://example.com/homebrew-tap.git"#' "$tmp/two-urls/conf.d/60-rotm-menubar.toml"
-if check_lists "$tmp/two-urls" 2> /dev/null; then fail "one tap at two URLs passed"; fi
+if check_lists "$tmp/two-urls" 2> "$tmp/two-urls.err" || ! grep -q 'declared in two files' "$tmp/two-urls.err"; then
+  fail "one tap at two URLs did not fail on the duplicate"
+fi
 mkdir -p "$tmp/fakebin" "$tmp/home" "$tmp/empty"
 comp="$tmp/home/.cache/dotfiles/completions"
 while IFS=$'\t' read -r binary run; do

@@ -632,7 +632,8 @@ logging='echo "$(basename "$0") $*" >> "$STATE/misc.log"'
 for helper in install-iosevka-code claude-config claude-catalog hindsight-memory install-snippetslab-skill; do
   printf '#!/bin/bash\n%s\n' "$logging" > "$mfix/bin/$helper"
 done
-chmod +x "$mfix"/bin/*
+printf '#!/bin/bash\n%s\n' "$logging" > "$mfix/setup/menubar-open.sh"
+chmod +x "$mfix"/bin/* "$mfix/setup/menubar-open.sh"
 # Its own stub dir: a logging curl or jq on $tmp/bin would break the setup.sh cases
 mstub() {
   printf '#!/bin/bash\n%s\n%s\n' "$logging" "${2:-}" > "$1"
@@ -667,14 +668,15 @@ check_true "all on: an MCP server is registered" ran 'mcp add'
 check_true "all on: a uv tool is installed" ran 'tool install'
 check_true "all on: Hindsight is set up" ran 'hindsight-memory init'
 check_true "all on: rtk is wired" ran 'init -g'
+check_true "all on: the menu bar app step runs" ran menubar-open.sh
 check_true "all on: the TypeScript link step warns without the tool" has 'npm:typescript is not installed'
 check_true "all on: nothing is skipped" lacks 'skipped: the'
 
 fresh
-printf 'claude\nagents\nfonts\napps\n' > "$HOME/.config/mise/modules-off.local"
+printf 'claude\nagents\nfonts\napps\nmenubar\n' > "$HOME/.config/mise/modules-off.local"
 misc
 check_true "modules off: misc.sh still exits 0" [ "$rc" -eq 0 ]
-for call in install-iosevka-code 'claude-config restore' claude-catalog 'mcp add' 'tool install' hindsight-memory 'init -g'; do
+for call in install-iosevka-code 'claude-config restore' claude-catalog 'mcp add' 'tool install' hindsight-memory 'init -g' menubar-open.sh; do
   check_true "modules off: no $call" eval '! ran "$call"'
 done
 check_true "a gated step says why it was skipped" has 'skipped: the claude module is off'
