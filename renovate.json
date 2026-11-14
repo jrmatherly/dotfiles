@@ -26,6 +26,11 @@
       "matchManagers": ["mise"],
       "matchDepNames": ["node", "python"],
       "enabled": false
+    },
+    {
+      "description": "The Hindsight daemon moves with its hook package, behind a database backup: docs/superpowers/specs/2026-11-13-hindsight-daemon-environment-and-uv-cache.md",
+      "matchPackageNames": ["hindsight-embed", "hindsight-api"],
+      "enabled": false
     }
   ]
 }

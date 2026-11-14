@@ -71,6 +71,8 @@ vscode/User/.render-check-*.json
 # dotfiles-settings (settings/): uv's environment and build output. uv.lock is tracked.
 settings/.venv/
 settings/dist/
+# The Hindsight daemon's project (hindsight/): a .venv appears only from a hand-run uv sync there
+hindsight/.venv/
 
 # The menu bar app's SwiftPM build, its release builds, and the rendered windows (pnpm shots)
 app/.build/

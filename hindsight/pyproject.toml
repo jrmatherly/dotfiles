@@ -1,0 +1,11 @@
+# The Hindsight daemon's environment. bin/hindsight-memory copies this file and
+# uv.lock to ~/.hindsight/daemon-env and syncs a .venv there. hindsight-api sits
+# beside hindsight-embed so the daemon starts from this environment, not from
+# `uvx hindsight-api@<version>`, which re-resolved ~200 unbounded dependencies
+# and cached a new 2 GiB environment at every cold start.
+# Bumping a version here, then `uv lock --directory hindsight`, is a reviewed commit.
+[project]
+name = "hindsight-daemon"
+version = "0"
+requires-python = ">=3.13,<3.14"
+dependencies = ["hindsight-embed==1.1.0", "hindsight-api==1.1.0"]

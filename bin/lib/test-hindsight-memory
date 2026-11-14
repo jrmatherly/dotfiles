@@ -8,14 +8,15 @@
 #
 # ---
 # Never touches the real ~/.hindsight, Claude Code or Codex config: HOME is a
-# temp dir, and the vendor installer, hindsight-embed and npm are stub
-# scripts that only log their arguments.
+# temp dir, and the vendor installer, hindsight-embed, npm and uv are stub
+# scripts that log their arguments.
 #
 # License: MIT
 
 set -euo pipefail
 
 script="$(cd "$(dirname "$0")/.." && pwd -P)/hindsight-memory"
+repo="$(cd "$(dirname "$0")/../.." && pwd -P)"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
@@ -32,6 +33,8 @@ export HINDSIGHT_CONFIG="$HOME/.hindsight/coding-agent.json"
 export HINDSIGHT_MEMORY_INSTALLER="$HOME/bin/installer"
 export HINDSIGHT_MEMORY_EMBED="$HOME/bin/embed"
 export HINDSIGHT_MEMORY_NPM="$HOME/bin/npm"
+export HINDSIGHT_MEMORY_UV="$HOME/bin/uv"
+export HINDSIGHT_DAEMON_ENV="$HOME/.hindsight/daemon-env"
 cfg=$HINDSIGHT_CONFIG
 
 mkdir -p "$HOME/bin"
@@ -59,7 +62,19 @@ cat > "$HOME/bin/npm" << 'EOF'
 if [ -e "$HOME/npm-newer" ]; then v=99.0.0; elif [ -e "$HOME/npm-older" ]; then v=0.0.1; else v=$(cat "$HOME/pin"); fi
 echo "[{\"version\":\"$v\"}]"
 EOF
+cat > "$HOME/bin/uv" << 'EOF'
+#!/bin/bash
+echo "$*" >> "$HOME/uv.log"
+[ ! -e "$HOME/uv-fails" ] || exit 1
+if [ "$1" = sync ]; then
+  mkdir -p "$HINDSIGHT_DAEMON_ENV/.venv/bin"
+  touch "$HINDSIGHT_DAEMON_ENV/.venv/bin/hindsight-embed"
+  chmod +x "$HINDSIGHT_DAEMON_ENV/.venv/bin/hindsight-embed"
+fi
+exit 0
+EOF
 chmod +x "$HOME"/bin/*
+embed_version=$(sed -n 's/.*"hindsight-embed==\([^"]*\)".*/\1/p' "$repo/hindsight/pyproject.toml")
 hm() { "$script" "$@"; }
 
 check() {
@@ -82,7 +97,7 @@ check_true() {
 check_true "init runs the installer once with both harnesses" hm init
 check "installer args" "install claude-code codex --server daemon" "$(cat "$HOME/installer.log")"
 check "init writes the default paths" '["~/dev"]' "$(jq -c .optInPaths "$cfg")"
-check "init writes the other defaults" "daemon true false 1.1.0 false pages H */6 * * * 10 redact" "$(jq -r '[.serverMode, .optInOnly, .autoUpdate, .embedVersion, .codebaseSurvey, .autoInject, .pageTriggerCron, .pageRefreshEveryTurns, .defaultBankConfig.memory_defense.rules[0].action] | join(" ")' "$cfg")"
+check "init writes the other defaults" "daemon true false $embed_version false pages H */6 * * * 10 redact" "$(jq -r '[.serverMode, .optInOnly, .autoUpdate, .embedVersion, .codebaseSurvey, .autoInject, .pageTriggerCron, .pageRefreshEveryTurns, .defaultBankConfig.memory_defense.rules[0].action] | join(" ")' "$cfg")"
 check "init writes the tool guide line" true "$(jq '.toolGuideExtra | startswith("Memory is a past record")' "$cfg")"
 jq '.optInPaths = ["~/work"]' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
 check_true "init again keeps the edited list and skips the installer" hm init
@@ -90,7 +105,7 @@ check "edited list kept" '["~/work"]' "$(jq -c .optInPaths "$cfg")"
 check "installer not rerun by init" 1 "$(wc -l < "$HOME/installer.log" | tr -d ' ')"
 jq '.embedVersion = "9.9.9"' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
 check_true "init resets embedVersion to the pin" hm init
-check "embedVersion follows the pin" 1.1.0 "$(jq -r .embedVersion "$cfg")"
+check "embedVersion follows the pin" "$embed_version" "$(jq -r .embedVersion "$cfg")"
 jq '.pageTriggerCron = "0 6 * * *" | .autoInject = "reflect"' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
 check_true "init migrates the old repo cron" hm init
 check "old repo cron moves to the current default, a chosen autoInject stays" "H */6 * * * reflect" "$(jq -r '[.pageTriggerCron, .autoInject] | join(" ")' "$cfg")"
@@ -106,6 +121,31 @@ check "no notice when npm's latest is older than the pin" "" "$(hm upgrade | gre
 rm "$HOME/npm-older"
 touch "$HOME/npm-newer"
 check "upgrade notices a newer release" "newer release 99.0.0 on npm; bump CODING_AGENTS_VERSION" "$(hm upgrade | grep 'newer release')"
+# apiPort 1 keeps the self-check off a daemon that may be running on this machine
+jq '.apiPort = 1' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
+check "init copies the lock" "$(cksum < "$repo/hindsight/uv.lock")" "$(cksum < "$HINDSIGHT_DAEMON_ENV/uv.lock")"
+check "init syncs the environment frozen" "sync --frozen --directory $HINDSIGHT_DAEMON_ENV" "$(tail -1 "$HOME/uv.log")"
+check "init points the hook at the environment" "$HINDSIGHT_DAEMON_ENV" "$(jq -r .embedPackagePath "$cfg")"
+jq '.embedPackagePath = "/stale"' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
+check_true "init again" hm init
+check "a hand-edited embedPackagePath is reset" "$HINDSIGHT_DAEMON_ENV" "$(jq -r .embedPackagePath "$cfg")"
+: > "$HOME/embed.log"
+check "upgrade, lock unchanged" ok "$(hm upgrade > /dev/null && echo ok)"
+check "no daemon stop when the lock is unchanged" 0 "$(grep -c 'daemon stop' "$HOME/embed.log" || true)"
+echo '# older' >> "$HINDSIGHT_DAEMON_ENV/uv.lock"
+check "upgrade reports the change" "daemon environment updated" "$(hm upgrade | grep 'daemon environment')"
+check "a changed lock stops the daemon once" 1 "$(grep -c -- '-p coding-agent daemon stop' "$HOME/embed.log")"
+touch "$HOME/uv-fails"
+warned=$(hm upgrade 2>&1 > /dev/null)
+check_true "a failed sync warns with the recovery command" grep -q 'did not build; run: hindsight-memory upgrade' <<< "$warned"
+check_true "a failed sync leaves no installed lock" [ ! -e "$HINDSIGHT_DAEMON_ENV/uv.lock" ]
+check "a failed sync unsets embedPackagePath" null "$(jq -c .embedPackagePath "$cfg")"
+rm "$HOME/uv-fails"
+check "upgrade recovers" ok "$(hm upgrade > /dev/null && echo ok)"
+check "embedPackagePath is back" "$HINDSIGHT_DAEMON_ENV" "$(jq -r .embedPackagePath "$cfg")"
+: > "$HOME/uv.log"
+bash -c 'unset HINDSIGHT_MEMORY_EMBED; "$0" status' "$script" > /dev/null
+check_true "status runs hindsight-embed from the environment" grep -qx -- "run --frozen --directory $HINDSIGHT_DAEMON_ENV hindsight-embed -p coding-agent daemon status" "$HOME/uv.log"
 check_true "paths add strips a trailing slash and collapses HOME" hm paths add "$HOME/dev/x/"
 check "stored list" '["~/work","~/dev/x"]' "$(jq -c .optInPaths "$cfg")"
 check_true "paths add is idempotent" hm paths add "$HOME/dev/x"
@@ -126,8 +166,6 @@ check_true "on clears it" hm on
 check "disabled false" false "$(jq .disabled "$cfg")"
 check_true "survey on writes codebaseSurvey" hm survey on
 check "survey true" true "$(jq .codebaseSurvey "$cfg")"
-# apiPort 1 keeps the self-check off a daemon that may be running on this machine
-jq '.apiPort = 1' "$cfg" > "$cfg.t" && mv "$cfg.t" "$cfg"
 check_true "status prints the config summary" bash -c '"$0" status | grep -q "optInPaths"' "$script"
 check_true "status says when the daemon is unreachable" bash -c '"$0" status | grep -q "daemon not reachable at http://127.0.0.1:1$"' "$script"
 check_true "uninstall calls the vendor uninstall and stops the daemon" hm uninstall
@@ -156,7 +194,6 @@ check_true "upgrade exits 1 when the installer fails" bash -c '! "$0" upgrade > 
 # The hooks read the pins from the environment Claude Code gives them: tilde/.zshenv
 # for terminals, the settings env for the app. A pin missing from one file reverts
 # that launch path to the provider's default model without any error.
-repo="$(cd "$(dirname "$0")/../.." && pwd -P)"
 check "zshenv and claude-settings.json agree on the Hindsight pins" \
   "$(grep -oE '^export HINDSIGHT_API_[A-Z_]*LLM_(PROVIDER|MODEL)=.*' "$repo/tilde/.zshenv" | sed 's/^export //' | sort)" \
   "$(jq -r '.env | to_entries[] | select(.key | test("^HINDSIGHT_API_[A-Z_]*LLM_(PROVIDER|MODEL)$")) | "\(.key)=\(.value)"' "$repo/agents/claude-settings.json" | sort)"

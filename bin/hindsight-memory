@@ -2,11 +2,11 @@
 #
 # Manage Hindsight's local long-term memory for Claude Code and Codex (the hook package, its daemon and ~/.hindsight/coding-agent.json).
 #
-# - Install the pinned hook package when it's missing, then merge this repo's defaults into the config (setup/misc.sh runs this):
+# - Install the pinned hook package when it's missing, sync the daemon's locked environment (hindsight/uv.lock) into ~/.hindsight/daemon-env, then merge this repo's defaults into the config (setup/misc.sh runs this):
 #
 # `hindsight-memory init`
 #
-# - Re-run the pinned installer and report a newer npm release (`sysup` runs this):
+# - Re-run the pinned installer, re-sync the daemon's environment (stopping the daemon when its lock changed) and report a newer npm release (`sysup` runs this):
 #
 # `hindsight-memory upgrade`
 #
@@ -32,7 +32,7 @@
 #
 # ---
 # Defaults are merged additively: keys already in the config win, so
-# hand edits survive init and upgrade; embedVersion alone always follows the pin. The config is never tracked in the repo.
+# hand edits survive init and upgrade; embedVersion and embedPackagePath always follow the script. The config is never tracked in the repo.
 # Paths are stored as typed (a relative one resolved against the current
 # directory), one trailing slash stripped and a true $HOME prefix written as ~,
 # because the plugin expands only ~ and tests a literal prefix.
@@ -43,21 +43,25 @@
 #   HINDSIGHT_MEMORY_INSTALLER  instead of npx -y @vectorize-io/hindsight-coding-agents@<pin>
 #   HINDSIGHT_MEMORY_EMBED      instead of uvx hindsight-embed@<pin>
 #   HINDSIGHT_MEMORY_NPM        instead of npm
+#   HINDSIGHT_MEMORY_UV         instead of uv
+#   HINDSIGHT_DAEMON_ENV        instead of ~/.hindsight/daemon-env
 #
 # License: MIT
 
 set -euo pipefail
 
-# Bumping either pin is a reviewed commit
+# Bumping either pin is a reviewed commit; the daemon's versions live in hindsight/pyproject.toml
 CODING_AGENTS_VERSION=0.8.3
-EMBED_VERSION=1.1.0
+repo=$(cd "$(dirname "$0")/.." && pwd -P)
+EMBED_VERSION=$(sed -n 's/.*"hindsight-embed==\([^"]*\)".*/\1/p' "$repo/hindsight/pyproject.toml" 2> /dev/null) || EMBED_VERSION=''
 
 cfg=${HINDSIGHT_CONFIG:-$HOME/.hindsight/coding-agent.json}
+env_dir=${HINDSIGHT_DAEMON_ENV:-$HOME/.hindsight/daemon-env}
 # shellcheck disable=SC2206 # each override is a command plus arguments, split on purpose
 {
   installer=(${HINDSIGHT_MEMORY_INSTALLER:-npx -y @vectorize-io/hindsight-coding-agents@$CODING_AGENTS_VERSION})
-  embed=(${HINDSIGHT_MEMORY_EMBED:-uvx hindsight-embed@$EMBED_VERSION})
   npm_cmd=(${HINDSIGHT_MEMORY_NPM:-npm})
+  uv_cmd=(${HINDSIGHT_MEMORY_UV:-uv})
 }
 
 yellow=$(tput setaf 3 2> /dev/null || true)
@@ -68,6 +72,19 @@ fail() {
   echo "${red}hindsight-memory: $*${reset}" >&2
   exit 1
 }
+
+[ -n "$EMBED_VERSION" ] || fail "no hindsight-embed==<version> in $repo/hindsight/pyproject.toml"
+
+# Chosen before any sync, so the first move to the environment stops the old
+# daemon through uvx, the command that started it
+if [ -n "${HINDSIGHT_MEMORY_EMBED:-}" ]; then
+  # shellcheck disable=SC2206 # a command plus arguments, split on purpose
+  embed=($HINDSIGHT_MEMORY_EMBED)
+elif [ -x "$env_dir/.venv/bin/hindsight-embed" ] && [ -f "$env_dir/uv.lock" ]; then
+  embed=("${uv_cmd[@]}" run --frozen --directory "$env_dir" hindsight-embed)
+else
+  embed=(uvx "hindsight-embed@$EMBED_VERSION")
+fi
 
 usage() {
   echo "usage: hindsight-memory init|upgrade|status|uninstall|on|off|survey on|off|paths [list|add <dir>|remove <dir>]" >&2
@@ -117,13 +134,35 @@ write_cfg() {
   mv "$cfg.tmp" "$cfg"
 }
 
-# shellcheck disable=SC2016 # $d is a jq variable
+# Sets env_changed to 1 when the installed lock changed; a failed sync removes
+# the lock (so merge_defaults unsets embedPackagePath and the hook uses uvx)
+# and never fails the script
+sync_env() {
+  local before
+  env_changed=0
+  before=$(cksum 2> /dev/null < "$env_dir/uv.lock") || before=''
+  if mkdir -p "$env_dir" && cp "$repo/hindsight/pyproject.toml" "$repo/hindsight/uv.lock" "$env_dir/" \
+    && "${uv_cmd[@]}" sync --frozen --directory "$env_dir"; then
+    [ "$(cksum < "$env_dir/uv.lock")" = "$before" ] || env_changed=1
+  else
+    rm -f "$env_dir/uv.lock"
+    warning "the daemon environment did not build; run: hindsight-memory upgrade"
+  fi
+}
+
+# shellcheck disable=SC2016 # $d and $p are jq variables
 # "0 6 * * *" was this script's own earlier default, not a user's choice, so it
-# moves to the current one; any other value is kept
+# moves to the current one; any other value is kept. embedPackagePath is set
+# only for a built environment whose lock is the reviewed one.
 merge_defaults() {
+  local p=''
+  if [ -x "$env_dir/.venv/bin/hindsight-embed" ] && cmp -s "$env_dir/uv.lock" "$repo/hindsight/uv.lock"; then
+    p=$env_dir
+  fi
   write_cfg '$d * . | .embedVersion = $d.embedVersion
+    | if $p == "" then del(.embedPackagePath) else .embedPackagePath = $p end
     | if .pageTriggerCron == "0 6 * * *" then .pageTriggerCron = $d.pageTriggerCron else . end' \
-    --argjson d "$(defaults)"
+    --argjson d "$(defaults)" --arg p "$p"
 }
 
 need_config() { [ -f "$cfg" ] || fail "no config at $cfg; run: hindsight-memory init"; }
@@ -163,13 +202,21 @@ cmd_init() {
     fi
     [ -f "$cfg" ] || fail "the installer left no config at $cfg"
   fi
+  sync_env
   merge_defaults
 }
 
 cmd_upgrade() {
-  local latest newest
+  local latest newest bound=()
   run_installer || fail "the installer failed; the config is unchanged"
+  sync_env
   merge_defaults
+  if [ "$env_changed" = 1 ]; then
+    echo "daemon environment updated"
+    # The next prompt's hook starts it from the new environment; sysup puts no bound on upgrade
+    ! command -v timeout > /dev/null || bound=(timeout 30)
+    ${bound[@]+"${bound[@]}"} "${embed[@]}" -p coding-agent daemon stop || true
+  fi
   # pack --dry-run resolves the newest version npm's min-release-age allows today
   # (it fetches the tarball to do so); `npm view` ignores that setting and named
   # 0.8.3 a week before the pin could install it (checked 2026-10-29)
