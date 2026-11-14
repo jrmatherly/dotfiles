@@ -1,0 +1,25 @@
+== before: the cask as installed
+total 0
+drwxr-xr-x   3 j  admin    96 Nov 13 17:02 .
+drwxr-xr-x  36 j  admin  1152 Nov 13 17:05 ..
+drwxr-xr-x   4 j  admin   128 Nov 13 17:02 0.14.0
+schema_version = 3
+version = "0.14.0"
+auto_updates = false
+metadata_only_apps = []
+apps = ["/Applications/Claude Multipass.app"]
+binaries = []
+fonts = []
+completions = []
+flight_directories = []
+generic = []
+pkg_ids = []
+prune_safe = true
+
+[[targets]]
+path = "/Applications/Claude Multipass.app"
+
+[targets.fingerprint]
+kind = "directory"
+digest = "6b92012cddbf826feae9b95cf891538fba54e2c93091a7561a69e2ce8b083bc6"
+        "package": "jrmatherly/tap/claude-multipass-app",

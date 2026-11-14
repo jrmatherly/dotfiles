@@ -1,0 +1,2 @@
+Sync is on: https://github.com/jrmatherly/rotm-settings.git (branch main) declared in ~/.config/mise/config.local.toml; mode manual
+exit 0

@@ -1,0 +1,6 @@
+== after renaming mise's record from 0.14.0 to 0.13.0 (the bundle is still 0.14.0)
+total 0
+drwxr-xr-x   3 j  admin    96 Nov 13 17:47 .
+drwxr-xr-x  36 j  admin  1152 Nov 13 17:05 ..
+drwxr-xr-x   4 j  admin   128 Nov 13 17:47 0.13.0
+        "package": "jrmatherly/tap/claude-multipass-app",

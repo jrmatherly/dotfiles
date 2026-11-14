@@ -1,0 +1,14 @@
+! Did you know that expiring tokens can be requested with --expiring? Read more at https://gh.io/gh-expiring-tokens
+Authenticate Git with your GitHub credentials? (default: yes) [Y/n] yy
+invalid input. please try again
+Authenticate Git with your GitHub credentials? (default: yes) [Y/n] y
+
+
+! One-time code (XXXX-XXXX) copied to clipboard
+Press Enter to open https://github.com/login/device in your browser... 
+✓ Authentication complete.
+- gh config set -h github.com git_protocol https
+✓ Configured git protocol
+✓ Logged in as jrmatherly
+Created the private repository jrmatherly/rotm-settings.
+Your settings are saved in jrmatherly/rotm-settings. Sync is on, and it runs when you ask: run `rotm settings sync now` after you change a setting, and `rotm settings sync on` on your next Mac to load them there.

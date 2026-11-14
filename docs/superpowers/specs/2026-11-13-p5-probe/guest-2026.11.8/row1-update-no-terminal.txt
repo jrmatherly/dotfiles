@@ -1,0 +1,320 @@
+Already on 'main'
+Your branch is behind 'origin/main' by 4 commits, and can be fast-forwarded.
+  (use "git pull" to update your local branch)
+Updating b8f28ea..513ac3e
+Fast-forward
+ .github/workflows/app-release.yml                  | 121 ++++++++++++++
+ .github/workflows/check.yml                        |   2 +
+ app/Info.plist.in                                  |  32 ++++
+ app/Sources/ReturnOfTheMac/App.swift               |  18 ++-
+ app/Sources/ReturnOfTheMac/LinesEditor.swift       |  47 ++++++
+ app/Sources/ReturnOfTheMac/MainMenu.swift          |  32 ++++
+ app/Sources/ReturnOfTheMac/MenuBuilder.swift       |  91 +++++++++++
+ app/Sources/ReturnOfTheMac/ReviewSheet.swift       |  36 +++++
+ app/Sources/ReturnOfTheMac/SeatsEditor.swift       |  72 +++++++++
+ app/Sources/ReturnOfTheMac/SettingRowView.swift    | 116 ++++++++++++++
+ app/Sources/ReturnOfTheMac/SettingsView.swift      | 107 +++++++++++++
+ app/Sources/ReturnOfTheMac/SettingsWindow.swift    |  56 +++++++
+ .../ReturnOfTheMac/StatusItemController.swift      | 165 +++++++++++++++++++
+ app/Sources/RotmCore/AppState.swift                | 121 ++++++++++++++
+ app/Sources/RotmCore/Seats.swift                   |  49 ++++++
+ app/Sources/RotmCore/SettingsModel.swift           | 141 +++++++++++++++++
+ .../ReturnOfTheMacTests/MenuBuilderTests.swift     | 117 ++++++++++++++
+ app/Tests/ReturnOfTheMacTests/ShotsTests.swift     | 106 +++++++++++++
+ app/Tests/ReturnOfTheMacTests/SupportTests.swift   |   9 --
+ app/Tests/RotmCoreTests/AppStateTests.swift        | 174 +++++++++++++++++++++
+ app/Tests/RotmCoreTests/SeatsTests.swift           |  38 +++++
+ app/Tests/RotmCoreTests/SettingsModelTests.swift   | 131 ++++++++++++++++
+ app/scripts/build-app.sh                           |  78 +++++++++
+ app/scripts/sign-mac-app.sh                        | 144 +++++++++++++++++
+ bin/lib/app-shots                                  |  36 +++++
+ bin/lib/check                                      |   8 +
+ bin/lib/test-app-build                             |  63 ++++++++
+ docs/forking.md                                    |   2 +
+ package.json                                       |   3 +-
+ 29 files changed, 2103 insertions(+), 12 deletions(-)
+ create mode 100644 .github/workflows/app-release.yml
+ create mode 100644 app/Info.plist.in
+ create mode 100644 app/Sources/ReturnOfTheMac/LinesEditor.swift
+ create mode 100644 app/Sources/ReturnOfTheMac/MainMenu.swift
+ create mode 100644 app/Sources/ReturnOfTheMac/MenuBuilder.swift
+ create mode 100644 app/Sources/ReturnOfTheMac/ReviewSheet.swift
+ create mode 100644 app/Sources/ReturnOfTheMac/SeatsEditor.swift
+ create mode 100644 app/Sources/ReturnOfTheMac/SettingRowView.swift
+ create mode 100644 app/Sources/ReturnOfTheMac/SettingsView.swift
+ create mode 100644 app/Sources/ReturnOfTheMac/SettingsWindow.swift
+ create mode 100644 app/Sources/ReturnOfTheMac/StatusItemController.swift
+ create mode 100644 app/Sources/RotmCore/AppState.swift
+ create mode 100644 app/Sources/RotmCore/Seats.swift
+ create mode 100644 app/Sources/RotmCore/SettingsModel.swift
+ create mode 100644 app/Tests/ReturnOfTheMacTests/MenuBuilderTests.swift
+ create mode 100644 app/Tests/ReturnOfTheMacTests/ShotsTests.swift
+ delete mode 100644 app/Tests/ReturnOfTheMacTests/SupportTests.swift
+ create mode 100644 app/Tests/RotmCoreTests/AppStateTests.swift
+ create mode 100644 app/Tests/RotmCoreTests/SeatsTests.swift
+ create mode 100644 app/Tests/RotmCoreTests/SettingsModelTests.swift
+ create mode 100755 app/scripts/build-app.sh
+ create mode 100755 app/scripts/sign-mac-app.sh
+ create mode 100755 bin/lib/app-shots
+ create mode 100755 bin/lib/test-app-build
+!!! WARNING !!!
+This script replaces your configuration files with symlinks to this repo.
+It stops when a file is in the way of a link. Nothing is overwritten.
+Repo: /Users/j/.local/share/mise/bootstrap-repo
+==> 🔗 Linking the dotfiles…
+
+mise files: all files are applied
+mise edits: all edits are applied
+
+==> 🫖 Installing formulae with mise…
+
+mise brew: 144 package(s) already installed
+27Gi free on /
+==> 🫖 Installing casks with mise…
+
+mise brew-cask: 33 package(s) already installed
+27Gi free on /
+
+==> 🚀 Running mise bootstrap…
+
+mise bootstrap: system files
+mise system files: already converged
+mise bootstrap: dotfiles
+mise files: all files are applied
+mise bootstrap: dotfile edits
+mise edits: all edits are applied
+mise bootstrap: login shell
+mise login_shell: already set to /opt/homebrew/bin/zsh
+==> 🧰 Installing the mise tools…
+
+mise by @jdx – installing 33 tools
+mise ⇢ node@24                              1ms · already installed
+mise ⇢ node@22                              0ms · already installed
+mise ⇢ node@26                              0ms · already installed
+mise ⇢ hunk@latest                          0ms · already installed
+mise ⇢ python@3.14                          0ms · already installed
+mise ⇢ python@3.11                          0ms · already installed
+mise ⇢ python@3.12                          0ms · already installed
+mise ⇢ python@3.13                          0ms · already installed
+mise ⇢ python@3.15                          0ms · already installed
+mise ⇢ npm:@antfu/ni@30                     0ms · already installed
+mise ⇢ github:home-operations/flate@latest  0ms · already installed
+mise ⇢ aqua:Azure/kubelogin@latest          0ms · already installed
+mise ⇢ lazydocker@latest                    0ms · already installed
+mise ⇢ mirrord@latest                       0ms · already installed
+mise ⇢ npm:serverless@4                     0ms · already installed
+mise ⇢ github:microsoft/aspire@latest       0ms · already installed
+mise ⇢ azd@latest                           0ms · already installed
+mise ⇢ azure-functions-core-tools@4         0ms · already installed
+mise ⇢ bun@latest                           0ms · already installed
+mise ⇢ npm:typescript@6                     0ms · already installed
+mise ⇢ npm:typescript-language-server@6     0ms · already installed
+mise ⇢ npm:pyright@1                        0ms · already installed
+mise ⇢ npm:intelephense@1                   0ms · already installed
+mise ⇢ npm:yaml-language-server@2           0ms · already installed
+mise ⇢ npm:bash-language-server@5           0ms · already installed
+mise ⇢ npm:vscode-langservers-extracted@4   0ms · already installed
+mise ⇢ npm:svelte-language-server@0         0ms · already installed
+mise ⇢ npm:@vue/language-server@3           0ms · already installed
+mise ⇢ npm:@colbymchenry/codegraph@latest   0ms · already installed
+mise ⇢ npm:rea-agents@latest                0ms · already installed
+mise ⇢ flux2@2.10.0                         398ms · already installed
+mise ⇢ talosctl@1.14.6                      509ms · already installed
+mise ⇢ github:getsentry/toolkit@0.49.0      779ms · already installed
+mise ████████████████ 33/33 · installed 0 tools · 33 already installed in 795ms
+
+mise bootstrap: running `bootstrap` task
+[bootstrap] $ "${DOTFILES:-$HOME/dotfiles}/setup/misc.sh"
+
+  [ .. ] Changing access permissions for binary scripts…
+[2K  [ [00;32m✔[0m ] set for rotm
+[2K  [ [00;32m✔[0m ] set for dust
+[2K  [ [00;32m✔[0m ] set for lint-dups
+[2K  [ [00;32m✔[0m ] set for sysup
+[2K  [ [00;32m✔[0m ] set for clear-port
+[2K  [ [00;32m✔[0m ] set for install-color-themes
+[2K  [ [00;32m✔[0m ] set for gf
+[2K  [ [00;32m✔[0m ] set for rea-mcp
+[2K  [ [00;32m✔[0m ] set for dotfiles
+[2K  [ [00;32m✔[0m ] set for license
+[2K  [ [00;32m✔[0m ] set for lint-weasel-words
+[2K  [ [00;32m✔[0m ] set for docker-devcontainer
+[2K  [ [00;32m✔[0m ] set for npmplease
+[2K  [ [00;32m✔[0m ] set for obsidian-vault
+[2K  [ [00;32m✔[0m ] set for impeccable
+[2K  [ [00;32m✔[0m ] set for sync-all
+[2K  [ [00;32m✔[0m ] set for hindsight-memory
+[2K  [ [00;32m✔[0m ] set for ppp
+[2K  [ [00;32m✔[0m ] set for pull
+[2K  [ [00;32m✔[0m ] set for set-defaults
+[2K  [ [00;32m✔[0m ] set for claude-config
+[2K  [ [00;32m✔[0m ] set for myip
+[2K  [ [00;32m✔[0m ] set for ocr
+[2K  [ [00;32m✔[0m ] set for passphrase
+[2K  [ [00;32m✔[0m ] set for install-iosevka-code
+[2K  [ [00;32m✔[0m ] set for lint-passive-voice
+[2K  [ [00;32m✔[0m ] set for install-snippetslab-skill
+[2K  [ [00;32m✔[0m ] set for httpstatus
+[2K  [ [00;32m✔[0m ] set for docker-clean
+[2K  [ [00;32m✔[0m ] set for push
+[2K  [ [00;32m✔[0m ] set for node-modules-clean
+[2K  [ [00;32m✔[0m ] set for vscode-settings
+[2K  [ [00;32m✔[0m ] set for stash
+[2K  [ [00;32m✔[0m ] set for line
+[2K  [ [00;32m✔[0m ] set for git-find
+[2K  [ [00;32m✔[0m ] set for proofread
+[2K  [ [00;32m✔[0m ] set for get-tldr-md
+[2K  [ [00;32m✔[0m ] set for test-conventions
+[2K  [ [00;32m✔[0m ] set for test-bin
+[2K  [ [00;32m✔[0m ] set for test-shell
+[2K  [ [00;32m✔[0m ] set for test-dotfiles
+[2K  [ [00;32m✔[0m ] set for test-sync
+[2K  [ [00;32m✔[0m ] set for test-hindsight-memory
+[2K  [ [00;32m✔[0m ] set for rotm-mode
+[2K  [ [00;32m✔[0m ] set for test-override-env
+[2K  [ [00;32m✔[0m ] set for test-sysup
+[2K  [ [00;32m✔[0m ] set for test-rea-mcp
+[2K  [ [00;32m✔[0m ] set for app-shots
+[2K  [ [00;32m✔[0m ] set for test-user-layer
+[2K  [ [00;32m✔[0m ] set for test-modules
+[2K  [ [00;32m✔[0m ] set for test-bootstrap
+[2K  [ [00;32m✔[0m ] set for rotm-modules
+[2K  [ [00;32m✔[0m ] set for rotm-user-layer
+[2K  [ [00;32m✔[0m ] set for test-packages
+[2K  [ [00;32m✔[0m ] set for test-claude-config
+[2K  [ [00;32m✔[0m ] set for test-profiles
+[2K  [ [00;32m✔[0m ] set for starship-git-simple
+[2K  [ [00;32m✔[0m ] set for check
+[2K  [ [00;32m✔[0m ] set for test-app-build
+[2K  [ [00;32m✔[0m ] set for test-rotm
+[2K  [ [00;32m✔[0m ] set for claude-catalog
+[2K  [ [00;32m✔[0m ] set for br
+[2K  [ [00;32m✔[0m ] set for cpwd
+[2K  [ [00;32m✔[0m ] set for nnn
+[2K  [ [00;32m✔[0m ] set for dotfiles-settings
+[2K  [ [00;32m✔[0m ] set for ds-delete
+[2K  [ [00;32m✔[0m ] set for git-pr
+[2K  [ [00;32m✔[0m ] set for git-setup
+[2K  [ [00;32m✔[0m ] set for serve
+[2K  [ [00;32m✔[0m ] set for optimize-image
+[2K  [ [00;32m✔[0m ] set for check-port
+[2K  [ [00;32m✔[0m ] set for claude-stack
+[2K  [ [00;32m✔[0m ] set for wg
+[2K  [ [00;32m✔[0m ] set for flush-dns
+[2K  [ [00;32m✔[0m ] set for copy-ssh
+[2K  [ [00;32m✔[0m ] set for palette
+[2K  [ [00;32m✔[0m ] set for help
+[2K  [ [00;32m✔[0m ] set for nyan
+[2K  [ [00;32m✔[0m ] set for node-modules-size
+[2K  [ [00;32m✔[0m ] set for git-tidy
+
+  Done!
+
+
+  [ .. ] 🔤 Checking the Iosevka Code font…
+  Iosevka Code is up to date
+
+  [ .. ] 🖋️ Rendering VS Code settings…
+  rendered settings.json (preset iosevka)
+  Rust: stable is the default toolchain
+  Claude Code already installed — it updates itself
+
+  [ .. ] 🕸️ Connecting CodeGraph to Claude Code…
+  ┌  CodeGraph v1.6.2
+  │
+  ◆  Claude Code: Unchanged ~/.claude.json
+  │
+  ◆  Claude Code: Unchanged ~/.claude/settings.json
+  │
+  ◆  Claude Code: Unchanged ~/.claude/settings.json
+  │
+  ◆  Claude Code: Unchanged ~/.claude/CLAUDE.md
+  │
+  ◇  Next: index a project ──────────────────────────────────────────────────╮
+  │                                                                          │
+  │  cd <your-project>                                                       │
+  │  codegraph init        # build a project’s graph (one time; auto-syncs   │
+  │  after)                                                                  │
+  │  # (codegraph install --init does both steps in one command)             │
+  │                                                                          │
+  ├──────────────────────────────────────────────────────────────────────────╯
+  │
+  └  Done! Restart your agent to use CodeGraph.
+  
+  ✓ Telemetry disabled. Buffered, unsent data was deleted.
+  ⚠ The CODEGRAPH_TELEMETRY environment variable overrides this choice — effective state right now: disabled.
+  mise MCP server already registered with Claude Code
+  Serena MCP server already registered with Claude Code
+  The dependencies are already installed
+  Scrapling MCP server already registered with Claude Code
+
+  [ .. ] 🧠 Setting up Hindsight memory…
+  REA MCP server already registered with Claude Code
+  astro-docs MCP server already registered with Claude Code
+  better-auth MCP server already registered with Claude Code
+  siderolabs-docs MCP server already registered with Claude Code
+
+  [ .. ] ✂️ Connecting rtk to Claude Code…
+  
+  RTK hook registered (hook-only mode).
+  
+    Command: rtk hook claude
+    Note: No RTK.md created. Claude won't know about meta commands (gain, discover, bypass).
+  
+    settings.json: hook already present
+    Restart Claude Code. Test with: git status
+  
+  
+  Telemetry is disabled.
+
+  [ .. ] 💠 Installing PowerShell (.NET global tool)…
+  Tool 'powershell' (version '7.6.10') is already installed.
+  Aspire HTTPS dev certificate already trusted
+
+  [ .. ] 🚀 Configuring npm…
+
+  [ .. ] 📦 Installing this repo's dependencies…
+  Already up to date
+  Done in 25ms using pnpm v12.17.0
+
+  [ .. ] 🧩 Restoring Claude Code plugins, settings and skills…
+
+  [ .. ] 📚 Building the Claude Code catalog…
+    lint: claude.ai skills not synced to this account: anthropic-skills:docs, anthropic-skills:docx, anthropic-skills:google-workspace, anthropic-skills:import-memory, anthropic-skills:morning, anthropic-skills:pdf, anthropic-skills:pptx, anthropic-skills:skill-creator, anthropic-skills:xlsx
+    lint: mcp server not registered on this machine: coolify
+    lint: mcp server not registered on this machine: reactive-resume
+    lint: mcp server not registered on this machine: snippetslab
+    lint: mcp server not registered on this machine: jean
+    lint: mcp server not registered on this machine: agent-browser
+  wrote /Users/j/.claude/catalog/CATALOG.md, CATALOG-lite.md, catalog.html — {'skill': 329, 'command': 42, 'agent': 201, 'mcp': 23}, 67 plugins, 42,668 always-on tokens, plugin flags {'review': 21, 'watch': 0, 'retire': 0}, since 2026-11-13: +0 -0
+==> 🫖 Installing extensions with mise…
+
+mise vscode: 184 package(s) already installed
+27Gi free on /
+
+[2K  [skipped]  ~/.gitconfig.local
+[2K  [[0;33m![0m] ~/.ssh/github_personal.pub not found — GitHub SSH needs it to pick your 1Password key (see tilde/.ssh/config)
+[2K  [[0;33m![0m] No Firefox Developer Edition profile found — skipping Firefox styles
+[2K   bat theme cache rebuilt
+
+🦏 All done! Open a new terminal for the changes to take effect or run: source ~/.zshrc.
+
+██                                        ██    
+  ██                                    ██
+    ██                                ██
+      ██          ████████          ██
+        ██    ████████████████    ██
+          ████████████████████████
+          ████████████████████████
+          ████████████████████████
+        ████████████████████████████
+        ████████████████████████████
+        ████████████████████████████
+        ████████████████████████████
+        ████████████████████████████
+        ████████████████████████████
+          ████████████████████████
+            ████████████████████
+          ██  ████████████████  ██
+        ██        ████████        ██
+

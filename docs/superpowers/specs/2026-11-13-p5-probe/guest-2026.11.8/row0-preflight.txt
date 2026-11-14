@@ -1,0 +1,29 @@
+ProductName:		macOS
+ProductVersion:		27.2.1
+BuildVersion:		26B131
+2026.11.8 macos-arm64 (2026-11-13)
+b8f28ea (HEAD -> main, origin/main, origin/HEAD) Add the P5 probe script for the VM
+main
+== rotm settings status, in the app's environment
+Mode: installed
+Branch: main
+Commit: b8f28ea
+Profile: default
+Sync: not connected
+exit 0
+== rotm update --check
+4 updates are waiting. Run rotm update.
+exit 0
+== gh
+github.com
+  ✓ Logged in to github.com account jrmatherly (keyring)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: gho_************************************
+  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'
+== the cask
+total 0
+drwxr-xr-x   3 j  admin    96 Nov 13 17:02 .
+drwxr-xr-x  36 j  admin  1152 Nov 13 17:05 ..
+drwxr-xr-x   4 j  admin   128 Nov 13 17:02 0.14.0
+        "package": "jrmatherly/tap/claude-multipass-app",

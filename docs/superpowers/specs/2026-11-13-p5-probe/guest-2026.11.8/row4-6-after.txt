@@ -1,0 +1,10 @@
+old pid 17506 still running: yes
+pids now: 17506 
+bundle: inode 1123051 created Nov 13 17:47:38 2026 modified Nov 13 17:47:38 2026
+plist:  inode 1123209 created Nov  3 20:40:22 2026 modified Nov  3 20:40:22 2026
+0.14.0
+total 0
+drwxr-xr-x   3 j  admin    96 Nov 13 17:47 .
+drwxr-xr-x  36 j  admin  1152 Nov 13 17:05 ..
+drwxr-xr-x   4 j  admin   128 Nov 13 17:47 0.14.0
+        "package": "jrmatherly/tap/claude-multipass-app",

@@ -50,10 +50,12 @@ die() {
 }
 
 # What a GUI app's child sees: no shell PATH, no terminal type
-appenv() {
-  env -i HOME="$HOME" USER="${USER:-$(id -un)}" LOGNAME="${LOGNAME:-$(id -un)}" SHELL="${SHELL:-/bin/zsh}" \
-    TMPDIR="${TMPDIR:-/tmp}" PATH="$app_path" TERM=dumb "$@"
-}
+# An array, not only a function: script runs a program, and a shell function is not one
+# GH_ACCESSIBLE_PROMPTER: gh's default prompt asks the terminal where the cursor is and waits for
+# the answer, which a pipe never gives (the first row 5 run hung there); this one reads a line
+appenv_cmd=(env -i HOME="$HOME" USER="${USER:-$(id -un)}" LOGNAME="${LOGNAME:-$(id -un)}" SHELL="${SHELL:-/bin/zsh}"
+  TMPDIR="${TMPDIR:-/tmp}" PATH="$app_path" TERM=dumb GH_ACCESSIBLE_PROMPTER=1)
+appenv() { "${appenv_cmd[@]}" "$@"; }
 
 preflight() {
   mkdir -p "$out" || die "cannot write $out"
@@ -128,7 +130,7 @@ row1() {
 
 row2() {
   say "row 2: rotm update -y under script. Type the password when it asks."
-  session row2-update-console appenv DOTFILES_SETUP_LOG="$out/row2-setup.log" "$rotm" update -y
+  session row2-update-console "${appenv_cmd[@]}" DOTFILES_SETUP_LOG="$out/row2-setup.log" "$rotm" update -y
 }
 
 row4() {
@@ -185,10 +187,11 @@ row4() {
 
 row5() {
   if appenv gh auth status > /dev/null 2>&1; then
-    die "gh is signed in. Run: gh auth logout   then run row 5 again"
+    say "gh is signed in, and the row needs it signed out. Signing it out of github.com on this guest."
+    appenv gh auth logout --hostname github.com || die "gh auth logout failed"
   fi
   say "row 5: rotm settings sync on under script. Finish the sign-in in the browser when it opens."
-  session row5-sync-on appenv "$rotm" settings sync on
+  session row5-sync-on "${appenv_cmd[@]}" "$rotm" settings sync on
   appenv "$rotm" settings sync status > "$out/row5-sync-status.txt" 2>&1
   echo "exit $?" >> "$out/row5-sync-status.txt"
   cat "$out/row5-sync-status.txt"

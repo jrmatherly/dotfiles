@@ -1,0 +1,269 @@
+Already on 'main'
+Your branch is up to date with 'origin/main'.
+Already up to date.
+!!! WARNING !!!
+This script replaces your configuration files with symlinks to this repo.
+It stops when a file is in the way of a link. Nothing is overwritten.
+Repo: /Users/j/.local/share/mise/bootstrap-repo
+/!\ Activate sudo /!\
+Password:
+Sudo activated!
+
+==> 🔗 Linking the dotfiles…
+
+mise files: all files are applied
+mise edits: all edits are applied
+
+==> 🫖 Installing formulae with mise…
+
+mise brew: 144 package(s) already installed
+27Gi free on /
+==> 🫖 Installing casks with mise…
+
+mise brew-cask: 33 package(s) already installed
+27Gi free on /
+
+==> 🚀 Running mise bootstrap…
+
+mise bootstrap: system files
+mise system files: already converged
+mise bootstrap: dotfiles
+mise files: all files are applied
+mise bootstrap: dotfile edits
+mise edits: all edits are applied
+mise bootstrap: login shell
+mise login_shell: already set to /opt/homebrew/bin/zsh
+Sudo released
+==> 🧰 Installing the mise tools…
+
+mise by @jdx – installing 33 tools
+mise ⇢ node@24                              2ms · already installed
+mise ⇢ node@22                              0ms · already installed
+mise ⇢ node@26                              0ms · already installed
+mise ⇢ hunk@latest                          0ms · already installed
+mise ⇢ python@3.14                          0ms · already installed
+mise ⇢ python@3.11                          0ms · already installed
+mise ⇢ python@3.12                          0ms · already installed
+mise ⇢ python@3.13                          0ms · already installed
+mise ⇢ python@3.15                          0ms · already installed
+mise ⇢ npm:@antfu/ni@30                     2ms · already installed
+mise ⇢ github:home-operations/flate@latest  0ms · already installed
+mise ⇢ aqua:Azure/kubelogin@latest          0ms · already installed
+mise ⇢ lazydocker@latest                    0ms · already installed
+mise ⇢ mirrord@latest                       0ms · already installed
+mise ⇢ npm:serverless@4                     1ms · already installed
+mise ⇢ github:microsoft/aspire@latest       0ms · already installed
+mise ⇢ azd@latest                           0ms · already installed
+mise ⇢ azure-functions-core-tools@4         0ms · already installed
+mise ⇢ bun@latest                           0ms · already installed
+mise ⇢ npm:typescript@6                     0ms · already installed
+mise ⇢ npm:typescript-language-server@6     1ms · already installed
+mise ⇢ npm:pyright@1                        1ms · already installed
+mise ⇢ npm:intelephense@1                   5ms · already installed
+mise ⇢ npm:yaml-language-server@2           0ms · already installed
+mise ⇢ npm:bash-language-server@5           0ms · already installed
+mise ⇢ npm:vscode-langservers-extracted@4   1ms · already installed
+mise ⇢ npm:svelte-language-server@0         2ms · already installed
+mise ⇢ npm:@vue/language-server@3           3ms · already installed
+mise ⇢ npm:@colbymchenry/codegraph@latest   0ms · already installed
+mise ⇢ npm:rea-agents@latest                4ms · already installed
+mise ⇢ flux2@2.10.0                         812ms · already installed
+mise ⇢ talosctl@1.14.6                      1.1s · already installed
+mise ⇢ github:getsentry/toolkit@0.49.0      1.5s · already installed
+mise ████████████████ 33/33 · installed 0 tools · 33 already installed in 1.6s
+
+mise bootstrap: running `bootstrap` task
+[bootstrap] $ "${DOTFILES:-$HOME/dotfiles}/setup/misc.sh"
+
+  [ .. ] Changing access permissions for binary scripts…
+  [ ✔ ] set for rotm
+  [ ✔ ] set for dust
+  [ ✔ ] set for lint-dups
+  [ ✔ ] set for sysup
+  [ ✔ ] set for clear-port
+  [ ✔ ] set for install-color-themes
+  [ ✔ ] set for gf
+  [ ✔ ] set for rea-mcp
+  [ ✔ ] set for dotfiles
+  [ ✔ ] set for license
+  [ ✔ ] set for lint-weasel-words
+  [ ✔ ] set for docker-devcontainer
+  [ ✔ ] set for npmplease
+  [ ✔ ] set for obsidian-vault
+  [ ✔ ] set for impeccable
+  [ ✔ ] set for sync-all
+  [ ✔ ] set for hindsight-memory
+  [ ✔ ] set for ppp
+  [ ✔ ] set for pull
+  [ ✔ ] set for set-defaults
+  [ ✔ ] set for claude-config
+  [ ✔ ] set for myip
+  [ ✔ ] set for ocr
+  [ ✔ ] set for passphrase
+  [ ✔ ] set for install-iosevka-code
+  [ ✔ ] set for lint-passive-voice
+  [ ✔ ] set for install-snippetslab-skill
+  [ ✔ ] set for httpstatus
+  [ ✔ ] set for docker-clean
+  [ ✔ ] set for push
+  [ ✔ ] set for node-modules-clean
+  [ ✔ ] set for vscode-settings
+  [ ✔ ] set for stash
+  [ ✔ ] set for line
+  [ ✔ ] set for git-find
+  [ ✔ ] set for proofread
+  [ ✔ ] set for get-tldr-md
+  [ ✔ ] set for test-conventions
+  [ ✔ ] set for test-bin
+  [ ✔ ] set for test-shell
+  [ ✔ ] set for test-dotfiles
+  [ ✔ ] set for test-sync
+  [ ✔ ] set for test-hindsight-memory
+  [ ✔ ] set for rotm-mode
+  [ ✔ ] set for test-override-env
+  [ ✔ ] set for test-sysup
+  [ ✔ ] set for test-rea-mcp
+  [ ✔ ] set for app-shots
+  [ ✔ ] set for test-user-layer
+  [ ✔ ] set for test-modules
+  [ ✔ ] set for test-bootstrap
+  [ ✔ ] set for rotm-modules
+  [ ✔ ] set for rotm-user-layer
+  [ ✔ ] set for test-packages
+  [ ✔ ] set for test-claude-config
+  [ ✔ ] set for test-profiles
+  [ ✔ ] set for starship-git-simple
+  [ ✔ ] set for check
+  [ ✔ ] set for test-app-build
+  [ ✔ ] set for test-rotm
+  [ ✔ ] set for claude-catalog
+  [ ✔ ] set for br
+  [ ✔ ] set for cpwd
+  [ ✔ ] set for nnn
+  [ ✔ ] set for dotfiles-settings
+  [ ✔ ] set for ds-delete
+  [ ✔ ] set for git-pr
+  [ ✔ ] set for git-setup
+  [ ✔ ] set for serve
+  [ ✔ ] set for optimize-image
+  [ ✔ ] set for check-port
+  [ ✔ ] set for claude-stack
+  [ ✔ ] set for wg
+  [ ✔ ] set for flush-dns
+  [ ✔ ] set for copy-ssh
+  [ ✔ ] set for palette
+  [ ✔ ] set for help
+  [ ✔ ] set for nyan
+  [ ✔ ] set for node-modules-size
+  [ ✔ ] set for git-tidy
+
+  Done!
+
+
+  [ .. ] 🔤 Checking the Iosevka Code font…
+  Iosevka Code is up to date
+
+  [ .. ] 🖋️ Rendering VS Code settings…
+  rendered settings.json (preset iosevka)
+  Rust: stable is the default toolchain
+  Claude Code already installed — it updates itself
+
+  [ .. ] 🕸️ Connecting CodeGraph to Claude Code…
+  ┌  CodeGraph v1.6.2
+  │
+  ◆  Claude Code: Unchanged ~/.claude.json
+  │
+  ◆  Claude Code: Unchanged ~/.claude/settings.json
+  │
+  ◆  Claude Code: Unchanged ~/.claude/settings.json
+  │
+  ◆  Claude Code: Unchanged ~/.claude/CLAUDE.md
+  │
+  ◇  Next: index a project ──────────────────────────────────────────────────╮
+  │                                                                          │
+  │  cd <your-project>                                                       │
+  │  codegraph init        # build a project’s graph (one time; auto-syncs   │
+  │  after)                                                                  │
+  │  # (codegraph install --init does both steps in one command)             │
+  │                                                                          │
+  ├──────────────────────────────────────────────────────────────────────────╯
+  │
+  └  Done! Restart your agent to use CodeGraph.
+  
+  ✓ Telemetry disabled. Buffered, unsent data was deleted.
+  ⚠ The CODEGRAPH_TELEMETRY environment variable overrides this choice — effective state right now: disabled.
+  mise MCP server already registered with Claude Code
+  Serena MCP server already registered with Claude Code
+  The dependencies are already installed
+  Scrapling MCP server already registered with Claude Code
+
+  [ .. ] 🧠 Setting up Hindsight memory…
+  REA MCP server already registered with Claude Code
+  astro-docs MCP server already registered with Claude Code
+  better-auth MCP server already registered with Claude Code
+  siderolabs-docs MCP server already registered with Claude Code
+
+  [ .. ] ✂️ Connecting rtk to Claude Code…
+  
+  RTK hook registered (hook-only mode).
+  
+    Command: rtk hook claude
+    Note: No RTK.md created. Claude won't know about meta commands (gain, discover, bypass).
+  
+    settings.json: hook already present
+    Restart Claude Code. Test with: git status
+  
+  
+  Telemetry is disabled.
+
+  [ .. ] 💠 Installing PowerShell (.NET global tool)…
+  Tool 'powershell' (version '7.6.10') is already installed.
+  Aspire HTTPS dev certificate already trusted
+
+  [ .. ] 🚀 Configuring npm…
+
+  [ .. ] 📦 Installing this repo's dependencies…
+  Already up to date
+  Done in 35ms using pnpm v12.17.0
+
+  [ .. ] 🧩 Restoring Claude Code plugins, settings and skills…
+
+  [ .. ] 📚 Building the Claude Code catalog…
+    lint: claude.ai skills not synced to this account: anthropic-skills:docs, anthropic-skills:docx, anthropic-skills:google-workspace, anthropic-skills:import-memory, anthropic-skills:morning, anthropic-skills:pdf, anthropic-skills:pptx, anthropic-skills:skill-creator, anthropic-skills:xlsx
+    lint: mcp server not registered on this machine: coolify
+    lint: mcp server not registered on this machine: reactive-resume
+    lint: mcp server not registered on this machine: snippetslab
+    lint: mcp server not registered on this machine: jean
+    lint: mcp server not registered on this machine: agent-browser
+  wrote /Users/j/.claude/catalog/CATALOG.md, CATALOG-lite.md, catalog.html — {'skill': 329, 'command': 42, 'agent': 201, 'mcp': 23}, 67 plugins, 42,668 always-on tokens, plugin flags {'review': 21, 'watch': 0, 'retire': 0}, since 2026-11-13: +0 -0
+==> 🫖 Installing extensions with mise…
+
+mise vscode: 184 package(s) already installed
+27Gi free on /
+
+  [skipped]  ~/.gitconfig.local
+  [!] ~/.ssh/github_personal.pub not found — GitHub SSH needs it to pick your 1Password key (see tilde/.ssh/config)
+  [!] No Firefox Developer Edition profile found — skipping Firefox styles
+   bat theme cache rebuilt
+
+🦏 All done! Open a new terminal for the changes to take effect or run: source ~/.zshrc.
+
+██                                        ██    
+  ██                                    ██
+    ██                                ██
+      ██          ████████          ██
+        ██    ████████████████    ██
+          ████████████████████████
+          ████████████████████████
+          ████████████████████████
+        ████████████████████████████
+        ████████████████████████████
+        ████████████████████████████
+        ████████████████████████████
+        ████████████████████████████
+        ████████████████████████████
+          ████████████████████████
+            ████████████████████
+          ██  ████████████████  ██
+        ██        ████████        ██
+

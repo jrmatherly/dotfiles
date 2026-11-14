@@ -1,0 +1,7 @@
+mise brew: all formulae already poured
+hdiutil: WARNING: 'hdiutil detach ...' is deprecated. Please use 'diskutil eject ...' instead.
+"disk7" ejected.
+mise WARN  brew-cask: replacing /Applications/Claude Multipass.app — macOS may revoke Privacy & Security permissions for this app (Accessibility, Screen Recording, Full Disk Access, etc.); re-grant them in System Settings if prompted. To take over an existing app without replacing it, set adopt = true or [bootstrap.brew] adopt = true
+mise brew-cask:jrmatherly/tap/claude-multipass-app ✓ 0.14.0
+mise brew-cask: upgraded jrmatherly/tap/claude-multipass-app 0.13.0 -> 0.14.0
+exit 0

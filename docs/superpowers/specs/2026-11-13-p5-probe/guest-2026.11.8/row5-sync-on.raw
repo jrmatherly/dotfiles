@@ -1,0 +1,14 @@
+[0;33m![0m Did you know that expiring tokens can be requested with [0;1;39m--expiring[0m? Read more at https://gh.io/gh-expiring-tokens
+[36mAuthenticate Git with your GitHub credentials? (default: yes) [Y/n][m yy
+invalid input. please try again
+[36mAuthenticate Git with your GitHub credentials? (default: yes) [Y/n][m y
+
+
+[0;33m![0m One-time code ([0;1;39mXXXX-XXXX[0m) copied to clipboard
+[0;1;39mPress Enter[0m to open https://github.com/login/device in your browser... 
+[0;32m✓[0m Authentication complete.
+- gh config set -h github.com git_protocol https
+[0;32m✓[0m Configured git protocol
+[0;32m✓[0m Logged in as [0;1;39mjrmatherly[0m
+Created the private repository jrmatherly/rotm-settings.
+Your settings are saved in jrmatherly/rotm-settings. Sync is on, and it runs when you ask: run `rotm settings sync now` after you change a setting, and `rotm settings sync on` on your next Mac to load them there.

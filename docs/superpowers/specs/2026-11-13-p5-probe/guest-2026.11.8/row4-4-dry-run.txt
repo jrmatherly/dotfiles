@@ -1,0 +1,4 @@
+mise brew: all formulae already poured
+install cask claude-multipass-app/0.14.0
+link app /Applications/Claude Multipass.app
+exit 0
