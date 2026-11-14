@@ -43,7 +43,7 @@
 
 set -euo pipefail
 
-modules=(fonts apps vscode claude agents cloud kubernetes devops security network languages media)
+modules=(fonts apps vscode claude agents cloud kubernetes devops security network languages media menubar)
 dir="${MISE_CONFIG_DIR:-$HOME/.config/mise}"
 shared_off="$dir/modules-off.local"
 rc_file="$dir/miserc.local.toml"

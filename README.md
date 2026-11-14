@@ -9,7 +9,7 @@ Jason's personal dotfiles for macOS on Apple Silicon: Zsh, [mise](https://mise.j
 
 ## What you get
 
-- **One command sets up a Mac.** [`setup.sh`](setup.sh) wraps [`mise bootstrap`](https://mise.jdx.dev/bootstrap.html): it links the dotfiles into `$HOME` and installs the [formulae, apps and VS Code extensions](tilde/.config/mise/conf.d/) and the [runtimes and CLIs](tilde/.config/mise/config.toml). Homebrew itself isn't needed. Everything outside the base is in [twelve modules](docs/modules.md), and any of them can be left out.
+- **One command sets up a Mac.** [`setup.sh`](setup.sh) wraps [`mise bootstrap`](https://mise.jdx.dev/bootstrap.html): it links the dotfiles into `$HOME` and installs the [formulae, apps and VS Code extensions](tilde/.config/mise/conf.d/) and the [runtimes and CLIs](tilde/.config/mise/config.toml). Homebrew itself isn't needed. Everything outside the base is in [thirteen modules](docs/modules.md), and any of them can be left out.
 - **One command keeps it current.** [`sysup`](bin/sysup) updates macOS, mise, the packages, the runtimes and the agent tooling, and prints one status line per step.
 - **One place for settings.** [`dotfiles-settings`](settings/README.md) shows every setting the repo manages (environment variables, macOS defaults, packages, dotfile links and the agent tools) in a terminal UI, the same UI in a browser tab, or a scriptable CLI.
 - **Shell.** Zsh with a [Starship prompt](tilde/.starship.toml), [fzf](zsh/fzf.zsh) pickers with previews, [aliases](zsh/aliases.zsh), [handy scripts](bin/) and a built-in `help` for all of them.

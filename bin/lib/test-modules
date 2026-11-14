@@ -35,7 +35,7 @@ reset() {
 reset
 
 m="$repo/bin/lib/rotm-modules"
-[ "$("$m" list | tr '\n' ' ')" = "fonts apps vscode claude agents cloud kubernetes devops security network languages media " ] || fail "list"
+[ "$("$m" list | tr '\n' ' ')" = "fonts apps vscode claude agents cloud kubernetes devops security network languages media menubar " ] || fail "list"
 registry_modules=$(python3 -c 'import sys, tomllib
 print(" ".join(s["key"] for s in tomllib.load(open(sys.argv[1], "rb"))["setting"] if s["kind"] == "module"))' settings/registry.toml)
 [ "$registry_modules " = "$("$m" list | tr '\n' ' ')" ] || fail "the registry's module rows are not rotm-modules list, in order: $registry_modules"

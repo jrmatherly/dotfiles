@@ -126,6 +126,7 @@ job quiet bash bin/lib/test-dotfiles
 job quiet bash setup/tests/dotfiles-extras.sh
 # setup/macos-extras.sh against stubbed sudo, pmset, defaults, socketfilterfw and killall (nothing is changed)
 job quiet bash setup/tests/macos-extras.sh
+job quiet bash setup/tests/menubar-open.sh
 # bin/hindsight-memory against a fixture HOME with the installer, hindsight-embed, npm and uv stubbed
 job quiet bash bin/lib/test-hindsight-memory
 # bin/claude-config save against fixture dirs, under each bash (never the real ~/.claude or agents/)

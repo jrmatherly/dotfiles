@@ -34,7 +34,10 @@ fi
 # The config dir to read: the tracked one, or the one given (a split written to a scratch dir is checked before it is copied in)
 config_dir=${1:-tilde/.config/mise}
 
-"${py[@]}" - "$config_dir" "$(bin/lib/rotm-modules list)" << 'PY' || fail "the package and tool lists in $config_dir"
+# check_lists <config dir>: the assertions below, on the tracked dir or a scratch copy
+check_lists() {
+  "${py[@]}" - "$1" "$(bin/lib/rotm-modules list)" << 'PY'
+
 import re
 import sys
 import tomllib
@@ -66,7 +69,8 @@ assert all(not f.brew for f in mods.values()), "[bootstrap.brew] settings belong
 every_package, all_tools, all_taps, dupes = {}, {}, {}, []
 for f in files:
     for table, seen in ((f.packages, every_package), (f.tools, all_tools), (f.taps, all_taps)):
-        dupes += [f"{k} ({f.name})" for k in table if k in seen]
+        # A tap may sit in two files whose packages both use it, at one URL (mise accepts the duplicate)
+        dupes += [f"{k} ({f.name})" for k in table if k in seen and not (seen is all_taps and seen[k] == table[k])]
         seen.update(table)
 assert not dupes, f"declared in two files: {dupes}"
 assert all(v == "latest" for v in every_package.values()), "every package value is \"latest\": no pins, no inline tables"
@@ -98,7 +102,7 @@ assert "brew:mise" not in every_package, "mise is installed by its own installer
 
 # The union is what the two files held before the split: nothing lost, nothing added
 count = lambda m: sum(k.startswith(m + ":") for k in every_package)
-assert (count("brew"), count("brew-cask"), count("vscode")) == (144, 33, 184), "counts changed: update this line with the entry you added or removed"
+assert (count("brew"), count("brew-cask"), count("vscode")) == (144, 34, 184), "counts changed: update this line with the entry you added or removed"
 assert len(all_tools) == 27, f"{len(all_tools)} tools: update this line with the tool you added or removed"
 
 # The base keeps what setup, sysup and the shell run without a guard, and what mise itself needs (ruby reads the tap cask)
@@ -114,6 +118,8 @@ on_disk = {p.name for p in (config_dir / "conf.d").glob("60-rotm-*")}
 assert on_disk == {f"60-rotm-{n}.toml" for n in modules}, on_disk
 assert all(p.name.count(".") == 1 for p in (config_dir / "conf.d").iterdir()), "a conf.d name with two dots"
 PY
+}
+check_lists "$config_dir" || fail "the package and tool lists in $config_dir"
 
 # The flux2 and talosctl postinstall hooks write their zsh completions (P13)
 hooks=$(
@@ -134,6 +140,11 @@ PY
 repo=$PWD
 tmp=$(cd "$(mktemp -d)" && pwd -P)
 trap 'rm -rf "$tmp"' EXIT
+
+# The same tap at two different URLs still fails
+cp -R "$config_dir" "$tmp/two-urls"
+sed -i '' 's#^"jrmatherly/tap" = "[^"]*"#"jrmatherly/tap" = "https://example.com/homebrew-tap.git"#' "$tmp/two-urls/conf.d/60-rotm-menubar.toml"
+if check_lists "$tmp/two-urls" 2> /dev/null; then fail "one tap at two URLs passed"; fi
 mkdir -p "$tmp/fakebin" "$tmp/home" "$tmp/empty"
 comp="$tmp/home/.cache/dotfiles/completions"
 while IFS=$'\t' read -r binary run; do

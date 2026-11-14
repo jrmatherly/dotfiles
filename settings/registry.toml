@@ -1031,6 +1031,18 @@ default = "on"
 access = "rw"
 
 [[setting]]
+id = "modules.menubar"
+section = "Modules"
+label = "Menu bar app"
+help = "Return of the Mac in the menu bar: the settings window, sync, profiles and updates without a terminal."
+kind = "module"
+key = "menubar"
+type = "bool"
+true_value = "on"
+default = "on"
+access = "rw"
+
+[[setting]]
 id = "dotfiles.links"
 section = "Dotfiles"
 label = "Links and copies in the home folder"

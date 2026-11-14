@@ -18,7 +18,7 @@ adopt = true
 
 [bootstrap.brew.taps]
 # Dotfiles framework
-"jrmatherly/tap" = "https://github.com/jrmatherly/homebrew-tap.git" # claude-multipass
+"jrmatherly/tap" = "https://github.com/jrmatherly/homebrew-tap.git" # claude-multipass; 60-rotm-menubar.toml declares it too
 
 [bootstrap.packages]
 # Dotfiles framework requirements

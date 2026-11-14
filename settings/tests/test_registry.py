@@ -107,6 +107,8 @@ class PerSetting:
 
 assert [model.note_for(a, short) for a in (object(), Plain(), PerSetting())] == ["", "note", "tracked"]
 assert model.note_for(PerSetting(), by_id["shell.editor"]) == ""
+menubar = by_id["modules.menubar"]
+assert (menubar.kind, menubar.key, menubar.default) == ("module", "menubar", "on"), menubar
 bad(table(id="Bad Id"), "id must be dotted lowercase: 'Bad Id'")
 bad("not toml [", "registry.toml")           # the message names the file
 bad("", "no settings")

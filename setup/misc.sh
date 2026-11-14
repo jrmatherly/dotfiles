@@ -478,3 +478,7 @@ if [ -x "$claude_bin" ] && module_on claude; then
   PATH="$(dirname "$claude_bin"):$PATH" "$DOTFILES_DIR/bin/claude-catalog" 2>&1 | indent \
     || warning "Catalog built with problems (listed above) — fix agents/catalog/curated.toml, then run: claude-catalog"
 fi
+
+# The menu bar app, once the packages have put it in /Applications
+info "🖥️  Opening the menu bar app…"
+"$DOTFILES_DIR/setup/menubar-open.sh" 2>&1 | indent || true

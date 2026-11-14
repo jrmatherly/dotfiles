@@ -1,0 +1,13 @@
+# returnofthemac module `menubar`: Return of the Mac, the menu bar app over `rotm settings`.
+#
+# Switch it off with `rotm settings set modules.menubar off` (on again with `on`).
+# The app stays installed, and setup stops opening it.
+# `mise bootstrap packages prune --dry-run` lists what no config declares any more.
+
+# Also declared in 30-packages.toml for claude-multipass: one tap at one URL in two
+# files, so switching this module off leaves the base's tap in place
+[bootstrap.brew.taps]
+"jrmatherly/tap" = "https://github.com/jrmatherly/homebrew-tap.git"
+
+[bootstrap.packages]
+"brew-cask:jrmatherly/tap/returnofthemac-app" = "latest" # Return of the Mac menu bar app (arm64, macOS 14+; updates itself through mise)
