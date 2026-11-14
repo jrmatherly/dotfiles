@@ -1,0 +1,144 @@
+#!/bin/bash
+#
+# Developer ID signing and notarization for the menu bar app and its DMG.
+#
+# - Sign with the hardened runtime and verify, then notarize, staple and assess with spctl:
+#
+# `app/scripts/sign-mac-app.sh sign-app {{App.app}}`
+#
+# - Sign, then notarize, staple and assess with spctl:
+#
+# `app/scripts/sign-mac-app.sh sign-dmg {{file.dmg}}`
+#
+# ---
+# Adapted from jrmatherly/claude-multipass (scripts/sign-mac-app.sh at v0.14.0),
+# without the Sparkle parts. The only place the repository signs or notarizes.
+#
+# Environment, all optional:
+#   MACOS_SIGN_IDENTITY   codesign identity; default: the first "Developer ID Application" identity
+#                         that `security find-identity -v -p codesigning` lists
+#   MACOS_SIGN_REQUIRED   any value: a missing identity is an error instead of a skip
+#   MACOS_SIGN_ENTITLEMENTS
+#                         an entitlements plist passed to codesign by sign-app
+#   APPLE_API_KEY_ID, APPLE_API_ISSUER_ID, APPLE_API_KEY_P8
+#                         App Store Connect API key (P8 = the .p8 file contents); all three or none.
+#                         Both modes notarize: a ticket stapled to the DMG stays on the DMG, so an
+#                         app copied out of it needs its own for an offline first launch.
+#
+# State                                   sign   notarize + staple + spctl
+# API key partly set                      -      -                           exit 1
+# no identity, nothing requires one       -      -                           exit 0, target left unsigned
+# no identity, required or API key set    -      -                           exit 1
+# identity, API key absent                yes    skipped
+# identity, API key complete              yes    yes, fatal when rejected
+#
+# License: MIT
+set -euo pipefail
+
+usage() {
+  echo "usage: $0 sign-app <App.app> | sign-dmg <file.dmg>" >&2
+  exit 2
+}
+[ $# -eq 2 ] || usage
+mode=$1 target=$2
+case "$mode" in sign-app | sign-dmg) ;; *) usage ;; esac
+[ -e "$target" ] || {
+  echo "sign-mac-app: $target not found" >&2
+  exit 1
+}
+
+key_vars=(APPLE_API_KEY_ID APPLE_API_ISSUER_ID APPLE_API_KEY_P8)
+key_set=0
+for v in "${key_vars[@]}"; do
+  if [ -n "${!v:-}" ]; then key_set=$((key_set + 1)); fi
+done
+case $key_set in
+  0)
+    notarize=0
+    echo "sign-mac-app: ${key_vars[*]} unset, skipping notarization"
+    ;;
+  3) notarize=1 ;;
+  *)
+    echo "sign-mac-app: ${key_set} of ${key_vars[*]} are set; set all three to notarize, or none to skip" >&2
+    exit 1
+    ;;
+esac
+
+identity="${MACOS_SIGN_IDENTITY:-}"
+if [ -z "$identity" ]; then
+  identity=$({ security find-identity -v -p codesigning 2> /dev/null || echo "sign-mac-app: security find-identity failed" >&2; } \
+    | sed -n '/"Developer ID Application: /{s/^[^"]*"\(.*\)"$/\1/p;q;}')
+fi
+if [ -z "$identity" ]; then
+  if [ -n "${MACOS_SIGN_REQUIRED:-}" ] || [ "$notarize" = 1 ]; then
+    echo "sign-mac-app: no Developer ID Application identity found and signing is required" >&2
+    exit 1
+  fi
+  echo "sign-mac-app: no Developer ID Application identity found, leaving $target unsigned"
+  exit 0
+fi
+echo "sign-mac-app: signing $target as $identity"
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+# notarytool exits 0 for a finished but rejected submission, so the status decides.
+notarize_file() {
+  local key out status id
+  key="$work/AuthKey_${APPLE_API_KEY_ID:-}.p8"
+  (umask 077 && printf '%s\n' "${APPLE_API_KEY_P8:-}" > "$key")
+  out=$(xcrun notarytool submit "$1" --key "$key" --key-id "${APPLE_API_KEY_ID:-}" \
+    --issuer "${APPLE_API_ISSUER_ID:-}" --wait --timeout 30m --output-format json) \
+    || {
+      echo "$out" >&2
+      echo "sign-mac-app: notarytool submit failed for $1" >&2
+      exit 1
+    }
+  echo "$out"
+  status=$(plutil -extract status raw -o - - <<< "$out")
+  if [ "$status" != Accepted ]; then
+    id=$(plutil -extract id raw -o - - <<< "$out" || true)
+    echo "sign-mac-app: notarization of $1 ended as '$status'; details: xcrun notarytool log $id" >&2
+    exit 1
+  fi
+}
+
+# Apple's timestamp service can fail and then pass with nothing changed, twice in a
+# row on 2026-11-01. Any other failure stops at once. --force makes a retry safe.
+sign_part() {
+  local attempt err rc
+  for attempt in 1 2 3 4; do
+    rc=0
+    err=$(codesign --force --timestamp "$@" 2>&1) || rc=$?
+    [ -z "$err" ] || echo "$err" >&2
+    [ "$rc" != 0 ] || return 0
+    [[ $err == *'A timestamp was expected but was not found'* ]] || exit "$rc"
+    [ "$attempt" = 4 ] || sleep 15
+  done
+  exit "$rc"
+}
+
+case "$mode" in
+  sign-app)
+    entitlements=()
+    [ -z "${MACOS_SIGN_ENTITLEMENTS:-}" ] || entitlements=(--entitlements "$MACOS_SIGN_ENTITLEMENTS")
+    sign_part --options runtime ${entitlements[@]+"${entitlements[@]}"} --sign "$identity" "$target"
+    codesign --verify --deep --strict --verbose=2 "$target"
+    if [ "$notarize" = 1 ]; then
+      # notarytool takes a zip, not a bundle; the ticket is stapled to the app itself
+      ditto -c -k --keepParent "$target" "$work/app.zip"
+      notarize_file "$work/app.zip"
+      xcrun stapler staple "$target"
+      spctl -a -vv -t exec "$target"
+    fi
+    ;;
+  sign-dmg)
+    sign_part --sign "$identity" "$target"
+    codesign --verify --verbose=2 "$target"
+    if [ "$notarize" = 1 ]; then
+      notarize_file "$target"
+      xcrun stapler staple "$target"
+      spctl -a -vv -t open --context context:primary-signature "$target"
+    fi
+    ;;
+esac

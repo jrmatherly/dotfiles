@@ -17,6 +17,7 @@ shell_scripts=(
   .claude/skills/*/*.sh
   tilde/.claude/*.sh
   firefox/lib/get-firefox-dev-path
+  app/scripts/*.sh
 )
 
 bash_syntax_files=(
@@ -41,6 +42,11 @@ done < <(
 
 bash -n "${shell_scripts[@]}" "${bash_syntax_files[@]}"
 zsh -n "${zsh_syntax_files[@]}"
+# The release tag is app-v<this>, and the app's own update check reads it as three numbers
+[[ $(cat app/VERSION) =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+  echo "check: app/VERSION is not three numbers: $(cat app/VERSION)" >&2
+  exit 1
+}
 # Every step from here to the VS Code block is independent of the others, so
 # each runs as a job, one per core at most, and the run takes about as long as
 # its slowest step instead of the sum. A job's output is held and printed
@@ -105,6 +111,8 @@ if command -v swift > /dev/null && [[ -n $developer && $developer != */CommandLi
 else
   echo "check: Xcode not found, skipping the app tests" >&2
 fi
+# app/Info.plist.in and an unsigned app/scripts/build-app.sh run; it skips itself without Xcode
+job quiet bash bin/lib/test-app-build
 # Lint the GitHub Actions workflows (expressions, runner labels, embedded shell)
 if command -v actionlint > /dev/null; then
   job actionlint .github/workflows/*.yml

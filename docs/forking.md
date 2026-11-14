@@ -16,6 +16,8 @@ Setup already asks for your git identity and commit signing. These values are ha
 | [`settings/README.md`](../settings/README.md) | The `uv tool install` line names `jrmatherly/returnofthemac` |
 | [`setup/README.md`](../setup/README.md) | The `misc` section links my `jrmatherly/skills` repo and names its `jrmatherly-skills` marketplace |
 | [`setup/bootstrap-runtime.archify.json`](../setup/bootstrap-runtime.archify.json) | The `meta.repository.url` clone URL (Archify's source for the setup diagram; the exported SVG doesn't show it) |
+| [`app/scripts/build-app.sh`](../app/scripts/build-app.sh) | The menu bar app's bundle id, `net.matherly.returnofthemac` (the `APP_BUNDLE_ID` default). Use a reverse-DNS id of your own |
+| [`.github/workflows/app-release.yml`](../.github/workflows/app-release.yml) | A pushed `app-v<version>` tag signs the app with my Developer ID (team `7BSA2L4Z5L`) and notarizes it through five repository secrets: `MACOS_CERT_P12`, `MACOS_CERT_PASSWORD`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID` and `APPLE_API_KEY_P8`. Set your own, or push no `app-v` tags. The DMG goes to the release of that tag on the repository the workflow runs in (`https://github.com/<owner>/<repo>/releases/tag/app-v<version>`), so a fork publishes to its own |
 | [`LICENSE`](../LICENSE) | Add your copyright line; keep the existing ones (MIT requires it) |
 
 [`docs/jstack.md`](jstack.md) and [`docs/gui/raycast.md`](gui/raycast.md) also link my own projects (`jrmatherly/skills`, `jrmatherly/claude-multipass`); they describe tools this setup installs, so keep them unless you drop those tools.

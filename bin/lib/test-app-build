@@ -1,0 +1,63 @@
+#!/bin/bash
+#
+# Self-check for the menu bar app's bundle: Info.plist.in and an unsigned build-app.sh run.
+#
+# - Run it (pnpm check does too); exits 1 when an assertion fails:
+#
+# `test-app-build`
+#
+# ---
+# Writes app/dist/Return of the Mac.app. Never signs: a stub security lists no
+# identity and the signing variables are unset, so a Developer ID identity in
+# the keychain is not used. Skips with one line when Xcode is absent.
+#
+# License: MIT
+
+set -u
+
+repo="$(cd "$(dirname "$0")/../.." && pwd -P)"
+plugin=Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins/libSwiftUIMacros.dylib
+if ! command -v swift > /dev/null || {
+  [ ! -e "$(xcode-select -p 2> /dev/null)/$plugin" ] && [ ! -e "/Applications/Xcode.app/Contents/Developer/$plugin" ]
+}; then
+  echo "test-app-build: Xcode not found, skipping the app build check" >&2
+  exit 0
+fi
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+fails=0
+
+check() {
+  if eval "$2"; then echo "ok   $1"; else
+    echo "FAIL $1"
+    fails=$((fails + 1))
+  fi
+}
+
+check "Info.plist.in has only the @VERSION@ and @BUNDLE_ID@ placeholders" \
+  "[ \"\$(grep -oE '@[A-Z_]+@' '$repo/app/Info.plist.in' | sort -u | tr '\n' ' ')\" = '@BUNDLE_ID@ @VERSION@ ' ]"
+
+mkdir "$tmp/bin"
+printf '#!/bin/sh\necho "     0 valid identities found"\n' > "$tmp/bin/security"
+chmod +x "$tmp/bin/security"
+if ! env -u MACOS_SIGN_IDENTITY -u MACOS_SIGN_REQUIRED -u APPLE_API_KEY_ID -u APPLE_API_ISSUER_ID -u APPLE_API_KEY_P8 \
+  PATH="$tmp/bin:$PATH" bash "$repo/app/scripts/build-app.sh" > "$tmp/build.log" 2>&1; then
+  tail -n 40 "$tmp/build.log" >&2
+  echo "FAIL build-app.sh exits 0"
+  exit 1
+fi
+echo "ok   build-app.sh exits 0"
+
+app="$repo/app/dist/Return of the Mac.app"
+plist="$app/Contents/Info.plist"
+key() { plutil -extract "$1" raw -o - "$plist" 2> /dev/null; }
+check "the version is app/VERSION" "[ \"\$(key CFBundleShortVersionString)\" = \"\$(cat '$repo/app/VERSION')\" ]"
+check "the bundle id is the default" "[ \"\$(key CFBundleIdentifier)\" = net.matherly.returnofthemac ]"
+check "LSUIElement is true" "[ \"\$(key LSUIElement)\" = true ]"
+check "LSMinimumSystemVersion is 14.0" "[ \"\$(key LSMinimumSystemVersion)\" = 14.0 ]"
+check "no placeholder is left" "! grep -qE '@[A-Z_]+@' '$plist'"
+check "the binary is arm64" "[ \"\$(lipo -archs '$app/Contents/MacOS/ReturnOfTheMac' 2> /dev/null)\" = arm64 ]"
+check "the build is not Developer ID signed" "! codesign -dv --verbose=2 '$app' 2>&1 | grep -q 'Authority=Developer ID'"
+
+[ "$fails" = 0 ] || exit 1

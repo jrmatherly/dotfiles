@@ -79,3 +79,5 @@ jobs:
           if grep -wE 'nmap|hydra|ghidra' off.log; then echo "::error::security is off and its formulae are still in the dry run"; exit 1; fi
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      # Unsigned: the runner has no Developer ID identity
+      - run: bash app/scripts/build-app.sh
