@@ -19,11 +19,12 @@ extension MenuEntry {
 @MainActor enum MenuBuilder {
   static let profilePrefix = "useProfile:"
 
-  /// The status item's template symbol and what VoiceOver reads for it.
-  static func icon(for state: AppState) -> (symbol: String, label: String) {
+  /// The status item's glyph in the bundle, the SF Symbol drawn when the bundle
+  /// has none (`swift run`), and what VoiceOver reads for it.
+  static func icon(for state: AppState) -> (glyph: String, symbol: String, label: String) {
     state.needsAttention
-      ? ("desktopcomputer.trianglebadge.exclamationmark", "Return of the Mac, needs attention")
-      : ("desktopcomputer", "Return of the Mac")
+      ? ("menubar-attention", "desktopcomputer.trianglebadge.exclamationmark", "Return of the Mac, needs attention")
+      : ("menubar", "desktopcomputer", "Return of the Mac")
   }
 
   static func entries(for state: AppState, launchAtLogin: Bool) -> [MenuEntry] {

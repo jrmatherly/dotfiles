@@ -157,9 +157,11 @@ struct MenuBuilderTests {
 
   @Test func voiceOverHearsTheAttentionBadge() async {
     let clean = MenuBuilder.icon(for: await state())
+    #expect(clean.glyph == "menubar")
     #expect(clean.symbol == "desktopcomputer")
     #expect(clean.label == "Return of the Mac")
     let behind = MenuBuilder.icon(for: await state(check: #"{"mode":"installed","branch":"stable","behind":2}"#))
+    #expect(behind.glyph == "menubar-attention")
     #expect(behind.symbol == "desktopcomputer.trianglebadge.exclamationmark")
     #expect(behind.label == "Return of the Mac, needs attention")
   }

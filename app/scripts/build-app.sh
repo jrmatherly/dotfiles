@@ -12,7 +12,8 @@
 #
 # ---
 # Adapted from jrmatherly/claude-multipass (scripts/build-app.sh at v0.14.0),
-# without the bundled tool, the icon, Sparkle and the entitlements.
+# without the bundled tool, Sparkle and the entitlements. The icon and the
+# menu bar glyphs come from branding/comeback (see branding/README.md).
 #
 # The app module uses SwiftUI macros whose compiler plugin only Xcode ships, so
 # when xcode-select points at the Command Line Tools and Xcode is installed the
@@ -57,6 +58,7 @@ swift build --package-path . -c release
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp .build/release/ReturnOfTheMac "$app/Contents/MacOS/ReturnOfTheMac"
+cp branding/comeback/AppIcon.icns branding/comeback/menubar.svg branding/comeback/menubar-attention.svg "$app/Contents/Resources/"
 sed -e "s/@VERSION@/$version/g" -e "s/@BUNDLE_ID@/$bundle_id/g" Info.plist.in > "$plist"
 printf 'APPL????' > "$app/Contents/PkgInfo"
 # Before signing, so a bad bundle never reaches notarization

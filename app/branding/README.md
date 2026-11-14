@@ -11,9 +11,9 @@ Each directory holds `icon.svg` (the master, 1024 units, the macOS icon shape in
 
 The letters in `prompt/icon.svg` are drawn as strokes, not set in a font, so the file renders the same everywhere.
 
-## Not wired in yet
+## Where the build uses them
 
-`app/scripts/build-app.sh` copies no icon, and `StatusItemController` still draws SF Symbols (`desktopcomputer` and its badged variant). `Info.plist.in` already names `AppIcon`, so the app icon needs one `cp` of `comeback/AppIcon.icns` into `Contents/Resources`. The menu bar glyph needs the two SVGs in the bundle and an `NSImage` loaded from them with `isTemplate = true`, checked in the guest at both menu bar appearances.
+`app/scripts/build-app.sh` copies `comeback/AppIcon.icns` (named by `Info.plist.in`), `menubar.svg` and `menubar-attention.svg` into `Contents/Resources`. `StatusItemController` loads the glyph as a template `NSImage`, and draws the SF Symbol `desktopcomputer` (or its badged variant) when the bundle has none, as under `swift run`. Not yet checked in the guest: the glyph at both menu bar appearances, and that macOS 14 loads an SVG into `NSImage` (this Mac's macOS 27 does).
 
 ## Rendering an icns again
 

@@ -58,6 +58,9 @@ check "LSUIElement is true" "[ \"\$(key LSUIElement)\" = true ]"
 check "LSMinimumSystemVersion is 14.0" "[ \"\$(key LSMinimumSystemVersion)\" = 14.0 ]"
 check "no placeholder is left" "! grep -qE '@[A-Z_]+@' '$plist'"
 check "the binary is arm64" "[ \"\$(lipo -archs '$app/Contents/MacOS/ReturnOfTheMac' 2> /dev/null)\" = arm64 ]"
+for f in AppIcon.icns menubar.svg menubar-attention.svg; do
+  check "Resources holds the Comeback $f" "cmp -s '$repo/app/branding/comeback/$f' '$app/Contents/Resources/$f'"
+done
 check "the build is not Developer ID signed" "! codesign -dv --verbose=2 '$app' 2>&1 | grep -q 'Authority=Developer ID'"
 
 [ "$fails" = 0 ] || exit 1

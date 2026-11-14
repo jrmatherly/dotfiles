@@ -83,7 +83,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
   private func redraw() {
     let icon = MenuBuilder.icon(for: state)
-    let image = NSImage(systemSymbolName: icon.symbol, accessibilityDescription: icon.label)
+    let image = Bundle.main.url(forResource: icon.glyph, withExtension: "svg").flatMap(NSImage.init(contentsOf:))
+      ?? NSImage(systemSymbolName: icon.symbol, accessibilityDescription: icon.label)
+    image?.accessibilityDescription = icon.label
     image?.isTemplate = true
     statusItem?.button?.image = image
     menu.removeAllItems()
