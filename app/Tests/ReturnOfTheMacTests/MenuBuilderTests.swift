@@ -42,14 +42,14 @@ private let more = MenuEntry(
   ]),
   enabled: true)
 
-private func menu(profile: MenuEntry, sync: [MenuEntry], setup: String) -> [MenuEntry] {
+private func menu(profile: MenuEntry, sync: [MenuEntry], setup: String, open: Bool = true) -> [MenuEntry] {
   [profile, .separator] + sync + [
     .separator,
     .info(setup),
     .action("Update…", "update", enabled: false),
     .separator,
     more,
-    .action("Settings…", "settings", enabled: false),
+    .action("Settings…", "settings", enabled: open),
     .separator,
     .action("Quit", "quit"),
   ]
@@ -101,7 +101,7 @@ struct MenuBuilderTests {
     let closed = [MenuEntry.info("Sync: on, 2 changes waiting"), .action("Sync Now", "syncNow", enabled: false)]
     #expect(
       MenuBuilder.entries(for: s, launchAtLogin: false)
-        == menu(profile: profiles(active: "default", enabled: false), sync: closed, setup: "Setup: up to date"))
+        == menu(profile: profiles(active: "default", enabled: false), sync: closed, setup: "Setup: up to date", open: false))
   }
 
   @Test func theLastOutputLeadsWithDismiss() async {

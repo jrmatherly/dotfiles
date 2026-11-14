@@ -63,6 +63,23 @@ struct AppStateTests {
     #expect(state.runner != nil)
   }
 
+  @Test func exclusiveWorkBlocksTheActionsAndThenRefreshes() async {
+    let runner = FakeRunner()
+    stubClean(runner)
+    let state = makeState(runner)
+    await state.refresh()
+    let before = runner.calls.count
+    await state.exclusive("Applying settings…") {
+      #expect(state.blocked)
+      await state.syncNow()
+      await state.exclusive("again") { Issue.record("ran while blocked") }
+      #expect(runner.calls.count == before)
+    }
+    #expect(!state.blocked)
+    #expect(runner.calls.last == statusArgs)
+    #expect(runner.calls.count == before + 1)
+  }
+
   @Test func useProfileRunsOneCommandThenRefreshes() async {
     let runner = FakeRunner()
     stubClean(runner)

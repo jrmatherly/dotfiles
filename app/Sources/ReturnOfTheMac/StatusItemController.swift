@@ -11,6 +11,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
   private var statusItem: NSStatusItem?
   private let menu = NSMenu()
   private var timer: Timer?
+  private var settingsWindow: SettingsWindowController?
 
   init(state: AppState) {
     self.state = state
@@ -32,6 +33,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
   func popMenu() {
     statusItem?.button?.performClick(nil)
+  }
+
+  /// Until the tool is found there is nothing to show, so the menu opens and says why.
+  func showSettings() {
+    guard state.tool == .ready, let runner = state.runner else { return popMenu() }
+    if settingsWindow == nil { settingsWindow = SettingsWindowController(state: state, runner: runner) }
+    settingsWindow?.show()
   }
 
   func menuWillOpen(_ menu: NSMenu) {
@@ -106,6 +114,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     case "syncNow":
       if confirm("Sync your settings now?", "rotm settings sync now", "Sync") { Task { await state.syncNow() } }
     case "dismiss": state.dismissOutput()
+    case "settings": showSettings()
     case "launchAtLogin": toggleLaunchAtLogin()
     case "quit": NSApp.terminate(nil)
     default: break

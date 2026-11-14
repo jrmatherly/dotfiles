@@ -79,6 +79,16 @@ import Observation
     lastError = nil
   }
 
+  /// Work another part of the app does through its own runner (the settings
+  /// window's Apply), counted as the one thing running.
+  public func exclusive(_ label: String, _ work: () async -> Void) async {
+    guard !blocked else { return }
+    busy = label
+    await work()
+    await refresh()
+    busy = nil
+  }
+
   private func perform(_ label: String, _ args: [String]) async {
     guard !blocked, let runner else { return }
     busy = label
@@ -95,10 +105,10 @@ import Observation
     busy = nil
   }
 
-  private static let notFound = "rotm was not found at ~/dotfiles/bin/rotm."
+  static let notFound = "rotm was not found at ~/dotfiles/bin/rotm."
 
   /// nil when the tool itself is gone.
-  private static func message(_ error: Error) -> String? {
+  static func message(_ error: Error) -> String? {
     switch error as? CommandError {
     case .toolMissing: return nil
     case .readOnly(let s), .invalid(let s): return s

@@ -16,18 +16,18 @@ extension MenuEntry {
 }
 
 /// The whole menu as data, so tests compare it and the controller only draws it.
-/// The entries whose commands later tasks add (the console, the settings
-/// window) are listed now and stay disabled until those land.
+/// The entries whose commands later tasks add (the console) are listed now
+/// and stay disabled until those land.
 @MainActor enum MenuBuilder {
   static let profilePrefix = "useProfile:"
 
   static func entries(for state: AppState, launchAtLogin: Bool) -> [MenuEntry] {
-    let settings = MenuEntry.action("Settings…", "settings", enabled: false)
     let quit = MenuEntry.action("Quit", "quit")
     guard state.tool == .ready, let status = state.status else {
-      return [.info(toolMessage(state.tool)), .separator, settings, quit]
+      return [.info(toolMessage(state.tool)), .separator, .action("Settings…", "settings", enabled: false), quit]
     }
     let open = !state.blocked
+    let settings = MenuEntry.action("Settings…", "settings", enabled: open)
     var menu: [MenuEntry] = []
     if let version = state.appUpdate {
       menu += [.action("Update Return of the Mac to \(version)…", "appUpdate", enabled: false), .separator]

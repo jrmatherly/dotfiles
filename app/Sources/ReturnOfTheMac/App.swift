@@ -27,7 +27,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   // A second launch that showed nothing would read as a failed one.
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-    statusItem?.popMenu()
+    statusItem?.showSettings()
     return false
   }
 }
