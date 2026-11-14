@@ -26,7 +26,7 @@ func stubClean(_ runner: FakeRunner, status: String = Fixtures.status, check: St
 
 @MainActor
 func waitUntil(_ condition: () -> Bool) async {
-  for _ in 0..<500 where !condition() {
+  for _ in 0..<5000 where !condition() {
     try? await Task.sleep(nanoseconds: 2_000_000)
   }
 }
@@ -83,7 +83,7 @@ struct AppStateTests {
   @Test func useProfileRunsOneCommandThenRefreshes() async {
     let runner = FakeRunner()
     stubClean(runner)
-    let use = ["settings", "profile", "use", "work"]
+    let use = ["settings", "profile", "use", "--", "work"]
     runner.stub(use, .success(CommandOutput(stdout: "Open a new shell to pick this up.", stderr: "")))
     let state = makeState(runner)
     await state.refresh()
@@ -94,6 +94,7 @@ struct AppStateTests {
     #expect(state.blocked)
     await state.syncNow()
     await state.newProfile("home")
+    await state.refresh()
     #expect(runner.calls.last == use)
     release()
     await action.value
@@ -123,7 +124,7 @@ struct AppStateTests {
   @Test func newProfileRunsProfileNew() async {
     let runner = FakeRunner()
     stubClean(runner)
-    let new = ["settings", "profile", "new", "home"]
+    let new = ["settings", "profile", "new", "--", "home"]
     runner.stub(new, .success(CommandOutput(stdout: "", stderr: "")))
     let state = makeState(runner)
     await state.refresh()
@@ -159,6 +160,61 @@ struct AppStateTests {
     await state.refresh(recheckUpdates: true)
     #expect(runner.calls.filter { $0 == checkArgs }.count == 2)
     #expect(state.updateCheck?.behind == 0)
+  }
+
+  // A status read or a git fetch beside `rotm update` in the console would race it.
+  @Test func refreshRunsNothingWhileACommandRuns() async {
+    let runner = FakeRunner()
+    stubClean(runner)
+    let state = makeState(runner)
+    await state.refresh()
+    let before = runner.calls.count
+    state.sessionRunning = true
+    await state.refresh(recheckUpdates: true)
+    #expect(runner.calls.count == before)
+    state.sessionRunning = false
+    await state.refresh()
+    #expect(runner.calls.last == statusArgs)
+  }
+
+  @Test func quitAsksWhileACommandOrStagedEditsWouldBeLost() async {
+    let runner = FakeRunner()
+    stubClean(runner)
+    let state = makeState(runner)
+    await state.refresh()
+    #expect(state.quitDecision(sessionTitle: nil, stagedEdits: 0) == .allow)
+    #expect(
+      state.quitDecision(sessionTitle: "Update", stagedEdits: 2)
+        == .ask(message: "Stop Update and quit?", detail: "Quitting stops the command."))
+    #expect(
+      state.quitDecision(sessionTitle: nil, stagedEdits: 1)
+        == .ask(message: "Quit and discard 1 change?", detail: "The settings window has a change you have not applied."))
+    #expect(
+      state.quitDecision(sessionTitle: nil, stagedEdits: 3)
+        == .ask(message: "Quit and discard 3 changes?", detail: "The settings window has changes you have not applied."))
+
+    let sync = ["settings", "sync", "now"]
+    runner.stub(sync, .success(CommandOutput(stdout: "", stderr: "")))
+    let release = runner.hold(sync)
+    let action = Task { await state.syncNow() }
+    await waitUntil { state.busy != nil }
+    #expect(state.quitDecision(sessionTitle: nil, stagedEdits: 0) == .ask(message: "Quit while a command is running?", detail: "Syncing…"))
+    release()
+    await action.value
+  }
+
+  // Killing mise between removing and placing the bundle is the one way to lose the app.
+  @Test func quitIsRefusedWhileTheAppUpgrades() async {
+    let state = makeState(FakeRunner())
+    let mise = FakeRunner()
+    let release = mise.hold(AppUpdate.upgradeArguments)
+    let upgrade = Task { await state.upgradeApp(mise: mise, app: URL(fileURLWithPath: "/nonexistent.app"), expected: "0.2.0") }
+    await waitUntil { state.upgrading }
+    #expect(state.quitDecision(sessionTitle: "Update", stagedEdits: 2) == .refuse)
+    #expect(state.quitDecision(sessionTitle: nil, stagedEdits: 0) == .refuse)
+    release()
+    _ = await upgrade.value
+    #expect(state.quitDecision(sessionTitle: nil, stagedEdits: 0) == .allow)
   }
 
   @Test func needsAttention() async {

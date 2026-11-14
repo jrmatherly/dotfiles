@@ -49,7 +49,7 @@ usage() {
 }
 
 update() {
-  local branch url arg rc mode behind err yes="" check="" json=""
+  local branch quoted url arg rc mode behind err yes="" check="" json=""
   for arg in "$@"; do
     case "$arg" in
       --) break ;;
@@ -58,14 +58,20 @@ update() {
       --json) json=1 ;;
     esac
   done
+  if [ -n "$json" ] && [ -z "$check" ]; then
+    echo "rotm: --json goes with --check" >&2
+    exit 2
+  fi
   mode=$("$(dirname "$0")/lib/rotm-mode" "$DOTFILES")
-  branch=$(git -C "$DOTFILES" symbolic-ref -q --short HEAD) || branch=""
+  branch=$(git -C "$DOTFILES" symbolic-ref -q --short HEAD 2> /dev/null) || branch=""
+  # git allows a double quote in a branch name, and no backslash
+  quoted=${branch//\"/\\\"}
   if [ "$mode" = clone ]; then
     if [ -z "$check" ]; then
       echo "rotm: this is a development clone. Pull it yourself, then run ./setup.sh" >&2
       exit 1
     elif [ -n "$json" ]; then
-      [ -n "$branch" ] && branch="\"$branch\"" || branch=null
+      [ -n "$branch" ] && branch="\"$quoted\"" || branch=null
       echo "{\"mode\":\"clone\",\"branch\":$branch,\"behind\":null}"
     else
       echo "This is a development clone. Pull it yourself."
@@ -84,7 +90,7 @@ update() {
     fi
     behind=$(git -C "$DOTFILES" rev-list --count HEAD..FETCH_HEAD)
     if [ -n "$json" ]; then
-      echo "{\"mode\":\"installed\",\"branch\":\"$branch\",\"behind\":$behind}"
+      echo "{\"mode\":\"installed\",\"branch\":\"$quoted\",\"behind\":$behind}"
     elif [ "$behind" = 0 ]; then
       echo "Up to date."
     elif [ "$behind" = 1 ]; then

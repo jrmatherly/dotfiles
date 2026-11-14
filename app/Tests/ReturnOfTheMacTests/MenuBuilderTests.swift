@@ -147,12 +147,21 @@ struct MenuBuilderTests {
     let mise = FakeRunner()
     let release = mise.hold(AppUpdate.upgradeArguments)
     let upgrade = Task { await s.upgradeApp(mise: mise, app: URL(fileURLWithPath: "/nonexistent.app"), expected: "0.2.0") }
-    for _ in 0..<500 where !s.upgrading { try? await Task.sleep(nanoseconds: 2_000_000) }
+    for _ in 0..<5000 where !s.upgrading { try? await Task.sleep(nanoseconds: 2_000_000) }
     let entries = MenuBuilder.entries(for: s, launchAtLogin: false)
     #expect(entries.first == .action("Updating Return of the Mac to 0.2.0…", "appUpdate", enabled: false))
     #expect(entries.contains(.action("Update…", "update", enabled: false)))
     release()
     _ = await upgrade.value
+  }
+
+  @Test func voiceOverHearsTheAttentionBadge() async {
+    let clean = MenuBuilder.icon(for: await state())
+    #expect(clean.symbol == "desktopcomputer")
+    #expect(clean.label == "Return of the Mac")
+    let behind = MenuBuilder.icon(for: await state(check: #"{"mode":"installed","branch":"stable","behind":2}"#))
+    #expect(behind.symbol == "desktopcomputer.trianglebadge.exclamationmark")
+    #expect(behind.label == "Return of the Mac, needs attention")
   }
 
   @Test func theAttentionSymbolExists() {

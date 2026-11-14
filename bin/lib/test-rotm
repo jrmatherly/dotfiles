@@ -88,6 +88,10 @@ head=$(git -C "$fix" rev-parse HEAD)
 status=$(git -C "$fix" status --short)
 : > "$tmp/log"
 check "--check two commits behind" "[ \"\$(rotm update --check --json)\" = '{\"mode\":\"installed\",\"branch\":\"stable\",\"behind\":2}' ] && [ \"\$(rotm update --check)\" = '2 updates are waiting. Run rotm update.' ]"
+# The Swift decoder's fixture: a key renamed here or there fails one side of the gate
+keys() { sed -E 's/:("[^"]*"|[^,}]*)//g' <<< "$1"; }
+check "--check --json has the keys of the app's fixture" "[ \"\$(keys \"\$(rotm update --check --json)\")\" = \"\$(keys \"\$(tr -d ' \\n' < '$repo/app/Tests/RotmTestSupport/Fixtures/update-check.json')\")\" ]"
+check "--json without --check is refused and runs nothing" "rotm update --json 2> /dev/null; [ \$? -eq 2 ] && [ ! -s '$tmp/log' ]"
 check "--check leaves HEAD and the tree alone" "[ \"\$(git -C '$fix' rev-parse HEAD)\" = '$head' ] && [ \"\$(git -C '$fix' status --short)\" = '$status' ]"
 check "--check runs no mise and no setup.sh" "[ ! -s '$tmp/log' ]"
 git -C "$fix" remote set-url origin "$tmp/nowhere.git"
@@ -95,6 +99,9 @@ check "--check exits 1 with one line when the fetch fails" "rotm update --check 
 git -C "$fix" remote set-url origin "$origin"
 git -C "$tmp/dev" init -q -b main
 check "--check in a dev clone exits 0" "[ \"\$(bash '$tmp/dev/bin/rotm' update --check --json)\" = '{\"mode\":\"clone\",\"branch\":\"main\",\"behind\":null}' ] && [ \"\$(bash '$tmp/dev/bin/rotm' update --check)\" = 'This is a development clone. Pull it yourself.' ]"
+git -C "$tmp/dev" checkout -q -b 'a"b'
+check "a quote in the branch name is escaped" "[ \"\$(bash '$tmp/dev/bin/rotm' update --check --json)\" = '{\"mode\":\"clone\",\"branch\":\"a\\\"b\",\"behind\":null}' ]"
+check "a folder that is no repository prints no git error" "[ -z \"\$(DOTFILES='$tmp/empty-dir' bash '$tmp/dev/bin/rotm' update --check 2>&1 > /dev/null)\" ]"
 : > "$tmp/log"
 echo edit >> "$fix/setup.sh"
 check "a refused update exits with mise's code" "STUB_MISE_RC=1 rotm update > '$tmp/out' 2>&1; [ \$? -eq 1 ]"

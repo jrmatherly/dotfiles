@@ -91,7 +91,8 @@ jobs:
 
   release:
     needs: build
-    runs-on: ubuntu-latest
+    # Pinned, as check.yml pins its runner
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write

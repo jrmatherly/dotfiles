@@ -49,8 +49,10 @@ if command -v tldr > /dev/null; then have_tldr=true; else
   echo "test-conventions: tldr not found, skipping the help render check" >&2
 fi
 # Each render must also remove the temp dir its page was written to (find,
-# not ls: with no tldr-* dirs, as on CI, ls fails and pipefail ends the script)
-before=$(find "${TMPDIR:-/tmp}/" -maxdepth 1 -name "tldr-*" | wc -l)
+# not ls: with no tldr-* dirs, as on CI, ls fails and pipefail ends the script).
+# find also fails when another process removes its own temp file mid-scan
+tldr_dirs() { { find "${TMPDIR:-/tmp}/" -maxdepth 1 -name "tldr-*" 2> /dev/null || true; } | wc -l; }
+before=$(tldr_dirs)
 for file in bin/*; do
   [[ -f $file && $file != bin/CLAUDE.md ]] || continue
   if [ "$have_tldr" = true ]; then
@@ -59,7 +61,7 @@ for file in bin/*; do
     sed -n 2p "$file" | grep -qE '^(#|//)' || fail "bin headers: $file"
   fi
 done
-[ "$(find "${TMPDIR:-/tmp}/" -maxdepth 1 -name "tldr-*" | wc -l)" -le "$before" ] || fail "help leaves temp dirs"
+[ "$(tldr_dirs)" -le "$before" ] || fail "help leaves temp dirs"
 bin/help lib > /dev/null 2>&1 && fail "help lib should fail cleanly" || true
 
 # help reached through a symlink (~/dotfiles) while $DOTFILES names the real

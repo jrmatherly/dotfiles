@@ -69,6 +69,9 @@ struct SettingsModelTests {
     #expect(Edit(settingId: "t.text", change: .set("-a 'b' #c"), shared: false).commandLine == #"rotm settings set t.text -- '-a '\''b'\'' #c'"#)
     #expect(Edit(settingId: "t.flag", change: .set("on"), shared: true).commandLine == "rotm settings set --shared t.flag -- on")
     #expect(Edit(settingId: "t.text", change: .set(""), shared: false).commandLine == "rotm settings set t.text -- ''")
+    // zsh expands a leading = to a path: =ls is /bin/ls.
+    #expect(Edit(settingId: "t.text", change: .set("=ls"), shared: false).commandLine == "rotm settings set t.text -- '=ls'")
+    #expect(Edit(settingId: "t.text", change: .set("a=b"), shared: false).commandLine == "rotm settings set t.text -- a=b")
   }
 
   @Test func applyRunsEveryEditPastAFailureThenReloads() async {
@@ -86,7 +89,7 @@ struct SettingsModelTests {
     #expect(runner.calls == [listArgs, first, second, third, listArgs])
     #expect(model.failures == ["updates.slow_step_seconds: t.count is read-only"])
     #expect(model.notes == ["Run set-defaults to apply it now."])
-    #expect(model.staged.isEmpty)
+    #expect(model.staged == [Edit(settingId: "updates.slow_step_seconds", change: .set("20"), shared: false)])
   }
 
   @Test func aReloadDropsOnlyTheEditsThatNoLongerDiffer() async {

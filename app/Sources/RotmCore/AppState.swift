@@ -17,6 +17,11 @@ import Observation
   public private(set) var lastError: String?
   public private(set) var appUpdate: String?
 
+  public enum QuitDecision: Equatable {
+    case allow, refuse
+    case ask(message: String, detail: String)
+  }
+
   public var needsAttention: Bool {
     guard let status else { return false }
     return status.sync.conflicts != nil || !status.sync.waiting.isEmpty || status.profile.missing != nil
@@ -36,7 +41,13 @@ import Observation
   }
 
   /// `recheckUpdates` runs `update --check` now instead of at most hourly, as after the console's update.
+  /// Runs nothing while a command runs: its own end refreshes.
   public func refresh(recheckUpdates: Bool = false) async {
+    guard !blocked else { return }
+    await read(recheckUpdates: recheckUpdates)
+  }
+
+  private func read(recheckUpdates: Bool = false) async {
     if runner == nil {
       guard let tool = locate() else {
         self.tool = .missing(Self.notFound)
@@ -69,8 +80,9 @@ import Observation
   /// Reads the cask in the tap, at most once a day. A failed check is silent.
   public func checkAppUpdate(fetch: (URL) async throws -> String, current: String) async {
     if let appCheckedAt, now().timeIntervalSince(appCheckedAt) < 86400 { return }
+    guard let text = try? await fetch(AppUpdate.caskURL) else { return }
     appCheckedAt = now()
-    guard let text = try? await fetch(AppUpdate.caskURL), let version = AppUpdate.version(inCask: text) else { return }
+    guard let version = AppUpdate.version(inCask: text) else { return }
     appUpdate = AppUpdate.isNewer(version, than: current) ? version : nil
   }
 
@@ -105,11 +117,11 @@ import Observation
   }
 
   public func useProfile(_ name: String) async {
-    await perform("Switching to \(name)…", ["settings", "profile", "use", name])
+    await perform("Switching to \(name)…", ["settings", "profile", "use", "--", name])
   }
 
   public func newProfile(_ name: String) async {
-    await perform("Creating \(name)…", ["settings", "profile", "new", name])
+    await perform("Creating \(name)…", ["settings", "profile", "new", "--", name])
   }
 
   public func syncNow() async {
@@ -127,7 +139,7 @@ import Observation
     guard !blocked else { return }
     busy = label
     await work()
-    await refresh()
+    await read()
     busy = nil
   }
 
@@ -143,8 +155,23 @@ import Observation
       lastOutput = nil
       lastError = Self.message(error) ?? Self.notFound
     }
-    await refresh()
+    await read()
     busy = nil
+  }
+
+  /// What Quit does now. `sessionTitle` names the console's running command.
+  public func quitDecision(sessionTitle: String?, stagedEdits: Int) -> QuitDecision {
+    if upgrading { return .refuse }
+    if let sessionTitle { return .ask(message: "Stop \(sessionTitle) and quit?", detail: "Quitting stops the command.") }
+    if let busy { return .ask(message: "Quit while a command is running?", detail: busy) }
+    if stagedEdits == 1 {
+      return .ask(message: "Quit and discard 1 change?", detail: "The settings window has a change you have not applied.")
+    }
+    if stagedEdits > 1 {
+      return .ask(
+        message: "Quit and discard \(stagedEdits) changes?", detail: "The settings window has changes you have not applied.")
+    }
+    return .allow
   }
 
   static let notFound = "rotm was not found at ~/dotfiles/bin/rotm."

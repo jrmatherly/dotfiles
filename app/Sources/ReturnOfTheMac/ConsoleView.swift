@@ -9,6 +9,8 @@ struct ConsoleView: View {
   let session: ConsoleSession
   let close: () -> Void
   @State private var input = ""
+  // Its own buffer, so a prompt that stops matching never shows a typed password in the plain field.
+  @State private var secret = ""
   @FocusState private var focused: Bool
 
   private var running: Bool { session.phase == .running }
@@ -41,12 +43,15 @@ struct ConsoleView: View {
     }
     .frame(minWidth: 520, minHeight: 320)
     .onAppear { focused = true }
-    .onChange(of: session.wantsSecret) { focused = true }
+    .onChange(of: session.wantsSecret) {
+      secret = ""
+      focused = true
+    }
   }
 
   @ViewBuilder private var field: some View {
     if session.wantsSecret {
-      SecureField("Password", text: $input).accessibilityLabel("Password")
+      SecureField("Password", text: $secret).accessibilityLabel("Password")
     } else {
       TextField("Type an answer and press Return", text: $input).accessibilityLabel("Answer")
     }
@@ -62,8 +67,9 @@ struct ConsoleView: View {
   }
 
   private func send() {
-    session.send(input)
+    session.send(session.wantsSecret ? secret : input)
     input = ""
+    secret = ""
   }
 }
 

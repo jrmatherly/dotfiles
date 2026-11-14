@@ -23,6 +23,9 @@ private func stubScript() throws -> URL {
         if [ "$(stat -f %Z /dev/fd/0)" = "$(stat -f %Z /dev/null)" ]; then echo null; else echo other; fi
         pwd -P;;
       slow) sleep 30 & echo $! > "$2"; wait;;
+      grandchild) sleep 30 & echo $! > "$2"; echo hi;;
+      int) echo bye >&2; kill -INT $$;;
+      quit) kill -QUIT $$;;
       *) exit 1;;
     esac
 
@@ -57,6 +60,13 @@ private let runHome = try! tempDir()
   await #expect(throws: CommandError.failed(1, "red")) { try await cli.run(["color"]) }
 }
 
+// SIGINT is 2 and SIGQUIT 3, the same numbers as the usage and read-only exits.
+@Test func aSignalDeathIsAFailureNotAnExitCode() async throws {
+  let cli = CLI(tool: try stubScript(), home: runHome)
+  await #expect(throws: CommandError.failed(130, "bye")) { try await cli.run(["int"]) }
+  await #expect(throws: CommandError.failed(131, "")) { try await cli.run(["quit"]) }
+}
+
 @Test func aMissingToolIsToolMissing() async {
   let cli = CLI(tool: URL(fileURLWithPath: "/nope/rotm"), home: runHome)
   await #expect(throws: CommandError.toolMissing("/nope/rotm")) { try await cli.run(["ok"]) }
@@ -75,6 +85,18 @@ private let runHome = try! tempDir()
     try await Task.sleep(nanoseconds: 50_000_000)
   }
   #expect(!alive, "the script and its child are gone")
+}
+
+@Test func aGrandchildHoldingThePipeDoesNotHoldTheResult() async throws {
+  let stub = try stubScript()
+  let pidFile = stub.deletingLastPathComponent().appendingPathComponent("pid")
+  let start = Date()
+  let out = try await CLI(tool: stub, home: runHome).run(["grandchild", pidFile.path])
+  #expect(out.stdout == "hi")
+  #expect(Date().timeIntervalSince(start) < 10)
+  if let sleeper = Int32(try String(contentsOf: pidFile, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)) {
+    kill(sleeper, SIGKILL)
+  }
 }
 
 private func pgrep(_ pattern: String) -> Bool {

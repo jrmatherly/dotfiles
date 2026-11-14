@@ -44,12 +44,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     settingsWindow?.show()
   }
 
-  var upgrading: Bool { state.upgrading }
-
-  /// What Quit asks while something runs, nil when nothing does.
-  var quitQuestion: (message: String, detail: String)? {
-    if let session = console.running { return ("Stop \(session.title) and quit?", "Quitting stops the command.") }
-    return state.busy.map { ("Quit while a command is running?", $0) }
+  var quitDecision: AppState.QuitDecision {
+    state.quitDecision(sessionTitle: console.running?.title, stagedEdits: settingsWindow?.model.staged.count ?? 0)
   }
 
   func menuWillOpen(_ menu: NSMenu) {
@@ -86,8 +82,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
   }
 
   private func redraw() {
-    let symbol = state.needsAttention ? "desktopcomputer.trianglebadge.exclamationmark" : "desktopcomputer"
-    let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Return of the Mac")
+    let icon = MenuBuilder.icon(for: state)
+    let image = NSImage(systemSymbolName: icon.symbol, accessibilityDescription: icon.label)
     image?.isTemplate = true
     statusItem?.button?.image = image
     menu.removeAllItems()

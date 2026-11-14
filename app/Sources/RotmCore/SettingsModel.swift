@@ -24,7 +24,8 @@ public struct Edit: Equatable, Sendable {
   /// What a terminal user would type, for the review sheet.
   public var commandLine: String {
     (["rotm"] + arguments).map { arg in
-      arg.range(of: #"^[A-Za-z0-9_./:=@%+,-]+$"#, options: .regularExpression) != nil
+      // zsh expands a leading = to a command's path.
+      arg.range(of: #"^[A-Za-z0-9_./:=@%+,-]+$"#, options: .regularExpression) != nil && !arg.hasPrefix("=")
         ? arg : "'" + arg.replacingOccurrences(of: "'", with: #"'\''"#) + "'"
     }.joined(separator: " ")
   }
@@ -101,6 +102,8 @@ public struct Edit: Equatable, Sendable {
         if !out.stderr.isEmpty { notes.append(out.stderr) }
       } catch {
         failures.append("\(edit.settingId): \(AppState.message(error) ?? AppState.notFound)")
+        // The load below drops it if it took after all; an edit staged meanwhile wins.
+        if !staged.contains(where: { $0.settingId == edit.settingId }) { staged.append(edit) }
       }
     }
     await load()

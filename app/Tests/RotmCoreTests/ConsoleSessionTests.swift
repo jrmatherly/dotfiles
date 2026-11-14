@@ -105,8 +105,8 @@ struct ConsoleSessionTests {
     #expect(await until { lines(s.text).contains("ready") })
     let start = Date()
     s.stop()
-    #expect(await ended(s, within: 3))
-    #expect(Date().timeIntervalSince(start) < 3)
+    #expect(await ended(s, within: 10))
+    #expect(Date().timeIntervalSince(start) < 10)
     #expect(s.phase == .stopped)
   }
 

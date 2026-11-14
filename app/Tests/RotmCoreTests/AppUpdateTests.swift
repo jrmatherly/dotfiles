@@ -131,6 +131,17 @@ struct AppUpdateTests {
     #expect(fetches.count == 2)
   }
 
+  @Test func aFailedFetchIsRetriedOnTheNextCall() async {
+    let clock = Clock()
+    let state = makeState(FakeRunner(), clock: clock)
+    let fetches = FetchCount()
+    await state.checkAppUpdate(fetch: { _ in fetches.count += 1; throw Offline() }, current: "0.1.0")
+    clock.advance(minutes: 5)
+    await state.checkAppUpdate(fetch: { _ in fetches.count += 1; return "  version \"0.2.0\"\n" }, current: "0.1.0")
+    #expect(fetches.count == 2)
+    #expect(state.appUpdate == "0.2.0")
+  }
+
   @Test func diskVersionReadsThePlistOnDiskEachTime() throws {
     let app = try makeBundle(version: "0.1.0")
     #expect(AppUpdate.diskVersion(app) == "0.1.0")

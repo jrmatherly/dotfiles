@@ -36,8 +36,9 @@ final class SettingsWindowController {
 
   /// The console (Task 5) can call this when a session ends; `watchActions`
   /// already covers it through `AppState.sessionRunning`.
+  /// Reads nothing while a command runs; `watchActions` reloads when it ends.
   func reload() {
-    guard window.isVisible else { return }
+    guard window.isVisible, !state.blocked else { return }
     Task { await model.load() }
   }
 

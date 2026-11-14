@@ -68,7 +68,10 @@ public final class CLI: CommandRunner {
     process.standardInput = FileHandle.nullDevice
 
     let exit = Exit()
-    process.terminationHandler = { p in exit.finish(status: p.terminationStatus) }
+    // A signal's number would read as an exit code: SIGINT is 2, the usage exit.
+    process.terminationHandler = { p in
+      exit.finish(status: p.terminationReason == .uncaughtSignal ? 128 + p.terminationStatus : p.terminationStatus)
+    }
     do {
       try process.run()
     } catch {
@@ -188,8 +191,9 @@ private final class PipeDrain: @unchecked Sendable {
     await withCheckedContinuation { c in
       lock.lock()
       if done {
+        let bytes = data
         lock.unlock()
-        c.resume(returning: data)
+        c.resume(returning: bytes)
       } else {
         waiter = c
         lock.unlock()
@@ -197,7 +201,7 @@ private final class PipeDrain: @unchecked Sendable {
     }
   }
 
-  /// Stop reading and release the handle; nothing waits for the bytes.
+  /// Stop reading; nothing waits for more bytes.
   func stop() {
     finish()
   }
@@ -210,10 +214,9 @@ private final class PipeDrain: @unchecked Sendable {
     waiter = nil
     let bytes = data
     lock.unlock()
-    if first {
-      handle.readabilityHandler = nil
-      try? handle.close()
-    }
+    // No close: a handler call already dispatched may be inside availableData.
+    // The pipe's handle closes its descriptor when it is released.
+    if first { handle.readabilityHandler = nil }
     w?.resume(returning: bytes)
   }
 }
