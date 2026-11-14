@@ -27,6 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   // A command under `script` dies with the app, so quitting mid-run stops it.
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    // Killing mise between removing and placing the bundle is the one way to lose the app.
+    if statusItem?.upgrading == true { return .terminateCancel }
     guard let question = statusItem?.quitQuestion else { return .terminateNow }
     let alert = NSAlert()
     alert.messageText = question.message

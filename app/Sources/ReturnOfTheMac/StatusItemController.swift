@@ -13,6 +13,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
   private var timer: Timer?
   private var settingsWindow: SettingsWindowController?
   private let console = ConsoleWindowController()
+  private let runningVersion = AppUpdate.runningVersion(Bundle.main.bundleURL)
 
   init(state: AppState) {
     self.state = state
@@ -43,6 +44,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     settingsWindow?.show()
   }
 
+  var upgrading: Bool { state.upgrading }
+
   /// What Quit asks while something runs, nil when nothing does.
   var quitQuestion: (message: String, detail: String)? {
     if let session = console.running { return ("Stop \(session.title) and quit?", "Quitting stops the command.") }
@@ -55,7 +58,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
   }
 
   private func refresh() {
-    Task { await state.refresh() }
+    Task {
+      await state.refresh()
+      if let runningVersion { await state.checkAppUpdate(fetch: Self.fetch, current: runningVersion) }
+    }
+  }
+
+  private static func fetch(_ url: URL) async throws -> String {
+    let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
+    let (data, response) = try await URLSession.shared.data(for: request)
+    guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+    return String(decoding: data, as: UTF8.self)
   }
 
   // Re-armed on every change, so a refresh that lands while the menu is open
@@ -123,6 +136,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     case "dismiss": state.dismissOutput()
     case "settings": showSettings()
     case "launchAtLogin": toggleLaunchAtLogin()
+    case "appUpdate": upgradeApp()
     case "quit": NSApp.terminate(nil)
     default:
       if let command = ConsoleCommand.named(id) { runConsole(command) }
@@ -144,6 +158,41 @@ final class StatusItemController: NSObject, NSMenuDelegate {
       self.state.sessionRunning = false
       Task { await self.state.refresh(recheckUpdates: true) }
     }
+  }
+
+  // A plain process, not the console: a console command dies with the app, and this one replaces it.
+  private func upgradeApp() {
+    guard let version = state.appUpdate, !state.blocked,
+      confirm("Update Return of the Mac to \(version)?", "mise \(AppUpdate.upgradeArguments.joined(separator: " "))", "Update"),
+      !state.blocked
+    else { return }
+    let home = FileManager.default.homeDirectoryForCurrentUser
+    let mise = CLI(tool: home.appendingPathComponent(".local/bin/mise"), home: home, timeout: 1800)
+    let app = Bundle.main.bundleURL
+    Task {
+      switch await state.upgradeApp(mise: mise, app: app, expected: version) {
+      case .relaunch: Self.relaunch(app)
+      case .unchanged(let text), .failed(let text):
+        let alert = NSAlert()
+        alert.messageText = "Return of the Mac was not updated"
+        alert.informativeText = text
+        NSApp.activate(ignoringOtherApps: true)
+        alert.runModal()
+      }
+    }
+  }
+
+  /// Waits for this process to exit, because an `open` while it lives only reactivates it.
+  /// The new version is on disk by now, so a failed spawn still quits and the user reopens it.
+  private static func relaunch(_ app: URL) {
+    let waiter = Process()
+    waiter.executableURL = URL(fileURLWithPath: "/bin/sh")
+    waiter.arguments = [
+      "-c", #"while kill -0 "$1" 2>/dev/null; do sleep 0.2; done; open "$0""#, app.path,
+      String(ProcessInfo.processInfo.processIdentifier),
+    ]
+    try? waiter.run()
+    NSApp.terminate(nil)
   }
 
   private func confirm(_ message: String, _ command: String, _ button: String) -> Bool {

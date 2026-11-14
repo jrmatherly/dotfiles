@@ -60,6 +60,7 @@ public final class CLI: CommandRunner {
     env["PATH"] = Self.searchPath(home: home)
     env["TERM"] = "dumb"
     process.environment = env
+    process.currentDirectoryURL = home
     let stdout = Pipe()
     let stderr = Pipe()
     process.standardOutput = stdout

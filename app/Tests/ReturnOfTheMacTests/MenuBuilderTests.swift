@@ -136,6 +136,25 @@ struct MenuBuilderTests {
     #expect(entries.contains(.action("Update…", "update", enabled: false)))
   }
 
+  @Test func anAppUpdateLeadsTheMenuAndReadsUpdatingWhileMiseRuns() async {
+    let s = await state()
+    await s.checkAppUpdate(fetch: { _ in "  version \"0.2.0\"\n" }, current: "0.1.0")
+    #expect(s.needsAttention)
+    #expect(
+      Array(MenuBuilder.entries(for: s, launchAtLogin: false).prefix(2)) == [
+        .action("Update Return of the Mac to 0.2.0…", "appUpdate"), .separator,
+      ])
+    let mise = FakeRunner()
+    let release = mise.hold(AppUpdate.upgradeArguments)
+    let upgrade = Task { await s.upgradeApp(mise: mise, app: URL(fileURLWithPath: "/nonexistent.app"), expected: "0.2.0") }
+    for _ in 0..<500 where !s.upgrading { try? await Task.sleep(nanoseconds: 2_000_000) }
+    let entries = MenuBuilder.entries(for: s, launchAtLogin: false)
+    #expect(entries.first == .action("Updating Return of the Mac to 0.2.0…", "appUpdate", enabled: false))
+    #expect(entries.contains(.action("Update…", "update", enabled: false)))
+    release()
+    _ = await upgrade.value
+  }
+
   @Test func theAttentionSymbolExists() {
     #expect(NSImage(systemSymbolName: "desktopcomputer.trianglebadge.exclamationmark", accessibilityDescription: nil) != nil)
   }

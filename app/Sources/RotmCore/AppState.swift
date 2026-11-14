@@ -10,7 +10,9 @@ import Observation
   public private(set) var updateCheck: UpdateCheck?
   public private(set) var busy: String?
   public var sessionRunning = false
-  public var blocked: Bool { busy != nil || sessionRunning }
+  /// True while mise replaces the app; Quit is refused, because this is the one command that outlives a console.
+  public private(set) var upgrading = false
+  public var blocked: Bool { busy != nil || sessionRunning || upgrading }
   public private(set) var lastOutput: String?
   public private(set) var lastError: String?
   public private(set) var appUpdate: String?
@@ -25,6 +27,7 @@ import Observation
   private let locate: () -> URL?
   private let now: () -> Date
   private var checkedAt: Date?
+  private var appCheckedAt: Date?
 
   public init(makeRunner: @escaping (URL) -> CommandRunner, locate: @escaping () -> URL?, now: @escaping () -> Date = Date.init) {
     self.makeRunner = makeRunner
@@ -61,6 +64,44 @@ import Observation
     if let out = try? await runner.run(["update", "--check", "--json"]), let check = try? Decode.updateCheck(out.stdout) {
       updateCheck = check
     }
+  }
+
+  /// Reads the cask in the tap, at most once a day. A failed check is silent.
+  public func checkAppUpdate(fetch: (URL) async throws -> String, current: String) async {
+    if let appCheckedAt, now().timeIntervalSince(appCheckedAt) < 86400 { return }
+    appCheckedAt = now()
+    guard let text = try? await fetch(AppUpdate.caskURL), let version = AppUpdate.version(inCask: text) else { return }
+    appUpdate = AppUpdate.isNewer(version, than: current) ? version : nil
+  }
+
+  /// Whatever mise says, the version on disk decides: mise can fail after the bundle was swapped.
+  public func upgradeApp(mise: CommandRunner, app: URL, expected: String) async -> UpdateOutcome {
+    guard !blocked else { return .unchanged("Wait for the command that is running to finish.") }
+    upgrading = true
+    defer { upgrading = false }
+    var said: String
+    do {
+      let out = try await mise.run(AppUpdate.upgradeArguments)
+      said = [out.stdout, out.stderr].filter { !$0.isEmpty }.joined(separator: "\n")
+    } catch {
+      said = Self.message(error, tool: "mise") ?? "mise was not found at ~/.local/bin/mise."
+    }
+    switch Self.outcome(expected: expected, diskVersion: AppUpdate.diskVersion(app)) {
+    case .relaunch: return .relaunch
+    case .unchanged(let text): return .unchanged(said.isEmpty ? text : "\(text)\n\nmise said:\n\(said)")
+    case .failed(let text): return .failed(said.isEmpty ? text : "\(text)\n\nmise said:\n\(said)")
+    }
+  }
+
+  public static func outcome(expected: String, diskVersion: String?) -> UpdateOutcome {
+    guard let disk = diskVersion else {
+      return .failed(
+        "Return of the Mac could not be read after the update. Download it again from \(AppUpdate.releasesURL)")
+    }
+    if disk == expected || AppUpdate.isNewer(disk, than: expected) { return .relaunch }
+    return .unchanged(
+      "Return of the Mac was not replaced and is still version \(disk). To try again, run this in Terminal:\n"
+        + "mise bootstrap packages upgrade \(AppUpdate.package)")
   }
 
   public func useProfile(_ name: String) async {
@@ -109,12 +150,12 @@ import Observation
   static let notFound = "rotm was not found at ~/dotfiles/bin/rotm."
 
   /// nil when the tool itself is gone.
-  static func message(_ error: Error) -> String? {
+  static func message(_ error: Error, tool: String = "rotm") -> String? {
     switch error as? CommandError {
     case .toolMissing: return nil
     case .readOnly(let s), .invalid(let s): return s
-    case .failed(let code, let s): return s.isEmpty ? "rotm exited \(code)" : s
-    case .timedOut: return "rotm did not finish in time."
+    case .failed(let code, let s): return s.isEmpty ? "\(tool) exited \(code)" : s
+    case .timedOut: return "\(tool) did not finish in time."
     case .badJSON(let s): return "rotm printed something that is not JSON: \(s)"
     case nil: return error.localizedDescription
     }

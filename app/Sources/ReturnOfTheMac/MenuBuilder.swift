@@ -28,7 +28,8 @@ extension MenuEntry {
     let settings = MenuEntry.action("Settings…", "settings", enabled: open)
     var menu: [MenuEntry] = []
     if let version = state.appUpdate {
-      menu += [.action("Update Return of the Mac to \(version)…", "appUpdate", enabled: false), .separator]
+      let title = state.upgrading ? "Updating Return of the Mac to \(version)…" : "Update Return of the Mac to \(version)…"
+      menu += [.action(title, "appUpdate", enabled: open), .separator]
     }
     if let text = state.lastError ?? state.lastOutput {
       menu += [.info(text), .action("Dismiss", "dismiss", enabled: open), .separator]
